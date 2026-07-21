@@ -1,0 +1,254 @@
+_format_version: "3.0"
+_transform: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# KONG DECLARATIVE CONFIG — MOM Platform API Gateway
+#
+# Strategy (OSS-compatible):
+#   1. `jwt` plugin verifies HS256 tokens at Gateway level
+#   2. `pre-function` Lua plugin extracts UserID + roles from forwarded consumer
+#      and injects as internal headers: X-User-ID, X-Role-Code
+#   3. Downstream services trust these headers — do NOT re-verify JWT
+#
+# NOTE: For JWKS/OIDC (RS256 from Keycloak), the OSS `jwt` plugin requires
+#       pre-registering the public key as a Consumer + JWTCredential.
+#       In Phase 0 we use HS256 for simplicity; swap to JWKS in Phase 1
+#       when we add the Kong OIDC plugin (or use token introspection endpoint).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── Global plugins ───────────────────────────────────────────────────────────
+plugins:
+  # Correlation ID for distributed tracing across services
+  - name: correlation-id
+    config:
+      header_name: X-Trace-ID
+      generator: uuid#counter
+      echo_downstream: true
+
+  # CORS plugin allowing cross-origin requests from web frontends
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - X-Auth-Token
+        - Authorization
+        - X-User-ID
+        - X-Role-Code
+        - X-Trace-ID
+      exposed_headers:
+        - X-Trace-ID
+      credentials: true
+      max_age: 3600
+
+# ─── Services + Routes ────────────────────────────────────────────────────────
+services:
+
+  # ── Hello-World Service (Phase 0 scaffolding validator) ──────────────────
+  - name: hello-world-service
+    url: http://hello-world-service:3010
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: hello-world-route
+        paths:
+          - /api/hello
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS]
+    plugins:
+      # Forward user context from JWT claims to downstream via headers
+      # In Phase 0 we forward the Authorization header as-is; downstream
+      # services extract what they need. In Phase 1 we add Kong OIDC plugin.
+      - name: pre-function
+        config:
+          access:
+            - |
+              -- Extract X-User-ID and X-Role-Code from headers if already set
+              -- (set by reverse proxy or Keycloak token introspection upstream)
+              -- For Phase 0 demo: forward as anonymous if no auth header present
+              local auth_header = kong.request.get_header("Authorization")
+              local user_id = kong.request.get_header("X-User-ID")
+              local role_code = kong.request.get_header("X-Role-Code")
+
+              -- Get trace ID from correlation-id plugin
+              local trace_id = kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or ""
+
+              -- Defaults for Phase 0 (will be replaced with real JWT parsing in Phase 1)
+              if not user_id or user_id == "" then
+                user_id = "anonymous"
+              end
+              if not role_code or role_code == "" then
+                role_code = "OPERATOR"
+              end
+
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", role_code)
+              kong.service.request.set_header("X-Trace-ID", trace_id)
+
+  # ── MES Cluster placeholder (Phase 1) ────────────────────────────────────
+  - name: mes-master-data-service
+    url: http://mes-master-data-service:3020
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: mes-master-data-route
+        paths:
+          - /api/mes/master-data
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins:
+      - name: pre-function
+        config:
+          access:
+            - |
+              local user_id = kong.request.get_header("X-User-ID")
+              local role_code = kong.request.get_header("X-Role-Code")
+              local trace_id = kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or ""
+
+              if not user_id or user_id == "" then
+                user_id = "00000000-0000-0000-0000-0000000000ad"
+              end
+              if not role_code or role_code == "" then
+                role_code = "PROD_MANAGER"
+              end
+
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", role_code)
+              kong.service.request.set_header("X-Trace-ID", trace_id)
+
+  - name: mes-execution-service
+    url: http://mes-execution-service:3030
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: mes-execution-route
+        paths:
+          - /api/mes/execution
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins:
+      - name: pre-function
+        config:
+          access:
+            - |
+              local user_id = kong.request.get_header("X-User-ID")
+              local role_code = kong.request.get_header("X-Role-Code")
+              local trace_id = kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or ""
+
+              if not user_id or user_id == "" then
+                user_id = "00000000-0000-0000-0000-0000000000ad"
+              end
+              if not role_code or role_code == "" then
+                role_code = "PROD_MANAGER"
+              end
+
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", role_code)
+              kong.service.request.set_header("X-Trace-ID", trace_id)
+
+  - name: mes-traceability-service
+    url: http://mes-traceability-service:3040
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: mes-traceability-route
+        paths:
+          - /api/mes/traceability
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins:
+      - name: pre-function
+        config:
+          access:
+            - |
+              local user_id = kong.request.get_header("X-User-ID")
+              local role_code = kong.request.get_header("X-Role-Code")
+              local trace_id = kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or ""
+
+              if not user_id or user_id == "" then
+                user_id = "00000000-0000-0000-0000-0000000000ad"
+              end
+              if not role_code or role_code == "" then
+                role_code = "OPERATOR"
+              end
+
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", role_code)
+              kong.service.request.set_header("X-Trace-ID", trace_id)
+
+  - name: mes-kiosk-gateway-service
+    url: http://mes-kiosk-gateway-service:3050
+    connect_timeout: 5000
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: mes-kiosk-gateway-route
+        paths:
+          - /api/mes/kiosk-gateway
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins:
+      - name: pre-function
+        config:
+          access:
+            - |
+              local user_id = kong.request.get_header("X-User-ID")
+              local role_code = kong.request.get_header("X-Role-Code")
+              local trace_id = kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or ""
+
+              if not user_id or user_id == "" then
+                user_id = "00000000-0000-0000-0000-0000000000ad"
+              end
+              if not role_code or role_code == "" then
+                role_code = "OPERATOR"
+              end
+
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", role_code)
+              kong.service.request.set_header("X-Trace-ID", trace_id)
+
+#   - name: mes-cluster
+#     url: http://mes-api-gateway:4000
+#     routes:
+#       - name: mes-route
+#         paths:
+#           - /api/mes
+#         strip_path: false
+#         methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+#
+#   # ── WMS Cluster placeholder (Phase 2) ────────────────────────────────────
+#   - name: wms-cluster
+#     url: http://wms-api-gateway:4001
+#     routes:
+#       - name: wms-route
+#         paths:
+#           - /api/wms
+#         strip_path: false
+#         methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+#
+#   # ── QMS Cluster placeholder (Phase 3) ────────────────────────────────────
+#   - name: qms-cluster
+#     url: http://qms-api-gateway:4002
+#     routes:
+#       - name: qms-route
+#         paths:
+#           - /api/qms
+#         strip_path: false
+#         methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]

@@ -1,0 +1,33 @@
+{
+  "name": "mom-platform",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "libs/*",
+    "services/*",
+    "portal"
+  ],
+  "scripts": {
+    "build:shared-kernel": "npm run build --workspace=@mom-platform/shared-kernel",
+    "dev:portal": "npm run dev --workspace=mom-unified-portal",
+    "dev:hello": "npm run dev --workspace=hello-world-service",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "infra:up": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml logs -f",
+    "infra:ps": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml ps"
+  },
+  "devDependencies": {
+    "typescript-eslint": "^8.0.0",
+    "eslint": "^9.5.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
+

@@ -1,0 +1,219 @@
+{
+  "realm": "wonsealtech",
+  "displayName": "Won Seal Tech",
+  "displayNameHtml": "<strong>Won Seal Tech</strong> — MOM Platform",
+  "enabled": true,
+  "loginWithEmailAllowed": true,
+  "registrationAllowed": false,
+  "loginTheme": "keycloak",
+  "accountTheme": "keycloak.v3",
+  "sslRequired": "none",
+  "internationalizationEnabled": false,
+  "defaultLocale": "en",
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+
+  "roles": {
+    "realm": [
+      {
+        "name": "EXECUTIVE",
+        "description": "C-level / Director — sees all 3 systems (MES, WMS, QMS) on Unified Portal",
+        "composite": false
+      },
+      {
+        "name": "PLANT_MANAGER",
+        "description": "Plant / Production Manager — sees MES + WMS",
+        "composite": false
+      },
+      {
+        "name": "OPERATOR",
+        "description": "Shop-floor operator — sees MES only (Kiosk)",
+        "composite": false
+      },
+      {
+        "name": "QC_TECHNICIAN",
+        "description": "Quality control technician — sees MES + QMS",
+        "composite": false
+      },
+      {
+        "name": "WAREHOUSE_STAFF",
+        "description": "Warehouse staff — sees WMS only",
+        "composite": false
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "portal-client",
+      "name": "Unified Portal",
+      "description": "MOM Platform app launcher — entry point after SSO login",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect",
+      "rootUrl": "http://100.68.50.41:13000",
+      "baseUrl": "http://100.68.50.41:13000",
+      "redirectUris": ["http://100.68.50.41:13000/*", "http://localhost:13000/*", "http://localhost:3000/*", "https://*.trycloudflare.com/*", "*"],
+      "webOrigins": ["http://100.68.50.41:13000", "http://localhost:13000", "http://localhost:3000", "https://*.trycloudflare.com", "+", "*"],
+      "adminUrl": "http://100.68.50.41:13000",
+      "frontchannelLogout": true,
+      "attributes": {
+        "frontchannel.logout.url": "http://100.68.50.41:13000/logout"
+      },
+      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+    },
+    {
+      "clientId": "mes-client",
+      "name": "MES — Manufacturing Execution System",
+      "description": "Cluster MES — production execution, kiosk, traceability",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect",
+      "rootUrl": "http://100.68.50.41:13052",
+      "baseUrl": "http://100.68.50.41:13052",
+      "redirectUris": ["http://100.68.50.41:13052/*", "http://localhost:13052/*", "http://100.68.50.41:4000/*", "http://localhost:4000/*", "*"],
+      "webOrigins": ["http://100.68.50.41:13052", "http://localhost:13052", "http://100.68.50.41:4000", "http://localhost:4000", "+", "*"],
+      "adminUrl": "http://100.68.50.41:13052",
+      "frontchannelLogout": true,
+      "attributes": {
+        "frontchannel.logout.url": "http://100.68.50.41:13052/logout"
+      },
+      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+    },
+    {
+      "clientId": "wms-client",
+      "name": "WMS — Warehouse Management System",
+      "description": "Cluster WMS — inventory, inbound, outbound",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect",
+      "rootUrl": "http://100.68.50.41:4001",
+      "baseUrl": "http://100.68.50.41:4001",
+      "redirectUris": ["http://100.68.50.41:4001/*", "http://localhost:4001/*", "*"],
+      "webOrigins": ["http://100.68.50.41:4001", "http://localhost:4001", "+", "*"],
+      "adminUrl": "http://100.68.50.41:4001",
+      "frontchannelLogout": true,
+      "attributes": {
+        "frontchannel.logout.url": "http://100.68.50.41:4001/logout"
+      },
+      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+    },
+    {
+      "clientId": "qms-client",
+      "name": "QMS — Quality Management System",
+      "description": "Cluster QMS — inspection plans, NCR, CAPA",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect",
+      "rootUrl": "http://100.68.50.41:4002",
+      "baseUrl": "http://100.68.50.41:4002",
+      "redirectUris": ["http://100.68.50.41:4002/*", "http://localhost:4002/*", "*"],
+      "webOrigins": ["http://100.68.50.41:4002", "http://localhost:4002", "+", "*"],
+      "adminUrl": "http://100.68.50.41:4002",
+      "frontchannelLogout": true,
+      "attributes": {
+        "frontchannel.logout.url": "http://100.68.50.41:4002/logout"
+      },
+      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@wonsealtech.com",
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["EXECUTIVE"],
+      "clientRoles": {
+        "realm-management": [
+          "realm-admin"
+        ]
+      }
+    },
+    {
+      "username": "plant.manager",
+      "email": "plant.manager@wonsealtech.com",
+      "firstName": "Plant",
+      "lastName": "Manager",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Manager@123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["PLANT_MANAGER"]
+    },
+    {
+      "username": "operator01",
+      "email": "operator01@wonsealtech.com",
+      "firstName": "Nguyen Van",
+      "lastName": "A",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Operator@123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["OPERATOR"]
+    }
+  ],
+
+  "clientScopes": [
+    {
+      "name": "roles",
+      "description": "OpenID Connect scope for add user roles to the access token",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

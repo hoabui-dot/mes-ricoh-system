@@ -1,0 +1,10 @@
+service: mes-traceability-service
+cluster: MES
+owns_database: mes_traceability_db
+publishes_events:
+  - MES.Traceability.LabelIssued.v1
+  - MES.Traceability.QRSplitPerformed.v1
+  - MES.Traceability.GenealogyRecorded.v1
+consumes_events:
+  - MES.MasterData.ItemRevisionReleased.v1
+  - MES.MasterData.MBOMReleased.v1

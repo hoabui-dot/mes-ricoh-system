@@ -1,0 +1,257 @@
+name: mom-platform
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM FOUNDATION — dùng chung cho MES / WMS / QMS
+# Kafka · Schema Registry · Keycloak · Kong API Gateway · Observability Stack
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  platform-net:
+    driver: bridge
+    name: platform-net
+
+volumes:
+  kafka-data:
+  keycloak-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  tempo-data:
+
+services:
+
+  # ──────────────────────────────────────────────────────────────
+  # 1. KAFKA (KRaft mode — no Zookeeper)
+  # ──────────────────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: platform-kafka
+    hostname: kafka
+    networks: [platform-net]
+    ports:
+      - "19092:9092"   # external (host → kafka)
+      - "19093:9093"   # internal (container → container)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:19092,INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: "MOM-Platform-KRaft-001"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ──────────────────────────────────────────────────────────────
+  # 2. SCHEMA REGISTRY
+  # ──────────────────────────────────────────────────────────────
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    container_name: platform-schema-registry
+    hostname: schema-registry
+    networks: [platform-net]
+    ports:
+      - "18081:8081"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ──────────────────────────────────────────────────────────────
+  # 3. KAFKA UI (optional but useful for local dev)
+  # ──────────────────────────────────────────────────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: platform-kafka-ui
+    networks: [platform-net]
+    ports:
+      - "18082:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: mom-platform
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+
+  # ──────────────────────────────────────────────────────────────
+  # 4. KEYCLOAK — IAM + SSO
+  # ──────────────────────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    container_name: platform-keycloak
+    hostname: keycloak
+    networks: [platform-net]
+    ports:
+      - "18080:8080"
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: Admin@123!
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_PROXY_HEADERS: "xforwarded"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ──────────────────────────────────────────────────────────────
+  # 5. KONG API GATEWAY (DB-less declarative mode)
+  # ──────────────────────────────────────────────────────────────
+  kong:
+    image: kong:3.7
+    container_name: platform-kong
+    hostname: kong
+    networks: [platform-net]
+    ports:
+      - "18000:8000"   # proxy (clients hit this)
+      - "18001:8001"   # admin API (internal only)
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_LOG_LEVEL: info
+      KONG_PLUGINS: bundled,pre-function
+    volumes:
+      - ./kong/kong.yml:/etc/kong/kong.yml:ro
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ──────────────────────────────────────────────────────────────
+  # 6. OPENTELEMETRY COLLECTOR
+  # ──────────────────────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.99.0
+    container_name: platform-otel-collector
+    hostname: otel-collector
+    networks: [platform-net]
+    ports:
+      - "14317:4317"   # OTLP gRPC
+      - "14318:4318"   # OTLP HTTP
+      - "18888:8888"   # Prometheus metrics (self)
+      - "18889:8889"   # Prometheus exporter
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+
+  # ──────────────────────────────────────────────────────────────
+  # 7. TEMPO (Distributed Tracing)
+  # ──────────────────────────────────────────────────────────────
+  tempo:
+    image: grafana/tempo:2.4.2
+    container_name: platform-tempo
+    hostname: tempo
+    networks: [platform-net]
+    ports:
+      - "13200:3200"   # Tempo HTTP API
+      - "14319:4317"   # OTLP gRPC (separate port to avoid conflict)
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+
+  # ──────────────────────────────────────────────────────────────
+  # 8. LOKI (Log Aggregation)
+  # ──────────────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: platform-loki
+    hostname: loki
+    networks: [platform-net]
+    ports:
+      - "13100:3100"
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./observability/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+
+  # ──────────────────────────────────────────────────────────────
+  # 9. PROMETHEUS (Metrics)
+  # ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: platform-prometheus
+    hostname: prometheus
+    networks: [platform-net]
+    ports:
+      - "19090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+  # ──────────────────────────────────────────────────────────────
+  # 10. GRAFANA (Dashboards)
+  # ──────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: platform-grafana
+    hostname: grafana
+    networks: [platform-net]
+    ports:
+      - "13001:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: Admin@123!
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+

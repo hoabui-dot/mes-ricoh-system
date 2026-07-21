@@ -1,0 +1,42 @@
+service: hello-world-service
+cluster: Platform
+description: >
+  Scaffolding validator service for Phase 0.
+  Proves that the Service Template, Outbox pattern, Kafka publishing,
+  and OpenTelemetry instrumentation all work end-to-end before any
+  business-domain service is written.
+
+owns_database: hello_world_db
+database_host: hello-world-db
+
+publishes_events:
+  - name: platform.hello.HelloWorldCreated.v1
+    topic: platform.hello.HelloWorldCreated.v1
+    payload_schema: |
+      {
+        "type": "object",
+        "properties": {
+          "greeting_id": { "type": "string", "format": "uuid" },
+          "message": { "type": "string" },
+          "requested_by_user_id": { "type": "string" },
+          "requested_by_role": { "type": "string" }
+        },
+        "required": ["greeting_id", "message"]
+      }
+
+consumes_events: []
+
+http_endpoints:
+  - method: GET
+    path: /api/hello
+    description: Returns a greeting, publishes HelloWorldCreated event via Outbox pattern, returns trace-linked response
+    auth: required (JWT via Kong Gateway)
+    response_headers_required:
+      - X-Trace-ID
+
+dependencies:
+  - service: platform-kafka (kafka:29092)
+  - service: platform-keycloak (token verified at Gateway — service trusts X-User-ID header)
+  - service: platform-otel-collector (otel-collector:4317)
+
+port: 3010

@@ -1,0 +1,23 @@
+# Ignore node_modules everywhere — Docker will npm install from scratch
+**/node_modules
+**/dist
+**/.git
+**/.gitignore
+
+# Ignore infra files (not needed in service images)
+infra/
+
+# Ignore process docs
+process/
+product-doc.md
+README.md
+*.md
+
+# Ignore IDE files
+.vscode/
+.idea/
+**/*.log
+
+# Portal dist (built separately)
+portal/dist/
+portal/node_modules/

@@ -1,0 +1,62 @@
+service: mes-master-data-service
+cluster: MES
+description: >
+  Owns MES master data Layers 0-3: foundation, product/MBOM, process/standards,
+  resource/capability, and MES domain-scoped access. Does not own traceability
+  configuration, kiosk terminals, or production execution transactions.
+
+owns_database: mes_master_data_db
+database_host: mes-master-data-db
+
+publishes_events:
+  - name: MES.MasterData.ItemRevisionReleased.v1
+    topic: MES.MasterData.ItemRevisionReleased.v1
+    payload: master_id, code, version_no, item_code, revision_code, item_type, site_id
+  - name: MES.MasterData.MBOMReleased.v1
+    topic: MES.MasterData.MBOMReleased.v1
+    payload: master_id, code, version_no, item_revision_id, site_id, base_quantity, base_uom_code, line_count
+  - name: MES.MasterData.RoutingReleased.v1
+    topic: MES.MasterData.RoutingReleased.v1
+    payload: master_id, code, version_no, item_revision_id, site_id, operation_count
+  - name: MES.MasterData.ProductionVersionReleased.v1
+    topic: MES.MasterData.ProductionVersionReleased.v1
+    payload: master_id, code, version_no, item_revision_id, mbom_header_id, routing_header_id, site_id
+  - name: MES.MasterData.ProductionStandardReleased.v1
+    topic: MES.MasterData.ProductionStandardReleased.v1
+    payload: master_id, code, version_no, operation_id, work_center_id, equipment_id, setup_time_min, cycle_time_sec
+  - name: MES.MasterData.WorkCenterActivated.v1
+    topic: MES.MasterData.WorkCenterActivated.v1
+    payload: master_id, code, version_no, site_id, area_id
+  - name: MES.MasterData.EquipmentActivated.v1
+    topic: MES.MasterData.EquipmentActivated.v1
+    payload: master_id, code, version_no, site_id, work_center_id, equipment_type
+
+consumes_events: []
+
+http_endpoints:
+  - method: GET
+    path: /api/mes/master-data/:resource
+    description: List records for a supported master-data table group
+  - method: GET
+    path: /api/mes/master-data/:resource/:id
+    description: Get one record by master_id
+  - method: POST
+    path: /api/mes/master-data/:resource
+    description: Create a record; user context comes from Kong headers
+  - method: PATCH
+    path: /api/mes/master-data/:resource/:id
+    description: Optimistic update; requires expected_row_version
+  - method: POST
+    path: /api/mes/master-data/:resource/:id/release
+    description: Validate and release; writes release event to outbox where configured
+  - method: POST
+    path: /api/mes/master-data/production-versions/:id/validate
+    description: Run Release-time Validation Engine rules 1-8 and 10
+
+notes:
+  - "Traceability config tables (policy/numbering/split-rule/label-template) are owned by mes-traceability-service, not here."
+  - "md_terminal is owned by mes-kiosk-gateway-service, not here."
+  - "Validation rule #9 (Traceability) from catalog §VII.1 is delegated to mes-traceability-service."
+  - "RoleCode and UserID are references to Keycloak identity/roles, not local foreign keys."
+
+port: 3020

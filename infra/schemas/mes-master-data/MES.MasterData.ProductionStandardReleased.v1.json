@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MES.MasterData.ProductionStandardReleased.v1",
+  "type": "object",
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "type": "string", "enum": ["MES.MasterData.ProductionStandardReleased.v1"] },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "source_service": { "type": "string" },
+    "trace_id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "master_id": { "type": "string", "format": "uuid" },
+        "code": { "type": "string" },
+        "version_no": { "type": "integer" },
+        "operation_id": { "type": "string", "format": "uuid" },
+        "work_center_id": { "type": "string", "format": "uuid" },
+        "equipment_id": { "type": ["string", "null"] },
+        "setup_time_min": { "type": ["number", "string", "null"] },
+        "cycle_time_sec": { "type": ["number", "string", "null"] }
+      },
+      "required": ["master_id", "code", "version_no"]
+    }
+  },
+  "required": ["event_id", "event_type", "occurred_at", "source_service", "trace_id", "payload"]
+}

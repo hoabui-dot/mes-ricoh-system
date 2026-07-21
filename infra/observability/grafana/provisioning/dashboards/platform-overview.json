@@ -1,0 +1,73 @@
+{
+  "id": null,
+  "uid": "mom-platform-overview",
+  "title": "MOM Platform — Overview",
+  "tags": ["platform", "mom"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (all services)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "-- Grafana --" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m])) by (service_name)",
+          "legendFormat": "{{service_name}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "-- Grafana --" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) by (service_name) / sum(rate(http_requests_total[1m])) by (service_name) * 100",
+          "legendFormat": "{{service_name}} error %"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Recent Traces",
+      "type": "traces",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "queryType": "traceql",
+          "query": "{ duration > 10ms }",
+          "limit": 20
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Recent Logs",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
+      "datasource": { "type": "loki", "uid": "-- Grafana --" },
+      "targets": [
+        {
+          "expr": "{job=~\".+\"} | json",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    }
+  ]
+}
