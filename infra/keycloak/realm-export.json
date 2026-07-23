@@ -67,7 +67,8 @@
       "adminUrl": "http://100.68.50.41:13000",
       "frontchannelLogout": true,
       "attributes": {
-        "frontchannel.logout.url": "http://100.68.50.41:13000/logout"
+        "frontchannel.logout.url": "http://100.68.50.41:13000/logout",
+        "post.logout.redirect.uris": "+"
       },
       "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
     },
@@ -87,7 +88,8 @@
       "adminUrl": "http://100.68.50.41:13052",
       "frontchannelLogout": true,
       "attributes": {
-        "frontchannel.logout.url": "http://100.68.50.41:13052/logout"
+        "frontchannel.logout.url": "http://100.68.50.41:13052/logout",
+        "post.logout.redirect.uris": "+"
       },
       "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
     },
@@ -100,14 +102,15 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "protocol": "openid-connect",
-      "rootUrl": "http://100.68.50.41:4001",
-      "baseUrl": "http://100.68.50.41:4001",
-      "redirectUris": ["http://100.68.50.41:4001/*", "http://localhost:4001/*", "*"],
-      "webOrigins": ["http://100.68.50.41:4001", "http://localhost:4001", "+", "*"],
-      "adminUrl": "http://100.68.50.41:4001",
+      "rootUrl": "http://100.68.50.41:13091",
+      "baseUrl": "http://100.68.50.41:13091",
+      "redirectUris": ["http://100.68.50.41:13091/*", "http://localhost:13091/*", "*"],
+      "webOrigins": ["http://100.68.50.41:13091", "http://localhost:13091", "+", "*"],
+      "adminUrl": "http://100.68.50.41:13091",
       "frontchannelLogout": true,
       "attributes": {
-        "frontchannel.logout.url": "http://100.68.50.41:4001/logout"
+        "frontchannel.logout.url": "http://100.68.50.41:13091/logout",
+        "post.logout.redirect.uris": "+"
       },
       "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
     },
@@ -120,14 +123,15 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "protocol": "openid-connect",
-      "rootUrl": "http://100.68.50.41:4002",
-      "baseUrl": "http://100.68.50.41:4002",
-      "redirectUris": ["http://100.68.50.41:4002/*", "http://localhost:4002/*", "*"],
-      "webOrigins": ["http://100.68.50.41:4002", "http://localhost:4002", "+", "*"],
-      "adminUrl": "http://100.68.50.41:4002",
+      "rootUrl": "http://100.68.50.41:13130",
+      "baseUrl": "http://100.68.50.41:13130",
+      "redirectUris": ["http://100.68.50.41:13130/*", "http://localhost:13130/*", "*"],
+      "webOrigins": ["http://100.68.50.41:13130", "http://localhost:13130", "+", "*"],
+      "adminUrl": "http://100.68.50.41:13130",
       "frontchannelLogout": true,
       "attributes": {
-        "frontchannel.logout.url": "http://100.68.50.41:4002/logout"
+        "frontchannel.logout.url": "http://100.68.50.41:13130/logout",
+        "post.logout.redirect.uris": "+"
       },
       "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
     }
@@ -172,6 +176,22 @@
       "realmRoles": ["PLANT_MANAGER"]
     },
     {
+      "username": "qc.tech01",
+      "email": "qc.tech01@wonsealtech.com",
+      "firstName": "Quality",
+      "lastName": "Technician",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Quality@123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["QC_TECHNICIAN"]
+    },
+    {
       "username": "operator01",
       "email": "operator01@wonsealtech.com",
       "firstName": "Nguyen Van",
@@ -186,6 +206,22 @@
         }
       ],
       "realmRoles": ["OPERATOR"]
+    },
+    {
+      "username": "warehouse.staff",
+      "email": "warehouse.staff@wonsealtech.com",
+      "firstName": "Warehouse",
+      "lastName": "Staff",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Warehouse@123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["WAREHOUSE_STAFF"]
     }
   ],
 

@@ -11,9 +11,15 @@
   "scripts": {
     "build:shared-kernel": "npm run build --workspace=@mom-platform/shared-kernel",
     "dev:portal": "npm run dev --workspace=mom-unified-portal",
-    "dev:hello": "npm run dev --workspace=hello-world-service",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "i18n:audit:mes": "tsx scripts/i18n-audit/detect-mislabeled-vi.ts",
+    "i18n:seed:enrich:mes": "tsx scripts/i18n-audit/enrich-known-seed-localized-text.ts",
+    "i18n:register:qms-console": "tsx scripts/i18n-audit/register-qms-console-fallback-flags.ts",
+    "seed:wms:demo": "tsx scripts/seed-wms-demo.ts",
+    "seed:qms:demo": "tsx scripts/seed-qms-demo.ts",
+    "i18n:scan": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts",
+    "i18n:scan:wms-console": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts services/wms-console/src",
     "test": "npm run test --workspaces --if-present",
     "infra:up": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml down",
@@ -30,4 +36,3 @@
     "npm": ">=10.0.0"
   }
 }
-

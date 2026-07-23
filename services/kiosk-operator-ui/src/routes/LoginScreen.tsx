@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useKioskSocket } from '../context/KioskSocketContext';
 import { ShieldCheck, UserCheck, KeyRound, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 
 export const LoginScreen: React.FC = () => {
   const { terminalId = 'KIOSK-MOLD-01' } = useParams();
   const navigate = useNavigate();
   const { connectSocket } = useKioskSocket();
+  const { locale, setLocale, t } = useI18n();
 
   const [employeeId, setEmployeeId] = useState('operator01');
   const [pin, setPin] = useState('Operator@123!');
@@ -60,8 +62,11 @@ export const LoginScreen: React.FC = () => {
           <div className="w-16 h-16 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto text-indigo-400">
             <ShieldCheck className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">Kiosk Điều Hành Sản Xuất</h1>
-          <p className="text-xs text-slate-400 font-mono">Thiết bị: {terminalId}</p>
+          <h1 className="text-2xl font-bold text-slate-100">{t('kiosk.title')}</h1>
+          <p className="text-xs text-slate-400 font-mono">{t('kiosk.device', { terminalId })}</p>
+          <select value={locale} onChange={(event) => setLocale(event.target.value as SupportedLocale)} className="mt-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs">
+            {SUPPORTED_LOCALES.map((item) => <option key={item} value={item}>{languageNames[item]}</option>)}
+          </select>
         </div>
 
         {errorMsg && (
@@ -73,7 +78,7 @@ export const LoginScreen: React.FC = () => {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Mã Nhân Viên / Tên đăng nhập
+              {t('kiosk.employee')}
             </label>
             <div className="relative">
               <UserCheck className="w-5 h-5 text-slate-500 absolute left-3 top-3.5" />
@@ -89,7 +94,7 @@ export const LoginScreen: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Mật khẩu / Mã PIN
+              {t('kiosk.password')}
             </label>
             <div className="relative">
               <KeyRound className="w-5 h-5 text-slate-500 absolute left-3 top-3.5" />
@@ -111,10 +116,10 @@ export const LoginScreen: React.FC = () => {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Đang xác thực Direct Grant...</span>
+                <span>{t('kiosk.authenticating')}</span>
               </>
             ) : (
-              <span>Xác Nhận Đăng Nhập Ca</span>
+              <span>{t('kiosk.login')}</span>
             )}
           </button>
         </form>

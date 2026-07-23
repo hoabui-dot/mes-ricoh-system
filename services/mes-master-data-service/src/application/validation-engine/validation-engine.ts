@@ -3,8 +3,8 @@ import { Pool, PoolClient } from 'pg';
 export interface ValidationFailure {
   rule: string;
   severity: 'ERROR' | 'WARN';
-  message: string;
-  details?: Record<string, unknown>;
+  code: string;
+  params?: Record<string, string | number>;
 }
 
 export interface ValidationResult {
@@ -19,6 +19,10 @@ type Queryable = Pool | PoolClient;
 async function exists(db: Queryable, sql: string, params: unknown[]): Promise<boolean> {
   const { rows } = await db.query(sql, params);
   return rows.length > 0;
+}
+
+function fail(rule: string, code: string, params?: Record<string, string | number>): ValidationFailure {
+  return { rule, severity: 'ERROR', code, ...(params ? { params } : {}) };
 }
 
 export async function validateProductionVersion(
@@ -41,7 +45,7 @@ export async function validateProductionVersion(
   );
   const pv = rows[0];
   if (!pv) {
-    failures.push({ rule: 'PV_EXISTS', severity: 'ERROR', message: 'Production Version does not exist' });
+    failures.push(fail('PV_EXISTS', 'PRODUCTION_VERSION.NOT_FOUND'));
     return {
       production_version_id: productionVersionId,
       valid: false,
@@ -51,7 +55,7 @@ export async function validateProductionVersion(
   }
 
   if (!(await exists(db, `SELECT 1 FROM md_item_revision WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.item_revision_id]))) {
-    failures.push({ rule: '1', severity: 'ERROR', message: 'Item Revision must be Released and effective' });
+    failures.push(fail('1', 'ITEM_REVISION.NOT_RELEASED'));
   }
 
   const { rows: mbomLines } = await db.query<{ master_id: string; quantity_per: string; uom_id: string; phantom_flag: boolean; component_revision_id: string }>(
@@ -60,17 +64,17 @@ export async function validateProductionVersion(
     [pv.mbom_header_id],
   );
   if (mbomLines.length === 0) {
-    failures.push({ rule: '2', severity: 'ERROR', message: 'MBOM must have at least one line' });
+    failures.push(fail('2', 'MBOM.NO_LINES'));
   }
   for (const line of mbomLines) {
     if (Number(line.quantity_per) <= 0) {
-      failures.push({ rule: '2', severity: 'ERROR', message: 'MBOM line QuantityPer must be > 0', details: { line_id: line.master_id } });
+      failures.push(fail('2', 'MBOM.LINE_QTY_NON_POSITIVE', { lineId: line.master_id }));
     }
     if (!(await exists(db, `SELECT 1 FROM md_uom WHERE master_id = $1 AND lifecycle_status = 'Released'`, [line.uom_id]))) {
-      failures.push({ rule: '2', severity: 'ERROR', message: 'MBOM line UOM must be valid and Released', details: { line_id: line.master_id } });
+      failures.push(fail('2', 'MBOM.LINE_UOM_NOT_RELEASED', { lineId: line.master_id }));
     }
     if (line.phantom_flag && !(await exists(db, `SELECT 1 FROM md_mbom_header WHERE item_revision_id = $1 AND lifecycle_status = 'Released'`, [line.component_revision_id]))) {
-      failures.push({ rule: '3', severity: 'ERROR', message: 'Phantom component must have a valid Released child MBOM', details: { line_id: line.master_id } });
+      failures.push(fail('3', 'MBOM.PHANTOM_MISSING_CHILD', { lineId: line.master_id }));
     }
   }
   if (await exists(db, `WITH RECURSIVE c(master_id, parent_line_id, path) AS (
@@ -81,7 +85,7 @@ export async function validateProductionVersion(
       WHERE NOT l.master_id = ANY(c.path)
     )
     SELECT 1 FROM md_mbom_line l JOIN c ON l.master_id = c.parent_line_id WHERE l.master_id = ANY(c.path) LIMIT 1`, [pv.mbom_header_id])) {
-    failures.push({ rule: '2', severity: 'ERROR', message: 'MBOM hierarchy must not contain cycles' });
+    failures.push(fail('2', 'MBOM.CYCLE'));
   }
 
   const { rows: routingOps } = await db.query<{ master_id: string; operation_id: string; work_center_id: string; seq: number; predecessor_seq: number | null }>(
@@ -90,38 +94,38 @@ export async function validateProductionVersion(
     [pv.routing_header_id],
   );
   if (routingOps.length === 0) {
-    failures.push({ rule: '4', severity: 'ERROR', message: 'Routing must have at least one operation' });
+    failures.push(fail('4', 'ROUTING.NO_OPERATIONS'));
   }
   const seqs = new Set<number>();
   for (const op of routingOps) {
-    if (seqs.has(op.seq)) failures.push({ rule: '4', severity: 'ERROR', message: 'Routing operation sequence must be unique', details: { seq: op.seq } });
+    if (seqs.has(op.seq)) failures.push(fail('4', 'ROUTING.SEQ_DUPLICATE', { seq: op.seq }));
     seqs.add(op.seq);
     if (op.predecessor_seq !== null && !routingOps.some((candidate) => candidate.seq === op.predecessor_seq)) {
-      failures.push({ rule: '4', severity: 'ERROR', message: 'Routing predecessor must reference an existing sequence', details: { seq: op.seq, predecessor_seq: op.predecessor_seq } });
+      failures.push(fail('4', 'ROUTING.PREDECESSOR_MISSING', { seq: op.seq, predecessorSeq: op.predecessor_seq }));
     }
     if (!(await exists(db, `SELECT 1 FROM md_work_center WHERE master_id = $1 AND site_id = $2 AND active_flag = TRUE AND lifecycle_status = 'Released'`, [op.work_center_id, pv.site_id]))) {
-      failures.push({ rule: '5', severity: 'ERROR', message: 'Work Center must be active and belong to Production Version site', details: { routing_operation_id: op.master_id } });
+      failures.push(fail('5', 'WORK_CENTER.NOT_ACTIVE_FOR_SITE', { routingOperationId: op.master_id }));
     }
     if (!(await exists(db, `SELECT 1 FROM md_resource_capability WHERE operation_id = $1 AND work_center_id = $2 AND capability_type = 'Eligible' AND active_flag = TRUE AND lifecycle_status = 'Released'`, [op.operation_id, op.work_center_id]))) {
-      failures.push({ rule: '6', severity: 'ERROR', message: 'At least one eligible resource capability is required', details: { routing_operation_id: op.master_id } });
+      failures.push(fail('6', 'RESOURCE_CAPABILITY.MISSING', { routingOperationId: op.master_id }));
     }
     const schedulable = await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND is_schedulable = TRUE`, [op.operation_id]);
     if (schedulable && !(await exists(db, `SELECT 1 FROM md_production_standard WHERE item_revision_id = $1 AND operation_id = $2 AND work_center_id = $3 AND setup_time_min IS NOT NULL AND cycle_time_sec IS NOT NULL AND lifecycle_status = 'Released'`, [pv.item_revision_id, op.operation_id, op.work_center_id]))) {
-      failures.push({ rule: '7', severity: 'ERROR', message: 'Schedulable operation needs setup and cycle time in Production Standard', details: { routing_operation_id: op.master_id } });
+      failures.push(fail('7', 'PRODUCTION_STANDARD.MISSING_TIME', { routingOperationId: op.master_id }));
     }
   }
   if (routingOps.some((op) => op.predecessor_seq === op.seq)) {
-    failures.push({ rule: '4', severity: 'ERROR', message: 'Routing predecessor graph must not contain cycles' });
+    failures.push(fail('4', 'ROUTING.CYCLE'));
   }
 
   if (!(await exists(db, `SELECT 1 FROM md_resource_calendar WHERE available_from <= NOW() AND available_to > NOW() AND lifecycle_status = 'Released'`, []))) {
-    failures.push({ rule: '8', severity: 'ERROR', message: 'Resource Calendar must have availability in the planning window' });
+    failures.push(fail('8', 'RESOURCE_CALENDAR.MISSING'));
   }
   if (!(await exists(db, `SELECT 1 FROM md_role_permission WHERE permission_code = 'MES_MASTER_DATA_APPROVE' AND action = 'APPROVE' AND lifecycle_status = 'Released'`, []))) {
-    failures.push({ rule: '10', severity: 'ERROR', message: 'At least one approver role must exist' });
+    failures.push(fail('10', 'PERMISSION.APPROVER_MISSING'));
   }
   if (!(await exists(db, `SELECT 1 FROM md_workstation WHERE active_flag = TRUE AND lifecycle_status = 'Released'`, []))) {
-    failures.push({ rule: '10', severity: 'ERROR', message: 'At least one workstation-eligible executor must exist' });
+    failures.push(fail('10', 'WORKSTATION.EXECUTOR_MISSING'));
   }
 
   return {

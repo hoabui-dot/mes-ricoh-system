@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/segmentio/kafka-go"
 	"github.com/mom-platform/shared-kernel-go"
+	"github.com/segmentio/kafka-go"
 )
 
 type MasterDataConsumer struct {
@@ -25,8 +25,8 @@ func NewMasterDataConsumer(brokers []string, pool *pgxpool.Pool) *MasterDataCons
 
 func (c *MasterDataConsumer) Start(ctx context.Context) {
 	topics := []string{
-		"MES.MasterData.ItemRevisionReleased.v1",
-		"MES.MasterData.MBOMReleased.v1",
+		"MES.MasterData.ItemRevisionReleased.v2",
+		"MES.MasterData.MBOMReleased.v2",
 	}
 
 	for _, topic := range topics {
@@ -76,9 +76,9 @@ func (c *MasterDataConsumer) consumeTopic(ctx context.Context, topic string) {
 
 func (c *MasterDataConsumer) handleEvent(ctx context.Context, eventType string, payload map[string]interface{}) error {
 	switch eventType {
-	case "MES.MasterData.ItemRevisionReleased.v1":
+	case "MES.MasterData.ItemRevisionReleased.v2":
 		return c.syncItemRevision(ctx, payload)
-	case "MES.MasterData.MBOMReleased.v1":
+	case "MES.MasterData.MBOMReleased.v2":
 		return c.syncMBOMHeader(ctx, payload)
 	}
 	return nil
@@ -87,29 +87,38 @@ func (c *MasterDataConsumer) handleEvent(ctx context.Context, eventType string, 
 func (c *MasterDataConsumer) syncItemRevision(ctx context.Context, payload map[string]interface{}) error {
 	masterID, _ := payload["master_id"].(string)
 	code, _ := payload["code"].(string)
+	nameJSON, _ := json.Marshal(payload["name"])
+	if string(nameJSON) == "null" {
+		nameJSON = []byte(`{"vi":""}`)
+	}
 	revisionCode, _ := payload["revision_code"].(string)
 	itemType, _ := payload["item_type"].(string)
 	siteID, _ := payload["site_id"].(string)
 	lifecycleStatus, _ := payload["lifecycle_status"].(string)
 
 	query := `
-		INSERT INTO rm_item_revision (master_id, code, revision_code, item_type, site_id, lifecycle_status, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, now())
+		INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, lifecycle_status, updated_at)
+		VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, now())
 		ON CONFLICT (master_id) DO UPDATE SET
 			code = EXCLUDED.code,
+			name = EXCLUDED.name,
 			revision_code = EXCLUDED.revision_code,
 			item_type = EXCLUDED.item_type,
 			site_id = EXCLUDED.site_id,
 			lifecycle_status = EXCLUDED.lifecycle_status,
 			updated_at = now()
 	`
-	_, err := c.pool.Exec(ctx, query, masterID, code, revisionCode, itemType, siteID, lifecycleStatus)
+	_, err := c.pool.Exec(ctx, query, masterID, code, string(nameJSON), revisionCode, itemType, siteID, lifecycleStatus)
 	return err
 }
 
 func (c *MasterDataConsumer) syncMBOMHeader(ctx context.Context, payload map[string]interface{}) error {
 	masterID, _ := payload["master_id"].(string)
 	code, _ := payload["code"].(string)
+	nameJSON, _ := json.Marshal(payload["name"])
+	if string(nameJSON) == "null" {
+		nameJSON = []byte(`{"vi":""}`)
+	}
 	itemRevID, _ := payload["item_revision_id"].(string)
 	siteID, _ := payload["site_id"].(string)
 	baseQty, _ := payload["base_quantity"].(float64)
@@ -117,10 +126,11 @@ func (c *MasterDataConsumer) syncMBOMHeader(ctx context.Context, payload map[str
 	status, _ := payload["lifecycle_status"].(string)
 
 	query := `
-		INSERT INTO rm_mbom_header (master_id, code, item_revision_id, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+		INSERT INTO rm_mbom_header (master_id, code, name, item_revision_id, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
+		VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, now())
 		ON CONFLICT (master_id) DO UPDATE SET
 			code = EXCLUDED.code,
+			name = EXCLUDED.name,
 			item_revision_id = EXCLUDED.item_revision_id,
 			site_id = EXCLUDED.site_id,
 			base_quantity = EXCLUDED.base_quantity,
@@ -128,6 +138,6 @@ func (c *MasterDataConsumer) syncMBOMHeader(ctx context.Context, payload map[str
 			lifecycle_status = EXCLUDED.lifecycle_status,
 			updated_at = now()
 	`
-	_, err := c.pool.Exec(ctx, query, masterID, code, itemRevID, siteID, baseQty, baseUomID, status)
+	_, err := c.pool.Exec(ctx, query, masterID, code, string(nameJSON), itemRevID, siteID, baseQty, baseUomID, status)
 	return err
 }

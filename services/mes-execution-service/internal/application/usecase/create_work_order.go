@@ -74,8 +74,8 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	} else {
 		type lineStruct struct {
 			masterID, compRevID, compCode, uomID, issueOpID *string
-			qtyPerStr, scrapRateStr                          string
-			backflush, phantom                               bool
+			qtyPerStr, scrapRateStr                         string
+			backflush, phantom                              bool
 		}
 		var lines []lineStruct
 		for mbomRows.Next() {

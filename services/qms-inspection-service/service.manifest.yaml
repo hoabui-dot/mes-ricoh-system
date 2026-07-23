@@ -1,0 +1,29 @@
+service: qms-inspection-service
+version: 1.0.0
+cluster: QMS
+bounded_context: Inspection
+runtime:
+  language: node
+  framework: express
+  port: 3110
+database:
+  name: qms_inspection_db
+  ownership: qms-inspection-service
+events:
+  publishes:
+    - QMS.Inspection.InspectionPlanReleased.v1
+    - QMS.Inspection.InspectionResultRecorded.v1
+    - QMS.Inspection.InspectionFailed.v1
+  consumes:
+    - MES.MasterData.ItemRevisionReleased.v2
+    - MES.MasterData.RoutingReleased.v1
+    - MES.Execution.OperationFinished.v1
+dependencies:
+  synchronous:
+    - service: mes-master-data-service
+      purpose: validate inspection plan item revision, operation, site, and UOM references
+      breaker: opossum
+      timeout_ms: 10000
+      reset_timeout_ms: 30000
+      volume_threshold: 4
+      error_threshold_percentage: 50

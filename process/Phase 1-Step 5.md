@@ -169,6 +169,10 @@ Implement **three layers** of error handling, each with a distinct responsibilit
 
 ## 1. Explicit Non-Goals for This Step
 
+> Current-state note added by documentation audit on 2026-07-22: the WMS stock-visibility gap below was
+> correct for this historical kiosk prompt. Phase 2 Step 2 now implements WMS backend stock staging;
+> kiosk UI stock visibility remains a separate future UX decision.
+
 - No MQTT/PLC integration (§A.1).
 - No supervisor/admin console (Item/MBOM/Routing CRUD UI) — that remains a separate, not-yet-scheduled deliverable; flag this gap to the project owner rather than building it opportunistically here.
 - No offline write replay on the backend (§A.2).

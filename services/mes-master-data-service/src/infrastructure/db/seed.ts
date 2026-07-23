@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { normalizeSeedValues } from './seed-i18n.js';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
 const ADMIN_USER_ID = '00000000-0000-0000-0000-0000000000ad';
@@ -8,7 +9,8 @@ async function upsertMaster(
   table: string,
   values: Record<string, unknown>,
 ): Promise<string> {
-  const columns = Object.keys(values);
+  const record = normalizeSeedValues(table, values);
+  const columns = Object.keys(record);
   const placeholders = columns.map((_, index) => `$${index + 1}`);
   const sql = `
     INSERT INTO ${table} (${columns.join(', ')})
@@ -16,16 +18,16 @@ async function upsertMaster(
     ON CONFLICT (code, version_no) DO NOTHING
     RETURNING master_id
   `;
-  const { rows } = await client.query(sql, columns.map((column) => values[column]));
+  const { rows } = await client.query(sql, columns.map((column) => record[column]));
   const insertedId = rows[0]?.['master_id'];
   if (typeof insertedId === 'string') return insertedId;
 
   const existing = await client.query(`SELECT master_id FROM ${table} WHERE code = $1 AND version_no = $2`, [
-    values['code'],
-    values['version_no'] ?? 1,
+    record['code'],
+    record['version_no'] ?? 1,
   ]);
   const id = existing.rows[0]?.['master_id'];
-  if (typeof id !== 'string') throw new Error(`Seed failed for ${table}.${String(values['code'])}`);
+  if (typeof id !== 'string') throw new Error(`Seed failed for ${table}.${String(record['code'])}`);
   return id;
 }
 

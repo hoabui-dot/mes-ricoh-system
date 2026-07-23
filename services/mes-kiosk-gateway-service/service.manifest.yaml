@@ -1,0 +1,40 @@
+service: mes-kiosk-gateway-service
+cluster: MES
+language: go
+description: >
+  Kiosk gateway for factory terminals. Owns terminal sessions, terminal status APIs,
+  WebSocket fan-out, and Keycloak-backed operator login for kiosk devices.
+
+owns_database: mes_kiosk_gateway_db
+database_host: mes-kiosk-gateway-db
+
+publishes_events: []
+
+consumes_events:
+  - MES.Execution.WOCreated.v1
+  - MES.Execution.WOApproved.v1
+
+synchronous_dependencies:
+  - service: platform-keycloak
+    endpoints:
+      - POST /realms/wonsealtech/protocol/openid-connect/token
+    caller: terminal operator login with Keycloak password grant
+    circuit_breaker:
+      library: gobreaker via libs/shared-kernel-go
+      failure_threshold: ">=50% failures after minimum 4 requests"
+      open_timeout: 30s
+      half_open_trial_requests: 2
+      graceful_failure: "HTTP 503 KEYCLOAK_UNAVAILABLE; invalid credentials remain HTTP 401"
+
+http_endpoints:
+  - GET /api/mes/kiosk-gateway/ws
+  - POST /api/mes/kiosk-gateway/terminals/:id/login
+  - POST /api/mes/kiosk-gateway/terminals/:id/logout
+  - GET /api/mes/kiosk-gateway/terminals/:id/status
+  - GET /api/mes/kiosk-gateway/terminals
+
+notes:
+  - "Keycloak is a synchronous platform dependency and is guarded by the shared Go circuit breaker baseline."
+  - "Circuit breaker state transitions emit OTel spans/metrics through the existing collector path."
+
+port: 3050

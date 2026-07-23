@@ -1,5 +1,7 @@
 import React from 'react';
 import { AlertOctagon, RefreshCw, ShieldAlert } from 'lucide-react';
+import { useI18n } from '@mom-platform/i18n-ui-shared';
+import { Button, Card } from './ui';
 
 interface ErrorBoundaryCardProps {
   error: any;
@@ -7,6 +9,7 @@ interface ErrorBoundaryCardProps {
 }
 
 export const ErrorBoundaryCard: React.FC<ErrorBoundaryCardProps> = ({ error, onRetry }) => {
+  const { t } = useI18n();
   const incidentId = React.useMemo(() => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
       return crypto.randomUUID().slice(0, 8);
@@ -20,19 +23,19 @@ export const ErrorBoundaryCard: React.FC<ErrorBoundaryCardProps> = ({ error, onR
   if (isUnauthorized) {
     return (
       <div className="min-h-[400px] flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl">
+        <Card className="p-8 max-w-md w-full text-center space-y-4">
           <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto" />
-          <h2 className="text-xl font-bold text-slate-100">Không có quyền truy cập (401/403)</h2>
+          <h2 className="text-xl font-bold text-slate-100">{t('error.unauthorized.title')}</h2>
           <p className="text-sm text-slate-400">
-            Tài khoản của bạn không có đủ quyền thực hiện thao tác này.
+            {t('error.unauthorized.body')}
           </p>
-          <button
+          <Button
             onClick={() => window.location.reload()}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition"
+            className="w-full bg-action hover:bg-action-hover text-white font-semibold py-3 px-4 rounded-md transition"
           >
-            Đăng nhập lại
-          </button>
-        </div>
+            {t('error.loginAgain')}
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -40,50 +43,51 @@ export const ErrorBoundaryCard: React.FC<ErrorBoundaryCardProps> = ({ error, onR
   if (isCircuitBreaker) {
     return (
       <div className="min-h-[400px] flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl">
+        <Card className="p-8 max-w-md w-full text-center space-y-4 border-action/40">
           <AlertOctagon className="w-12 h-12 text-amber-500 mx-auto animate-pulse" />
-          <h2 className="text-xl font-bold text-amber-100">Dịch vụ đang bận (503 Circuit Breaker)</h2>
+          <h2 className="text-xl font-bold text-amber-100">{t('error.busy.title')}</h2>
           <p className="text-sm text-amber-200/80">
-            Hệ thống Master Data / Execution đang tạm gián đoạn response. Vui lòng nhấn thử lại.
+            {t('error.busy.body')}
           </p>
           <div className="text-xs font-mono text-slate-500 bg-slate-950 p-2 rounded">
-            Mã sự cố: INC-{incidentId}
+            {t('error.incident', { incidentId })}
           </div>
           {onRetry && (
-            <button
+            <Button
               onClick={onRetry}
-              className="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 transition"
+              className="w-full"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Thử lại ngay</span>
-            </button>
+              <span>{t('common.retry')}</span>
+            </Button>
           )}
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="min-h-[400px] flex items-center justify-center p-6">
-      <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl">
+      <Card className="p-8 max-w-md w-full text-center space-y-4 border-rose-500/30">
         <AlertOctagon className="w-12 h-12 text-rose-500 mx-auto" />
-        <h2 className="text-xl font-bold text-slate-100">Đã có lỗi hệ thống</h2>
+        <h2 className="text-xl font-bold text-slate-100">{t('error.system.title')}</h2>
         <p className="text-sm text-slate-400">
-          Gặp sự cố ngoài dự kiến trong quá trình xử lý dữ liệu.
+          {t('error.system.body')}
         </p>
         <div className="text-xs font-mono text-rose-400 bg-slate-950 p-2 rounded border border-rose-900/50">
-          Mã sự cố: INC-{incidentId}
+          {t('error.incident', { incidentId })}
         </div>
         {onRetry && (
-          <button
+          <Button
             onClick={onRetry}
-            className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 transition"
+            variant="secondary"
+            className="w-full"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Tải lại trang</span>
-          </button>
+            <span>{t('common.reload')}</span>
+          </Button>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

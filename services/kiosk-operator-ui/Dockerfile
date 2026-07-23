@@ -3,11 +3,18 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY libs/shared-kernel/package.json ./libs/shared-kernel/
+COPY libs/i18n-ui-shared/package.json ./libs/i18n-ui-shared/
 COPY services/kiosk-operator-ui/package.json ./services/kiosk-operator-ui/
 
 RUN npm install --workspace=services/kiosk-operator-ui --include-workspace-root
 
+COPY libs/shared-kernel ./libs/shared-kernel
+COPY libs/i18n-ui-shared ./libs/i18n-ui-shared
 COPY services/kiosk-operator-ui ./services/kiosk-operator-ui
+
+RUN npm run build --workspace=@mom-platform/shared-kernel
+RUN npm run build --workspace=@mom-platform/i18n-ui-shared
 
 WORKDIR /app/services/kiosk-operator-ui
 RUN npm run build

@@ -13,7 +13,8 @@ ingester:
   max_block_duration: 5m
 
 compactor:
-  compaction_window: 1h
+  compaction:
+    block_retention: 24h
 
 storage:
   trace:
@@ -22,9 +23,6 @@ storage:
       path: /var/tempo/wal
     local:
       path: /var/tempo/blocks
-
-search_enabled: true
-metrics_generator_enabled: false
 
 overrides:
   defaults:

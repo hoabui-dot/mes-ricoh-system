@@ -1,0 +1,3 @@
+import { Outlet, useLocation } from 'react-router-dom';
+import { Sidebar } from './Sidebar'; import { Topbar } from './Topbar'; import { RouteErrorBoundary } from '../RouteErrorBoundary'; import { PageDetailButton } from '../shared/PageDetailButton';
+export function AppShell() { const location = useLocation(); return <div className="flex h-screen overflow-hidden bg-background text-foreground"><Sidebar /><div className="flex min-w-0 flex-1 flex-col"><Topbar /><main className="min-h-0 flex-1 overflow-y-auto p-5"><div className="mb-3 flex justify-end"><PageDetailButton /></div><RouteErrorBoundary resetKey={location.pathname}><Outlet /></RouteErrorBoundary></main></div></div>; }

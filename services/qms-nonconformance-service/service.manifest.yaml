@@ -1,0 +1,18 @@
+service: qms-nonconformance-service
+version: 1.0.0
+cluster: QMS
+bounded_context: Nonconformance
+runtime:
+  language: node
+  framework: express
+  port: 3120
+database:
+  name: qms_nonconformance_db
+  ownership: qms-nonconformance-service
+events:
+  publishes:
+    - QMS.Nonconformance.NCRRaised.v1
+    - QMS.Nonconformance.NCRDispositioned.v1
+    - QMS.Nonconformance.CAPAClosed.v1
+  consumes:
+    - QMS.Inspection.InspectionFailed.v1

@@ -9,12 +9,12 @@ owns_database: mes_master_data_db
 database_host: mes-master-data-db
 
 publishes_events:
-  - name: MES.MasterData.ItemRevisionReleased.v1
-    topic: MES.MasterData.ItemRevisionReleased.v1
-    payload: master_id, code, version_no, item_code, revision_code, item_type, site_id
-  - name: MES.MasterData.MBOMReleased.v1
-    topic: MES.MasterData.MBOMReleased.v1
-    payload: master_id, code, version_no, item_revision_id, site_id, base_quantity, base_uom_code, line_count
+  - name: MES.MasterData.ItemRevisionReleased.v2
+    topic: MES.MasterData.ItemRevisionReleased.v2
+    payload: master_id, code, name(LocalizedText), version_no, item_code, revision_code, item_type, site_id
+  - name: MES.MasterData.MBOMReleased.v2
+    topic: MES.MasterData.MBOMReleased.v2
+    payload: master_id, code, name(LocalizedText), version_no, item_revision_id, site_id, base_quantity, base_uom_code, line_count
   - name: MES.MasterData.RoutingReleased.v1
     topic: MES.MasterData.RoutingReleased.v1
     payload: master_id, code, version_no, item_revision_id, site_id, operation_count
@@ -24,12 +24,21 @@ publishes_events:
   - name: MES.MasterData.ProductionStandardReleased.v1
     topic: MES.MasterData.ProductionStandardReleased.v1
     payload: master_id, code, version_no, operation_id, work_center_id, equipment_id, setup_time_min, cycle_time_sec
-  - name: MES.MasterData.WorkCenterActivated.v1
-    topic: MES.MasterData.WorkCenterActivated.v1
-    payload: master_id, code, version_no, site_id, area_id
-  - name: MES.MasterData.EquipmentActivated.v1
-    topic: MES.MasterData.EquipmentActivated.v1
-    payload: master_id, code, version_no, site_id, work_center_id, equipment_type
+  - name: MES.MasterData.WorkCenterActivated.v2
+    topic: MES.MasterData.WorkCenterActivated.v2
+    payload: master_id, code, name(LocalizedText), version_no, site_id, area_id
+  - name: MES.MasterData.EquipmentActivated.v2
+    topic: MES.MasterData.EquipmentActivated.v2
+    payload: master_id, code, name(LocalizedText), version_no, site_id, work_center_id, equipment_type
+  - name: MES.MasterData.EmployeeCreated.v1
+    topic: MES.MasterData.EmployeeCreated.v1
+    payload: master_id, code, version_no, site_id, default_work_center_id, employee_status
+  - name: MES.MasterData.ShiftCreated.v1
+    topic: MES.MasterData.ShiftCreated.v1
+    payload: master_id, code, version_no, site_id, start_time, end_time, crosses_midnight
+  - name: MES.MasterData.EmployeeScheduleAssigned.v1
+    topic: MES.MasterData.EmployeeScheduleAssigned.v1
+    payload: schedule_ids, employee_ids, shift_id, work_center_id, date_range
 
 consumes_events: []
 
@@ -52,11 +61,30 @@ http_endpoints:
   - method: POST
     path: /api/mes/master-data/production-versions/:id/validate
     description: Run Release-time Validation Engine rules 1-8 and 10
+  - method: POST
+    path: /api/mes/master-data/employee-schedules/bulk
+    description: Bulk assign employee shift schedules across a date range and return created/skipped rows
+  - method: GET
+    path: /api/mes/master-data/employee-schedules?work_center_id=&date=
+    description: List work-center schedules for a date with server-computed is_on_shift_now
+  - method: GET
+    path: /api/mes/master-data/work-centers/:id/headcount
+    description: Return default and currently-on-shift headcount for a WorkCenter
+  - method: GET
+    path: /api/mes/master-data/employees/:id/skills
+    description: List employee skill assignments
+  - method: PUT
+    path: /api/mes/master-data/employees/:id/skills
+    description: Replace employee skill assignments
 
 notes:
   - "Traceability config tables (policy/numbering/split-rule/label-template) are owned by mes-traceability-service, not here."
   - "md_terminal is owned by mes-kiosk-gateway-service, not here."
   - "Validation rule #9 (Traceability) from catalog §VII.1 is delegated to mes-traceability-service."
   - "RoleCode and UserID are references to Keycloak identity/roles, not local foreign keys."
+  - "Step 7 models employee multi-skill assignment via md_employee_skill, while WorkCenter eligibility stays MVP-simple through md_employee.default_work_center_id. Multi-WorkCenter eligibility is a deliberate follow-up because execution capacity checks are out of scope for this step."
+  - "md_employee_shift_schedule stores explicit per-day assignments instead of recurrence rules so on-shift queries remain a simple indexed lookup."
+  - "ComputeAndCheck labor capacity integration remains a Phase 2+ follow-up; Step 7 only exposes labor master data and schedule/headcount read APIs."
+  - "Step 8 publishes LocalizedText-capable .v2 schemas for ItemRevision, MBOM, WorkCenter, and Equipment events; .v1 schemas remain registered for compatibility but new consumers should use .v2."
 
 port: 3020

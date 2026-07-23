@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   uuid,
   varchar,
+  date,
 } from 'drizzle-orm/pg-core';
 
 export const masterLifecycleStatus = pgEnum('master_lifecycle_status', [
@@ -69,6 +70,7 @@ export const mdShift = pgTable('md_shift', {
   siteId: uuid('site_id').notNull(),
   startTime: varchar('start_time', { length: 8 }).notNull(),
   endTime: varchar('end_time', { length: 8 }).notNull(),
+  crossesMidnight: boolean('crosses_midnight').notNull().default(false),
 });
 
 export const mdReasonCode = pgTable('md_reason_code', {
@@ -229,6 +231,39 @@ export const mdSkill = pgTable('md_skill', {
   ...commonMasterColumns(),
   skillGroup: varchar('skill_group', { length: 80 }).notNull(),
   minimumLevel: varchar('minimum_level', { length: 10 }).notNull(),
+});
+
+export const mdEmployee = pgTable('md_employee', {
+  ...commonMasterColumns(),
+  siteId: uuid('site_id').notNull(),
+  defaultWorkCenterId: uuid('default_work_center_id'),
+  employeeStatus: varchar('employee_status', { length: 20 }).notNull().default('Active'),
+  hiredDate: date('hired_date'),
+});
+
+export const mdEmployeeSkill = pgTable('md_employee_skill', {
+  employeeId: uuid('employee_id').notNull(),
+  skillId: uuid('skill_id').notNull(),
+  level: varchar('level', { length: 10 }).notNull(),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  rowVersion: integer('row_version').notNull().default(1),
+});
+
+export const mdEmployeeShiftSchedule = pgTable('md_employee_shift_schedule', {
+  scheduleId: uuid('schedule_id').primaryKey().defaultRandom(),
+  employeeId: uuid('employee_id').notNull(),
+  shiftId: uuid('shift_id').notNull(),
+  workCenterId: uuid('work_center_id'),
+  scheduleDate: date('schedule_date').notNull(),
+  scheduleStatus: varchar('schedule_status', { length: 20 }).notNull().default('Scheduled'),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  rowVersion: integer('row_version').notNull().default(1),
 });
 
 export const mdOperationSkillRequirement = pgTable('md_operation_skill_requirement', {

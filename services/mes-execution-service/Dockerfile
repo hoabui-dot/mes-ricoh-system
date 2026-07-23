@@ -21,6 +21,6 @@ COPY --from=builder /app/services/mes-execution-service/migrations ./migrations
 EXPOSE 3030
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
-  CMD wget -q --spider http://127.0.0.1:3030/health || exit 1
+  CMD wget -qO- http://127.0.0.1:3030/health >/dev/null || exit 1
 
 CMD ["./server"]

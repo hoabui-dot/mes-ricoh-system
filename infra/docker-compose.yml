@@ -14,56 +14,14 @@ name: mom-platform
 include:
   - path: docker-compose.platform.yml
   - path: docker-compose.mes.yml
+  - path: docker-compose.wms.yml
+  - path: docker-compose.qms.yml
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Hello-World Service (Scaffolding validator — Phase 0)
-# ─────────────────────────────────────────────────────────────────────────────
 services:
-  hello-world-db:
-    image: postgres:16-alpine
-    container_name: hello-world-db
-    networks: [platform-net]
-    environment:
-      POSTGRES_DB: hello_world_db
-      POSTGRES_USER: hello_user
-      POSTGRES_PASSWORD: hello_pass
-    ports:
-      - "15433:5432"
-    volumes:
-      - hello-world-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hello_user -d hello_world_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  hello-world-service:
-    build:
-      # Context = workspace root so Dockerfile can COPY libs/shared-kernel
-      context: ..
-      dockerfile: services/hello-world-service/Dockerfile
-    container_name: hello-world-service
-    networks: [platform-net]
-    ports:
-      - "13010:3010"
-    depends_on:
-      hello-world-db:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    environment:
-      NODE_ENV: development
-      PORT: 3010
-      DATABASE_URL: postgresql://hello_user:hello_pass@hello-world-db:5432/hello_world_db
-      KAFKA_BROKERS: kafka:29092
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-      OTEL_SERVICE_NAME: hello-world-service
-      OTEL_TRACES_EXPORTER: otlp
-
   portal:
     build:
-      context: ../portal
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: portal/Dockerfile
     container_name: platform-portal
     networks: [platform-net]
     ports:
@@ -71,6 +29,3 @@ services:
     depends_on:
       keycloak:
         condition: service_healthy
-
-volumes:
-  hello-world-db-data:

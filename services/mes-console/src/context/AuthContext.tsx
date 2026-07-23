@@ -25,18 +25,30 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+let keycloakInitPromise: Promise<boolean> | null = null;
+
+function initKeycloakOnce() {
+  if (!keycloakInitPromise) {
+    keycloakInitPromise = keycloak.init({
+      onLoad: 'login-required',
+      pkceMethod: 'S256',
+      checkLoginIframe: false,
+    });
+  }
+  return keycloakInitPromise;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    keycloak
-      .init({
-        onLoad: 'login-required',
-        pkceMethod: 'S256',
-        checkLoginIframe: false,
-      })
+    let mounted = true;
+    let refreshTimer: number | undefined;
+
+    initKeycloakOnce()
       .then((auth) => {
+        if (!mounted) return;
         setAuthenticated(auth);
         if (auth) {
           const parsed = keycloak.tokenParsed as any;
@@ -51,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(userObj);
 
           // Token auto refresh
-          setInterval(() => {
+          refreshTimer = window.setInterval(() => {
             keycloak.updateToken(60).catch(() => {
               console.error('[Auth] Token refresh failed');
             });
@@ -61,6 +73,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .catch((err) => {
         console.error('[Auth] Keycloak init error:', err);
       });
+
+    return () => {
+      mounted = false;
+      if (refreshTimer) window.clearInterval(refreshTimer);
+    };
   }, []);
 
   const hasRole = (role: string) => {
@@ -76,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-12 h-12 border-4 border-action border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm font-medium text-slate-400">Đang kết nối Keycloak OIDC...</p>
         </div>
       </div>

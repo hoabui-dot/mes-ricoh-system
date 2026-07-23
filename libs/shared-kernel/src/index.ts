@@ -23,3 +23,14 @@ export {
   writeToOutbox,
   OUTBOX_TABLE_SQL,
 } from './outbox-publisher.js';
+
+// ── Internationalization Contracts ───────────────────────────────────────────
+export {
+  type SupportedLocale,
+  type LocalizedText,
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  localizedTextSchema,
+  isSupportedLocale,
+  resolveLocalizedText,
+} from './i18n.js';

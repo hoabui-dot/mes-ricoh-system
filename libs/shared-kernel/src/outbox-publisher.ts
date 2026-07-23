@@ -78,7 +78,7 @@ export interface OutboxRelayConfig {
  * Usage: Start once at application startup, stop on graceful shutdown.
  *
  * @example
- * const relay = new OutboxRelayWorker({ pool, kafkaBrokers: ['kafka:29092'], clientId: 'hello-world-service' });
+ * const relay = new OutboxRelayWorker({ pool, kafkaBrokers: ['kafka:29092'], clientId: 'my-service' });
  * await relay.start();
  * // on shutdown:
  * await relay.stop();

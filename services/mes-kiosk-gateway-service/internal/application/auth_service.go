@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mom-platform/mes-kiosk-gateway-service/internal/domain"
+	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 type AuthService struct {
@@ -21,6 +22,13 @@ type AuthService struct {
 	realm       string
 	clientID    string
 }
+
+var keycloakLoginClient = &http.Client{Timeout: 5 * time.Second}
+
+var keycloakLoginBreaker = sharedkernel.NewCircuitBreaker(sharedkernel.CircuitBreakerConfig{
+	Name:       "KioskKeycloakLogin",
+	Dependency: "platform-keycloak",
+})
 
 func NewAuthService(pool *pgxpool.Pool, keycloakURL, realm, clientID string) *AuthService {
 	if keycloakURL == "" {
@@ -62,9 +70,9 @@ func (s *AuthService) LoginTerminal(ctx context.Context, terminalID string, inpu
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := requestKeycloakToken(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to reach keycloak: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -104,6 +112,27 @@ func (s *AuthService) LoginTerminal(ctx context.Context, terminalID string, inpu
 	`, sessionID, realTerminalID, tokenResp.UserID, time.Now().UTC())
 
 	return &tokenResp, nil
+}
+
+func requestKeycloakToken(req *http.Request) (*http.Response, error) {
+	result, err := keycloakLoginBreaker.Execute(func() (interface{}, error) {
+		resp, err := keycloakLoginClient.Do(req)
+		if err != nil {
+			return nil, sharedkernel.NewRetryableDependencyError("platform-keycloak", err)
+		}
+		if resp.StatusCode >= http.StatusInternalServerError {
+			defer resp.Body.Close()
+			return nil, sharedkernel.NewRetryableDependencyError("platform-keycloak", fmt.Errorf("keycloak login failed with status %d", resp.StatusCode))
+		}
+		return resp, nil
+	})
+	if err != nil {
+		if sharedkernel.IsCircuitBreakerOpen(err) {
+			return nil, sharedkernel.NewRetryableDependencyError("platform-keycloak", err)
+		}
+		return nil, err
+	}
+	return result.(*http.Response), nil
 }
 
 func (s *AuthService) ValidateToken(tokenStr string) (jwt.MapClaims, error) {

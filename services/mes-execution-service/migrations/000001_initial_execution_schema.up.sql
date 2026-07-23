@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS wo_approval_log (
 CREATE TABLE IF NOT EXISTS rm_item_revision (
   master_id uuid PRIMARY KEY,
   code varchar(50) NOT NULL,
+  name jsonb NOT NULL DEFAULT '{"vi":""}'::jsonb,
   revision_code varchar(30) NOT NULL,
   item_type varchar(40),
   site_id uuid NOT NULL,
@@ -84,6 +85,7 @@ CREATE TABLE IF NOT EXISTS rm_item_revision (
 CREATE TABLE IF NOT EXISTS rm_mbom_header (
   master_id uuid PRIMARY KEY,
   code varchar(50) NOT NULL,
+  name jsonb NOT NULL DEFAULT '{"vi":""}'::jsonb,
   item_revision_id uuid NOT NULL,
   site_id uuid NOT NULL,
   base_quantity numeric(18,6) NOT NULL,
@@ -153,6 +155,7 @@ CREATE TABLE IF NOT EXISTS rm_production_standard (
 CREATE TABLE IF NOT EXISTS rm_work_center (
   master_id uuid PRIMARY KEY,
   code varchar(50) NOT NULL,
+  name jsonb NOT NULL DEFAULT '{"vi":""}'::jsonb,
   site_id uuid NOT NULL,
   area_id uuid NOT NULL,
   active_flag boolean NOT NULL DEFAULT true,
@@ -162,6 +165,7 @@ CREATE TABLE IF NOT EXISTS rm_work_center (
 CREATE TABLE IF NOT EXISTS rm_equipment (
   master_id uuid PRIMARY KEY,
   code varchar(50) NOT NULL,
+  name jsonb NOT NULL DEFAULT '{"vi":""}'::jsonb,
   site_id uuid NOT NULL,
   work_center_id uuid NOT NULL,
   equipment_type varchar(80) NOT NULL,

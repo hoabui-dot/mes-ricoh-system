@@ -2,19 +2,30 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+COPY libs/shared-kernel/package.json ./libs/shared-kernel/
+COPY libs/i18n-ui-shared/package.json ./libs/i18n-ui-shared/
+COPY portal/package.json ./portal/
 
-COPY . .
+RUN npm install --workspace=portal --include-workspace-root
+
+COPY libs/shared-kernel ./libs/shared-kernel
+COPY libs/i18n-ui-shared ./libs/i18n-ui-shared
+COPY portal ./portal
+
+RUN npm run build --workspace=@mom-platform/shared-kernel
+RUN npm run build --workspace=@mom-platform/i18n-ui-shared
+
+WORKDIR /app/portal
 RUN npm run build
 
 # ── Production: serve via nginx ───────────────────────────────────────────────
 FROM nginx:1.27-alpine AS production
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/portal/dist /usr/share/nginx/html
 
 # nginx config to support React SPA routing
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY portal/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

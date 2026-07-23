@@ -1,0 +1,120 @@
+name: mom-platform
+
+services:
+  qms-inspection-db:
+    image: postgres:16-alpine
+    container_name: qms-inspection-db
+    networks: [platform-net]
+    environment:
+      POSTGRES_DB: qms_inspection_db
+      POSTGRES_USER: qms_inspection_owner
+      POSTGRES_PASSWORD: qms_inspection_owner_pass
+    ports:
+      - "15442:5432"
+    volumes:
+      - qms-inspection-db-data:/var/lib/postgresql/data
+      - ./postgres/qms-inspection-init.sql:/docker-entrypoint-initdb.d/001-qms-inspection-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qms_inspection_owner -d qms_inspection_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qms-inspection-service:
+    build:
+      context: ..
+      dockerfile: services/qms-inspection-service/Dockerfile
+    container_name: qms-inspection-service
+    networks: [platform-net]
+    ports:
+      - "13110:3110"
+    depends_on:
+      qms-inspection-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      mes-master-data-service:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3110
+      DATABASE_URL: postgresql://qms_inspection_user:qms_inspection_pass@qms-inspection-db:5432/qms_inspection_db
+      MIGRATION_DATABASE_URL: postgresql://qms_inspection_owner:qms_inspection_owner_pass@qms-inspection-db:5432/qms_inspection_db
+      KAFKA_BROKERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      MES_MASTER_DATA_SERVICE_URL: http://mes-master-data-service:3020
+      SEED_ON_STARTUP: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: qms-inspection-service
+      OTEL_TRACES_EXPORTER: otlp
+
+  qms-nonconformance-db:
+    image: postgres:16-alpine
+    container_name: qms-nonconformance-db
+    networks: [platform-net]
+    environment:
+      POSTGRES_DB: qms_nonconformance_db
+      POSTGRES_USER: qms_nonconformance_owner
+      POSTGRES_PASSWORD: qms_nonconformance_owner_pass
+    ports:
+      - "15443:5432"
+    volumes:
+      - qms-nonconformance-db-data:/var/lib/postgresql/data
+      - ./postgres/qms-nonconformance-init.sql:/docker-entrypoint-initdb.d/001-qms-nonconformance-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qms_nonconformance_owner -d qms_nonconformance_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qms-nonconformance-service:
+    build:
+      context: ..
+      dockerfile: services/qms-nonconformance-service/Dockerfile
+    container_name: qms-nonconformance-service
+    networks: [platform-net]
+    ports:
+      - "13120:3120"
+    depends_on:
+      qms-nonconformance-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      qms-inspection-service:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      PORT: 3120
+      DATABASE_URL: postgresql://qms_nonconformance_user:qms_nonconformance_pass@qms-nonconformance-db:5432/qms_nonconformance_db
+      MIGRATION_DATABASE_URL: postgresql://qms_nonconformance_owner:qms_nonconformance_owner_pass@qms-nonconformance-db:5432/qms_nonconformance_db
+      KAFKA_BROKERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SEED_ON_STARTUP: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: qms-nonconformance-service
+      OTEL_TRACES_EXPORTER: otlp
+
+  qms-console:
+    build:
+      context: ..
+      dockerfile: services/qms-console/Dockerfile
+      args:
+        VITE_KEYCLOAK_URL: http://100.68.50.41:18080
+        VITE_API_BASE_URL: http://100.68.50.41:18000
+    container_name: qms-console
+    networks: [platform-net]
+    ports:
+      - "13130:80"
+    depends_on:
+      qms-inspection-service:
+        condition: service_started
+      qms-nonconformance-service:
+        condition: service_started
+
+volumes:
+  qms-inspection-db-data:
+  qms-nonconformance-db-data:

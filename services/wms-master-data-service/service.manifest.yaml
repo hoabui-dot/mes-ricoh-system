@@ -1,0 +1,20 @@
+service: wms-master-data-service
+cluster: WMS
+language: node
+owns_database: wms_master_data_db
+publishes_events:
+  - WMS.MasterData.WarehouseCreated.v1
+  - WMS.MasterData.ZoneCreated.v1
+  - WMS.MasterData.LocationCreated.v1
+  - WMS.MasterData.StorageBinCreated.v1
+  - WMS.MasterData.ItemUOMMappingCreated.v1
+consumes_events:
+  - MES.MasterData.ItemRevisionReleased.v2
+notes:
+  - "First service in Cluster WMS. Node.js chosen per TECH-STACK-DECISION.md: CRUD/read-heavy workload, same shape as mes-master-data-service."
+  - "All translatable fields (warehouse_name, warehouse_description, zone_name, location_name, bin_name) use the LocalizedText jsonb contract from libs/shared-kernel."
+  - "Consumes MES.MasterData.ItemRevisionReleased.v2 into a minimal rm_item_revision read-model, used only to validate item_revision_id references in wms_item_uom_mapping."
+  - "No direct queries to mes_master_data_db; MES references are local read-model or opaque references."
+  - "Kong route /api/wms/master-data uses native Kong JWT verification against Keycloak RS256 tokens plus a pre-function that extracts sub and realm_access.roles into X-User-ID and X-Role-Code; it does not assign anonymous/default WMS identity headers."
+  - "Runtime DB uses a separate migration/owner role and a non-owner application role; the app role has SELECT/INSERT/UPDATE but no DELETE grant on WMS-owned tables."
+  - "WMS.MasterData.LocationCreated.v1 was additively extended with location_purpose and staging_for_work_center_ref because no live external consumer existed before Phase 2 Step 2. This is not a blanket rule to avoid version bumps; live-consumer payload changes still require an explicit compatibility/version decision."

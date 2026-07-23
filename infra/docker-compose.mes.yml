@@ -87,6 +87,7 @@ services:
       KAFKA_BROKERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       MASTER_DATA_SERVICE_URL: http://mes-master-data-service:3020
+      WMS_OUTBOUND_SERVICE_URL: http://wms-outbound-service:3090/api/wms/outbound
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_SERVICE_NAME: mes-execution-service
       OTEL_TRACES_EXPORTER: otlp
@@ -197,6 +198,8 @@ services:
     build:
       context: ..
       dockerfile: services/mes-console/Dockerfile
+      args:
+        VITE_KEYCLOAK_URL: http://100.68.50.41:18080
     container_name: mes-console
     networks: [platform-net]
     ports:

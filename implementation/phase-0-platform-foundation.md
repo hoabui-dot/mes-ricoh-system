@@ -2,7 +2,7 @@
 
 **Project:** MOM Platform (MES / WMS / QMS) — Won Seal Tech  
 **Phase:** Phase 0 (Platform Foundation)  
-**Status:** Completed ✅  
+**Status:** Completed ✅; Hello World validator decommissioned 2026-07-22
 **Date:** 2026-07-21  
 
 ---
@@ -16,7 +16,9 @@ Phase 0 establishes the common shared platform foundation before building domain
 - **Unified Portal**: React + Vite SPA authenticating via Keycloak PKCE (`portal-client`), filtering app cards based on JWT role claims.
 - **Observability**: OpenTelemetry Collector, Loki, Tempo, Prometheus, and Grafana with pre-provisioned data sources.
 - **Shared Kernel (`libs/shared-kernel`)**: `@mom-platform/shared-kernel` providing `EventEnvelope<T>`, `OutboxRelayWorker`, `audit-trigger.sql`, and `lifecycle-state-machine.sql`.
-- **Scaffolding Validator (`services/hello-world-service`)**: Express service with PostgreSQL `hello_world_db`, `GET /api/hello` endpoint, transactional outbox publishing `Platform.Hello.HelloWorldCreated.v1` to Kafka, and OTel auto-instrumentation.
+- **Scaffolding Validator**: The temporary `hello-world-service` was used to validate Phase 0 service
+  layout, PostgreSQL, Kong routing, outbox/Kafka, and OTel. It was decommissioned on 2026-07-22 and is
+  no longer part of the current runtime or source tree.
 
 ---
 
@@ -29,11 +31,8 @@ flowchart TD
   User[Browser User] --> Portal[Unified Portal - React<br/>localhost:13000]
   Portal --> Keycloak[Keycloak Realm: wonsealtech<br/>localhost:18080]
   User --> Kong[Kong Gateway<br/>localhost:18000]
-  Kong --> Hello[hello-world-service<br/>localhost:13010]
-  Hello --> HelloDB[(hello_world_db<br/>localhost:15433)]
-  Hello --> Outbox[OutboxRelayWorker]
-  Outbox --> Kafka[Kafka Broker<br/>localhost:19092]
-  Hello --> OTel[OpenTelemetry Collector]
+  Kong --> Kafka[Kafka Broker<br/>localhost:19092]
+  Kong --> OTel[OpenTelemetry Collector]
   OTel --> Tempo[Tempo]
   OTel --> Loki[Loki]
   OTel --> Prometheus[Prometheus]
@@ -52,7 +51,6 @@ flowchart TD
    - Shifted all host-mapped ports to dedicated non-conflicting ranges (`13xxx`, `18xxx`, `19xxx`) to prevent conflicts with host services:
      - Portal: `13000`
      - Grafana: `13001`
-     - Hello Service: `13010`
      - Kong Proxy: `18000` / Admin: `18001`
      - Keycloak: `18080`
      - Schema Registry: `18081`
@@ -82,9 +80,8 @@ flowchart TD
 | 4 | Unified Portal renders role-filtered app cards | `http://localhost:13000` | ✅ 200 OK |
 | 5 | Single Sign-On (SSO) across apps | Browser session check | ✅ Passed |
 | 6 | Single Logout (SLO) session termination | Front-channel logout check | ✅ Passed |
-| 7 | Route `/api/hello` via Kong Gateway | `curl http://localhost:18000/api/hello` | ✅ 200 OK |
-| 8 | Transactional Outbox event publishing | `kafka-console-consumer --topic platform.hello.HelloWorldCreated.v1` | ✅ Message Consumed |
-| 9 | Distributed Tracing | Grafana Tempo `@ http://localhost:13001` | ✅ Verified |
+| 7 | Temporary Hello World validator | Removed from current runtime/source on 2026-07-22 | ✅ Decommissioned |
+| 8 | Distributed Tracing | Grafana Tempo `@ http://localhost:13001` | ✅ Verified |
 
 ---
 
@@ -94,4 +91,3 @@ flowchart TD
 - Kong Gateway Config: [`infra/kong/kong.yml`](file:///home/neurosus/mes-system/infra/kong/kong.yml)
 - Keycloak Realm Export: [`infra/keycloak/realm-export.json`](file:///home/neurosus/mes-system/infra/keycloak/realm-export.json)
 - Shared Kernel Package: [`libs/shared-kernel`](file:///home/neurosus/mes-system/libs/shared-kernel)
-- Scaffolding Service: [`services/hello-world-service`](file:///home/neurosus/mes-system/services/hello-world-service)

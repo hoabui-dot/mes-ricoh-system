@@ -11,11 +11,12 @@ import (
 	"github.com/mom-platform/mes-execution-service/internal/application/usecase"
 	"github.com/mom-platform/mes-execution-service/internal/domain"
 	"github.com/mom-platform/mes-execution-service/internal/infrastructure/client"
+	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 const systemUserID = "00000000-0000-0000-0000-000000000001"
 
-func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient) http.Handler {
+func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient, wmsOutboundClient *client.WMSOutboundClient) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(func(next http.Handler) http.Handler {
@@ -45,6 +46,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Post("/work-orders", handleCreateWorkOrder(pool))
 		r.Post("/work-orders/{id}/compute-check", handleComputeCheck(pool))
 		r.Post("/work-orders/{id}/approve", handleApproveWO(pool))
+		r.Post("/work-orders/{id}/stage-materials", handleStageMaterials(pool, wmsOutboundClient))
 		r.Post("/work-orders/{id}/reject", handleRejectWO(pool))
 		r.Get("/work-orders/{id}", handleGetWOByID(pool))
 		r.Get("/work-orders", handleListWorkOrders(pool))
@@ -57,6 +59,37 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 	})
 
 	return r
+}
+
+func handleStageMaterials(pool *pgxpool.Pool, wmsOutboundClient *client.WMSOutboundClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		woID := chi.URLParam(r, "id")
+		userID := getHeader(r, "X-User-ID", systemUserID)
+		traceID := getHeader(r, "X-Trace-ID", "missing-trace")
+		results, err := usecase.StageMaterialsForWorkOrder(r.Context(), pool, wmsOutboundClient, usecase.StageMaterialsInput{
+			WOID:    woID,
+			UserID:  userID,
+			TraceID: traceID,
+		})
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]string{"error": "WMS_STAGING_UNAVAILABLE", "message": err.Error()})
+			return
+		}
+		status := http.StatusOK
+		for _, result := range results {
+			if result.Error != "" {
+				status = http.StatusServiceUnavailable
+				break
+			}
+			if result.Status == "Shortage" {
+				status = http.StatusConflict
+			}
+		}
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]interface{}{"wo_id": woID, "results": results})
+	}
 }
 
 func getHeader(r *http.Request, key, fallback string) string {
@@ -163,6 +196,11 @@ func handleConfirmOperation(pool *pgxpool.Pool, traceabilityClient *client.Trace
 		})
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
+			if sharedkernel.IsRetryableDependencyError(err) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				json.NewEncoder(w).Encode(map[string]string{"error": "DEPENDENCY_UNAVAILABLE", "message": err.Error()})
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
@@ -360,6 +398,11 @@ func handleApproveWO(pool *pgxpool.Pool) http.HandlerFunc {
 		})
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
+			if sharedkernel.IsRetryableDependencyError(err) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				json.NewEncoder(w).Encode(map[string]string{"error": "DEPENDENCY_UNAVAILABLE", "message": err.Error()})
+				return
+			}
 			w.WriteHeader(http.StatusConflict)
 			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
@@ -440,13 +483,18 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			opRows.Close()
 		}
 
-		reqRows, _ := pool.Query(r.Context(), `SELECT requirement_id, component_item_revision_id, component_item_code, required_qty, uom_id, backflush_flag, phantom_flag, stock_check_status FROM wo_material_requirement WHERE wo_id = $1`, woID)
+		reqRows, _ := pool.Query(r.Context(), `SELECT requirement_id, component_item_revision_id, component_item_code, required_qty, uom_id, backflush_flag, phantom_flag, stock_check_status, COALESCE(stock_check_detail, 'null'::jsonb) FROM wo_material_requirement WHERE wo_id = $1`, woID)
 		var reqs []map[string]interface{}
 		for reqRows != nil && reqRows.Next() {
 			var reqID, compRevID, compCode, reqUomID, stockStatus string
+			var stockDetail []byte
 			var reqQty float64
 			var backflush, phantom bool
-			_ = reqRows.Scan(&reqID, &compRevID, &compCode, &reqQty, &reqUomID, &backflush, &phantom, &stockStatus)
+			_ = reqRows.Scan(&reqID, &compRevID, &compCode, &reqQty, &reqUomID, &backflush, &phantom, &stockStatus, &stockDetail)
+			var detail interface{}
+			if len(stockDetail) > 0 {
+				_ = json.Unmarshal(stockDetail, &detail)
+			}
 			reqs = append(reqs, map[string]interface{}{
 				"requirement_id":             reqID,
 				"component_item_revision_id": compRevID,
@@ -456,6 +504,7 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 				"backflush_flag":             backflush,
 				"phantom_flag":               phantom,
 				"stock_check_status":         stockStatus,
+				"stock_check_detail":         detail,
 			})
 		}
 		if reqRows != nil {

@@ -6,19 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	sharedkernel "github.com/mom-platform/shared-kernel-go"
-	"github.com/sony/gobreaker"
 )
 
-var cb *gobreaker.CircuitBreaker
+var masterDataApprovalClient = &http.Client{Timeout: 5 * time.Second}
 
-func init() {
-	cb = gobreaker.NewCircuitBreaker(gobreaker.Settings{
-		Name: "MasterDataApprovalGate",
-	})
-}
+var masterDataApprovalBreaker = sharedkernel.NewCircuitBreaker(sharedkernel.CircuitBreakerConfig{
+	Name:       "MasterDataApprovalGate",
+	Dependency: "mes-master-data-service",
+})
 
 type ApproveWOInput struct {
 	WOID                 string
@@ -67,11 +66,24 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	}
 
 	// 1. Circuit-breaker guarded freshness re-check call to mes-master-data-service
-	_, err = cb.Execute(func() (interface{}, error) {
+	_, err = masterDataApprovalBreaker.Execute(func() (interface{}, error) {
 		reqURL := fmt.Sprintf("%s/api/mes/master-data/production-versions/%s", input.MasterDataServiceURL, pvID)
-		resp, err := http.Get(reqURL)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 		if err != nil {
-			return nil, nil // Fallback gracefully if service unreachable
+			return nil, err
+		}
+		if input.UserID != "" {
+			req.Header.Set("X-User-ID", input.UserID)
+		}
+		if input.RoleCode != "" {
+			req.Header.Set("X-Role-Code", input.RoleCode)
+		}
+		if input.TraceID != "" {
+			req.Header.Set("X-Trace-ID", input.TraceID)
+		}
+		resp, err := masterDataApprovalClient.Do(req)
+		if err != nil {
+			return nil, err
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
@@ -84,10 +96,16 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 				}
 			}
 		}
+		if resp.StatusCode >= http.StatusInternalServerError {
+			return nil, fmt.Errorf("master-data freshness check failed: %s", resp.Status)
+		}
 		return nil, nil
 	})
 	if err != nil {
-		return nil, err
+		if sharedkernel.IsCircuitBreakerOpen(err) {
+			return nil, sharedkernel.NewRetryableDependencyError("mes-master-data-service", fmt.Errorf("approval gate circuit breaker open: %w", err))
+		}
+		return nil, sharedkernel.NewRetryableDependencyError("mes-master-data-service", fmt.Errorf("approval gate unavailable: %w", err))
 	}
 
 	// 2. Permission check
@@ -95,7 +113,8 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	roles := []string{"EXECUTIVE", "PLANT_MANAGER", "PROD_MANAGER"}
 	for _, r := range roles {
 		if r == input.RoleCode {
-			allowed = true; break
+			allowed = true
+			break
 		}
 	}
 	if !allowed {
@@ -163,11 +182,11 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	}
 
 	return map[string]interface{}{
-		"wo_id":            input.WOID,
-		"wo_code":          woCode,
-		"status":           "Released",
-		"approved_by":      input.UserID,
-		"event_published":  true,
-		"event_type":       "MES.Execution.WOApproved.v1",
+		"wo_id":           input.WOID,
+		"wo_code":         woCode,
+		"status":          "Released",
+		"approved_by":     input.UserID,
+		"event_published": true,
+		"event_type":      "MES.Execution.WOApproved.v1",
 	}, nil
 }

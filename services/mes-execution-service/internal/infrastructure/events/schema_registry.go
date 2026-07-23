@@ -32,7 +32,11 @@ const eventSchemaJSON = `{
       "properties": {
         "wo_id": { "type": "string" },
         "wo_code": { "type": "string" },
+        "operation_id": { "type": "string" },
+        "operation_code": { "type": "string" },
+        "site_id": { "type": "string" },
         "item_revision_id": { "type": "string" },
+        "work_center_id": { "type": "string" },
         "quantity": { "type": ["number", "string"] }
       },
       "required": ["wo_id", "wo_code"]

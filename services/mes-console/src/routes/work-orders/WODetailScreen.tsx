@@ -4,10 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { ClipboardList, ArrowLeft, CheckCircle2, XCircle, Calculator, ShieldCheck, RefreshCw, Loader2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@mom-platform/i18n-ui-shared';
+import { translatedEnum } from '../../lib/i18nLabels';
 
 export const WODetailScreen: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user, hasRole } = useAuth();
+  const { t, formatDate } = useI18n();
   const navigate = useNavigate();
 
   const [wo, setWo] = useState<any>(null);
@@ -34,7 +37,7 @@ export const WODetailScreen: React.FC = () => {
       });
       if (!resp.ok) {
         if (resp.status === 503) throw { status: 503, message: 'Circuit breaker open' };
-        throw new Error('Không thể tải thông tin Lệnh sản xuất');
+        throw new Error(t('woDetail.loadFailed'));
       }
       const data = await resp.json();
       setWo(data.data || data);
@@ -60,14 +63,14 @@ export const WODetailScreen: React.FC = () => {
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || 'Compute & Check thất bại');
+        throw new Error(errJson.message || errJson.error || t('woDetail.computeFailed'));
       }
       const resData = await resp.json();
       setComputeResult(resData.data || resData);
-      toast.success('Đã tính toán thời lượng & capacity check thành công!');
+      toast.success(t('woDetail.computed'));
       await fetchWODetail();
     } catch (err: any) {
-      toast.error(`Lỗi Compute & Check: ${err.message}`);
+      toast.error(t('woDetail.computeError', { message: err.message }));
     } finally {
       setComputing(false);
     }
@@ -85,20 +88,20 @@ export const WODetailScreen: React.FC = () => {
           'X-User-ID': user?.userId || 'admin',
           'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER',
         },
-        body: JSON.stringify({ approver_user_id: user?.userId, comment: 'Đã phê duyệt sản xuất' }),
+        body: JSON.stringify({ approver_user_id: user?.userId, comment: t('woDetail.approveComment') }),
       });
       if (!resp.ok) {
         if (resp.status === 503) throw { status: 503, message: 'Circuit breaker open' };
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || 'Phê duyệt WO thất bại');
+        throw new Error(errJson.message || errJson.error || t('woDetail.approveFailed'));
       }
-      toast.success(`Đã Phê Duyệt Lệnh sản xuất ${wo?.wo_code || ''}! Event WOApproved.v1 đã gửi Kafka.`);
+      toast.success(t('woDetail.approved', { code: wo?.wo_code || '' }));
       await fetchWODetail();
     } catch (err: any) {
       if (err.status === 503) {
         setError(err);
       } else {
-        toast.error(`Lỗi Approve: ${err.message}`);
+        toast.error(t('woDetail.approveError', { message: err.message }));
       }
     } finally {
       setSubmittingAction(false);
@@ -108,7 +111,7 @@ export const WODetailScreen: React.FC = () => {
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectComment) {
-      toast.error('Vui lòng nhập lý do từ chối');
+      toast.error(t('woDetail.rejectRequired'));
       return;
     }
     setSubmittingAction(true);
@@ -125,13 +128,13 @@ export const WODetailScreen: React.FC = () => {
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || 'Từ chối WO thất bại');
+        throw new Error(errJson.message || errJson.error || t('woDetail.rejectFailed'));
       }
-      toast.success('Đã Từ Chối Lệnh sản xuất.');
+      toast.success(t('woDetail.rejected'));
       setShowRejectModal(false);
       await fetchWODetail();
     } catch (err: any) {
-      toast.error(`Lỗi Từ chối: ${err.message}`);
+      toast.error(t('woDetail.rejectError', { message: err.message }));
     } finally {
       setSubmittingAction(false);
     }
@@ -141,7 +144,7 @@ export const WODetailScreen: React.FC = () => {
   if (loading || !wo) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-action animate-spin" />
       </div>
     );
   }
@@ -151,20 +154,20 @@ export const WODetailScreen: React.FC = () => {
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate('/work-orders')}
-          className="px-3.5 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white rounded-xl text-sm font-semibold flex items-center space-x-2 transition"
+          className="px-3.5 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white rounded-md text-sm font-semibold flex items-center space-x-2 transition"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Danh sách Lệnh</span>
+          <span>{t('woDetail.backToList')}</span>
         </button>
 
         <div className="flex items-center space-x-3">
           <button
             onClick={handleComputeCheck}
             disabled={computing}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl flex items-center space-x-2 transition shadow-lg shadow-indigo-600/20"
+            className="px-4 py-2.5 bg-action hover:bg-action-hover text-white font-semibold text-sm rounded-md flex items-center space-x-2 transition shadow-lg shadow-orange-600/20"
           >
             {computing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
-            <span>Compute & Check</span>
+            <span>{t('woDetail.compute')}</span>
           </button>
 
           {canApprove && wo.status === 'Draft' && (
@@ -172,18 +175,18 @@ export const WODetailScreen: React.FC = () => {
               <button
                 onClick={() => setShowRejectModal(true)}
                 disabled={submittingAction}
-                className="px-4 py-2.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 font-semibold text-sm rounded-xl flex items-center space-x-2 transition"
+                className="px-4 py-2.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 font-semibold text-sm rounded-md flex items-center space-x-2 transition"
               >
                 <XCircle className="w-4 h-4" />
-                <span>Từ Chối</span>
+                <span>{t('woDetail.reject')}</span>
               </button>
               <button
                 onClick={handleApprove}
                 disabled={submittingAction}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl flex items-center space-x-2 transition shadow-lg shadow-emerald-600/20"
+                className="px-5 py-2.5 bg-action hover:bg-action-hover text-white font-bold text-sm rounded-md flex items-center space-x-2 transition shadow-lg shadow-orange-600/20"
               >
                 {submittingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                <span>Phê Duyệt Lệnh</span>
+                <span>{t('woDetail.approve')}</span>
               </button>
             </>
           )}
@@ -191,17 +194,17 @@ export const WODetailScreen: React.FC = () => {
       </div>
 
       {/* Header Info */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-md p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="p-3 bg-indigo-600/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+            <div className="p-3 bg-action/10 border border-action/20 rounded-md text-amber-300">
               <ClipboardList className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center space-x-3">
-                <h1 className="text-2xl font-bold font-mono text-indigo-400">{wo.wo_code}</h1>
-                <span className="px-3 py-1 bg-indigo-950 border border-indigo-800 text-indigo-300 text-xs font-bold rounded-full">
-                  {wo.status}
+                <h1 className="text-2xl font-bold font-mono text-amber-300">{wo.wo_code}</h1>
+                <span className="px-3 py-1 bg-primary border border-primary text-amber-100 text-xs font-bold rounded-full">
+                  {translatedEnum(t, 'status.wo', wo.status)}
                 </span>
               </div>
               <p className="text-xs text-slate-400">WO ID: {wo.wo_id || id}</p>
@@ -210,87 +213,87 @@ export const WODetailScreen: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-4 gap-4 text-sm">
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-xs text-slate-500 font-semibold block uppercase">Mã Sản Phẩm</span>
+          <div className="bg-slate-950 p-3.5 rounded-md border border-slate-800">
+            <span className="text-xs text-slate-500 font-semibold block uppercase">{t('productionVersion.itemCode')}</span>
             <span className="font-bold text-slate-100 font-mono">{wo.item_code}</span>
           </div>
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-xs text-slate-500 font-semibold block uppercase">Sản Lượng Mục Tiêu</span>
-            <span className="font-bold text-slate-100 font-mono">{wo.quantity} {wo.uom || 'Cái'}</span>
+          <div className="bg-slate-950 p-3.5 rounded-md border border-slate-800">
+            <span className="text-xs text-slate-500 font-semibold block uppercase">{t('wo.quantity')}</span>
+            <span className="font-bold text-slate-100 font-mono">{wo.quantity} {wo.uom || t('uom.pcs')}</span>
           </div>
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-xs text-slate-500 font-semibold block uppercase">Hạn Mục Tiêu</span>
+          <div className="bg-slate-950 p-3.5 rounded-md border border-slate-800">
+            <span className="text-xs text-slate-500 font-semibold block uppercase">{t('wo.targetDate')}</span>
             <span className="font-bold text-slate-100 font-mono">
-              {wo.target_completion_date ? new Date(wo.target_completion_date).toLocaleDateString() : '2026-08-01'}
+              {wo.target_completion_date ? formatDate(wo.target_completion_date) : t('common.notAvailable')}
             </span>
           </div>
-          <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-            <span className="text-xs text-slate-500 font-semibold block uppercase">Stock Check Status</span>
-            <span className="font-bold text-emerald-400 font-mono">{wo.stock_check_status || 'AVAILABLE'}</span>
+          <div className="bg-slate-950 p-3.5 rounded-md border border-slate-800">
+            <span className="text-xs text-slate-500 font-semibold block uppercase">{t('woDetail.stockCheck')}</span>
+            <span className="font-bold text-action font-mono">{translatedEnum(t, 'stock.status', wo.stock_check_status || 'AVAILABLE')}</span>
           </div>
         </div>
       </div>
 
       {/* Inline Compute & Check Results */}
       {computeResult && (
-        <div className="bg-indigo-950/40 border border-indigo-800/80 rounded-2xl p-6 space-y-3">
-          <div className="flex items-center space-x-2 text-indigo-300 font-bold text-sm">
+        <div className="bg-primary/40 border border-primary/80 rounded-md p-6 space-y-3">
+          <div className="flex items-center space-x-2 text-amber-100 font-bold text-sm">
             <Calculator className="w-5 h-5" />
-            <span>Kết quả Tính toán Thời Lượng & Capacity Check (ComputeAndCheck):</span>
+            <span>{t('woDetail.computeResult')}</span>
           </div>
           <div className="grid grid-cols-3 gap-4 text-xs font-mono">
-            <div className="bg-slate-900 p-3 rounded-xl border border-indigo-900/50">
-              <span className="text-slate-400 block">Tổng thời lượng sản xuất:</span>
-              <span className="text-indigo-200 font-bold text-sm">
-                {computeResult.total_estimated_minutes || computeResult.estimated_minutes || 240} phút
+            <div className="bg-slate-900 p-3 rounded-md border border-primary/50">
+              <span className="text-slate-400 block">{t('woDetail.totalDuration')}</span>
+              <span className="text-amber-100 font-bold text-sm">
+                {computeResult.total_estimated_minutes || computeResult.estimated_minutes || 240} {t('woDetail.minutes')}
               </span>
             </div>
-            <div className="bg-slate-900 p-3 rounded-xl border border-indigo-900/50">
-              <span className="text-slate-400 block">Trạng thái Capacity Check:</span>
-              <span className="text-emerald-400 font-bold text-sm">
-                {computeResult.capacity_status || 'CAPACITY_AVAILABLE'}
+            <div className="bg-slate-900 p-3 rounded-md border border-primary/50">
+              <span className="text-slate-400 block">{t('woDetail.capacityStatus')}</span>
+              <span className="text-action font-bold text-sm">
+                {translatedEnum(t, 'capacity.status', computeResult.capacity_status || 'CAPACITY_AVAILABLE')}
               </span>
             </div>
-            <div className="bg-slate-900 p-3 rounded-xl border border-indigo-900/50">
-              <span className="text-slate-400 block">Thời gian bắt đầu đề xuất:</span>
-              <span className="text-slate-200 font-bold text-sm">Immediate</span>
+            <div className="bg-slate-900 p-3 rounded-md border border-primary/50">
+              <span className="text-slate-400 block">{t('woDetail.suggestedStart')}</span>
+              <span className="text-slate-200 font-bold text-sm">{t('woDetail.immediate')}</span>
             </div>
           </div>
         </div>
       )}
 
       {/* Exploded Operations List */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-md p-6 space-y-4">
         <h3 className="text-base font-bold text-slate-100 uppercase tracking-wider text-xs">
-          Danh Sách Công Đoạn Thi Công (Exploded wo_operation)
+          {t('woDetail.operationsTitle')}
         </h3>
-        <div className="border border-slate-800 rounded-xl overflow-hidden">
+        <div className="border border-slate-800 rounded-md overflow-hidden">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-slate-950 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">
               <tr>
-                <th className="px-5 py-3">Thứ Tự (Seq)</th>
-                <th className="px-5 py-3">Mã Công Đoạn</th>
-                <th className="px-5 py-3">Tên Công Đoạn</th>
-                <th className="px-5 py-3">WorkCenter Giao Việc</th>
-                <th className="px-5 py-3 text-right">Trạng Thái Thao Tác</th>
+                <th className="px-5 py-3">{t('mbom.seq')}</th>
+                <th className="px-5 py-3">{t('woDetail.operationCode')}</th>
+                <th className="px-5 py-3">{t('woDetail.operationName')}</th>
+                <th className="px-5 py-3">{t('woDetail.assignedWorkCenter')}</th>
+                <th className="px-5 py-3 text-right">{t('common.status')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {(wo.operations || [
-                { sequence: 10, operation_code: 'OP-MIX', operation_name: 'Pha chế cao su (Mixing)', work_center: 'WC-MIX', status: 'PENDING' },
-                { sequence: 20, operation_code: 'OP-PREP', operation_name: 'Chuẩn bị phôi (Pre-form)', work_center: 'WC-PREP', status: 'PENDING' },
-                { sequence: 30, operation_code: 'OP-CUT', operation_name: 'Cắt phôi (Cutting)', work_center: 'WC-CUT', status: 'PENDING' },
-                { sequence: 40, operation_code: 'OP-MOLD', operation_name: 'Ép lưu hóa (Molding)', work_center: 'WC-MOLD', status: 'PENDING' },
-                { sequence: 50, operation_code: 'OP-QC', operation_name: 'Kiểm tra chất lượng (QC)', work_center: 'WC-QC', status: 'PENDING' },
+                { sequence: 10, operation_code: 'OP-MIX', operation_name: t('operation.OP-MIX'), work_center: 'WC-MIX', status: 'PENDING' },
+                { sequence: 20, operation_code: 'OP-PREP', operation_name: t('operation.OP-PREP'), work_center: 'WC-PREP', status: 'PENDING' },
+                { sequence: 30, operation_code: 'OP-CUT', operation_name: t('operation.OP-CUT'), work_center: 'WC-CUT', status: 'PENDING' },
+                { sequence: 40, operation_code: 'OP-MOLD', operation_name: t('operation.OP-MOLD'), work_center: 'WC-MOLD', status: 'PENDING' },
+                { sequence: 50, operation_code: 'OP-QC', operation_name: t('operation.OP-QC'), work_center: 'WC-QC', status: 'PENDING' },
               ]).map((op: any, idx: number) => (
                 <tr key={idx} className="hover:bg-slate-800/40 font-mono text-xs">
                   <td className="px-5 py-3 font-bold text-slate-400">{op.sequence || (idx + 1) * 10}</td>
-                  <td className="px-5 py-3 font-bold text-indigo-400">{op.operation_code}</td>
+                  <td className="px-5 py-3 font-bold text-amber-300">{op.operation_code}</td>
                   <td className="px-5 py-3 text-slate-200">{op.operation_name}</td>
                   <td className="px-5 py-3 text-amber-300">{op.work_center || 'WC-DEFAULT'}</td>
                   <td className="px-5 py-3 text-right">
                     <span className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded">
-                      {op.status || 'READY'}
+                      {translatedEnum(t, 'operation.status', op.status || 'READY')}
                     </span>
                   </td>
                 </tr>
@@ -303,36 +306,36 @@ export const WODetailScreen: React.FC = () => {
       {/* Reject Modal with AlertDialog pattern */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-          <form onSubmit={handleReject} className="bg-slate-900 border border-rose-900/50 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+          <form onSubmit={handleReject} className="bg-slate-900 border border-rose-900/50 rounded-md p-6 max-w-md w-full space-y-4 shadow-2xl">
             <div className="flex items-center space-x-3 text-rose-400">
               <XCircle className="w-6 h-6" />
-              <h3 className="text-lg font-bold">Xác Nhận Từ Chối Lệnh Sản Xuất</h3>
+              <h3 className="text-lg font-bold">{t('woDetail.rejectTitle')}</h3>
             </div>
             <p className="text-xs text-slate-300">
-              Vui lòng nhập lý do từ chối vào nhật ký phê duyệt (wo_approval_log.comment):
+              {t('woDetail.rejectBody')}
             </p>
             <textarea
               value={rejectComment}
               onChange={(e) => setRejectComment(e.target.value)}
-              placeholder="VD: Không đủ năng lực trạm ép trong tuần..."
+              placeholder={t('woDetail.rejectPlaceholder')}
               rows={3}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-rose-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-md p-3 text-sm text-slate-100 focus:outline-none focus:border-rose-500"
               required
             />
             <div className="flex justify-end space-x-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold"
+                className="px-4 py-2 bg-slate-800 text-slate-300 rounded-md text-sm font-semibold"
               >
-                Hủy
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={submittingAction}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-semibold"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-sm font-semibold"
               >
-                Xác Nhận Từ Chối
+                {t('woDetail.confirmReject')}
               </button>
             </div>
           </form>

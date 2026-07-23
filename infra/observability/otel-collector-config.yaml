@@ -51,10 +51,6 @@ exporters:
     default_labels_enabled:
       exporter: false
       job: true
-    labels:
-      resource:
-        service.name: "service_name"
-        service.namespace: "service_namespace"
 
   # Metrics → Prometheus (expose on :8889)
   prometheus:

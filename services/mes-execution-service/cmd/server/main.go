@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	sharedkernel "github.com/mom-platform/shared-kernel-go"
 	"github.com/mom-platform/mes-execution-service/internal/infrastructure/client"
 	"github.com/mom-platform/mes-execution-service/internal/infrastructure/events"
 	servicehttp "github.com/mom-platform/mes-execution-service/internal/infrastructure/http"
 	"github.com/mom-platform/mes-execution-service/internal/instrumentation"
+	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 func getEnv(key, fallback string) string {
@@ -73,8 +73,10 @@ func main() {
 
 	traceabilityURL := getEnv("TRACEABILITY_SERVICE_URL", "http://mes-traceability-service:3040/api/mes/traceability")
 	traceabilityClient := client.NewTraceabilityClient(traceabilityURL)
+	wmsOutboundURL := getEnv("WMS_OUTBOUND_SERVICE_URL", "http://wms-outbound-service:3090/api/wms/outbound")
+	wmsOutboundClient := client.NewWMSOutboundClient(wmsOutboundURL)
 
-	router := servicehttp.NewRouter(pool, traceabilityClient)
+	router := servicehttp.NewRouter(pool, traceabilityClient, wmsOutboundClient)
 
 	srv := &http.Server{
 		Addr:         ":" + port,
@@ -135,6 +137,8 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000001_initial_execution_schema.up.sql",
 		"migrations/000002_audit_and_lifecycle_triggers.up.sql",
 		"migrations/000003_execution_realtime_tables.up.sql",
+		"migrations/000004_i18n_read_models.up.sql",
+		"migrations/000005_wms_stock_check_status.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

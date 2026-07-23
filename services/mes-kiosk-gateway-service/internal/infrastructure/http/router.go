@@ -9,6 +9,7 @@ import (
 	"github.com/mom-platform/mes-kiosk-gateway-service/internal/application"
 	"github.com/mom-platform/mes-kiosk-gateway-service/internal/domain"
 	ws "github.com/mom-platform/mes-kiosk-gateway-service/internal/websocket"
+	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 func NewRouter(pool *pgxpool.Pool, authService *application.AuthService, hub *ws.Hub) http.Handler {
@@ -67,6 +68,11 @@ func handleTerminalLogin(authService *application.AuthService) http.HandlerFunc 
 		resp, err := authService.LoginTerminal(r.Context(), terminalID, body)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
+			if sharedkernel.IsRetryableDependencyError(err) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				json.NewEncoder(w).Encode(map[string]string{"error": "KEYCLOAK_UNAVAILABLE", "message": err.Error()})
+				return
+			}
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return

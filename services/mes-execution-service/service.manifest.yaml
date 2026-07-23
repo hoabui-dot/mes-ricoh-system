@@ -3,7 +3,8 @@ cluster: MES
 language: go
 description: >
   Stage A scope: WO planning, creation, calculation, and approval. Explodes MBOM lines,
-  snapshots routings, computes standard times & capacity checks, and publishes WOCreated and WOApproved events.
+  snapshots routings, computes standard times & capacity checks, publishes execution events, and
+  supports a separate retryable WMS material-staging action after WO release.
   Consumes MES.MasterData.* events to build a local read-model (rm_* tables).
 
 owns_database: mes_execution_db
@@ -16,22 +17,62 @@ publishes_events:
   - name: MES.Execution.WOApproved.v1
     topic: MES.Execution.WOApproved.v1
     payload: wo_id, wo_code, item_revision_id, quantity, planned_start_at, planned_end_at, material_requirements
+  - name: MES.Execution.MaterialConsumed.v1
+    topic: MES.Execution.MaterialConsumed.v1
+    payload: consumption_id, wo_id, wo_operation_id, work_center_id, component_revision_id, qty_consumed, uom, source
 
 consumes_events:
-  - name: MES.MasterData.ItemRevisionReleased.v1
-    topic: MES.MasterData.ItemRevisionReleased.v1
-  - name: MES.MasterData.MBOMReleased.v1
-    topic: MES.MasterData.MBOMReleased.v1
+  - name: MES.MasterData.ItemRevisionReleased.v2
+    topic: MES.MasterData.ItemRevisionReleased.v2
+    payload_note: "name is stored as LocalizedText jsonb in rm_item_revision"
+  - name: MES.MasterData.MBOMReleased.v2
+    topic: MES.MasterData.MBOMReleased.v2
+    payload_note: "name is stored as LocalizedText jsonb in rm_mbom_header"
   - name: MES.MasterData.RoutingReleased.v1
     topic: MES.MasterData.RoutingReleased.v1
   - name: MES.MasterData.ProductionVersionReleased.v1
     topic: MES.MasterData.ProductionVersionReleased.v1
   - name: MES.MasterData.ProductionStandardReleased.v1
     topic: MES.MasterData.ProductionStandardReleased.v1
-  - name: MES.MasterData.WorkCenterActivated.v1
-    topic: MES.MasterData.WorkCenterActivated.v1
-  - name: MES.MasterData.EquipmentActivated.v1
-    topic: MES.MasterData.EquipmentActivated.v1
+  - name: MES.MasterData.WorkCenterActivated.v2
+    topic: MES.MasterData.WorkCenterActivated.v2
+    payload_note: "name is stored as LocalizedText jsonb in rm_work_center"
+  - name: MES.MasterData.EquipmentActivated.v2
+    topic: MES.MasterData.EquipmentActivated.v2
+    payload_note: "name is stored as LocalizedText jsonb in rm_equipment"
+
+synchronous_dependencies:
+  - service: mes-master-data-service
+    endpoints:
+      - GET /api/mes/master-data/work-order-approval/check
+    caller: approve work order freshness and permission gate
+    circuit_breaker:
+      library: gobreaker via libs/shared-kernel-go
+      failure_threshold: ">=50% failures after minimum 4 requests"
+      open_timeout: 30s
+      half_open_trial_requests: 2
+      graceful_failure: "HTTP 503 DEPENDENCY_UNAVAILABLE; retryable approval error"
+  - service: mes-traceability-service
+    endpoints:
+      - POST /api/mes/traceability/labels/issue
+    caller: confirm operation label issuance for OP-MIX, OP-CUT, OP-MOLD, OP-QC
+    circuit_breaker:
+      library: gobreaker via libs/shared-kernel-go
+      failure_threshold: ">=50% failures after minimum 4 requests"
+      open_timeout: 30s
+      half_open_trial_requests: 2
+      graceful_failure: "retryable dependency error; confirm operation returns HTTP 503"
+  - service: wms-outbound-service
+    endpoints:
+      - POST /api/wms/outbound/material-requests
+    caller: retryable material staging action after WO release
+    circuit_breaker:
+      library: gobreaker via libs/shared-kernel-go
+      failure_threshold: ">=50% failures after minimum 4 requests"
+      open_timeout: 30s
+      half_open_trial_requests: 2
+      graceful_failure: "HTTP 503 DEPENDENCY_UNAVAILABLE; mes-console uses existing retry UI pattern"
+      idempotency: "wms-outbound-service serializes duplicate WO/work-center/item/quantity requests and returns the existing material request"
 
 http_endpoints:
   - method: POST
@@ -43,6 +84,9 @@ http_endpoints:
   - method: POST
     path: /api/mes/execution/work-orders/:id/approve
     description: Approve WO (executes freshness check & permission check to master-data-service)
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/stage-materials
+    description: Retryable WMS material staging step; updates requirement stock_check_status/detail
   - method: POST
     path: /api/mes/execution/work-orders/:id/reject
     description: Reject WO
@@ -56,8 +100,11 @@ http_endpoints:
 notes:
   - "Stage A scope only: WO planning/creation/approval. Kiosk Start/Finish, backflush, and QR mother-child scanning at OP-CUT are Stage B, deferred until mes-traceability-service exists."
   - "Built in Go per the Node-vs-Go tech stack decision: this service owns both low-frequency Stage A approval flows and high-throughput, CPU-bound Stage B real-time execution in the same bounded context, so the language was chosen for the heaviest workload up front rather than migrated later."
-  - "Stock availability checking is fully excluded from Stage A — wms-inventory-service does not exist yet (Phase 2). No port/adapter/mock/NoOp was built for it. wo_material_requirement.stock_check_status stays 'NotChecked' until Phase 2 delivers a real WMS integration."
-  - "Two deliberate synchronous calls to mes-master-data-service exist at the Approval gate (version freshness re-check + role/permission check), both circuit-breaker guarded via gobreaker."
+  - "Phase 2 Step 2 implements WMS material staging as a separate retryable action, not inside the approval transaction. wo_material_requirement.stock_check_status is now NotChecked/Staged/Shortage and stock_check_detail stores the WMS response/shortage breakdown."
+  - "MES.Execution.MaterialConsumed.v1 additively carries work_center_id so WMS inventory can decrement the correct WorkCenter staging location."
+  - "Two deliberate synchronous calls to mes-master-data-service exist at the Approval gate (version freshness re-check + role/permission check), both circuit-breaker guarded via libs/shared-kernel-go/gobreaker."
+  - "All synchronous HTTP dependencies use the shared circuit breaker baseline and emit OTel state-transition spans/metrics."
   - "Depends on libs/shared-kernel-go for EventEnvelope and OutboxRelayWorker. audit-trigger.sql and lifecycle-state-machine.sql are reused unmodified from the Node shared-kernel (DB-level, language agnostic)."
+  - "Step 8 read-models preserve LocalizedText jsonb from Master Data .v2 events. This service does not resolve locale server-side."
 
 port: 3030

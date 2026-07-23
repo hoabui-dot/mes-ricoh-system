@@ -10,13 +10,13 @@ import (
 )
 
 var masterDataTopics = []string{
-	"MES.MasterData.ItemRevisionReleased.v1",
-	"MES.MasterData.MBOMReleased.v1",
+	"MES.MasterData.ItemRevisionReleased.v2",
+	"MES.MasterData.MBOMReleased.v2",
 	"MES.MasterData.RoutingReleased.v1",
 	"MES.MasterData.ProductionVersionReleased.v1",
 	"MES.MasterData.ProductionStandardReleased.v1",
-	"MES.MasterData.WorkCenterActivated.v1",
-	"MES.MasterData.EquipmentActivated.v1",
+	"MES.MasterData.WorkCenterActivated.v2",
+	"MES.MasterData.EquipmentActivated.v2",
 }
 
 type MasterDataConsumer struct {
@@ -73,6 +73,10 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 	p := env.Payload
 	masterID, _ := p["master_id"].(string)
 	code, _ := p["code"].(string)
+	nameJSON, _ := json.Marshal(p["name"])
+	if string(nameJSON) == "null" {
+		nameJSON = []byte(`{"vi":""}`)
+	}
 	siteID, _ := p["site_id"].(string)
 	status, _ := p["lifecycle_status"].(string)
 	if status == "" {
@@ -80,24 +84,24 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 	}
 
 	switch topic {
-	case "MES.MasterData.ItemRevisionReleased.v1":
+	case "MES.MasterData.ItemRevisionReleased.v2":
 		revCode, _ := p["revision_code"].(string)
 		itemType, _ := p["item_type"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_item_revision (master_id, code, revision_code, item_type, site_id, lifecycle_status, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, NOW())
-			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, revCode, itemType, siteID, status)
+			INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, lifecycle_status, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, NOW())
+			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
+		`, masterID, code, string(nameJSON), revCode, itemType, siteID, status)
 
-	case "MES.MasterData.MBOMReleased.v1":
+	case "MES.MasterData.MBOMReleased.v2":
 		itemRevID, _ := p["item_revision_id"].(string)
 		baseQty, _ := p["base_quantity"].(float64)
 		baseUOM, _ := p["base_uom_id"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_mbom_header (master_id, code, item_revision_id, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, itemRevID, siteID, baseQty, baseUOM, status)
+			INSERT INTO rm_mbom_header (master_id, code, name, item_revision_id, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, NOW())
+			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
+		`, masterID, code, string(nameJSON), itemRevID, siteID, baseQty, baseUOM, status)
 
 	case "MES.MasterData.RoutingReleased.v1":
 		itemRevID, _ := p["item_revision_id"].(string)
@@ -130,21 +134,21 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 			ON CONFLICT (master_id) DO UPDATE SET lifecycle_status=EXCLUDED.lifecycle_status
 		`, masterID, itemRevID, opID, wcID, setup, cycle, eff, status)
 
-	case "MES.MasterData.WorkCenterActivated.v1":
+	case "MES.MasterData.WorkCenterActivated.v2":
 		areaID, _ := p["area_id"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_work_center (master_id, code, site_id, area_id, active_flag, lifecycle_status)
-			VALUES ($1, $2, $3, $4, true, $5)
-			ON CONFLICT (master_id) DO UPDATE SET lifecycle_status=EXCLUDED.lifecycle_status
-		`, masterID, code, siteID, areaID, status)
+			INSERT INTO rm_work_center (master_id, code, name, site_id, area_id, active_flag, lifecycle_status)
+			VALUES ($1, $2, $3::jsonb, $4, $5, true, $6)
+			ON CONFLICT (master_id) DO UPDATE SET name=EXCLUDED.name, lifecycle_status=EXCLUDED.lifecycle_status
+		`, masterID, code, string(nameJSON), siteID, areaID, status)
 
-	case "MES.MasterData.EquipmentActivated.v1":
+	case "MES.MasterData.EquipmentActivated.v2":
 		wcID, _ := p["work_center_id"].(string)
 		eqType, _ := p["equipment_type"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_equipment (master_id, code, site_id, work_center_id, equipment_type, active_flag, lifecycle_status)
-			VALUES ($1, $2, $3, $4, $5, true, $6)
-			ON CONFLICT (master_id) DO UPDATE SET lifecycle_status=EXCLUDED.lifecycle_status
-		`, masterID, code, siteID, wcID, eqType, status)
+			INSERT INTO rm_equipment (master_id, code, name, site_id, work_center_id, equipment_type, active_flag, lifecycle_status)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, true, $7)
+			ON CONFLICT (master_id) DO UPDATE SET name=EXCLUDED.name, lifecycle_status=EXCLUDED.lifecycle_status
+		`, masterID, code, string(nameJSON), siteID, wcID, eqType, status)
 	}
 }

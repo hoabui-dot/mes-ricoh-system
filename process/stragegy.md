@@ -45,14 +45,20 @@ Không xây MES thành 1 service to chứa 30+ bảng. Tách theo bounded contex
 
 > **Quyết định kiến trúc cần chốt sớm:** IAM (định danh + phân quyền) nên là dịch vụ **Platform-level dùng chung** cho cả 3 cluster (1 nguồn sự thật về User, Role), còn **DataScopeType/ConditionExpression theo từng domain** (ví dụ "chỉ xem WO trong Area X") thì mỗi cluster tự quản lý phần "authorization theo domain" của riêng nó, chỉ tham chiếu UserID/RoleID từ IAM chung. Đây là pattern chuẩn (centralized authentication, decentralized fine-grained authorization). Vì cả 3 hệ đều là website và cùng phục vụ chung 1 nhóm người dùng cấp cao (giám đốc, quản lý đa hệ), IAM ở đây phải triển khai kèm **SSO** ngay từ Phase 0 — chi tiết kiến trúc và checklist cụ thể xem **mục 2.1**.
 
-### 1.2 Cluster WMS (thiết kế khung trước, xây sau — để không bị vướng khi tới lượt)
+### 1.2 Cluster WMS (two-echelon Warehouse ↔ WorkCenter staging)
 
-| Service (dự kiến) | Bounded Context |
+WMS tồn kho dùng mô hình **2 cấp**: kho trung tâm (`Storage`) và kho tạm tại từng WorkCenter
+(`WorkCenterStaging`, tham chiếu `staging_for_work_center_ref`). Allocation phải kiểm tra tồn kho đã
+nằm ở WorkCenter trước, chỉ chuyển thêm từ kho trung tâm theo phần thiếu; hàng còn dư sau sản xuất nằm
+lại WorkCenter, không tự trả về Warehouse. Chi tiết triển khai và acceptance test nằm trong
+`process/Phase-2-Step-1-Patch-&-Step-2.md` và `implementation/phase-2-2-wms-inventory-stock.md`.
+
+| Service | Bounded Context |
 |---|---|
 | `wms-master-data-service` | Warehouse, Zone, Location, Storage Bin, UOM (tái dùng contract với MES qua event, không share bảng) |
-| `wms-inventory-service` | Stock ledger, tồn kho theo location/lot |
-| `wms-inbound-service` | Nhận hàng, putaway |
-| `wms-outbound-service` | Picking, xuất kho theo WO (subscribe event từ MES) |
+| `wms-inventory-service` | Append-only stock ledger, tồn kho theo lot/location, receipt, transfer-to-staging, consumption decrement, FEFO/expiry filtering |
+| `wms-inbound-service` | Nhận hàng/putaway vào `Storage` location; không nhận trực tiếp vào WorkCenter staging |
+| `wms-outbound-service` | Material request/staging engine: staging-first allocation, shortage declaration, all-or-nothing transfer from Warehouse to WorkCenter staging |
 
 ### 1.3 Cluster QMS (thiết kế khung trước)
 
@@ -237,6 +243,7 @@ Mỗi service trong `docker-compose.mes.yml` có Postgres container riêng (`mes
 3. **Contract Testing**: mỗi cặp publisher/consumer event có 1 bộ test hợp đồng (Pact hoặc tự viết JSON Schema validation test) chạy trong CI — nếu MES đổi cấu trúc event mà chưa tăng version, build phải fail ngay, không để WMS/QMS phát hiện lỗi lúc runtime.
 4. **Service Manifest Registry**: gom toàn bộ `service.manifest.yaml` của mọi service vào 1 chỗ (script quét thư mục), sinh ra 1 sơ đồ tổng thể ai-publish-ai-subscribe tự động — tránh phải nhớ thủ công khi số service tăng lên.
 5. **Definition of Ready trước khi xây 1 service mới**: canvas đã viết xong + event contract đã review + đã biết rõ service này sẽ consume những event nào từ cluster nào → mới bắt đầu code.
+6. **i18n Completeness Check**: trước khi bất kỳ Cluster hoặc Console nào được đánh dấu `Completed ✅`, hai điều kiện phải cùng đúng: (1) hardcoded-string CI scanner chạy qua mọi frontend app trong Cluster với zero unexplained exemptions; (2) mọi migration `varchar → LocalizedText` của Cluster đã chạy language-quality heuristic trong cùng transaction backfill và có `i18n_data_quality_flag`/review plan cho mọi flag còn `OPEN`. Flag được track qua Review Queue là chấp nhận được; flag bị bỏ qua âm thầm thì không.
 
 ---
 

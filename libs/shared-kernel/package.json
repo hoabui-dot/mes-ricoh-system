@@ -4,15 +4,25 @@
   "description": "Shared-Kernel library for MOM Platform (MES/WMS/QMS) — Event Envelope, Outbox Publisher, Audit SQL, Lifecycle State Machine SQL",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "i18n": ["dist/i18n.d.ts"]
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n.d.ts",
+      "import": "./dist/i18n.mjs",
+      "require": "./dist/i18n.js"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "build": "tsup src/index.ts src/i18n.ts --format esm,cjs --dts --clean",
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
@@ -25,7 +35,8 @@
   "dependencies": {
     "kafkajs": "^2.2.4",
     "pg": "^8.12.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/pg": "^8.11.6",

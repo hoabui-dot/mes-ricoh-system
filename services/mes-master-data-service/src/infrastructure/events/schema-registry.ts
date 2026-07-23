@@ -1,11 +1,18 @@
 const EVENT_TYPES = [
   'MES.MasterData.ItemRevisionReleased.v1',
+  'MES.MasterData.ItemRevisionReleased.v2',
   'MES.MasterData.MBOMReleased.v1',
+  'MES.MasterData.MBOMReleased.v2',
   'MES.MasterData.RoutingReleased.v1',
   'MES.MasterData.ProductionVersionReleased.v1',
   'MES.MasterData.ProductionStandardReleased.v1',
   'MES.MasterData.WorkCenterActivated.v1',
+  'MES.MasterData.WorkCenterActivated.v2',
   'MES.MasterData.EquipmentActivated.v1',
+  'MES.MasterData.EquipmentActivated.v2',
+  'MES.MasterData.EmployeeCreated.v1',
+  'MES.MasterData.ShiftCreated.v1',
+  'MES.MasterData.EmployeeScheduleAssigned.v1',
 ];
 
 const schema = {
@@ -23,10 +30,19 @@ const schema = {
       properties: {
         master_id: { type: 'string' },
         code: { type: 'string' },
+        name: {
+          type: ['object', 'string', 'null'],
+          additionalProperties: { type: 'string' },
+          properties: {
+            vi: { type: 'string' },
+            en: { type: 'string' },
+            ja: { type: 'string' },
+            ko: { type: 'string' },
+          },
+        },
         version_no: { type: 'integer' },
         site_id: { type: ['string', 'null'] },
       },
-      required: ['master_id', 'code', 'version_no'],
     },
   },
   required: ['event_id', 'event_type', 'occurred_at', 'source_service', 'trace_id', 'payload'],

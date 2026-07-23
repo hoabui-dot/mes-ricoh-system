@@ -31,9 +31,9 @@ Vì dev velocity giờ trung lập, bảng quyết định bên dưới sẽ **t
 | `mes-execution-service` | **Xem cảnh báo riêng ở mục 3** — service này gộp cả CRUD nhẹ (Stage A: tạo/duyệt WO) lẫn workload nặng (Stage B: Start/Finish real-time, backflush, tính lịch trình CPU-bound) | **Go** | Chọn theo phần nặng nhất của **cùng 1 service**, không theo phần nhẹ nhất — xem lý do chi tiết ở mục 3 |
 | `mes-kiosk-gateway-service` | Nhiều kết nối WebSocket/MQTT dài hạn đồng thời từ nhiều kiosk, cần buffer/reconnect ổn định | **Go** | Đây là bài toán goroutine sinh ra để giải — mỗi connection = 1 goroutine cực nhẹ, không nghẽn nhau |
 | `wms-master-data-service` | Warehouse/Zone/Location — CRUD, read-heavy, cùng bản chất với MES Master Data | **Node.js** | Giống hệt lý do `mes-master-data-service` |
-| `wms-inventory-service` | Stock ledger append-only, **ghi liên tục từ nhiều nguồn cùng lúc** (inbound scan, outbound pick, event từ MES) — cần atomic, đúng tuyệt đối | **Go** | Cùng bản chất với `mes-traceability-service`: atomic write dưới concurrency cao, sai 1 dòng ledger là sai số liệu tồn kho toàn hệ thống |
+| `wms-inventory-service` | Stock ledger append-only cho mô hình 2 cấp Warehouse ↔ WorkCenter staging, **ghi liên tục từ nhiều nguồn cùng lúc** (inbound receipt, outbound transfer-to-staging, event consumption từ MES) — cần atomic, đúng tuyệt đối | **Go** | Cùng bản chất với `mes-traceability-service`: atomic write dưới concurrency cao, sai 1 dòng ledger là sai số liệu tồn kho toàn hệ thống; FEFO/expiry và clamp/discrepancy khi consumption lệch phải chạy ổn định |
 | `wms-inbound-service` | Nhận hàng/putaway — theo lô/ca, tần suất thấp hơn hẳn outbound, chủ yếu là CRUD + business rule | **Node.js** | Không có concurrency pressure đặc biệt ở MVP |
-| `wms-outbound-service` | Picking real-time theo WO, **phải trả lời stock-check nhanh** khi `mes-execution-service` cần biết tồn kho — đây chính là service sẽ hiện thực `stock_check_status` đang bỏ trống | **Go** | Latency thấp là yêu cầu cứng vì nằm trên đường găng của luồng duyệt WO; đồng thời phải consume event tần suất cao từ MES |
+| `wms-outbound-service` | Material request/staging real-time theo WO, **phải trả lời stock-check nhanh** khi `mes-execution-service` cần biết tồn kho; hiện thực staging-first allocation và `stock_check_status` | **Go** | Latency thấp là yêu cầu cứng vì nằm trên đường găng của bước staging sau WO release; thuật toán phải tính already-staged, shortfall, insufficient/expired stock, FEFO, và all-or-nothing transfer ổn định |
 | `qms-inspection-service` | Nhập kết quả kiểm tra tại `OP-QC`, theo từng lô/từng operation hoàn thành — tần suất theo nhịp sản xuất, không phải theo từng giây | **Node.js** | CRUD + business rule, không có concurrency pressure đặc biệt ở MVP |
 | `qms-nonconformance-service` | NCR/CAPA — case management, do con người xử lý, tần suất thấp | **Node.js** | Không có lý do dùng Go |
 
@@ -76,16 +76,16 @@ Nguyên tắc mục 5 chiến lược ("mọi service theo đúng khung, tránh 
 
 ---
 
-## 5. Frontend — React+Vite (Portal) giữ nguyên, Remix cho các console nghiệp vụ
+## 5. Frontend — React+Vite cho Portal và các console nghiệp vụ
 
 | Frontend app | Bản chất | Lựa chọn | Lý do |
 |---|---|---|---|
 | **Unified Portal** (đã build) | App launcher đơn giản, chỉ hiển thị card theo Role, không có form/CRUD phức tạp | **Giữ nguyên React + Vite (SPA)** | Không có lý do kỹ thuật để đổi — đây là trang nhẹ, không cần SSR, đổi sang Remix chỉ tốn công vô ích cho 1 trang launcher |
-| **MES Console** (Admin Master Data, WO planning/approval UI — chưa build) | Nhiều form CRUD, nhiều nested route (Item → Revision → MBOM → Routing), cần role-based view, chạy trên cả desktop lẫn tablet kiosk shop-floor | **Remix** | `loader`/`action` của Remix map trực tiếp 1-1 vào pattern CRUD (loader = GET đọc read-model, action = POST/PUT mutate) — đúng bản chất nghiệp vụ các màn hình này; nested routing khớp tự nhiên với cấu trúc phân cấp Item→Revision→MBOM; SSR + progressive enhancement quan trọng cho **tablet kiosk shop-floor** vốn dễ gặp mạng chập chờn — form vẫn submit được kể cả khi JS chưa load xong, khác hẳn SPA thuần cần JS bundle tải xong mới dùng được |
-| **WMS Console** (chưa build) | Tương tự MES Console: nhiều form CRUD (nhận hàng, putaway, picking), operator dùng trên thiết bị cầm tay/kiosk kho | **Remix** | Cùng lý do — form-heavy, cần độ bền khi mạng kho hàng không ổn định |
-| **QMS Console** (chưa build) | Form nhập kết quả kiểm tra, NCR/CAPA case — ít nghiêm trọng về mạng chập chờn hơn (thường dùng ở bàn QC cố định) nhưng vẫn form-heavy | **Remix** | Nhất quán với MES/WMS Console — dùng 1 pattern duy nhất cho mọi console nghiệp vụ, chỉ Portal là ngoại lệ (đã có lý do rõ ràng ở trên) |
+| **MES Console** | Existing admin/master-data and work-order console | **React + Vite** | Matches the deployed console and shared shadcn-style primitives |
+| **WMS Console** | Warehouse map, inventory, inbound, outbound and master data | **React + Vite** | Matches the deployed console and tablet/kiosk requirements |
+| **QMS Console** | Inspection result, NCR and CAPA workflows | **React + Vite** | Deployed on port 13130 with PKCE SSO and the shared console pattern |
 
-**Nguyên tắc chốt:** Portal (launcher) dùng SPA vì nó không phải app nghiệp vụ. Mọi Console nghiệp vụ thực sự (nơi người dùng nhập liệu, duyệt, thao tác CRUD) dùng Remix — đồng nhất 1 pattern cho tất cả 3 cluster, tránh mỗi console 1 kiểu.
+**Nguyên tắc chốt:** Portal và các console nghiệp vụ dùng React + Vite; shared Tailwind/shadcn-style primitives giữ giao diện và vận hành nhất quán giữa các cluster.
 
 ---
 
@@ -120,7 +120,7 @@ flowchart TB
     subgraph QMS["CLUSTER QMS"]
         QINS["qms-inspection-service<br/>🟦 Node.js"]
         QNCR["qms-nonconformance-service<br/>🟦 Node.js"]
-        QMSUI["QMS Console<br/>Remix"]
+        QMSUI["QMS Console<br/>React + Vite"]
     end
 
     MESUI --> KONG
@@ -146,7 +146,7 @@ flowchart TB
 | OTel | Node SDK | Go SDK official | Cùng 1 OTel Collector, Tempo, Grafana |
 | Database | PostgreSQL | PostgreSQL | Database-per-service, không đổi |
 | Frontend (launcher) | — | — | React + Vite (chỉ Portal) |
-| Frontend (console nghiệp vụ) | — | — | Remix (MES/WMS/QMS Console) |
+| Frontend (console nghiệp vụ) | — | — | React + Vite + Tailwind (MES/WMS/QMS Console) |
 | Event contract | JSON Schema qua Confluent Schema Registry | (giống Node) | Không phân biệt theo ngôn ngữ publisher/consumer |
 
 ---

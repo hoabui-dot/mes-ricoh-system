@@ -3,9 +3,15 @@ import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { Package, Plus, CheckCircle2, AlertOctagon, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useI18n } from '@mom-platform/i18n-ui-shared';
+import { Button, Card, Input, Select } from '../../components/ui';
+import { translatedEnum } from '../../lib/i18nLabels';
+
+const ITEM_TYPES = ['FG', 'SFG', 'RM'] as const;
 
 export const ItemsScreen: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
@@ -26,7 +32,7 @@ export const ItemsScreen: React.FC = () => {
       });
       if (!resp.ok) {
         if (resp.status === 503) throw { status: 503, message: 'Circuit breaker open' };
-        throw new Error('Không thể tải danh sách sản phẩm');
+        throw new Error(t('items.loadFailed'));
       }
       const data = await resp.json();
       setItems(data.data || []);
@@ -44,7 +50,7 @@ export const ItemsScreen: React.FC = () => {
   const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemCode || !itemName) {
-      toast.error('Vui lòng nhập Mã và Tên sản phẩm');
+      toast.error(t('items.required'));
       return;
     }
     setSubmitting(true);
@@ -61,9 +67,9 @@ export const ItemsScreen: React.FC = () => {
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || 'Tạo sản phẩm thất bại');
+        throw new Error(errJson.message || errJson.error || t('items.createFailed'));
       }
-      toast.success(`Đã tạo sản phẩm ${itemCode}`);
+      toast.success(t('items.created', { code: itemCode }));
       setShowCreateModal(false);
       setItemCode('');
       setItemName('');
@@ -85,12 +91,12 @@ export const ItemsScreen: React.FC = () => {
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || 'Release revision thất bại');
+        throw new Error(errJson.message || errJson.error || t('items.releaseFailed'));
       }
-      toast.success('Đã Release ItemRevision thành công!');
+      toast.success(t('items.releasedRevision'));
       await fetchItems();
     } catch (err: any) {
-      toast.error(`Lỗi Release: ${err.message}`);
+      toast.error(t('items.releaseError', { message: err.message }));
     } finally {
       setSubmitting(false);
     }
@@ -99,70 +105,70 @@ export const ItemsScreen: React.FC = () => {
   if (error) return <ErrorBoundaryCard error={error} onRetry={fetchItems} />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+    <div className="mes-page">
+      <div className="mes-page-header">
         <div className="flex items-center space-x-3">
-          <div className="p-3 bg-indigo-600/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+          <div className="mes-icon-tile">
             <Package className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-100">Quản Lý Sản Phẩm (Item & Revision)</h1>
-            <p className="text-xs text-slate-400">Master Data Tier 1 — Danh mục Thành phẩm, Bán thành phẩm, Nguyên liệu</p>
+            <h1 className="text-xl font-bold text-slate-100">{t('items.title')}</h1>
+            <p className="text-xs text-slate-400">{t('items.subtitle')}</p>
           </div>
         </div>
 
         <div className="flex items-center space-x-3">
-          <button onClick={fetchItems} className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition">
+          <Button onClick={fetchItems} variant="secondary" size="icon">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl flex items-center space-x-2 transition shadow-lg shadow-indigo-600/20"
           >
             <Plus className="w-4 h-4" />
-            <span>Thêm Sản Phẩm Mới</span>
-          </button>
+            <span>{t('items.create')}</span>
+          </Button>
         </div>
       </div>
 
       {/* Grid */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <table className="w-full text-left text-sm text-slate-300">
-          <thead className="bg-slate-950 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">
+      <div className="mes-table-wrap">
+        <table className="mes-table">
+          <thead>
             <tr>
-              <th className="px-6 py-4">Mã Sản Phẩm</th>
-              <th className="px-6 py-4">Tên Sản Phẩm</th>
-              <th className="px-6 py-4">Loại (Type)</th>
-              <th className="px-6 py-4">Đơn Vị Tính</th>
-              <th className="px-6 py-4">Trạng Thái Release</th>
-              <th className="px-6 py-4 text-right">Thao Tác</th>
+              <th className="px-6 py-4">{t('items.itemCode')}</th>
+              <th className="px-6 py-4">{t('items.itemName')}</th>
+              <th className="px-6 py-4">{t('items.itemType')}</th>
+              <th className="px-6 py-4">{t('items.uom')}</th>
+              <th className="px-6 py-4">{t('items.releaseStatus')}</th>
+              <th className="px-6 py-4 text-right">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60">
             {items.map((item) => (
               <tr key={item.item_id} className="hover:bg-slate-800/40 transition">
-                <td className="px-6 py-4 font-mono font-bold text-indigo-400">{item.item_code}</td>
+                <td className="px-6 py-4 font-mono font-bold text-amber-300">{item.item_code}</td>
                 <td className="px-6 py-4 text-slate-100 font-medium">{item.item_name}</td>
                 <td className="px-6 py-4">
                   <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-slate-300">
-                    {item.item_type}
+                    {translatedEnum(t, 'item.type', item.item_type)}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-slate-400">{item.uom || 'Cái'}</td>
+                <td className="px-6 py-4 text-slate-400">{item.uom || t('uom.pcs')}</td>
                 <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800 text-emerald-300 rounded-full text-xs font-semibold flex items-center space-x-1 w-fit">
+                  <span className="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800 text-amber-200 rounded-full text-xs font-semibold flex items-center space-x-1 w-fit">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Active</span>
+                    <span>{t('common.active')}</span>
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button
+                  <Button
                     onClick={() => handleReleaseRevision(item.item_id, item.active_revision_id || 'rev-01')}
                     disabled={submitting}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-emerald-600 border border-slate-700 hover:border-emerald-500 text-slate-200 hover:text-white rounded-lg text-xs font-semibold transition"
+                    variant="secondary"
+                    size="sm"
                   >
-                    Release Revision
-                  </button>
+                    {t('items.releaseRevision')}
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -173,58 +179,55 @@ export const ItemsScreen: React.FC = () => {
       {/* Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-          <form onSubmit={handleCreateItem} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-100">Thêm Sản Phẩm Mới</h3>
+          <Card className="max-w-md w-full">
+          <form onSubmit={handleCreateItem} className="p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-100">{t('items.create')}</h3>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Mã Sản Phẩm (Item Code) *</label>
-              <input
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">{t('items.itemCode')} *</label>
+              <Input
                 type="text"
                 value={itemCode}
                 onChange={(e) => setItemCode(e.target.value)}
-                placeholder="VD: FG-WS-CM01"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-sm text-slate-100"
+                placeholder={t('items.codePlaceholder')}
+                className="font-mono"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Tên Sản Phẩm *</label>
-              <input
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">{t('items.itemName')} *</label>
+              <Input
                 type="text"
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
-                placeholder="VD: Won Seal Rubber Gasket CM01"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-100"
+                placeholder={t('items.namePlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">Loại Sản Phẩm</label>
-              <select
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">{t('items.itemType')}</label>
+              <Select
                 value={itemType}
                 onChange={(e) => setItemType(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-100"
               >
-                <option value="FG">FG (Thành Phẩm)</option>
-                <option value="WIP">WIP (Bán Thành Phẩm)</option>
-                <option value="RAW">RAW (Nguyên Vật Tư)</option>
-              </select>
+                {ITEM_TYPES.map((type) => <option key={type} value={type}>{translatedEnum(t, 'item.type', type)}</option>)}
+              </Select>
             </div>
             <div className="flex justify-end space-x-3 pt-2">
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold"
+                variant="secondary"
               >
-                Hủy
-              </button>
-              <button
+                {t('common.cancel')}
+              </Button>
+              <Button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold flex items-center space-x-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                <span>Lưu Sản Phẩm</span>
-              </button>
+                <span>{t('common.save')}</span>
+              </Button>
             </div>
           </form>
+          </Card>
         </div>
       )}
     </div>

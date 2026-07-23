@@ -1,4 +1,11 @@
 # PROMPT — Phase 1, Step 3 (Stage A): Build `mes-execution-service` — WO Planning & Creation — [Completed ✅]
+
+> Current-state note added by documentation audit on 2026-07-22: this is a historical Stage A prompt.
+> Its "stock_check_status is inert" language was correct before WMS existed. Phase 2 Step 2 now
+> implements WMS material staging through `POST /api/mes/execution/work-orders/{id}/stage-materials`;
+> `stock_check_status` is now `NotChecked | Staged | Shortage` and `stock_check_detail` stores the WMS
+> result. See `implementation/phase-2-2-wms-inventory-stock.md`.
+
 ### (v3 — Go implementation. Supersedes the Node/TypeScript v2 prompt entirely, following the
 ###  Node-vs-Go tech stack decision: this service owns both low-frequency WO approval (Stage A)
 ###  and high-throughput, CPU-bound real-time execution (Stage B) in the same bounded context,

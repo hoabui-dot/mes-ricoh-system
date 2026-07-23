@@ -25,6 +25,12 @@ plugins:
       generator: uuid#counter
       echo_downstream: true
 
+  - name: opentelemetry
+    config:
+      endpoint: http://otel-collector:4318/v1/traces
+      resource_attributes:
+        service.name: kong
+
   # CORS plugin allowing cross-origin requests from web frontends
   - name: cors
     config:
@@ -54,50 +60,30 @@ plugins:
       credentials: true
       max_age: 3600
 
+consumers:
+  - username: keycloak-wonsealtech-wms
+    jwt_secrets:
+      - key: http://127.0.0.1:18080/realms/wonsealtech
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqFZqojEswqdlL8gYxn/mKeyI2P2MckJBxXGXnEqz4DzMtfl7meUYLYdlzQD1cBc+Xsb8lAqOOwj/5LY7ZyV0F2wp+vdJQ3RwOjmxPBfqxbEJNotuBddkornG/YcYKVuofSAoVxxsOgyWss+XyzwgXEl6a0lpA6ZH67xmGTYBt9c5la9+UKm5yQoG6HvTYFpvtKQoNXQcXCswu62mWcOQSHu+4Gr7zUuKmIYOhDcvkjkUtuts/IFWBHXGlua6K1S41wP81CO6Glen6EGP0zkCGhnAPSzjoJKxFr0HejVWknIQ3/x2xS25+iNbfriIyMJjQcb9XEnFHNoxI9d40x38QIDAQAB
+          -----END PUBLIC KEY-----
+      - key: http://100.68.50.41:18080/realms/wonsealtech
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqFZqojEswqdlL8gYxn/mKeyI2P2MckJBxXGXnEqz4DzMtfl7meUYLYdlzQD1cBc+Xsb8lAqOOwj/5LY7ZyV0F2wp+vdJQ3RwOjmxPBfqxbEJNotuBddkornG/YcYKVuofSAoVxxsOgyWss+XyzwgXEl6a0lpA6ZH67xmGTYBt9c5la9+UKm5yQoG6HvTYFpvtKQoNXQcXCswu62mWcOQSHu+4Gr7zUuKmIYOhDcvkjkUtuts/IFWBHXGlua6K1S41wP81CO6Glen6EGP0zkCGhnAPSzjoJKxFr0HejVWknIQ3/x2xS25+iNbfriIyMJjQcb9XEnFHNoxI9d40x38QIDAQAB
+          -----END PUBLIC KEY-----
+      - key: http://localhost:18080/realms/wonsealtech
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqFZqojEswqdlL8gYxn/mKeyI2P2MckJBxXGXnEqz4DzMtfl7meUYLYdlzQD1cBc+Xsb8lAqOOwj/5LY7ZyV0F2wp+vdJQ3RwOjmxPBfqxbEJNotuBddkornG/YcYKVuofSAoVxxsOgyWss+XyzwgXEl6a0lpA6ZH67xmGTYBt9c5la9+UKm5yQoG6HvTYFpvtKQoNXQcXCswu62mWcOQSHu+4Gr7zUuKmIYOhDcvkjkUtuts/IFWBHXGlua6K1S41wP81CO6Glen6EGP0zkCGhnAPSzjoJKxFr0HejVWknIQ3/x2xS25+iNbfriIyMJjQcb9XEnFHNoxI9d40x38QIDAQAB
+          -----END PUBLIC KEY-----
+
 # ─── Services + Routes ────────────────────────────────────────────────────────
 services:
-
-  # ── Hello-World Service (Phase 0 scaffolding validator) ──────────────────
-  - name: hello-world-service
-    url: http://hello-world-service:3010
-    connect_timeout: 5000
-    read_timeout: 30000
-    write_timeout: 30000
-    routes:
-      - name: hello-world-route
-        paths:
-          - /api/hello
-        strip_path: false
-        methods: [GET, POST, PUT, DELETE, OPTIONS]
-    plugins:
-      # Forward user context from JWT claims to downstream via headers
-      # In Phase 0 we forward the Authorization header as-is; downstream
-      # services extract what they need. In Phase 1 we add Kong OIDC plugin.
-      - name: pre-function
-        config:
-          access:
-            - |
-              -- Extract X-User-ID and X-Role-Code from headers if already set
-              -- (set by reverse proxy or Keycloak token introspection upstream)
-              -- For Phase 0 demo: forward as anonymous if no auth header present
-              local auth_header = kong.request.get_header("Authorization")
-              local user_id = kong.request.get_header("X-User-ID")
-              local role_code = kong.request.get_header("X-Role-Code")
-
-              -- Get trace ID from correlation-id plugin
-              local trace_id = kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or ""
-
-              -- Defaults for Phase 0 (will be replaced with real JWT parsing in Phase 1)
-              if not user_id or user_id == "" then
-                user_id = "anonymous"
-              end
-              if not role_code or role_code == "" then
-                role_code = "OPERATOR"
-              end
-
-              kong.service.request.set_header("X-User-ID", user_id)
-              kong.service.request.set_header("X-Role-Code", role_code)
-              kong.service.request.set_header("X-Trace-ID", trace_id)
 
   # ── MES Cluster placeholder (Phase 1) ────────────────────────────────────
   - name: mes-master-data-service
@@ -223,6 +209,191 @@ services:
               kong.service.request.set_header("X-User-ID", user_id)
               kong.service.request.set_header("X-Role-Code", role_code)
               kong.service.request.set_header("X-Trace-ID", trace_id)
+
+  - name: wms-master-data-service
+    url: http://wms-master-data-service:3060
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-master-data-route
+        paths:
+          - /api/wms/master-data
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins: &wms_auth_plugins
+      - name: jwt
+        config:
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+          uri_param_names: []
+          cookie_names: []
+          run_on_preflight: false
+      - name: pre-function
+        config:
+          access:
+            - |
+              if kong.request.get_method() == "OPTIONS" then
+                return
+              end
+
+              local auth_header = kong.request.get_header("Authorization")
+              local trace_id = kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or ""
+              local token = nil
+
+              if auth_header then
+                token = auth_header:match("^[Bb]earer%s+(.+)$")
+              end
+              if not token or token == "" then
+                return kong.response.exit(401, { message = "Bearer token required" })
+              end
+
+              local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
+              if not payload_b64 then
+                return kong.response.exit(401, { message = "Malformed token" })
+              end
+              payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+              local remainder = #payload_b64 % 4
+              if remainder > 0 then
+                payload_b64 = payload_b64 .. string.rep("=", 4 - remainder)
+              end
+
+              local payload_json = ngx.decode_base64(payload_b64)
+              if not payload_json then
+                return kong.response.exit(401, { message = "Malformed token payload" })
+              end
+
+              local azp = payload_json:match('"azp"%s*:%s*"([^"]+)"')
+              if azp ~= "wms-client" then
+                return kong.response.exit(403, { message = "Token is not issued for wms-client" })
+              end
+
+              local role_set = {}
+              local roles_json = payload_json:match('"realm_access"%s*:%s*{.-"roles"%s*:%s*%[(.-)%]')
+              if roles_json then
+                for role in roles_json:gmatch('"([^"]+)"') do role_set[role] = true end
+              end
+
+              local role_code = nil
+              for _, candidate in ipairs({ "WAREHOUSE_STAFF", "PLANT_MANAGER", "EXECUTIVE", "OPERATOR", "QC_TECHNICIAN" }) do
+                if role_set[candidate] then
+                  role_code = candidate
+                  break
+                end
+              end
+              if not role_code then
+                return kong.response.exit(403, { message = "No WMS-compatible realm role found" })
+              end
+
+              local user_id = payload_json:match('"sub"%s*:%s*"([^"]+)"')
+              if not user_id or user_id == "" then
+                return kong.response.exit(401, { message = "Token subject is missing" })
+              end
+
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", role_code)
+              kong.service.request.set_header("X-Trace-ID", trace_id)
+
+  - name: wms-inventory-service
+    url: http://wms-inventory-service:3070
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-inventory-route
+        paths:
+          - /api/wms/inventory
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins: *wms_auth_plugins
+
+  - name: wms-inbound-service
+    url: http://wms-inbound-service:3080
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-inbound-route
+        paths:
+          - /api/wms/inbound
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins: *wms_auth_plugins
+
+  - name: wms-outbound-service
+    url: http://wms-outbound-service:3090
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-outbound-route
+        paths:
+          - /api/wms/outbound
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins: *wms_auth_plugins
+
+  - name: qms-inspection-service
+    url: http://qms-inspection-service:3110
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: qms-inspection-route
+        paths:
+          - /api/qms/inspection
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins: &qms_auth_plugins
+      - name: jwt
+        config:
+          key_claim_name: iss
+          claims_to_verify: [exp]
+          uri_param_names: []
+          cookie_names: []
+          run_on_preflight: false
+      - name: pre-function
+        config:
+          access:
+            - |
+              if kong.request.get_method() == "OPTIONS" then return end
+              local auth_header = kong.request.get_header("Authorization")
+              local token = auth_header and auth_header:match("^[Bb]earer%s+(.+)$")
+              if not token then return kong.response.exit(401, { message = "Bearer token required" }) end
+              local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
+              if not payload_b64 then return kong.response.exit(401, { message = "Malformed token" }) end
+              payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+              local remainder = #payload_b64 % 4
+              if remainder > 0 then payload_b64 = payload_b64 .. string.rep("=", 4 - remainder) end
+              local payload_json = ngx.decode_base64(payload_b64)
+              if not payload_json then return kong.response.exit(401, { message = "Malformed token payload" }) end
+              local azp = payload_json:match('"azp"%s*:%s*"([^"]+)"')
+              if azp ~= "qms-client" then return kong.response.exit(403, { message = "Token is not issued for qms-client" }) end
+              local roles_json = payload_json:match('"realm_access"%s*:%s*{.-"roles"%s*:%s*%[(.-)%]')
+              local role_set = {}
+              if roles_json then for candidate in roles_json:gmatch('"([^"]+)"') do role_set[candidate] = true end end
+              local role_code = nil
+              for _, candidate in ipairs({ "QC_TECHNICIAN", "PLANT_MANAGER", "EXECUTIVE" }) do if role_set[candidate] then role_code = candidate break end end
+              if not role_code then return kong.response.exit(403, { message = "No QMS-compatible realm role found" }) end
+              local user_id = payload_json:match('"sub"%s*:%s*"([^"]+)"')
+              if not user_id then return kong.response.exit(401, { message = "Token subject is missing" }) end
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", role_code)
+              kong.service.request.set_header("X-Trace-ID", kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or "")
+
+  - name: qms-nonconformance-service
+    url: http://qms-nonconformance-service:3120
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: qms-nonconformance-route
+        paths:
+          - /api/qms/nonconformance
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins: *qms_auth_plugins
 
 #   - name: mes-cluster
 #     url: http://mes-api-gateway:4000

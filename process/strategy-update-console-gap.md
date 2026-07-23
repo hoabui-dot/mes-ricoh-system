@@ -53,7 +53,10 @@ MBOM/Routing → tạo WO → duyệt WO hoàn toàn qua UI, không cần gọi 
 Lộ trình gốc chỉ liệt kê `wms-master-data-service` → `wms-inventory/inbound/outbound-service`, không có
 dòng UI riêng — đúng lỗ hổng mental model đã sửa ở mục 1. Cập nhật lộ trình:
 1. `wms-master-data-service`
-2. `wms-inventory-service`, `wms-inbound-service`, `wms-outbound-service`
+2. `wms-inventory-service`, `wms-inbound-service`, `wms-outbound-service` — hiện thực mô hình WMS
+   2 cấp Warehouse ↔ WorkCenter staging; allocation phải ưu tiên tồn kho staging còn dư, chỉ chuyển
+   thêm từ Warehouse theo shortfall, xử lý shortage/expired stock và FEFO theo
+   `process/Phase-2-Step-1-Patch-&-Step-2.md`.
 3. **`wms-console` — bổ sung tường minh ngay từ bây giờ**, không đợi tới lúc rà soát lại như MES. Tái
    dùng đúng pattern Remix/shadcn/3-layer error handling đã chốt ở `mes-console` — đây chính là lý do
    Console được build riêng cho MES trước: để WMS/QMS Console chỉ còn là lặp lại pattern, không phải

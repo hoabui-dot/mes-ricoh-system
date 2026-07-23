@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import type Keycloak from 'keycloak-js';
 import { APPS, ROLE_DISPLAY, type AppDefinition } from '../config/apps.ts';
 import AppCard from '../components/AppCard.tsx';
 import UserBadge from '../components/UserBadge.tsx';
 import '../styles/portal.css';
+import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
+import { getVisibleApps, resolvePortalApps } from '../lib/appResolution.ts';
 
 interface PortalPageProps {
   keycloak: Keycloak;
@@ -18,15 +21,11 @@ function getUserRoles(keycloak: Keycloak): string[] {
   }
 }
 
-function getVisibleApps(roles: string[]): AppDefinition[] {
-  return APPS.filter((app) =>
-    app.allowedRoles.some((role) => roles.includes(role)),
-  );
-}
-
 export default function PortalPage({ keycloak }: PortalPageProps) {
+  const { locale, setLocale, t } = useI18n();
   const roles = getUserRoles(keycloak);
-  const visibleApps = getVisibleApps(roles);
+  const visibleApps = getVisibleApps(roles, APPS);
+  const appDecision = resolvePortalApps(visibleApps);
   const username =
     (keycloak.tokenParsed as Record<string, unknown> | undefined)?.['preferred_username'] as string | undefined ??
     'User';
@@ -46,6 +45,23 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
     // SSO: redirect to cluster URL — Keycloak SSO session handles re-auth silently
     window.open(app.url, '_blank', 'noopener,noreferrer');
   };
+
+  useEffect(() => {
+    if (appDecision.kind !== 'redirect') return;
+    window.location.assign(appDecision.app.url);
+  }, [appDecision]);
+
+  if (appDecision.kind === 'redirect') {
+    return (
+      <div className="portal-root">
+        <main className="portal-main">
+          <div className="portal-empty" role="status">
+            <h2>{t('portal.redirecting')}</h2>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="portal-root">
@@ -74,6 +90,14 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
             roleDisplay={roleDisplay}
             onLogout={handleLogout}
           />
+          <select
+            value={locale}
+            onChange={(event) => setLocale(event.target.value as SupportedLocale)}
+            aria-label={t('navbar.language')}
+            style={{ marginLeft: '1rem' }}
+          >
+            {SUPPORTED_LOCALES.map((item) => <option key={item} value={item}>{languageNames[item]}</option>)}
+          </select>
         </div>
       </header>
 
@@ -81,10 +105,10 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
       <main className="portal-main">
         <div className="portal-welcome">
           <h1 className="portal-title">
-            Xin chào, <span className="portal-title-name">{username}</span>
+            {t('portal.hello', { username })}
           </h1>
           <p className="portal-subtitle">
-            Chọn hệ thống bạn muốn làm việc hôm nay
+            {t('portal.choose')}
           </p>
           <div className="portal-role-badge">
             <span className="portal-role-dot" />
@@ -98,7 +122,7 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
           role="list"
           aria-label="Available applications"
         >
-          {visibleApps.map((app, index) => (
+          {appDecision.apps.map((app, index) => (
             <AppCard
               key={app.id}
               app={app}
@@ -108,11 +132,11 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
           ))}
         </div>
 
-        {visibleApps.length === 0 && (
+        {appDecision.kind === 'none' && (
           <div className="portal-empty" role="alert">
             <span style={{ fontSize: '3rem' }}>🔒</span>
-            <h2>Không có quyền truy cập</h2>
-            <p>Tài khoản của bạn chưa được cấp quyền vào hệ thống nào. Liên hệ quản trị viên.</p>
+            <h2>{t('portal.noAccess')}</h2>
+            <p>{t('portal.noAccessBody')}</p>
           </div>
         )}
 
@@ -127,7 +151,7 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
           </div>
           <div className="portal-footer-status">
             <span className="portal-status-dot" />
-            All systems operational
+            {t('portal.operational')}
           </div>
         </footer>
       </main>

@@ -9,13 +9,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sony/gobreaker"
+	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 type TraceabilityClient struct {
 	baseURL string
 	client  *http.Client
-	cb      *gobreaker.CircuitBreaker
+	cb      interface {
+		Execute(func() (interface{}, error)) (interface{}, error)
+	}
 }
 
 func NewTraceabilityClient(baseURL string) *TraceabilityClient {
@@ -23,19 +25,13 @@ func NewTraceabilityClient(baseURL string) *TraceabilityClient {
 		baseURL = "http://mes-traceability-service:3040/api/mes/traceability"
 	}
 
-	cbSettings := gobreaker.Settings{
-		Name:    "TraceabilityServiceClient",
-		Timeout: 5 * time.Second,
-		ReadyToTrip: func(counts gobreaker.Counts) bool {
-			failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
-			return counts.Requests >= 3 && failureRatio >= 0.5
-		},
-	}
-
 	return &TraceabilityClient{
 		baseURL: baseURL,
 		client:  &http.Client{Timeout: 5 * time.Second},
-		cb:      gobreaker.NewCircuitBreaker(cbSettings),
+		cb: sharedkernel.NewCircuitBreaker(sharedkernel.CircuitBreakerConfig{
+			Name:       "TraceabilityServiceClient",
+			Dependency: "mes-traceability-service",
+		}),
 	}
 }
 
@@ -68,12 +64,12 @@ type PieceInput struct {
 }
 
 type SplitLabelReq struct {
-	ParentLabelID         string       `json:"parent_label_id"`
+	ParentLabelID        string       `json:"parent_label_id"`
 	TargetItemRevisionID string       `json:"target_item_revision_id"`
 	OperationCode        string       `json:"operation_code"`
-	Pieces                []PieceInput `json:"pieces"`
-	SiteID                string       `json:"site_id"`
-	IdempotencyKey        string       `json:"idempotency_key"`
+	Pieces               []PieceInput `json:"pieces"`
+	SiteID               string       `json:"site_id"`
+	IdempotencyKey       string       `json:"idempotency_key"`
 }
 
 type SplitLabelResp struct {
@@ -104,10 +100,14 @@ func (c *TraceabilityClient) IssueLabel(ctx context.Context, req IssueLabelReq, 
 
 		resp, err := c.client.Do(httpReq)
 		if err != nil {
-			return nil, err
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", err)
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode >= 500 {
+			respBody, _ := io.ReadAll(resp.Body)
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", fmt.Errorf("issue label failed (status %d): %s", resp.StatusCode, string(respBody)))
+		}
 		if resp.StatusCode >= 400 {
 			respBody, _ := io.ReadAll(resp.Body)
 			return nil, fmt.Errorf("traceability issue label error (status %d): %s", resp.StatusCode, string(respBody))
@@ -121,6 +121,9 @@ func (c *TraceabilityClient) IssueLabel(ctx context.Context, req IssueLabelReq, 
 	})
 
 	if err != nil {
+		if sharedkernel.IsCircuitBreakerOpen(err) {
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", err)
+		}
 		return nil, err
 	}
 	return result.(*LabelInstanceResp), nil
@@ -141,10 +144,14 @@ func (c *TraceabilityClient) SplitLabel(ctx context.Context, req SplitLabelReq, 
 
 		resp, err := c.client.Do(httpReq)
 		if err != nil {
-			return nil, err
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", err)
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode >= 500 {
+			respBody, _ := io.ReadAll(resp.Body)
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", fmt.Errorf("split label failed (status %d): %s", resp.StatusCode, string(respBody)))
+		}
 		if resp.StatusCode >= 400 {
 			respBody, _ := io.ReadAll(resp.Body)
 			return nil, fmt.Errorf("traceability split label error (status %d): %s", resp.StatusCode, string(respBody))
@@ -158,6 +165,9 @@ func (c *TraceabilityClient) SplitLabel(ctx context.Context, req SplitLabelReq, 
 	})
 
 	if err != nil {
+		if sharedkernel.IsCircuitBreakerOpen(err) {
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", err)
+		}
 		return nil, err
 	}
 	return result.(*SplitLabelResp), nil
@@ -178,16 +188,22 @@ func (c *TraceabilityClient) ConsumeLabel(ctx context.Context, req ConsumeLabelR
 
 		resp, err := c.client.Do(httpReq)
 		if err != nil {
-			return nil, err
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", err)
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode >= 500 {
+			respBody, _ := io.ReadAll(resp.Body)
+			return nil, sharedkernel.NewRetryableDependencyError("mes-traceability-service", fmt.Errorf("consume label failed (status %d): %s", resp.StatusCode, string(respBody)))
+		}
 		if resp.StatusCode >= 400 {
 			respBody, _ := io.ReadAll(resp.Body)
 			return nil, fmt.Errorf("traceability consume label error (status %d): %s", resp.StatusCode, string(respBody))
 		}
 		return nil, nil
 	})
-
+	if err != nil && sharedkernel.IsCircuitBreakerOpen(err) {
+		return sharedkernel.NewRetryableDependencyError("mes-traceability-service", err)
+	}
 	return err
 }

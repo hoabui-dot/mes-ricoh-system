@@ -88,6 +88,10 @@ Phantom-flagged lines (`SFG-ROLL-EPDM-R1` at `OP-CUT`) are **not** consumed via 
 
 ## 7. Explicit Non-Goals for This Step
 
+> Current-state note added by documentation audit on 2026-07-22: the WMS stock-check non-goal below was
+> correct for this historical Stage B prompt. Phase 2 Step 2 now implements WMS material staging and
+> consumption decrement; see `implementation/phase-2-2-wms-inventory-stock.md`.
+
 - Do not build kiosk WebSocket/MQTT/offline-sync — `terminal_ref` stays a plain string field until `mes-kiosk-gateway-service` (Step 5) exists to own real terminal identity.
 - Do not implement WMS stock-check or reservation calls — `mes-execution-service` does not yet know inventory availability; this remains a known gap until `wms-outbound-service` (Phase 2) exists, consistent with Stage A's `ComputeAndCheck` already excluding stock fields.
 - Do not implement QMS inspection-plan logic beyond the minimal PASS/FAIL + reason_code capture at `OP-QC` — full inspection plan management belongs to `qms-inspection-service` (Phase 3).

@@ -6,5 +6,7 @@ publishes_events:
   - MES.Traceability.QRSplitPerformed.v1
   - MES.Traceability.GenealogyRecorded.v1
 consumes_events:
-  - MES.MasterData.ItemRevisionReleased.v1
-  - MES.MasterData.MBOMReleased.v1
+  - MES.MasterData.ItemRevisionReleased.v2
+  - MES.MasterData.MBOMReleased.v2
+notes:
+  - "Step 8 read-models preserve LocalizedText jsonb from Master Data .v2 events. Label template static text is LocalizedText; dynamic QR/lot data remains scalar."

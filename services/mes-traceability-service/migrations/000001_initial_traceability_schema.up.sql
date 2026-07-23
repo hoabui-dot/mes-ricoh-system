@@ -3,7 +3,8 @@
 CREATE TABLE IF NOT EXISTS md_label_template (
   template_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   template_code varchar(50) UNIQUE NOT NULL,
-  template_name varchar(100) NOT NULL,
+  template_name jsonb NOT NULL,
+  static_text jsonb NOT NULL DEFAULT '{"vi":""}'::jsonb,
   layout_json jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -105,6 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(created_at) WHERE
 CREATE TABLE IF NOT EXISTS rm_item_revision (
   master_id uuid PRIMARY KEY,
   code varchar(50) NOT NULL,
+  name jsonb NOT NULL DEFAULT '{"vi":""}'::jsonb,
   revision_code varchar(30) NOT NULL,
   item_type varchar(40),
   site_id uuid NOT NULL,
@@ -115,6 +117,7 @@ CREATE TABLE IF NOT EXISTS rm_item_revision (
 CREATE TABLE IF NOT EXISTS rm_mbom_header (
   master_id uuid PRIMARY KEY,
   code varchar(50) NOT NULL,
+  name jsonb NOT NULL DEFAULT '{"vi":""}'::jsonb,
   item_revision_id uuid NOT NULL,
   site_id uuid NOT NULL,
   base_quantity numeric(18,6) NOT NULL,

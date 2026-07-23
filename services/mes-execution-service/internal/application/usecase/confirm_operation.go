@@ -13,18 +13,18 @@ import (
 )
 
 type ConfirmOperationInput struct {
-	WOID               string               `json:"wo_id"`
-	WOOperationID      string               `json:"wo_operation_id"`
-	SessionID          string               `json:"session_id"`
-	QtyGood            float64              `json:"qty_good"`
-	QtyScrap           float64              `json:"qty_scrap"`
-	ReasonCode         *string              `json:"reason_code,omitempty"`
-	ScannedLabelID     *string              `json:"scanned_label_id,omitempty"`
+	WOID                string              `json:"wo_id"`
+	WOOperationID       string              `json:"wo_operation_id"`
+	SessionID           string              `json:"session_id"`
+	QtyGood             float64             `json:"qty_good"`
+	QtyScrap            float64             `json:"qty_scrap"`
+	ReasonCode          *string             `json:"reason_code,omitempty"`
+	ScannedLabelID      *string             `json:"scanned_label_id,omitempty"`
 	ScannedMaterialCode *string             `json:"scanned_material_code,omitempty"`
-	Pieces             []client.PieceInput  `json:"pieces,omitempty"`
-	OperatorUserID     string               `json:"operator_user_id"`
-	RoleCode           string               `json:"role_code"`
-	IdempotencyAttempt string               `json:"idempotency_attempt,omitempty"`
+	Pieces              []client.PieceInput `json:"pieces,omitempty"`
+	OperatorUserID      string              `json:"operator_user_id"`
+	RoleCode            string              `json:"role_code"`
+	IdempotencyAttempt  string              `json:"idempotency_attempt,omitempty"`
 }
 
 func ConfirmOperation(
@@ -42,13 +42,13 @@ func ConfirmOperation(
 	_, _ = tx.Exec(ctx, `SELECT set_config('app.current_user_id', $1, true)`, input.OperatorUserID)
 
 	// 1. Fetch WOOperation and WOHeader details
-	var opCode, opStatus, siteID, itemRevID, uomID string
+	var opID, opCode, opStatus, siteID, itemRevID, uomID, workCenterID string
 	err = tx.QueryRow(ctx, `
-		SELECT o.operation_code, o.status, h.site_id, h.item_revision_id, h.uom_id
+		SELECT o.operation_id, o.operation_code, o.status, h.site_id, h.item_revision_id, h.uom_id, o.work_center_id
 		FROM wo_operation o
 		JOIN wo_header h ON o.wo_id = h.wo_id
 		WHERE o.wo_operation_id = $1 AND o.wo_id = $2
-	`, input.WOOperationID, input.WOID).Scan(&opCode, &opStatus, &siteID, &itemRevID, &uomID)
+	`, input.WOOperationID, input.WOID).Scan(&opID, &opCode, &opStatus, &siteID, &itemRevID, &uomID, &workCenterID)
 	if err != nil {
 		return nil, fmt.Errorf("operation %s not found for WO %s: %w", input.WOOperationID, input.WOID, err)
 	}
@@ -121,12 +121,12 @@ func ConfirmOperation(
 					}
 				}
 				splitReq := client.SplitLabelReq{
-					ParentLabelID:         *input.ScannedLabelID,
+					ParentLabelID:        *input.ScannedLabelID,
 					TargetItemRevisionID: itemRevID,
 					OperationCode:        opCode,
-					Pieces:                pieces,
-					SiteID:                siteID,
-					IdempotencyKey:        idempotencyKey,
+					Pieces:               pieces,
+					SiteID:               siteID,
+					IdempotencyKey:       idempotencyKey,
 				}
 				splitResp, err := traceabilityClient.SplitLabel(ctx, splitReq, input.OperatorUserID, input.RoleCode)
 				if err != nil {
@@ -177,9 +177,10 @@ func ConfirmOperation(
 					CreatedByOperation: opCode,
 				}
 				lblResp, err := traceabilityClient.IssueLabel(ctx, issueReq, input.OperatorUserID, input.RoleCode)
-				if err == nil {
-					outputLabelID = &lblResp.LabelID
+				if err != nil {
+					return nil, fmt.Errorf("failed to issue PASS label at OP-QC: %w", err)
 				}
+				outputLabelID = &lblResp.LabelID
 			}
 		}
 	}
@@ -196,8 +197,8 @@ func ConfirmOperation(
 	if err == nil {
 		type matReq struct {
 			reqID, compRevID, uomID string
-			reqQty                   float64
-			backflush, phantom       bool
+			reqQty                  float64
+			backflush, phantom      bool
 		}
 		var reqs []matReq
 		for rows.Next() {
@@ -219,6 +220,12 @@ func ConfirmOperation(
 					INSERT INTO material_consumption (consumption_id, wo_id, wo_operation_id, component_revision_id, qty_consumed, uom, source, label_id, consumed_at)
 					VALUES ($1, $2, $3, $4, $5, $6, 'BACKFLUSH', $7, $8)
 				`, cID, input.WOID, input.WOOperationID, req.compRevID, consumedQty, req.uomID, inputLabelID, now)
+				env := sharedkernel.CreateEventEnvelope("MES.Execution.MaterialConsumed.v1", "mes-execution-service", "", map[string]interface{}{
+					"consumption_id": cID, "wo_id": input.WOID, "wo_operation_id": input.WOOperationID, "work_center_id": workCenterID,
+					"component_revision_id": req.compRevID, "qty_consumed": consumedQty, "uom": req.uomID, "source": "BACKFLUSH",
+					"label_id": inputLabelID, "consumed_at": now.Format(time.RFC3339Nano),
+				})
+				_ = sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.MaterialConsumed.v1", env)
 			} else if !req.backflush {
 				// Enforce manual scan record
 				cID := uuid.New().String()
@@ -226,6 +233,12 @@ func ConfirmOperation(
 					INSERT INTO material_consumption (consumption_id, wo_id, wo_operation_id, component_revision_id, qty_consumed, uom, source, label_id, consumed_at)
 					VALUES ($1, $2, $3, $4, $5, $6, 'MANUAL_SCAN', $7, $8)
 				`, cID, input.WOID, input.WOOperationID, req.compRevID, req.reqQty, req.uomID, inputLabelID, now)
+				env := sharedkernel.CreateEventEnvelope("MES.Execution.MaterialConsumed.v1", "mes-execution-service", "", map[string]interface{}{
+					"consumption_id": cID, "wo_id": input.WOID, "wo_operation_id": input.WOOperationID, "work_center_id": workCenterID,
+					"component_revision_id": req.compRevID, "qty_consumed": req.reqQty, "uom": req.uomID, "source": "MANUAL_SCAN",
+					"label_id": inputLabelID, "consumed_at": now.Format(time.RFC3339Nano),
+				})
+				_ = sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.MaterialConsumed.v1", env)
 			}
 		}
 	}
@@ -256,15 +269,20 @@ func ConfirmOperation(
 		"mes-execution-service",
 		"",
 		map[string]interface{}{
-			"confirmation_id":  confirmationID,
-			"wo_id":            input.WOID,
-			"wo_operation_id":  input.WOOperationID,
-			"session_id":       input.SessionID,
-			"qty_good":         input.QtyGood,
-			"qty_scrap":        input.QtyScrap,
-			"reason_code":      input.ReasonCode,
-			"output_label_id":  outputLabelID,
-			"confirmed_at":     now.Format(time.RFC3339Nano),
+			"confirmation_id": confirmationID,
+			"wo_id":           input.WOID,
+			"wo_operation_id": input.WOOperationID,
+			"operation_id":    opID,
+			"operation_code":  opCode,
+			"site_id":         siteID,
+			"item_revision_id": itemRevID,
+			"work_center_id":  workCenterID,
+			"session_id":      input.SessionID,
+			"qty_good":        input.QtyGood,
+			"qty_scrap":       input.QtyScrap,
+			"reason_code":     input.ReasonCode,
+			"output_label_id": outputLabelID,
+			"confirmed_at":    now.Format(time.RFC3339Nano),
 		},
 	)
 	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.OperationFinished.v1", env); err != nil {

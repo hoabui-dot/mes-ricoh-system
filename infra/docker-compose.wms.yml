@@ -1,0 +1,197 @@
+name: mom-platform
+
+services:
+  wms-master-data-db:
+    image: postgres:16-alpine
+    container_name: wms-master-data-db
+    networks: [platform-net]
+    environment:
+      POSTGRES_DB: wms_master_data_db
+      POSTGRES_USER: wms_master_data_owner
+      POSTGRES_PASSWORD: wms_master_data_owner_pass
+    ports:
+      - "15438:5432"
+    volumes:
+      - wms-master-data-db-data:/var/lib/postgresql/data
+      - ./postgres/wms-master-data-init.sql:/docker-entrypoint-initdb.d/001-wms-master-data-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms_master_data_owner -d wms_master_data_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wms-master-data-service:
+    build:
+      context: ..
+      dockerfile: services/wms-master-data-service/Dockerfile
+    container_name: wms-master-data-service
+    networks: [platform-net]
+    ports:
+      - "13060:3060"
+    depends_on:
+      wms-master-data-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      mes-master-data-service:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3060
+      DATABASE_URL: postgresql://wms_master_data_user:wms_master_data_pass@wms-master-data-db:5432/wms_master_data_db
+      MIGRATION_DATABASE_URL: postgresql://wms_master_data_owner:wms_master_data_owner_pass@wms-master-data-db:5432/wms_master_data_db
+      KAFKA_BROKERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SEED_ON_STARTUP: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: wms-master-data-service
+      OTEL_TRACES_EXPORTER: otlp
+
+  wms-inventory-db:
+    image: postgres:16-alpine
+    container_name: wms-inventory-db
+    networks: [platform-net]
+    environment:
+      POSTGRES_DB: wms_inventory_db
+      POSTGRES_USER: wms_inventory_owner
+      POSTGRES_PASSWORD: wms_inventory_owner_pass
+    ports:
+      - "15439:5432"
+    volumes:
+      - wms-inventory-db-data:/var/lib/postgresql/data
+      - ./postgres/wms-inventory-init.sql:/docker-entrypoint-initdb.d/001-wms-inventory-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms_inventory_owner -d wms_inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wms-inventory-service:
+    build:
+      context: ..
+      dockerfile: services/wms-inventory-service/Dockerfile
+    container_name: wms-inventory-service
+    networks: [platform-net]
+    ports:
+      - "13070:3070"
+    depends_on:
+      wms-inventory-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      PORT: 3070
+      DATABASE_URL: postgresql://wms_inventory_user:wms_inventory_pass@wms-inventory-db:5432/wms_inventory_db
+      MIGRATION_DATABASE_URL: postgresql://wms_inventory_owner:wms_inventory_owner_pass@wms-inventory-db:5432/wms_inventory_db
+      KAFKA_BROKERS: kafka:29092
+
+  wms-inbound-db:
+    image: postgres:16-alpine
+    container_name: wms-inbound-db
+    networks: [platform-net]
+    environment:
+      POSTGRES_DB: wms_inbound_db
+      POSTGRES_USER: wms_inbound_owner
+      POSTGRES_PASSWORD: wms_inbound_owner_pass
+    ports:
+      - "15440:5432"
+    volumes:
+      - wms-inbound-db-data:/var/lib/postgresql/data
+      - ./postgres/wms-inbound-init.sql:/docker-entrypoint-initdb.d/001-wms-inbound-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms_inbound_owner -d wms_inbound_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wms-inbound-service:
+    build:
+      context: ..
+      dockerfile: services/wms-inbound-service/Dockerfile
+    container_name: wms-inbound-service
+    networks: [platform-net]
+    ports:
+      - "13080:3080"
+    depends_on:
+      wms-inbound-db:
+        condition: service_healthy
+      wms-inventory-service:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3080
+      DATABASE_URL: postgresql://wms_inbound_user:wms_inbound_pass@wms-inbound-db:5432/wms_inbound_db
+      MIGRATION_DATABASE_URL: postgresql://wms_inbound_owner:wms_inbound_owner_pass@wms-inbound-db:5432/wms_inbound_db
+      INVENTORY_SERVICE_URL: http://wms-inventory-service:3070
+
+  wms-outbound-db:
+    image: postgres:16-alpine
+    container_name: wms-outbound-db
+    networks: [platform-net]
+    environment:
+      POSTGRES_DB: wms_outbound_db
+      POSTGRES_USER: wms_outbound_owner
+      POSTGRES_PASSWORD: wms_outbound_owner_pass
+    ports:
+      - "15441:5432"
+    volumes:
+      - wms-outbound-db-data:/var/lib/postgresql/data
+      - ./postgres/wms-outbound-init.sql:/docker-entrypoint-initdb.d/001-wms-outbound-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms_outbound_owner -d wms_outbound_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wms-outbound-service:
+    build:
+      context: ..
+      dockerfile: services/wms-outbound-service/Dockerfile
+    container_name: wms-outbound-service
+    networks: [platform-net]
+    ports:
+      - "13090:3090"
+    depends_on:
+      wms-outbound-db:
+        condition: service_healthy
+      wms-inventory-service:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      PORT: 3090
+      DATABASE_URL: postgresql://wms_outbound_user:wms_outbound_pass@wms-outbound-db:5432/wms_outbound_db
+      MIGRATION_DATABASE_URL: postgresql://wms_outbound_owner:wms_outbound_owner_pass@wms-outbound-db:5432/wms_outbound_db
+      INVENTORY_SERVICE_URL: http://wms-inventory-service:3070
+      KAFKA_BROKERS: kafka:29092
+
+  wms-console:
+    build:
+      context: ..
+      dockerfile: services/wms-console/Dockerfile
+      args:
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://100.68.50.41:18080}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    container_name: wms-console
+    networks: [platform-net]
+    ports:
+      - "13091:3091"
+    depends_on:
+      wms-master-data-service:
+        condition: service_started
+      wms-inventory-service:
+        condition: service_started
+      wms-inbound-service:
+        condition: service_started
+      wms-outbound-service:
+        condition: service_started
+      kong:
+        condition: service_healthy
+
+volumes:
+  wms-master-data-db-data:
+  wms-inventory-db-data:
+  wms-inbound-db-data:
+  wms-outbound-db-data:

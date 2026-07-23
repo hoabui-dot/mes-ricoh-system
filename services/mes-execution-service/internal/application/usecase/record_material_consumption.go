@@ -33,6 +33,8 @@ func RecordMaterialConsumption(ctx context.Context, pool *pgxpool.Pool, input Re
 
 	consumptionID := uuid.New().String()
 	now := time.Now().UTC()
+	var workCenterID string
+	_ = tx.QueryRow(ctx, `SELECT work_center_id FROM wo_operation WHERE wo_operation_id = $1 AND wo_id = $2`, input.WOOperationID, input.WOID).Scan(&workCenterID)
 
 	_, err = tx.Exec(ctx, `
 		INSERT INTO material_consumption (consumption_id, wo_id, wo_operation_id, component_revision_id, qty_consumed, uom, source, label_id, consumed_at)
@@ -50,6 +52,7 @@ func RecordMaterialConsumption(ctx context.Context, pool *pgxpool.Pool, input Re
 			"consumption_id":        consumptionID,
 			"wo_id":                 input.WOID,
 			"wo_operation_id":       input.WOOperationID,
+			"work_center_id":        workCenterID,
 			"component_revision_id": input.ComponentRevisionID,
 			"qty_consumed":          input.QtyConsumed,
 			"uom":                   input.UOM,
