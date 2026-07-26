@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.KioskUi.Infrastructure</AssemblyName><RootNamespace>ND.KioskUi.Infrastructure</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ND.KioskUi.Application\ND.KioskUi.Application.csproj" />
+    <ProjectReference Include="..\ND.KioskUi.Domain\ND.KioskUi.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.Infrastructure\ND.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="BCrypt.Net-Next" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.LaserAdapter.Infrastructure</AssemblyName><RootNamespace>ND.LaserAdapter.Infrastructure</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ND.LaserAdapter.Application\ND.LaserAdapter.Application.csproj" />
+    <ProjectReference Include="..\ND.LaserAdapter.Domain\ND.LaserAdapter.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.Infrastructure\ND.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.UnifiedContracts\ND.UnifiedContracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+</Project>

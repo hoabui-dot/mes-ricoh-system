@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>ND.ProjectionService.Infrastructure</AssemblyName>
+    <RootNamespace>ND.ProjectionService.Infrastructure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ND.ProjectionService.Application\ND.ProjectionService.Application.csproj" />
+    <ProjectReference Include="..\ND.ProjectionService.Domain\ND.ProjectionService.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.Infrastructure\ND.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.UnifiedContracts\ND.UnifiedContracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="RabbitMQ.Client" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" />
+  </ItemGroup>
+</Project>

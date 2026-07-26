@@ -1,0 +1,81 @@
+# KioskUI Frontend — AI Coding Rules
+
+## Dự án
+Đây là giao diện Kiosk cho hệ thống in và khắc laser ND Station Agent.
+Người dùng cuối là nhân viên sản xuất **không có kiến thức kỹ thuật** — toàn bộ UI phải bằng **tiếng Việt**.
+
+## Stack & Tooling
+- **React 18** + **TypeScript** (strict mode)
+- **Vite 5** — dev server với proxy đến backend .NET (port 5007)
+- **Tailwind CSS v4** (`@tailwindcss/vite` plugin)
+- **shadcn/ui** — tất cả UI primitives (Button, Dialog, Table, Badge, Input, Select, Checkbox, Card...)
+- **Radix UI** — headless primitives qua shadcn
+- **lucide-react** — icon library
+- **axios** — HTTP client
+- **@microsoft/signalr** — real-time connection
+
+## Quy tắc bắt buộc
+
+### 1. Ngôn ngữ UI
+- **Tất cả** text hiển thị cho người dùng phải bằng **tiếng Việt**
+- Tên biến, comment, type names: dùng **tiếng Anh**
+- Không dùng hardcoded string trực tiếp — import từ `constants/`
+
+### 2. Components
+- **Chỉ dùng shadcn/ui** components — không tự viết inline style cho UI primitives
+- Import từ `@/components/ui/*`
+- Common wrapper components đặt trong `@/components/`
+- Không sử dụng `window.confirm()` — luôn dùng `<ConfirmDialog>` từ `@/components/ConfirmDialog`
+
+### 3. Constants
+- Roles → `@/constants/roles.ts`
+- Permissions → `@/constants/permissions.ts`
+- Job statuses/types → `@/constants/jobs.ts`
+- Không hardcode string như `'SUPER_ADMIN'`, `'JOB_VIEW'` trong component
+
+### 4. Utils
+- Translation functions → `@/lib/utils.ts`
+- Sử dụng `cn()` từ `@/lib/utils` để merge Tailwind classes
+
+### 5. API
+- Tất cả API calls → `@/api/client.ts`
+- Không gọi `axios` trực tiếp trong components
+- Xử lý lỗi luôn hiển thị message tiếng Việt
+
+### 6. Cấu trúc file
+```
+src/
+├── api/           # HTTP client + API functions
+├── components/
+│   └── ui/        # shadcn/ui primitives (auto-gen, không sửa tay)
+├── constants/     # ROLES, PERMISSIONS, JOB statuses
+├── hooks/         # Custom React hooks
+├── lib/           # utils (cn, translate functions)
+├── pages/         # Route-level page components
+└── types/         # TypeScript types/interfaces
+```
+
+### 7. Styling
+- Dùng Tailwind utility classes
+- Dark mode mặc định: `bg-slate-900`, `bg-slate-800`, `text-slate-100`
+- Primary color: `blue-500` / `blue-600`
+- Thành công: `green-500`, Lỗi: `red-500`, Cảnh báo: `amber-500`
+- Không dùng inline `style={{}}` cho styling — chỉ dùng className
+
+### 8. TypeScript
+- Luôn định nghĩa types rõ ràng — tránh dùng `any`
+- Đặt interfaces/types trong `@/types/`
+- RBAC types: `KioskUser`, `KioskPermission`, `KioskRole`
+
+### 9. RBAC
+- Chỉ SUPER_ADMIN mới thấy tab "Quản lý phân quyền"
+- Khi tạo người dùng mới: chỉ có thể chọn role MEMBER
+- Không cho phép xóa user `admin123`
+- `window.confirm()` bị cấm — dùng `<ConfirmDialog>` (AlertDialog)
+
+### 10. Khi thêm tính năng mới
+1. Thêm constants vào `constants/` trước
+2. Thêm type vào `types/` nếu cần
+3. Thêm API function vào `api/client.ts`
+4. Tạo/cập nhật component trong `components/`
+5. Cập nhật page trong `pages/`

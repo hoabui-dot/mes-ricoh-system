@@ -1,0 +1,27 @@
+name: mes-frontend
+
+services:
+  mes-frontend:
+    image: vanhoadotbui2628/mes-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mes-frontend
+    restart: unless-stopped
+    ports:
+      - "3100:80"
+    environment:
+      # Backend API URL — when running standalone point to host machine backend
+      NGINX_BACKEND_URL: ${NGINX_BACKEND_URL:-http://host.docker.internal:8080}
+    networks:
+      - mes-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+networks:
+  mes-net:
+    external: true
+    name: mes-net

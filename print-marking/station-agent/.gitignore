@@ -1,0 +1,58 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.ncrunch*
+TestResults/
+*.coverage
+coverage/
+*.trx
+
+## SQLite data files (do not commit production data – any location)
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+## Vision image storage
+storage/
+
+## Environment secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+## Certificates
+certs/*.key
+certs/*.pem
+certs/*.crt
+!certs/.gitkeep
+
+## Logs
+logs/
+*.log
+
+## Docker
+.docker/
+
+## Node / React (kiosk-ui frontend)
+node_modules/
+dist/
+.pnpm-debug.log
+.yarn-integrity
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Rider / JetBrains
+.idea/
+*.iml
+
+## VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json

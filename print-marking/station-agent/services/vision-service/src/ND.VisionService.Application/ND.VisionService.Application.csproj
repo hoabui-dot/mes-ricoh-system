@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.VisionService.Application</AssemblyName><RootNamespace>ND.VisionService.Application</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ND.VisionService.Domain\ND.VisionService.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" />
+  </ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.Extensions.Logging.Abstractions" /></ItemGroup>
+</Project>

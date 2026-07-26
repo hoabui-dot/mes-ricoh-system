@@ -1,0 +1,20 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5111,
+    proxy: {
+      '/api': 'http://localhost:5000',
+      '/hubs': {
+        target: 'http://localhost:5000',
+        ws: true,
+      },
+    },
+  },
+  build: {
+    outDir: '../src/ND.DeviceSimulator.Api/wwwroot',
+    emptyOutDir: true,
+  },
+})

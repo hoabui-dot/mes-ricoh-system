@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Station Gateway": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:5001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SQLITE_GATEWAY_PATH": "data/gateway.db",
+        "REDIS_CONNECTION_STRING": "localhost:6379"
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.LaserAdapter.Domain</AssemblyName><RootNamespace>ND.LaserAdapter.Domain</RootNamespace></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" /></ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.PlcAdapter.Infrastructure</AssemblyName><RootNamespace>ND.PlcAdapter.Infrastructure</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ND.PlcAdapter.Application\ND.PlcAdapter.Application.csproj" />
+    <ProjectReference Include="..\ND.PlcAdapter.Domain\ND.PlcAdapter.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.Infrastructure\ND.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="StackExchange.Redis" />
+  </ItemGroup>
+</Project>

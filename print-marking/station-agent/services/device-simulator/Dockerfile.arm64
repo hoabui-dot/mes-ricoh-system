@@ -1,0 +1,53 @@
+# syntax=docker/dockerfile:1
+# ── ARM64 cross-compilation Dockerfile ────────────────────────────────────────
+# Build stage runs on the HOST (amd64) using dotnet cross-compile (-a arm64).
+# No QEMU emulation needed — ~10x faster than native arm64 build.
+
+# Stage 1 — React frontend (arch-agnostic, always runs on host)
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-build
+WORKDIR /frontend
+COPY services/device-simulator/frontend/package.json ./
+RUN npm install --prefer-offline
+COPY services/device-simulator/frontend/ ./
+RUN npm run build:docker -- --outDir /wwwroot
+
+# Stage 2 — .NET restore (separate layer for cache: invalidated only on .csproj changes)
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
+ARG TARGETARCH=arm64
+WORKDIR /repo
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_GCConserveMemory=9
+COPY Directory.Build.props ./
+COPY Directory.Packages.props ./
+COPY shared/ shared/
+# Copy only project files — keeps this layer cached when only .cs files change
+COPY services/device-simulator/src/ND.DeviceSimulator.Api/ND.DeviceSimulator.Api.csproj \
+     services/device-simulator/src/ND.DeviceSimulator.Api/
+COPY services/device-simulator/src/ND.DeviceSimulator.Application/ND.DeviceSimulator.Application.csproj \
+     services/device-simulator/src/ND.DeviceSimulator.Application/
+COPY services/device-simulator/src/ND.DeviceSimulator.Infrastructure/ND.DeviceSimulator.Infrastructure.csproj \
+     services/device-simulator/src/ND.DeviceSimulator.Infrastructure/
+COPY services/device-simulator/src/ND.DeviceSimulator.Domain/ND.DeviceSimulator.Domain.csproj \
+     services/device-simulator/src/ND.DeviceSimulator.Domain/
+RUN dotnet restore services/device-simulator/src/ND.DeviceSimulator.Api/ND.DeviceSimulator.Api.csproj \
+    -a $TARGETARCH
+
+# Stage 3 — .NET publish (cross-compile for arm64)
+FROM restore AS build
+COPY services/device-simulator/ services/device-simulator/
+COPY --from=frontend-build /wwwroot/ services/device-simulator/src/ND.DeviceSimulator.Api/wwwroot/
+RUN dotnet publish services/device-simulator/src/ND.DeviceSimulator.Api/ND.DeviceSimulator.Api.csproj \
+    -c Release -o /app/publish --no-restore -a $TARGETARCH \
+    /p:UseSharedCompilation=false /p:ConcurrentBuild=false
+
+# Stage 4 — runtime (arm64 image)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+USER root
+RUN mkdir -p /data /app/logs && chown -R app:app /data /app
+COPY --chown=app:app --from=build /app/publish .
+USER app
+EXPOSE 8080
+ENV DOTNET_ENVIRONMENT=Production \
+    ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "ND.DeviceSimulator.Api.dll"]

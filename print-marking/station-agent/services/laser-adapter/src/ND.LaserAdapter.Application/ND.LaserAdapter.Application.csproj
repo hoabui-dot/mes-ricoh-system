@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.LaserAdapter.Application</AssemblyName><RootNamespace>ND.LaserAdapter.Application</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ND.LaserAdapter.Domain\ND.LaserAdapter.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" />
+  </ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.Extensions.Logging.Abstractions" /></ItemGroup>
+</Project>

@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+# ARM64 cross-compilation: build runs on host (amd64), cross-compiles for arm64.
+
+# Stage 1 — restore: cached unless .csproj files change
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
+ARG TARGETARCH=arm64
+WORKDIR /src
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_GCConserveMemory=9
+COPY Directory.Build.props ./
+COPY Directory.Packages.props ./
+COPY station-agent.sln ./
+COPY shared/ shared/
+COPY services/projection-service/src/ND.ProjectionService.Api/ND.ProjectionService.Api.csproj \
+     services/projection-service/src/ND.ProjectionService.Api/
+COPY services/projection-service/src/ND.ProjectionService.Application/ND.ProjectionService.Application.csproj \
+     services/projection-service/src/ND.ProjectionService.Application/
+COPY services/projection-service/src/ND.ProjectionService.Domain/ND.ProjectionService.Domain.csproj \
+     services/projection-service/src/ND.ProjectionService.Domain/
+COPY services/projection-service/src/ND.ProjectionService.Infrastructure/ND.ProjectionService.Infrastructure.csproj \
+     services/projection-service/src/ND.ProjectionService.Infrastructure/
+RUN dotnet restore services/projection-service/src/ND.ProjectionService.Api/ND.ProjectionService.Api.csproj \
+    -a $TARGETARCH
+
+# Stage 2 — publish (cross-compile for arm64)
+FROM restore AS build
+COPY services/projection-service/ services/projection-service/
+RUN dotnet publish services/projection-service/src/ND.ProjectionService.Api/ND.ProjectionService.Api.csproj \
+    -c Release -o /app/publish --no-restore -a $TARGETARCH \
+    /p:UseSharedCompilation=false /p:ConcurrentBuild=false
+
+# Stage 3 — runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+USER app
+COPY --chown=app:app --from=build /app/publish .
+VOLUME ["/data", "/logs"]
+EXPOSE 5009
+ENV DOTNET_ENVIRONMENT=Production \
+    ASPNETCORE_URLS=http://+:5009
+ENTRYPOINT ["dotnet", "ND.ProjectionService.Api.dll"]

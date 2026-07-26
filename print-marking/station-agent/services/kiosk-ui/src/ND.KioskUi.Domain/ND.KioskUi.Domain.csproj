@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.KioskUi.Domain</AssemblyName><RootNamespace>ND.KioskUi.Domain</RootNamespace></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" /></ItemGroup>
+</Project>

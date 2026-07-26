@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../ND.DeviceSimulator.Domain/ND.DeviceSimulator.Domain.csproj" />
+  </ItemGroup>
+</Project>

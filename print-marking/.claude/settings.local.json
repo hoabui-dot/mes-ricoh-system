@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet new:*)",
+      "Bash(for svc:*)",
+      "Bash(do)",
+      "Bash(mkdir -p /Users/hoabui/Desktop/print-marking/station-agent/services/$svc/src)",
+      "Bash(mkdir -p /Users/hoabui/Desktop/print-marking/station-agent/services/$svc/tests)",
+      "Bash(mkdir -p /Users/hoabui/Desktop/print-marking/station-agent/services/$svc/docker)",
+      "Bash(find /Users/hoabui/Desktop/print-marking/shared -name *.cs)",
+      "Bash(find /Users/hoabui/Desktop/print-marking/station-agent/shared -name *.cs)",
+      "Bash(find /Users/hoabui/Desktop/print-marking/station-agent/services/device-simulator -type f -name *.cs)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet:*)"
+    ]
+  }
+}

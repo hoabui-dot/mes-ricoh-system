@@ -1,0 +1,44 @@
+# Binaries
+/bin/
+/mes
+/mes-platform
+
+# Build artifacts
+*.exe
+*.out
+*.test
+
+# Go workspace
+vendor/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+
+# Swagger generated docs
+docs/swagger.json
+docs/swagger.yaml
+
+# Testcontainers
+/tmp/
+
+# Coverage
+coverage.out
+coverage.html
+
+# Air tmp
+tmp/

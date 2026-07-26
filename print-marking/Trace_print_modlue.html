@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sfactory Server - Hệ Thống Quản Trị Trung Tâm Tích Hợp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #006666;
+            --primary-dark: #004d4d;
+            --primary-light: #e6f2f2;
+            --secondary: #00a896;
+            --dark-bg: #0f172a;
+            --dark-surface: #1e293b;
+            --light-bg: #f1f5f9;
+            --light-surface: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --accent: #f97316;
+            --mes-blue: #0284c7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--light-bg);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, h4, .brand-font {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        /* Top Header Navigation Bar */
+        .top-bar {
+            background-color: var(--dark-bg);
+            color: white;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary);
+            z-index: 50;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .brand-logo span {
+            color: var(--accent);
+        }
+
+        .global-mode-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .global-mode-badge.mode1-active { background-color: rgba(16, 185, 129, 0.15); color: #4ade80; border: 1px solid #10b981; }
+        .global-mode-badge.mode2-active { background-color: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid #0284c7; }
+
+        /* Master Workspace Layout Splitter */
+        .workspace-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navigation Menu (Exactly Matched to Image Component Layout) */
+        .sidebar-menu-wrapper {
+            width: 300px;
+            background-color: #1a2332; /* Core dark slate palette */
+            color: #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #2e3a4e;
+        }
+
+        .sidebar-group-title {
+            padding: 24px 24px 12px 24px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            font-weight: 700;
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .sidebar-menu-list {
+            list-style: none;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav-item-link {
+            padding: 14px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            color: #94a3b8;
+        }
+
+        .nav-item-link:hover {
+            background-color: rgba(255,255,255,0.03);
+            color: white;
+        }
+
+        .nav-item-link.active-tab {
+            background-color: #005a5a; /* Matching teal focus layout from sample */
+            color: white;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+        }
+
+        /* Scrollable Right Main Content Viewport */
+        .content-viewport {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 28px 32px;
+        }
+
+        .view-pane-section {
+            display: none;
+        }
+
+        .view-pane-section.active-pane {
+            display: block;
+        }
+
+        /* Dashboard Block Cards */
+        .dashboard-block {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .block-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 18px;
+            color: var(--dark-bg);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* KPI Cards Grid Layout */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border); position: relative; overflow: hidden;
+        }
+        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background-color: var(--primary); }
+
+        .kpi-title { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
+        .kpi-value { font-size: 26px; font-weight: 700; color: var(--dark-bg); font-family: 'Lexend', sans-serif; }
+        .kpi-status-text { font-size: 12px; margin-top: 4px; font-weight: 500; }
+
+        /* Dual Operational Mode Selector Styles */
+        .mode-selector-container { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 10px; }
+        .mode-option-card { background-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 10px; padding: 18px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .mode-option-card:hover { background-color: #f1f5f9; border-color: #cbd5e1; }
+        .mode-option-card.selected.mode1 { border-color: var(--success); background-color: #f0fdf4; }
+        .mode-option-card.selected.mode2 { border-color: var(--mes-blue); background-color: #f0f9ff; }
+        .mode-card-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .mode-card-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+        
+        .radio-dot { position: absolute; top: 18px; right: 18px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #94a3b8; display: flex; align-items: center; justify-content: center; }
+        .mode-option-card.selected .radio-dot { border-color: currentColor; }
+        .mode-option-card.selected .radio-dot::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background-color: currentColor; }
+
+        .conditional-subpanel { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border); }
+        .conditional-subpanel.active-subpanel { display: block; }
+
+        /* Forms inputs setup */
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--text-main); }
+        .form-control { width: 100%; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border); font-size: 14px; color: var(--dark-bg); background-color: #f8fafc; }
+        .form-control:focus { outline: none; border-color: var(--primary); background-color: white; }
+
+        /* Tables */
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        .data-table th { background-color: #f8fafc; padding: 12px 14px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        .data-table tr:hover td { background-color: #f8fafc; }
+
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+        .status-badge.online { background-color: #d1fae5; color: #065f46; }
+        .status-badge.neutral { background-color: #e2e8f0; color: #334155; }
+
+        /* Symbology selection components for GS1 */
+        .symbology-selector-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+        .symbology-card { border: 1px solid var(--border); padding: 14px; border-radius: 8px; cursor: pointer; text-align: center; background-color: #f8fafc; transition: all 0.2s; }
+        .symbology-card:hover { border-color: var(--primary); background-color: white; }
+        .symbology-card.active { border-color: var(--primary); background-color: var(--primary-light); color: var(--primary); font-weight: 600; }
+        .symbology-title { font-size: 14px; font-family: 'Lexend', sans-serif; margin-bottom: 2px; }
+        .symbology-type { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .symbology-card.active .symbology-type { color: var(--primary); }
+
+        .gs1-mapping-block { background-color: #f8fafc; border-radius: 8px; padding: 16px; border: 1px solid var(--border); }
+        .gs1-row-element { display: grid; grid-template-columns: 100px 240px 1fr; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .gs1-row-element:last-child { border-bottom: none; }
+        .ai-badge { background-color: var(--dark-bg); color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; text-align: center; font-family: monospace; }
+        .ai-desc { font-size: 13px; font-weight: 500; }
+
+        .string-preview-terminal { background-color: #0f172a; color: #38bdf8; padding: 14px; border-radius: 6px; font-family: monospace; font-size: 14px; margin-top: 10px; word-break: break-all; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Hierarchy Infrastructure Split Layout */
+        .infrastructure-split { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+        .topology-tree-viewport { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+        .server-root-node { background-color: var(--dark-bg); color: white; padding: 12px 18px; border-radius: 6px; font-weight: 700; font-size: 14px; border-left: 5px solid var(--accent); }
+        
+        .edge-branch-node { background-color: #f8fafc; border: 1px solid var(--border); border-radius: 8px; margin-left: 24px; position: relative; }
+        .edge-branch-node::before { content: ''; position: absolute; top: -14px; left: -14px; width: 14px; height: 28px; border-left: 2px dashed #cbd5e1; border-bottom: 2px dashed #cbd5e1; }
+        .edge-branch-header { background-color: var(--primary-light); color: var(--primary-dark); padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; }
+        .terminal-leafs-grid { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background-color: #ffffff; border-radius: 0 0 8px 8px; }
+        .terminal-leaf-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 12px; border-left: 4px solid var(--mes-blue); }
+
+        .btn-action { padding: 10px 16px; border-radius: 6px; background-color: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; font-size: 13px; width: 100%; transition: background 0.2s; }
+        .btn-action:hover { background-color: var(--primary-dark); }
+        .btn-secondary-action { background-color: var(--mes-blue); }
+        .btn-secondary-action:hover { background-color: #0369a1; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="brand-logo">
+            <svg style="width:20px; height:20px; fill:currentColor; color:var(--secondary);" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            ND SYSTEM <span>| SFACTORY HỆ THỐNG TRUNG TÂM</span>
+        </div>
+        <div id="global-mode-indicator" class="global-mode-badge mode1-active">
+            🌐 Chế độ cấp mã: Nền tảng tự cấp mã (Full-Stack)
+        </div>
+    </div>
+
+    <div class="workspace-container">
+        
+        <div class="sidebar-menu-wrapper">
+            <div class="sidebar-group-title">CORE SERVICES</div>
+            <ul class="sidebar-menu-list">
+                <li id="nav-overview" class="nav-item-link active-tab" onclick="activateNavigationTab('overview')">
+                    <span class="nav-icon">🏠</span>
+                    Tổng quan Hệ thống
+                </li>
+                <li id="nav-tracecode" class="nav-item-link" onclick="activateNavigationTab('tracecode')">
+                    <span class="nav-icon">ℹ️</span>
+                    TraceCode Engine (Sinh mã)
+                </li>
+                <li id="nav-label" class="nav-item-link" onclick="activateNavigationTab('label')">
+                    <span class="nav-icon">📋</span>
+                    Label Template Service
+                </li>
+                <li id="nav-device" class="nav-item-link" onclick="activateNavigationTab('device')">
+                    <span class="nav-icon">🖨️</span>
+                    Profile Print Devices
+                </li>
+                <li id="nav-logs" class="nav-item-link" onclick="activateNavigationTab('logs')">
+                    <span class="nav-icon">📄</span>
+                    Master Traceability Log
+                </li>
+            </ul>
+        </div>
+
+        <div class="content-viewport">
+            
+            <div id="pane-overview" class="view-pane-section active-pane">
+                <div class="kpi-grid">
+                    <div class="kpi-card" id="ov-kpi-1-theme">
+                        <div class="kpi-title" id="ov-kpi-title-1">Tổng Số Serial Đã Cấp (Hôm nay)</div>
+                        <div class="kpi-value" id="ov-kpi-val-1">12,560</div>
+                        <div class="kpi-status-text" id="ov-kpi-sub-1" style="color:var(--success)">● Đang cấp phát tự tăng</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title">Tỷ Lệ Xác Thực Khớp Mã (Verify)</div>
+                        <div class="kpi-value">98.6%</div>
+                        <div class="kpi-status-text" style="color:var(--success)">▲ Đạt ngưỡng an toàn chuyền</div>
+                    </div>
+                    <div class="kpi-card" id="ov-kpi-3-theme">
+                        <div class="kpi-title" id="ov-kpi-title-3">Cơ Chế Bảo Vệ Trùng Mã</div>
+                        <div class="kpi-value" id="ov-kpi-val-3">CRC32 Active</div>
+                        <div class="kpi-status-text" id="ov-kpi-sub-3" style="color:var(--success)">● Master DB Chặn Cứng</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title">Trạm Biên Edge Đã Đồng Bộ</div>
+                        <div class="kpi-value">3 / 3 Node</div>
+                        <div class="kpi-status-text" style="color:var(--success)">● Kết nối WebSocket Online</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-block">
+                    <div class="block-title">🖥️ TRẠNG THÁI LIÊN KẾT CÁC TRẠM BIÊN CẠNH HIỆN TRƯỜNG (SMART EDGE STATIONS)</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Tên Trạm Edge Biên</th><th>Phân Xưởng / Khu Vực</th><th>IP Address</th><th>Bản Cache Template</th><th>Hàng Đợi Cục Bộ</th><th>Trạng Thái</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>Trạm in Edge SMT-01</strong></td><td>Xưởng SMT - Chuyền 1</td><td><code>192.168.10.51</code></td><td>v3.1 (Active)</td><td>0 pending</td><td><span class="status-badge online">Online</span></td></tr>
+                            <tr><td><strong>Trạm in Edge ASSY-01</strong></td><td>Xưởng Lắp ráp - Line 3</td><td><code>192.168.10.52</code></td><td>v3.1 (Active)</td><td>0 pending</td><td><span class="status-badge online">Online</span></td></tr>
+                            <tr><td><strong>Trạm in Edge WH-01</strong></td><td>Kho thành phẩm / Đóng gói</td><td><code>192.168.20.15</code></td><td>v3.1 (Active)</td><td>0 pending</td><td><span class="status-badge online">Online</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="pane-tracecode" class="view-pane-section">
+                <div class="dashboard-block">
+                    <div class="block-title">🎛️ THIẾT LẬP PHƯƠNG THỨC ĐỊNH DANH NGUỒN CẤP MÃ SẢN PHẨM</div>
+                    
+                    <div class="mode-selector-container">
+                        <div id="card-m1" class="mode-option-card selected mode1" onclick="toggleOperationalMode(1)">
+                            <div class="mode-card-title" style="color:var(--success);"><span>🟢</span> CHẾ ĐỘ 1: TỰ SINH MÃ TẬP TRUNG (Full-Stack)</div>
+                            <div class="mode-card-desc">Sfactory tự động tính toán cấu trúc mã, nhảy số Serial tuần tự đơn chiếc (FC) và bảo mật băm nội bộ tránh trùng lặp tuyệt đối.</div>
+                            <div class="radio-dot"></div>
+                        </div>
+                        <div id="card-m2" class="mode-option-card mode2" onclick="toggleOperationalMode(2)">
+                            <div class="mode-card-title" style="color:var(--mes-blue);"><span>🔵</span> CHẾ ĐỘ 2: NHẬN MÃ CẤP SẴN TỪ MES (Bypass Gateway)</div>
+                            <div class="mode-card-desc">Bỏ qua bộ sinh mã lõi. Nền tảng đóng vai trò cổng đệm dữ liệu kéo dải mã định danh cấp sẵn từ SAP/MES theo từng PO/WO về phân phối.</div>
+                            <div class="radio-dot"></div>
+                        </div>
+                    </div>
+
+                    <div id="subpanel-mode1" class="conditional-subpanel active-subpanel">
+                        <div class="input-grid">
+                            <div class="form-group"><label>Cấu trúc Tiền tố Mã (Prefix Rule Context)</label><input type="text" class="form-control" value="IMES-WO{WO_DATE}-SMT"></div>
+                            <div class="form-group"><label>Định dạng Chuỗi số tự tăng (Sequence Form)</label><input type="text" class="form-control" value="8 ký số tự tăng (00000001 - 99999999)" disabled></div>
+                        </div>
+                        <div style="text-align:right;"><button class="btn-action" style="width:160px;">Lưu Cấu Hình</button></div>
+                    </div>
+
+                    <div id="subpanel-mode2" class="conditional-subpanel">
+                        <div class="input-grid">
+                            <div class="form-group"><label>MES API Data Endpoint</label><input type="text" class="form-control" value="https://sap-mes.factory.local/api/v1/production/get-po-pool-codes"></div>
+                            <div class="form-group"><label>Chiến lược đệm dữ liệu biên (Buffering Strategy)</label><select class="form-control"><option>Bulk Prefetch (Kéo trước cụm 5,000 mã về Local Server)</option><option>Realtime Streaming Sync</option></select></div>
+                        </div>
+                        <div style="text-align:right;"><button class="btn-action btn-secondary-action" style="width:160px;">Lưu Kết Nối MES</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pane-label" class="view-pane-section">
+                <div class="dashboard-block">
+                    <div class="block-title">📊 ENGINE ĐÓNG GÓI CẤU TRÚC MÃ HÓA HIỆN TRƯỜNG (GS1 / CODE 128)</div>
+                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Chọn định dạng chuẩn hóa chuỗi dữ liệu trước khi nạp vào tệp mã lệnh lệnh in (.ZPL) gửi xuống các chuyền biên.</div>
+                    
+                    <div class="symbology-selector-grid">
+                        <div id="sym-c128" class="symbology-card" onclick="selectEncodingStandard('C128')"><div class="symbology-title">Code 128</div><div class="symbology-type">Mã 1D Nội Bộ</div></div>
+                        <div id="sym-g128" class="symbology-card" onclick="selectEncodingStandard('G128')"><div class="symbology-title">GS1-128</div><div class="symbology-type">1D Toàn Cầu</div></div>
+                        <div id="sym-gdm" class="symbology-card" onclick="selectEncodingStandard('GDM')"><div class="symbology-title">GS1 DataMatrix</div><div class="symbology-type">2D Linh Kiện / PCB</div></div>
+                        <div id="sym-gqr" class="symbology-card active" onclick="selectEncodingStandard('GQR')"><div class="symbology-title">GS1 QR Code</div><div class="symbology-type">2D Thông Minh (Sunrise 2027)</div></div>
+                    </div>
+
+                    <div id="panel-gs1-rules" class="view-pane-section active-pane" style="display:block;">
+                        <div class="gs1-mapping-block">
+                            <div class="gs1-row-element"><div class="ai-badge">AI (01)</div><div class="ai-desc">Mã Toàn Cầu Sản Phẩm (GTIN)</div><div><input type="text" class="form-control" value="MES -> SKU Product Global Code (Ánh xạ động)" disabled style="padding:4px 10px; font-size:12px;"></div></div>
+                            <div class="gs1-row-element"><div class="ai-badge">AI (10)</div><div class="ai-desc">Số Lô Sản Xuất (Lot Number)</div><div><input type="text" class="form-control" value="WMS -> Active Production Lot Number (Ánh xạ động)" disabled style="padding:4px 10px; font-size:12px;"></div></div>
+                            <div class="gs1-row-element"><div class="ai-badge">AI (21)</div><div class="ai-desc">Số Serial Đơn Chiếc (Unique Serial)</div><div><input type="text" class="form-control" value="Source Engine Active String (Tuần tự động)" disabled style="padding:4px 10px; font-size:12px;"></div></div>
+                        </div>
+
+                        <div style="margin-top:16px;">
+                            <label style="font-size:12px; font-weight:600;">Mô Phỏng Chuỗi Dữ Liệu Lệnh Đầu Ra Gửi Xuống Biên (Engine Output String):</label>
+                            <div class="string-preview-terminal">
+                                <span id="compiled-preview-string">[FNC1]010893612345678910LOT-SMT-A5[FNC1]21IMES20260709-0012560</span>
+                                <button class="btn-action" style="width:auto; padding:4px 12px; font-size:11px; background-color:var(--accent);" onclick="simDataRegen()">Tải Lại Chuỗi</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pane-device" class="view-pane-section">
+                <div class="infrastructure-split">
+                    <div style="display:flex; flex-direction:column; gap:16px;">
+                        <div class="dashboard-block">
+                            <div class="block-title" style="color:var(--primary);">➕ CẤP 1: KHAI BÁO TRẠM IN EDGE</div>
+                            <form onsubmit="addEdgeStationNode(event)">
+                                <div class="form-group"><label>Tên định danh Trạm Edge</label><input type="text" id="in-edge-name" class="form-control" placeholder="Ví dụ: SMT-02" required></div>
+                                <div class="form-group"><label>Địa chỉ IP Tĩnh</label><input type="text" id="in-edge-ip" class="form-control" placeholder="192.168.10.55" required style="font-family:monospace;"></div>
+                                <button type="submit" class="btn btn-action">Khai báo Trạm Edge</button>
+                            </form>
+                        </div>
+                        <div class="dashboard-block">
+                            <div class="block-title" style="color:var(--mes-blue);">➕ CẤP 2: KHAI BÁO THIẾT BỊ CUỐI (TERMINAL)</div>
+                            <form onsubmit="addTerminalLeafNode(event)">
+                                <div class="form-group"><label>Gán vào Trạm Edge</label><select id="in-term-parent" class="form-control"><option value="SMT-01">Trạm in Edge SMT-01</option><option value="ASSY-01">Trạm in Edge ASSY-01</option></select></div>
+                                <div class="form-group"><label>Mã Thiết Bị Ngoại Vi</label><input type="text" id="in-term-id" class="form-control" placeholder="Ví dụ: MÁY-IN-03" required style="font-family:monospace;"></div>
+                                <div class="form-group"><label>Giao thức kết nối</label><select id="in-term-proto" class="form-control"><option value="ZPL / Port 9100">ZPL Máy in Tem (Port 9100)</option><option value="ASCII / COM1">ASCII Máy khắc Laser (COM)</option></select></div>
+                                <button type="submit" class="btn btn-action btn-secondary-action">Gán Thiết Bị Cuối</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-block" style="margin-bottom:0; display:flex; flex-direction:column;">
+                        <div class="block-title">🌐 SƠ ĐỒ PHÂN CẤP HẠ TẦNG KẾT NỐI BIÊN (LIVE TOPOLOGY TREE MATRIX)</div>
+                        <div class="topology-tree-viewport">
+                            <div class="server-root-node">🖥️ Local MES Server Core Platform</div>
+                            <div id="tree-branches-holder">
+                                <div class="edge-branch-node" id="br-SMT-01" style="margin-bottom:14px;">
+                                    <div class="edge-branch-header"><div><strong>Trạm in Edge SMT-01</strong> (IP: 192.168.10.51)</div><div style="font-size:11px; font-family:monospace;">WebSocket Active</div></div>
+                                    <div class="terminal-leafs-grid" id="grid-SMT-01">
+                                        <div class="terminal-leaf-box"><strong>Máy in 1</strong><br><span style="color:var(--text-muted); font-size:11px;">ZPL / Port 9100</span></div>
+                                        <div class="terminal-leaf-box"><strong>Máy in 2</strong><br><span style="color:var(--text-muted); font-size:11px;">ZPL / Port 9100</span></div>
+                                    </div>
+                                </div>
+                                <div class="edge-branch-node" id="br-ASSY-01">
+                                    <div class="edge-branch-header"><div><strong>Trạm in Edge ASSY-01</strong> (IP: 192.168.10.52)</div><div style="font-size:11px; font-family:monospace;">WebSocket Active</div></div>
+                                    <div class="terminal-leafs-grid" id="grid-ASSY-01">
+                                        <div class="terminal-leaf-box" style="border-left-color:var(--accent);"><strong>Laser Khắc 4</strong><br><span style="color:var(--text-muted); font-size:11px;">ASCII / COM1</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pane-logs" class="view-pane-section">
+                <div class="dashboard-block">
+                    <div class="block-title">📄 NHẬT KÝ TRUY XUẤT NGUỒN GỐC CHỐNG TRÙNG TOÀN NHÀ MÁY (MASTER LEDGER)</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Thời Gian In/Khắc</th><th>Mã Định Danh Duy Nhất (FC)</th><th>Lệnh Sản Xuất (WO)</th><th>Phân Xưởng</th><th>Thiết Bị Thực Thi</th><th>Kết Quả Verify</th></tr>
+                        </thead>
+                        <tbody id="master-ledger-rows">
+                            <tr><td>2026-07-09 14:35:12</td><td><code>IMES20260709-0012560</code></td><td>WO-2026-0089</td><td>Xưởng SMT</td><td>Zebra Máy 1</td><td><span class="status-badge online" style="background-color:#d1fae5; color:#065f46;">MATCH OK</span></td></tr>
+                            <tr><td>2026-07-09 14:34:58</td><td><code>IMES20260709-0012559</code></td><td>WO-2026-0089</td><td>Xưởng SMT</td><td>Zebra Máy 1</td><td><span class="status-badge online" style="background-color:#d1fae5; color:#065f46;">MATCH OK</span></td></tr>
+                            <tr><td>2026-07-09 14:33:40</td><td><code>IMES20260709-0012558</code></td><td>WO-2026-0089</td><td>Xưởng Lắp Ráp</td><td>Laser Máy 4</td><td><span class="status-badge online" style="background-color:#d1fae5; color:#065f46;">MATCH OK</span></td></tr>
+                            <tr><td>2026-07-09 14:32:11</td><td><code>IMES20260709-0012557</code></td><td>WO-2026-0087</td><td>Xưởng SMT</td><td>Zebra Máy 2</td><td><span class="status-badge offline" style="background-color:#fee2e2; color:#991b1b;">TRÙNG MÃ (NG)</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Tab router mapping handler
+        function activateNavigationTab(paneId) {
+            document.querySelectorAll('.view-pane-section').forEach(el => el.classList.remove('active-pane'));
+            document.querySelectorAll('.nav-item-link').forEach(el => el.classList.remove('active-tab'));
+            
+            document.getElementById('pane-' + paneId).classList.add('active-pane');
+            document.getElementById('nav-' + paneId).classList.add('active-tab');
+        }
+
+        // Mode Switching Engine (Full Stack vs MES Pass-Through Bypass)
+        let activeGenMode = 1;
+        function toggleOperationalMode(modeNum) {
+            activeGenMode = modeNum;
+            const c1 = document.getElementById('card-m1'); const c2 = document.getElementById('card-m2');
+            const p1 = document.getElementById('subpanel-mode1'); const p2 = document.getElementById('subpanel-mode2');
+            const badge = document.getElementById('global-mode-indicator');
+            
+            // Overview KPIs text hooks for context update
+            const k1Title = document.getElementById('ov-kpi-title-1'); const k1Val = document.getElementById('ov-kpi-val-1'); const k1Sub = document.getElementById('ov-kpi-sub-1');
+            const k3Title = document.getElementById('ov-kpi-title-3'); const k3Val = document.getElementById('ov-kpi-val-3'); const k3Sub = document.getElementById('ov-kpi-sub-3');
+
+            if(modeNum === 1) {
+                c1.classList.add('selected'); c2.classList.remove('selected');
+                p1.classList.add('active-subpanel'); p2.classList.remove('active-subpanel');
+                badge.className = "global-mode-badge mode1-active";
+                badge.innerText = "🌐 Chế độ cấp mã: Nền tảng tự cấp mã (Full-Stack)";
+                
+                k1Title.innerText = "Tổng Số Serial Tự Sinh"; k1Val.innerText = "12,560"; k1Val.style.color = "var(--dark-bg)"; k1Sub.innerText = "● Đang cấp phát tự tăng"; k1Sub.style.color = "var(--success)";
+                k3Title.innerText = "Cơ Chế Bảo Vệ Trùng Mã"; k3Val.innerText = "CRC32 Active"; k3Sub.innerText = "● Master DB Chặn Cứng";
+            } else {
+                c2.classList.add('selected'); c1.classList.remove('selected');
+                p2.classList.add('active-subpanel'); p1.classList.remove('active-subpanel');
+                badge.className = "global-mode-badge mode2-active";
+                badge.innerText = "🌐 Chế độ cấp mã: Nhận dải mã sẵn từ MES (Bypass Gateway)";
+                
+                k1Title.innerText = "Mã Đã Kéo Từ MES Pool"; k1Val.innerText = "4,500 / 5,000"; k1Val.style.color = "var(--mes-blue)"; k1Sub.innerText = "⚡ API Gateway: Connected to SAP"; k1Sub.style.color = "var(--mes-blue)";
+                k3Title.innerText = "Hàng Đợi Bộ Đệm Biên"; k3Val.innerText = "500 Mã Sẵn"; k3Sub.innerText = "● Đang đệm Local Cache";
+            }
+            updateCompiledStringText();
+        }
+
+        // Symbology encoding view standard state switcher
+        let selectedEncoding = 'GQR';
+        function selectEncodingStandard(symType) {
+            document.querySelectorAll('.symbology-card').forEach(el => el.classList.remove('active'));
+            document.getElementById('sym-' + symType.toLowerCase()).classList.add('active');
+            selectedEncoding = symType;
+            updateCompiledStringText();
+        }
+
+        function updateCompiledStringText() {
+            const outSpan = document.getElementById('compiled-preview-string');
+            let serialStr = activeGenMode === 1 ? "IMES20260709-0012560" : "SAP2026-A0897621";
+            if(selectedEncoding === 'C128') {
+                outSpan.innerText = serialStr;
+            } else {
+                outSpan.innerText = `[FNC1]010893612345678910LOT-SMT-A5[FNC1]21${serialStr}`;
+            }
+        }
+
+        function simDataRegen() {
+            let rand = Math.floor(100000 + Math.random() * 900000);
+            const outSpan = document.getElementById('compiled-preview-string');
+            let serialStr = activeGenMode === 1 ? `IMES20260709-00${rand}` : `SAP2026-A08${rand}`;
+            if(selectedEncoding === 'C128') { outSpan.innerText = serialStr; }
+            else { outSpan.innerText = `[FNC1]010893612345678910LOT-SMT-A5[FNC1]21${serialStr}`; }
+        }
+
+        // Cấp 1: Dynamic creation framework to insert Edge Node cards inside topology tree
+        function addEdgeStationNode(e) {
+            e.preventDefault();
+            const name = document.getElementById('in-edge-name').value.trim().toUpperCase();
+            const ip = document.getElementById('in-edge-ip').value.trim();
+            if(document.getElementById('br-' + name)) { alert("Trạm Edge đã tồn tại."); return; }
+
+            const holder = document.getElementById('tree-branches-holder');
+            const card = document.createElement('div');
+            card.className = "edge-branch-node"; card.id = "br-" + name; card.style.marginBottom = "14px";
+            card.innerHTML = `
+                <div class="edge-branch-header"><div><strong>Trạm in Edge ${name}</strong> (IP: ${ip})</div><div style="font-size:11px; font-family:monospace;">WebSocket Active</div></div>
+                <div class="terminal-leafs-grid" id="grid-${name}">
+                    <div style="font-size:11px; color:var(--text-muted); font-style:italic;" id="hint-${name}">-- Chưa gán thiết bị đầu cuối --</div>
+                </div>
+            `;
+            holder.appendChild(card);
+
+            // Append option to level 2 child parent dropdown configuration element
+            const select = document.getElementById('in-term-parent');
+            const opt = document.createElement('option'); opt.value = name; opt.innerText = "Trạm in Edge " + name;
+            select.appendChild(opt);
+
+            document.getElementById('in-edge-name').value = ''; document.getElementById('in-edge-ip').value = '';
+        }
+
+        // Cấp 2: Dynamic creation framework to insert leaf boxes into grid layouts
+        function addTerminalLeafNode(e) {
+            e.preventDefault();
+            const parent = document.getElementById('in-term-parent').value;
+            const termId = document.getElementById('in-term-id').value.trim().toUpperCase();
+            const proto = document.getElementById('in-term-proto').value;
+
+            const grid = document.getElementById('grid-' + parent);
+            const hint = document.getElementById('hint-' + parent);
+            if(hint) { hint.remove(); }
+
+            let borderCol = "var(--mes-blue)";
+            if(proto.includes("COM1")) { borderCol = "var(--accent)"; }
+
+            const leaf = document.createElement('div');
+            leaf.className = "terminal-leaf-box"; leaf.style.borderLeftColor = borderCol;
+            leaf.innerHTML = `<strong>${termId}</strong><br><span style="color:var(--text-muted); font-size:11px;">${proto}</span>`;
+            grid.appendChild(leaf);
+
+            document.getElementById('in-term-id').value = '';
+        }
+    </script>
+</body>
+</html>

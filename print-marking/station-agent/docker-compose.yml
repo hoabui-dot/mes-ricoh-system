@@ -1,0 +1,414 @@
+name: station-agent
+
+services:
+  # ─────────────────────────────────────────────
+  # Infrastructure
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7.4-alpine
+    container_name: station-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-changeme}"
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - station-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: station-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5673:5672"
+      - "15673:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - station-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # 1. Station Gateway (HTTP entry point for Factory Gateway)
+  # ─────────────────────────────────────────────────────────
+  station-gateway:
+    image: vanhoadotbui2628/station-gateway:latest
+    build:
+      context: .
+      dockerfile: services/mqtt-adapter/docker/Dockerfile
+    container_name: station-gateway
+    restart: unless-stopped
+    ports:
+      - "${PORT_STATION_GATEWAY:-5001}:5001"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_HTTP_PORTS=5001
+      - ASPNETCORE_ENVIRONMENT=Production
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - SQLITE_GATEWAY_PATH=${SQLITE_GATEWAY_PATH:-/data/gateway.db}
+      - Gateway__OutboxBatchSize=10
+      - Gateway__OutboxIntervalSeconds=5
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Port=5672
+      - RabbitMq__Username=${RABBITMQ_USER:-guest}
+      - RabbitMq__Password=${RABBITMQ_PASS:-guest}
+      - RabbitMq__VirtualHost=/
+      - RabbitMq__DefaultExchange=station.events
+    volumes:
+      - ./sqlite-databases:/data
+      - mqtt-logs:/logs
+    networks:
+      - station-net
+
+  # ─────────────────────────────────────────────
+  # 2. Job Engine
+  # ─────────────────────────────────────────────
+  job-engine:
+    image: vanhoadotbui2628/job-engine:latest
+    build:
+      context: .
+      dockerfile: services/job-engine/docker/Dockerfile
+    container_name: station-job-engine
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "5002:5002"
+    environment:
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - SQLITE_JOB_ENGINE_PATH=/data/job_engine.db
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Port=5672
+      - RabbitMq__Username=${RABBITMQ_USER:-guest}
+      - RabbitMq__Password=${RABBITMQ_PASS:-guest}
+      - RabbitMq__VirtualHost=/
+      - RabbitMq__DefaultExchange=station.events
+      - SIMULATOR_HOST=device-simulator
+      - SIMULATOR_PORT=8080
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - ./sqlite-databases:/data
+      - job-engine-logs:/logs
+    networks:
+      - station-net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5002 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'healthy' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────
+  # 3. Printer Adapter
+  # ─────────────────────────────────────────────
+  printer-adapter:
+    image: vanhoadotbui2628/printer-adapter:latest
+    build:
+      context: .
+      dockerfile: services/printer-adapter/docker/Dockerfile
+    container_name: station-printer-adapter
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "5003:5003"
+    environment:
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - SQLITE_PRINTER_PATH=/data/printer.db
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Printer__Host=device-simulator
+      - Printer__Port=9100
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Port=5672
+      - RabbitMq__Username=${RABBITMQ_USER:-guest}
+      - RabbitMq__Password=${RABBITMQ_PASS:-guest}
+      - RabbitMq__VirtualHost=/
+      - RabbitMq__DefaultExchange=station.events
+      - CUPS_SERVER=127.0.0.1:8631
+      - CUPS_USER=root
+      # CUPS IPP health-check endpoint: macOS CUPS tunnel via socat/ssh forwarded to host port 8631
+      - CUPS_HEALTH_HOST=host.docker.internal
+      - CUPS_HEALTH_PORT=8631
+    volumes:
+      - ./sqlite-databases:/data
+      - printer-logs:/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - station-net
+
+  # ─────────────────────────────────────────────
+  # 4. Laser Adapter
+  # ─────────────────────────────────────────────
+  laser-adapter:
+    image: vanhoadotbui2628/laser-adapter:latest
+    build:
+      context: .
+      dockerfile: services/laser-adapter/docker/Dockerfile
+    container_name: station-laser-adapter
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "5004:5004"
+    environment:
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - SQLITE_LASER_PATH=/data/laser.db
+      - Laser__Host=device-simulator
+      - Laser__Port=8901
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Port=5672
+      - RabbitMq__Username=${RABBITMQ_USER:-guest}
+      - RabbitMq__Password=${RABBITMQ_PASS:-guest}
+      - RabbitMq__VirtualHost=/
+      - RabbitMq__DefaultExchange=station.events
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - ./sqlite-databases:/data
+      - laser-logs:/logs
+    networks:
+      - station-net
+
+  # ─────────────────────────────────────────────
+  # 5. Vision Service
+  # ─────────────────────────────────────────────
+  vision-service:
+    image: vanhoadotbui2628/vision-service:latest
+    build:
+      context: .
+      dockerfile: services/vision-service/docker/Dockerfile
+    container_name: station-vision-service
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5005:5005"
+    environment:
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - SQLITE_VISION_PATH=/data/vision.db
+      - VISION_IMAGE_STORAGE_PATH=/storage/vision
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - ./sqlite-databases:/data
+      - vision-logs:/logs
+      - vision-storage:/storage
+    networks:
+      - station-net
+
+  # ─────────────────────────────────────────────
+  # 6. PLC Adapter
+  # ─────────────────────────────────────────────
+  plc-adapter:
+    image: vanhoadotbui2628/plc-adapter:latest
+    build:
+      context: .
+      dockerfile: services/plc-adapter/docker/Dockerfile
+    container_name: station-plc-adapter
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5006:5006"
+    environment:
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - SQLITE_PLC_PATH=/data/plc.db
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - ./sqlite-databases:/data
+      - plc-logs:/logs
+    networks:
+      - station-net
+
+  # ───────────────────────────────────────1──────
+  # 7. Kiosk UI
+  # ─────────────────────────────────────────────
+  kiosk-ui:
+    image: vanhoadotbui2628/kiosk-ui:latest
+    build:
+      context: .
+      dockerfile: services/kiosk-ui/docker/Dockerfile
+    container_name: station-kiosk-ui
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "5007:5007"
+    environment:
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - SQLITE_KIOSK_PATH=/data/kiosk.db
+      - Jwt__Secret=${JWT_SECRET:-change_me_to_a_long_random_secret_at_least_32_chars}
+      - Jwt__Issuer=${JWT_ISSUER:-nd-station-agent}
+      - Jwt__Audience=${JWT_AUDIENCE:-nd-kiosk}
+      - Jwt__ExpiryMinutes=${JWT_EXPIRY_MINUTES:-480}
+      - ASPNETCORE_ENVIRONMENT=Production
+      - PROJECTION_SERVICE_URL=http://projection-service:5009
+      - JOB_ENGINE_HOST=${JOB_ENGINE_HOST:-job-engine}
+      - JOB_ENGINE_PORT=${JOB_ENGINE_PORT:-5002}
+      - PRINTER_ADAPTER_HOST=printer-adapter
+      - PRINTER_ADAPTER_PORT=5003
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5007,http://192.168.1.87:5007,http://localhost:5222,http://192.168.1.87:5222,http://localhost:3000}
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Port=5672
+      - RabbitMq__Username=${RABBITMQ_USER:-guest}
+      - RabbitMq__Password=${RABBITMQ_PASS:-guest}
+      - RabbitMq__VirtualHost=/
+      - RabbitMq__DefaultExchange=station.events
+    volumes:
+      - ./sqlite-databases:/data
+      - kiosk-logs:/logs
+    networks:
+      - station-net
+
+  # ─────────────────────────────────────────────
+  # 8. Device Simulator
+  # ─────────────────────────────────────────────
+  device-simulator:
+    image: vanhoadotbui2628/device-simulator:latest
+    build:
+      context: .
+      dockerfile: services/device-simulator/Dockerfile
+    container_name: station-device-simulator
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5008:8080"
+    environment:
+      - ConnectionStrings__Sqlite=Data Source=/data/device-simulator.db
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-changeme}
+      - ASPNETCORE_ENVIRONMENT=Production
+      - SIMULATOR_MQTT_HOST=${MQTT_BROKER_HOST:-mosquitto}
+      - SIMULATOR_MQTT_PORT=${MQTT_BROKER_PORT:-1883}
+      - PROJECTION_SERVICE_URL=http://projection-service:5009
+      - MES_BACKEND_URL=http://192.168.1.87:8080/api/v1
+    volumes:
+      - ./sqlite-databases:/data
+      - device-simulator-logs:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - station-net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'healthy' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────
+  # 9. Projection Service
+  # ─────────────────────────────────────────────
+  projection-service:
+    image: vanhoadotbui2628/projection-service:latest
+    build:
+      context: .
+      dockerfile: services/projection-service/docker/Dockerfile
+    container_name: station-projection-service
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "5009:5009"
+    environment:
+      - STATION_ID=${STATION_ID:-STATION-01}
+      - SQLITE_PROJECTION_PATH=/data/projection.db
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Port=5672
+      - RabbitMq__Username=${RABBITMQ_USER:-guest}
+      - RabbitMq__Password=${RABBITMQ_PASS:-guest}
+      - RabbitMq__VirtualHost=/
+      - RabbitMq__DefaultExchange=station.events
+      - ASPNETCORE_ENVIRONMENT=Production
+      - SIMULATOR_URL=http://device-simulator:8080
+    volumes:
+      - ./sqlite-databases:/data
+      - projection-logs:/logs
+    networks:
+      - station-net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5009 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'healthy' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────
+  # MQTT Broker (eclipse-mosquitto)
+  # ─────────────────────────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: station-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    entrypoint: >
+      sh -c "mkdir -p /mosquitto/config && echo 'listener 1883 0.0.0.0' > /mosquitto/config/mosquitto.conf && echo 'allow_anonymous true' >> /mosquitto/config/mosquitto.conf && exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf"
+    networks:
+      - station-net
+
+# ─────────────────────────────────────────────
+# Volumes
+# ─────────────────────────────────────────────
+volumes:
+  redis-data:
+  rabbitmq-data:
+  mqtt-logs:
+  job-engine-logs:
+  printer-logs:
+  laser-logs:
+  vision-logs:
+  vision-storage:
+  plc-logs:
+  kiosk-logs:
+  device-simulator-logs:
+  projection-logs:
+  mosquitto-data:
+  mosquitto-log:
+
+# ─────────────────────────────────────────────
+# Networks
+# ─────────────────────────────────────────────
+networks:
+  station-net:
+    driver: bridge
+    name: station-net

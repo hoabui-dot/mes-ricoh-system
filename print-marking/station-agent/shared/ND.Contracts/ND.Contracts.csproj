@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>ND.Contracts</AssemblyName>
+    <RootNamespace>ND.Contracts</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ND.SharedKernel\ND.SharedKernel.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,16 @@
+# ── Build outputs — never copy host obj/bin into image ────────────────────────
+**/obj/
+**/bin/
+
+# ── Node modules — always reinstalled inside image ────────────────────────────
+**/node_modules/
+
+# ── Frontend build output — regenerated inside image ──────────────────────────
+**/wwwroot/
+**/dist/
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+**/.git/
+**/.DS_Store
+**/*.user
+**/*.suo

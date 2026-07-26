@@ -1,0 +1,31 @@
+{
+    "site": "NMDDuongDuong",
+    "area": "Assembly_Section",
+    "line": "Chuyen03",
+    "machine": "Laser-Marking-03",
+    "edge_id": "edge-ipc-l3-marking",
+    "timestamp": "2026-06-16T15:30:00+07:00",
+    "event_id": "evt-mark-20260616-9921",
+    "data": [
+        {
+            "tag": "marking.type",
+            "value": "LASER_ETCHING",
+            "quality": "GOOD"
+        },
+        {
+            "tag": "product.finished_code",
+            "value": "FC-WP-RO100G-B-998822",
+            "quality": "GOOD"
+        },
+        {
+            "tag": "product.date_of_manufacture",
+            "value": "2026-06-16T15:29:45+07:00",
+            "quality": "GOOD"
+        },
+        {
+            "tag": "verification.status",
+            "value": "VERIFIED_PASS",
+            "quality": "GOOD"
+        }
+    ]
+}

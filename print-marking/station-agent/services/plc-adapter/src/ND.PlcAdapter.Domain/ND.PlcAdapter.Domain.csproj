@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>ND.PlcAdapter.Domain</AssemblyName><RootNamespace>ND.PlcAdapter.Domain</RootNamespace></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\..\..\shared\ND.SharedKernel\ND.SharedKernel.csproj" /></ItemGroup>
+</Project>

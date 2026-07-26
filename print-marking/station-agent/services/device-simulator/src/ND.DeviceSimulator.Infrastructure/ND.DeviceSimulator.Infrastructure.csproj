@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Allow ASP.NET Core types (IHubContext, SignalR) in class library -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="MQTTnet" />
+    <!-- Explicit pin to override vulnerable transitive SQLitePCLRaw 2.1.10 (GHSA-2m69-gcr7-jv3q) -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ND.DeviceSimulator.Application/ND.DeviceSimulator.Application.csproj" />
+    <ProjectReference Include="../../../../shared/ND.UnifiedContracts/ND.UnifiedContracts.csproj" />
+    <ProjectReference Include="../../../../shared/ND.Infrastructure/ND.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

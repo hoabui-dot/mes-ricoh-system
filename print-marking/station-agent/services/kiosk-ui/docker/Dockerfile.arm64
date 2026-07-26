@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1
+# ARM64 cross-compilation: build stages run on host (amd64).
+
+# Stage 1 — React frontend (arch-agnostic)
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-build
+WORKDIR /frontend
+COPY services/kiosk-ui/frontend/package.json ./
+RUN npm install --prefer-offline
+COPY services/kiosk-ui/frontend/ ./
+RUN npm run build
+
+# Stage 2 — restore: cached unless .csproj files change
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
+ARG TARGETARCH=arm64
+WORKDIR /src
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_GCConserveMemory=9
+COPY Directory.Build.props ./
+COPY Directory.Packages.props ./
+COPY station-agent.sln ./
+COPY shared/ shared/
+COPY services/kiosk-ui/src/ND.KioskUi.Api/ND.KioskUi.Api.csproj \
+     services/kiosk-ui/src/ND.KioskUi.Api/
+COPY services/kiosk-ui/src/ND.KioskUi.Application/ND.KioskUi.Application.csproj \
+     services/kiosk-ui/src/ND.KioskUi.Application/
+COPY services/kiosk-ui/src/ND.KioskUi.Domain/ND.KioskUi.Domain.csproj \
+     services/kiosk-ui/src/ND.KioskUi.Domain/
+COPY services/kiosk-ui/src/ND.KioskUi.Infrastructure/ND.KioskUi.Infrastructure.csproj \
+     services/kiosk-ui/src/ND.KioskUi.Infrastructure/
+RUN dotnet restore services/kiosk-ui/src/ND.KioskUi.Api/ND.KioskUi.Api.csproj -a $TARGETARCH
+
+# Stage 3 — publish (cross-compile for arm64)
+FROM restore AS build
+COPY services/kiosk-ui/ services/kiosk-ui/
+COPY --from=frontend-build /src/ND.KioskUi.Api/wwwroot/ services/kiosk-ui/src/ND.KioskUi.Api/wwwroot/
+RUN dotnet publish services/kiosk-ui/src/ND.KioskUi.Api/ND.KioskUi.Api.csproj \
+    -c Release -o /app/publish --no-restore -a $TARGETARCH \
+    /p:UseSharedCompilation=false /p:ConcurrentBuild=false
+
+# Stage 4 — runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+USER app
+COPY --chown=app:app --from=build /app/publish .
+VOLUME ["/data", "/logs"]
+EXPOSE 5007
+ENV DOTNET_ENVIRONMENT=Production \
+    ASPNETCORE_URLS=http://+:5007
+ENTRYPOINT ["dotnet", "ND.KioskUi.Api.dll"]
