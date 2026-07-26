@@ -370,3 +370,16 @@ For future AI work, read in this order:
 
 If this overview conflicts with source code, inspect source code and implementation records before
 making changes.
+
+## EBOM Implementation Note (2026-07-26)
+
+The current demo implementation treats EBOM as a separate engineering design structure owned by MES Master
+Data. An EBOM header targets one Item Revision and receives a backend-generated code. Its lines form a
+hierarchical tree with parent line, sequence, component revision, quantity per, UOM, reference designator,
+note, and phantom-design metadata. Draft saves replace the complete current tree transactionally; inactive
+historical lines remain available for audit. Released EBOMs are immutable and can be converted into a new
+MBOM draft with source-line traceability without changing the EBOM. The UI uses localized names, business
+codes, current line counts, hierarchy controls, release/convert confirmations, and VI/EN/JA/KO field help.
+The process-level contract and verification evidence are in
+`process-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md` and
+`implementation-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md`.

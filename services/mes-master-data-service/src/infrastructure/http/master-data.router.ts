@@ -385,21 +385,101 @@ export function masterDataRouter(pool: Pool): Router {
       if (!header.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Released EBOM not found' }); }
       const ebom = header.rows[0];
       const mbom = await client.query(`INSERT INTO md_mbom_header (code, name, description, item_revision_id, site_id, business_version, purpose, base_quantity, base_uom_id, effective_from, created_by)
-        SELECT $1, name, description, item_revision_id, r.site_id, '1', 'Standard', 1, i.base_uom_id, NOW(), $2
+        SELECT $1, e.name, e.description, e.item_revision_id, r.site_id, '1', 'Standard', 1, i.base_uom_id, NOW(), $2
         FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id
         WHERE e.master_id = $3 RETURNING *`, [`MBOM-FROM-${ebom.code}`, getContext(req).userId, req.params['id']]);
       const mbomRow = mbom.rows[0];
       if (!mbomRow) throw Object.assign(new Error('Unable to create MBOM draft'), { statusCode: 422 });
       await client.query(`INSERT INTO md_mbom_line (code, name, mbom_header_id, seq, component_revision_id, quantity_per, uom_id, source_ebom_line_id)
         SELECT 'EBOM-' || l.code, l.name, $1, l.seq, l.component_revision_id, l.quantity_per, l.uom_id, l.master_id
-        FROM md_ebom_line l WHERE l.ebom_header_id = $2 ORDER BY l.seq`, [mbomRow.master_id, req.params['id']]);
+        FROM md_ebom_line l WHERE l.ebom_header_id = $2 AND l.lifecycle_status NOT IN ('Inactive','Obsolete') AND l.effective_to IS NULL ORDER BY l.seq`, [mbomRow.master_id, req.params['id']]);
       await client.query('COMMIT');
-      return res.status(201).json({ data: mbomRow, source_ebom_id: req.params['id'] });
+      return res.status(201).json({ data: mbomRow, mbom_id: mbomRow.master_id, source_ebom_id: req.params['id'], target_route: `/master-data/mboms/${mbomRow.master_id}` });
     } catch (err: any) {
       await client.query('ROLLBACK');
       return next(err);
     } finally { client.release(); }
   });
+
+  router.post('/ebom-headers', async (req, res, next) => {
+    const context = getContext(req); const body = normalizeLocalizedFields({ resource: 'ebom-headers', tableName: 'md_ebom_header' }, normalizeBody(req.body)); const client = await pool.connect();
+    try {
+      const name = localizedTextSchema.safeParse(body['name']);
+      if (!name.success) return res.status(422).json({ error: 'EBOM_NAME_REQUIRED' });
+      if (!body['item_revision_id']) return res.status(422).json({ error: 'EBOM_ITEM_REVISION_REQUIRED' });
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const revision = await client.query(`SELECT r.master_id FROM md_item_revision r WHERE r.master_id = $1 AND r.lifecycle_status NOT IN ('Inactive','Obsolete')`, [body['item_revision_id']]);
+      if (!revision.rows[0]) throw Object.assign(new Error('EBOM_ITEM_REVISION_INVALID'), { statusCode: 422 });
+      const code = await allocateResourceCode(client, 'EBOM');
+      const { rows } = await client.query(`INSERT INTO md_ebom_header (code, name, description, item_revision_id, created_by) VALUES ($1,$2::jsonb,$3::jsonb,$4,$5) RETURNING *`, [code, JSON.stringify(name.data), body['description'] ? JSON.stringify(body['description']) : null, body['item_revision_id'], context.userId]);
+      await client.query('COMMIT'); return res.status(201).json({ data: rows[0] });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.get('/ebom-headers', async (_req, res, next) => {
+    try {
+      const { rows } = await pool.query(`SELECT e.*, r.revision_code, i.code AS item_code, i.name AS item_name,
+        (SELECT COUNT(*)::int FROM md_ebom_line l WHERE l.ebom_header_id = e.master_id AND l.lifecycle_status NOT IN ('Inactive','Obsolete') AND l.effective_to IS NULL) AS current_line_count
+        FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id ORDER BY e.code, e.version_no`);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/ebom-headers/:id', async (req, res, next) => {
+    try {
+      const header = await pool.query(`SELECT e.*, r.revision_code, i.code AS item_code, i.name AS item_name FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id WHERE e.master_id = $1`, [req.params['id']]);
+      if (!header.rows[0]) return res.status(404).json({ error: 'EBOM_NOT_FOUND' });
+      const lines = await pool.query(`SELECT l.*, r.revision_code AS component_revision_code, i.code AS component_item_code, i.name AS component_item_name, u.code AS uom_code
+        FROM md_ebom_line l JOIN md_item_revision r ON r.master_id = l.component_revision_id JOIN md_item i ON i.master_id = r.item_id JOIN md_uom u ON u.master_id = l.uom_id
+        WHERE l.ebom_header_id = $1 AND l.lifecycle_status NOT IN ('Inactive','Obsolete') AND l.effective_to IS NULL ORDER BY l.parent_line_id NULLS FIRST, l.seq, l.code`, [req.params['id']]);
+      return res.json({ data: { ...header.rows[0], lines: lines.rows, current_line_count: lines.rows.length } });
+    } catch (err) { return next(err); }
+  });
+
+  router.put('/ebom-headers/:id/design-tree', async (req, res, next) => {
+    const context = getContext(req); const submitted = Array.isArray(req.body?.lines) ? req.body.lines as Record<string, any>[] : []; const client = await pool.connect();
+    try {
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const header = await client.query(`SELECT master_id, lifecycle_status FROM md_ebom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!header.rows[0]) throw Object.assign(new Error('EBOM_NOT_FOUND'), { statusCode: 404 });
+      if (header.rows[0].lifecycle_status === 'Released') throw Object.assign(new Error('EBOM_RELEASED_IMMUTABLE'), { statusCode: 409 });
+      const keys = submitted.map((line, index) => String(line.line_key || line.master_id || `line-${index + 1}`));
+      if (new Set(keys).size !== keys.length) throw Object.assign(new Error('EBOM_LINE_DUPLICATE'), { statusCode: 422 });
+      const keySet = new Set(keys); const parentByKey = new Map<string, string | null>(); const siblingSeq = new Set<string>(); const componentByParent = new Set<string>();
+      for (const [index, line] of submitted.entries()) {
+        const key = keys[index]!; const parent = line.parent_line_id ? String(line.parent_line_id) : null; const seq = Number(line.seq);
+        if (parent && parent === key) throw Object.assign(new Error('EBOM_LINE_SELF_PARENT'), { statusCode: 422 });
+        if (parent && !keySet.has(parent)) throw Object.assign(new Error('EBOM_PARENT_LINE_INVALID'), { statusCode: 422 });
+        if (!line.component_revision_id) throw Object.assign(new Error('EBOM_COMPONENT_REVISION_REQUIRED'), { statusCode: 422 });
+        if (!line.uom_id) throw Object.assign(new Error('EBOM_UOM_REQUIRED'), { statusCode: 422 });
+        if (!Number.isInteger(seq) || seq <= 0) throw Object.assign(new Error('EBOM_SEQUENCE_INVALID'), { statusCode: 422 });
+        if (!Number.isFinite(Number(line.quantity_per)) || Number(line.quantity_per) <= 0) throw Object.assign(new Error('EBOM_QUANTITY_INVALID'), { statusCode: 422 });
+        const siblingKey = `${parent || '__root__'}:${seq}`; if (siblingSeq.has(siblingKey)) throw Object.assign(new Error('EBOM_SEQUENCE_DUPLICATE'), { statusCode: 422 }); siblingSeq.add(siblingKey);
+        const componentKey = `${parent || '__root__'}:${line.component_revision_id}`; if (componentByParent.has(componentKey)) throw Object.assign(new Error('EBOM_COMPONENT_DUPLICATE'), { statusCode: 422 }); componentByParent.add(componentKey); parentByKey.set(key, parent);
+      }
+      for (const key of keys) { const visited = new Set<string>(); let cursor: string | null = key; while (cursor) { if (visited.has(cursor)) throw Object.assign(new Error('EBOM_HIERARCHY_CYCLE'), { statusCode: 422 }); visited.add(cursor); cursor = parentByKey.get(cursor) || null; } }
+      for (const line of submitted) {
+        const revision = await client.query(`SELECT master_id FROM md_item_revision WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [line.component_revision_id]);
+        if (!revision.rows[0]) throw Object.assign(new Error('EBOM_COMPONENT_REVISION_INVALID'), { statusCode: 422 });
+        const uom = await client.query(`SELECT master_id FROM md_uom WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [line.uom_id]);
+        if (!uom.rows[0]) throw Object.assign(new Error('EBOM_UOM_INVALID'), { statusCode: 422 });
+      }
+      await client.query(`UPDATE md_ebom_line SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE ebom_header_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NULL`, [req.params['id'], context.userId]);
+      const lineIds = new Map<string, string>(); for (const key of keys) { const result = await client.query(`SELECT gen_random_uuid() AS id`); lineIds.set(key, result.rows[0].id); }
+      const created: any[] = []; const effectiveFrom = new Date().toISOString();
+      for (const [index, line] of submitted.entries()) {
+        const key = keys[index]!; const result = await client.query(`INSERT INTO md_ebom_line (master_id, code, name, lifecycle_status, effective_from, ebom_header_id, parent_line_id, seq, component_revision_id, quantity_per, uom_id, reference_designator, note, phantom_design_flag, created_by) VALUES ($1,$2,$3,'Draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`, [lineIds.get(key), await allocateResourceCode(client, 'EBL'), String(line.name || 'EBOM component'), effectiveFrom, req.params['id'], line.parent_line_id ? lineIds.get(String(line.parent_line_id)) : null, Number(line.seq), line.component_revision_id, Number(line.quantity_per), line.uom_id, line.reference_designator || null, line.note || null, line.phantom_design_flag === true, context.userId]);
+        created.push(result.rows[0]);
+      }
+      await client.query('COMMIT'); return res.json({ data: created });
+    } catch (err: any) { await client.query('ROLLBACK'); if (err?.code === '23505') return res.status(409).json({ error: 'EBOM_LINE_DUPLICATE' }); return next(err); } finally { client.release(); }
+  });
+
+  // EBOM lines are a complete design tree. Prevent legacy append/update calls
+  // from creating an active state that is different from the submitted tree.
+  router.post('/ebom-lines', (_req, res) => res.status(409).json({ error: 'EBOM_TREE_REPLACEMENT_REQUIRED' }));
+  router.put('/ebom-lines/:id', (_req, res) => res.status(409).json({ error: 'EBOM_TREE_REPLACEMENT_REQUIRED' }));
+  router.delete('/ebom-lines/:id', (_req, res) => res.status(409).json({ error: 'EBOM_TREE_REPLACEMENT_REQUIRED' }));
 
   router.get('/production-ready-item-revisions', async (req, res, next) => {
     try {
@@ -2051,6 +2131,10 @@ export function masterDataRouter(pool: Pool): Router {
     const table = requireTable(req.params['resource'] ?? '');
     const context = getContext(req);
     const body = normalizeLocalizedFields(table, normalizeBody(req.body));
+    if (table.protectedAfterRelease) {
+      const released = await pool.query(`SELECT lifecycle_status FROM ${table.tableName} WHERE master_id = $1`, [req.params['id']]);
+      if (released.rows[0]?.lifecycle_status === 'Released') return res.status(409).json({ error: table.tableName.startsWith('md_ebom') ? 'EBOM_RELEASED_IMMUTABLE' : 'RELEASED_RECORD_IMMUTABLE' });
+    }
     if (table.tableName === 'md_item' && Object.keys(body).some((column) => ['name', 'item_group', 'base_uom_id'].includes(column))) {
       const { rows } = await pool.query(`SELECT 1 FROM md_item_revision WHERE item_id = $1 AND lifecycle_status = 'Released' LIMIT 1`, [req.params['id']]);
       if (rows[0]) return res.status(409).json({ error: 'Released Item specification is immutable; create a new Item Revision' });
@@ -2087,6 +2171,12 @@ export function masterDataRouter(pool: Pool): Router {
     try {
       await client.query('BEGIN');
       await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+
+      if (table.tableName === 'md_ebom_header') {
+        const current = await client.query(`SELECT master_id, lifecycle_status FROM md_ebom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+        if (!current.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'EBOM_NOT_FOUND' }); }
+        if (current.rows[0].lifecycle_status === 'Released') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'EBOM_RELEASED_IMMUTABLE' }); }
+      }
       if (table.tableName === 'md_workstation' && body['work_center_id']) {
         const parent = await client.query(`SELECT site_id, shopfloor_id, area_id FROM md_work_center WHERE master_id = $1 AND active_flag = TRUE FOR SHARE`, [body['work_center_id']]);
         if (!parent.rows[0]) throw Object.assign(new Error('WORK_CENTER_NOT_FOUND'), { statusCode: 422 });
@@ -2200,6 +2290,21 @@ export function masterDataRouter(pool: Pool): Router {
           await client.query('ROLLBACK');
           return res.status(422).json(validation);
         }
+      }
+
+      if (table.tableName === 'md_ebom_header') {
+        const current = await client.query(`SELECT * FROM md_ebom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+        if (!current.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'EBOM_NOT_FOUND' }); }
+        if (current.rows[0].lifecycle_status === 'Released') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'EBOM_RELEASED_IMMUTABLE' }); }
+        const lines = await client.query(`SELECT master_id FROM md_ebom_line WHERE ebom_header_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NULL`, [req.params['id']]);
+        if (lines.rowCount === 0) {
+          await client.query('ROLLBACK');
+          return res.status(422).json({ error: 'EBOM_RELEASE_REQUIRES_LINES', failures: [{ code: 'EBOM_RELEASE_REQUIRES_LINES', message: 'A current EBOM design tree is required before release.' }] });
+        }
+        await client.query(`UPDATE md_ebom_line SET lifecycle_status = 'Released', updated_by = $1, updated_at = NOW() WHERE ebom_header_id = $2 AND lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NULL`, [context.userId, req.params['id']]);
+        const released = await client.query(`UPDATE md_ebom_header SET lifecycle_status = 'Released', approved_by = $1, approved_at = NOW(), updated_by = $1, updated_at = NOW() WHERE master_id = $2 RETURNING *`, [context.userId, req.params['id']]);
+        await client.query('COMMIT');
+        return res.json({ data: released.rows[0], event_published: false, event_type: null });
       }
 
       if (table.tableName === 'md_item_revision') {

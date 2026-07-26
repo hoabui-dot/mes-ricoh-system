@@ -1596,6 +1596,26 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
         WHERE (assignment_role = 'Primary' AND COALESCE(machine_unit_id, equipment_id) IS NOT NULL);
     `,
   },
+  {
+    name: '0032_ebom_current_line_replacement',
+    sql: `
+      ALTER TABLE md_ebom_line DROP CONSTRAINT IF EXISTS md_ebom_line_ebom_header_id_seq_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_ebom_line_current_seq
+        ON md_ebom_line(ebom_header_id, seq)
+        WHERE lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NULL;
+      CREATE INDEX IF NOT EXISTS ix_md_ebom_line_current_header
+        ON md_ebom_line(ebom_header_id, lifecycle_status, effective_to);
+    `,
+  },
+  {
+    name: '0033_ebom_sibling_sequence_scope',
+    sql: `
+      DROP INDEX IF EXISTS ux_md_ebom_line_current_seq;
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_ebom_line_current_sibling_seq
+        ON md_ebom_line (ebom_header_id, COALESCE(parent_line_id, '00000000-0000-0000-0000-000000000000'::UUID), seq)
+        WHERE lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NULL;
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

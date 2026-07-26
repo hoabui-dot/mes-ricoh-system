@@ -1,6 +1,6 @@
 # AI_CONTEXT.md - Canonical Full Context for AI Agents
 
-Last updated: 2026-07-24
+Last updated: 2026-07-26
 Repository: `/home/neurosus/mes-system`
 Project: S-Factory MOM Platform - MES / WMS / QMS
 Audience: AI agents, engineers, architects, and maintainers continuing this codebase.
@@ -4299,3 +4299,39 @@ error codes. The replacement smoke test passed against Workstation
 `261110cd-b878-46ae-856b-b7556ed056d5` for unchanged Operations, adding one Operation exactly once, removing that
 Operation, unchanged Machine Groups, and unchanged Workstation Skills. Both images were rebuilt with
 `docker compose build --no-cache`; the master-data service is healthy and the edit route returns HTTP 200.
+
+## 66. Complete EBOM CRUD Audit and Redesign (2026-07-26)
+
+Implementation report: `implementation-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md`.
+Process source: `process-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md`.
+
+EBOM is master-data-owned and remains separate from MBOM. The running schema is `md_ebom_header` plus
+`md_ebom_line`; MBOM conversion remains the only manufacturing explosion path. Migration `0032` adds a
+current-line partial unique index so historical inactive lines can remain auditable while current sibling
+sequences stay unique.
+
+The backend now owns EBOM header codes through the shared resource-number allocator. `POST /ebom-headers`
+accepts localized name/description and `item_revision_id`, while `GET /ebom-headers` and
+`GET /ebom-headers/:id` return business display fields and current line count/tree only. Draft tree changes
+use `PUT /ebom-headers/:id/design-tree`; the submitted array is the complete desired active state. The
+transaction locks the header, validates positive quantity, active Component Revision/UOM, sibling sequence,
+same-parent component duplicates, parent references, self-parent, and cycles, ends all current lines, then
+inserts the submitted tree once. Direct legacy line append/update/delete routes return
+`EBOM_TREE_REPLACEMENT_REQUIRED`.
+
+Release requires a non-empty current tree and releases header plus current lines atomically. Released EBOMs
+are immutable. Conversion reads current lines only, inserts a new MBOM draft with `source_ebom_line_id`,
+returns the created MBOM ID/route, and never mutates the source EBOM.
+
+The MES Console EBOM screen now uses no-store selected-detail hydration and request guards, a hierarchical
+tree editor, root/child insertion, line editing, subtree removal, sibling reordering, expand/collapse,
+release/convert confirmations, and localized `FieldHelpPopover` guidance in VI/EN/JA/KO. It displays
+business codes and localized names rather than UUIDs. `npm run build --workspace=mes-console` passed.
+The runtime CRUD script `scripts/verify-ebom-crud-flow.mjs` covers create, replacement, hydration, edit,
+remove, cycle rejection, release immutability, conversion, traceability, and source immutability; it must
+be run after applying migration `0032` in a demo database. The final live verification passed after migrations `0032` and `0033`
+were applied and the conversion query was qualified. Command: `npm run verify:mes:ebom` with
+`MES_MASTER_DATA_URL=http://localhost:18000/api/mes/master-data`. It verified generated code, replacement,
+hydration, edit/remove, cycle rejection, release immutability, MBOM conversion, source-line traceability,
+and unchanged EBOM content. The demo fixtures retained by the run are EBOM
+`a14152d7-144a-4961-aac6-91d4d34ab065` and MBOM `6d33d665-89c3-4f54-99dd-4d91379ac9b0`.
