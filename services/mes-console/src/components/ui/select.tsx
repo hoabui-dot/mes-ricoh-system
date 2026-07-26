@@ -65,7 +65,7 @@ export function SelectBase({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className={cn('z-50 max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-slate-700 bg-slate-900 text-slate-100 shadow-lg', contentClassName)}
+          className={cn('z-[200] isolate max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-slate-700 bg-slate-900 text-slate-100 shadow-xl opacity-100', contentClassName)}
         >
           <SelectPrimitive.Viewport className="bg-slate-900 p-1">
             {options.map((option) => {

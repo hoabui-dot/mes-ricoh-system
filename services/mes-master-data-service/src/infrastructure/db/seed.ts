@@ -131,7 +131,7 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const childMbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1', name: 'Child MBOM for EPDM phantom roll', item_revision_id: rollRevId, site_id: siteId, base_quantity: '1.000000', base_uom_id: m2Id });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1-L10', name: 'Synthetic rubber base', mbom_header_id: childMbomId, seq: 10, component_revision_id: rollRevId, quantity_per: '1.000000', uom_id: m2Id, scrap_rate: '0.0000', issue_operation_id: opMixId, backflush_flag: true, phantom_flag: false });
 
-    const routingId = await upsertMaster(client, 'md_routing_header', { ...common, code: 'RT-FG-WS-CM01-R1', name: 'Routing Cao su chân máy ô tô', item_revision_id: fgRevId, site_id: siteId });
+    const routingId = await upsertMaster(client, 'md_routing_header', { ...common, code: 'RT-FG-WS-CM01-R1', name: 'Routing Cao su chân máy ô tô' });
     const roMixId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-010', name: 'Mixing', routing_header_id: routingId, operation_id: opMixId, work_center_id: wcMixId, seq: 10 });
     const roPrepId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-020', name: 'Metal Prep', routing_header_id: routingId, operation_id: opPrepId, work_center_id: wcMoldId, seq: 20, predecessor_seq: 10 });
     const roCutId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-030', name: 'Cutting', routing_header_id: routingId, operation_id: opCutId, work_center_id: wcCutId, seq: 30, predecessor_seq: 20 });

@@ -42,7 +42,7 @@ ensure_tunnel_process() {
   # Prefer a transient user-systemd unit. It survives the npm shell and
   # restarts automatically without requiring root to install a system unit.
   if command -v systemd-run >/dev/null 2>&1 && systemctl --user is-system-running >/dev/null 2>&1; then
-    systemd-run --user --unit="${unit%.service}" --property=Restart=always --property=RestartSec=5 "$cloudflared" tunnel --no-autoupdate --url "http://127.0.0.1:${port}" >/dev/null 2>&1 || true
+    systemd-run --user --unit="${unit%.service}" --property=Restart=always --property=RestartSec=5 --property="StandardOutput=append:${log}" --property="StandardError=append:${log}" "$cloudflared" tunnel --no-autoupdate --url "http://127.0.0.1:${port}" >/dev/null 2>&1 || true
   else
     nohup "$cloudflared" tunnel --no-autoupdate --url "http://127.0.0.1:${port}" >>"$log" 2>&1 </dev/null &
     disown 2>/dev/null || true
@@ -56,6 +56,22 @@ url_is_live() {
   command -v curl >/dev/null 2>&1 || return 1
   status="$(curl -L -k -sS --max-time 12 -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || printf '000')"
   [[ "$status" =~ ^[234][0-9][0-9]$ ]]
+}
+
+url_has_dns() {
+  local url="$1"
+  local host="${url#https://}"
+  host="${host%%/*}"
+  command -v getent >/dev/null 2>&1 && getent hosts "$host" >/dev/null 2>&1
+}
+
+restart_tunnel_process() {
+  local port="$1"
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user stop "cloudflared-console-${port}.service" >/dev/null 2>&1 || true
+  fi
+  pkill -f "[c]loudflared tunnel .*127\\.0\\.0\\.1:${port}([[:space:]]|$)" >/dev/null 2>&1 || true
+  sleep 1
 }
 
 url_for_tunnel() {
@@ -112,6 +128,24 @@ url_for_tunnel() {
           | grep -Ev '^https://api\.trycloudflare\.com$' \
           | tail -1 || true)"
       fi
+      [[ -n "$url" ]] && break
+    done
+  fi
+
+  # Quick Tunnel processes can remain alive after their hostname has expired.
+  # DNS failure is enough to prove that the log entry is stale; restart only
+  # the console tunnel for this port and read a new runtime log.
+  if [[ -n "$url" ]] && ! url_has_dns "$url" && [[ "$port" != "18080" ]]; then
+    restart_tunnel_process "$port"
+    : >"/tmp/cloudflared-${port}-runtime.log" 2>/dev/null || true
+    ensure_tunnel_process "$port"
+    url=""
+    process_was_running=0
+    sources=("/tmp/cloudflared-${port}-runtime.log")
+    local retry
+    for retry in $(seq 1 30); do
+      sleep 1
+      url="$(url_from_source "/tmp/cloudflared-${port}-runtime.log")"
       [[ -n "$url" ]] && break
     done
   fi

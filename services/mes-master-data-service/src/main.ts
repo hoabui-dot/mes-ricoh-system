@@ -63,9 +63,9 @@ async function bootstrap() {
   });
   app.use('/api/mes/master-data', masterDataRouter(pool));
   app.use((_req, res) => res.status(404).json({ error: 'Not Found' }));
-  app.use((err: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((err: Error & { statusCode?: number; code?: string; details?: unknown }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('[HTTP] Unhandled error:', err);
-    res.status(err.statusCode ?? 500).json({ error: err.statusCode ? err.message : 'Internal Server Error', message: err.message });
+    res.status(err.statusCode ?? 500).json({ error: err.code || (err.statusCode ? err.message : 'Internal Server Error'), message: err.message, ...(err.details ? { details: err.details } : {}) });
   });
 
   const server = app.listen(PORT, () => {

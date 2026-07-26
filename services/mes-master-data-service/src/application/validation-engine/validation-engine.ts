@@ -11,6 +11,7 @@ export interface ValidationResult {
   production_version_id: string;
   valid: boolean;
   failures: ValidationFailure[];
+  warnings: ValidationFailure[];
   delegated_rules: Array<{ rule: string; delegated_to: string; reason: string }>;
 }
 
@@ -50,6 +51,7 @@ export async function validateProductionVersion(
       production_version_id: productionVersionId,
       valid: false,
       failures,
+      warnings: [],
       delegated_rules: [{ rule: '9', delegated_to: 'mes-traceability-service', reason: 'Traceability policy is outside mes-master-data-service ownership.' }],
     };
   }
@@ -96,6 +98,9 @@ export async function validateProductionVersion(
   if (routingOps.length === 0) {
     failures.push(fail('4', 'ROUTING.NO_OPERATIONS'));
   }
+  const routingActive = await exists(db, `SELECT 1 FROM md_routing_header WHERE master_id = $1 AND lifecycle_status IN ('Released', 'InReview')`, [pv.routing_header_id]);
+  if (!routingActive) failures.push(fail('4', 'ROUTING.NOT_ACTIVE'));
+  const factoryIds = new Set<string>();
   const seqs = new Set<number>();
   for (const op of routingOps) {
     if (seqs.has(op.seq)) failures.push(fail('4', 'ROUTING.SEQ_DUPLICATE', { seq: op.seq }));
@@ -103,12 +108,16 @@ export async function validateProductionVersion(
     if (op.predecessor_seq !== null && !routingOps.some((candidate) => candidate.seq === op.predecessor_seq)) {
       failures.push(fail('4', 'ROUTING.PREDECESSOR_MISSING', { seq: op.seq, predecessorSeq: op.predecessor_seq }));
     }
-    if (!(await exists(db, `SELECT 1 FROM md_work_center WHERE master_id = $1 AND site_id = $2 AND active_flag = TRUE AND lifecycle_status = 'Released'`, [op.work_center_id, pv.site_id]))) {
-      failures.push(fail('5', 'WORK_CENTER.NOT_ACTIVE_FOR_SITE', { routingOperationId: op.master_id }));
-    }
-    if (!(await exists(db, `SELECT 1 FROM md_resource_capability WHERE operation_id = $1 AND work_center_id = $2 AND capability_type = 'Eligible' AND active_flag = TRUE AND lifecycle_status = 'Released'`, [op.operation_id, op.work_center_id]))) {
-      failures.push(fail('6', 'RESOURCE_CAPABILITY.MISSING', { routingOperationId: op.master_id }));
-    }
+    const workCenter = await db.query<{ site_id: string }>(`SELECT site_id FROM md_work_center WHERE master_id = $1 AND active_flag = TRUE AND lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.work_center_id]);
+    if (!workCenter.rows[0]) failures.push(fail('5', 'ROUTING_WORKCENTER_INVALID', { routingOperationId: op.master_id }));
+    else factoryIds.add(workCenter.rows[0].site_id);
+    if (!(await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.operation_id]))) failures.push(fail('5', 'ROUTING_OPERATION_INACTIVE', { routingOperationId: op.master_id }));
+    if (!(await exists(db, `
+      SELECT 1 FROM md_work_center wc
+      JOIN md_work_center_composition c ON c.work_center_id = wc.master_id AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())
+      JOIN md_workstation ws ON ws.master_id = c.workstation_id AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+      JOIN md_workstation_operation_capability capability ON capability.workstation_id = ws.master_id AND capability.operation_id = $2 AND capability.active_flag = TRUE AND (capability.effective_to IS NULL OR capability.effective_to > NOW())
+      WHERE wc.master_id = $1 AND wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.work_center_id, op.operation_id]))) failures.push(fail('6', 'WORKCENTER_OPERATION_NOT_SUPPORTED', { routingOperationId: op.master_id }));
     const schedulable = await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND is_schedulable = TRUE`, [op.operation_id]);
     if (schedulable && !(await exists(db, `SELECT 1 FROM md_production_standard WHERE item_revision_id = $1 AND operation_id = $2 AND work_center_id = $3 AND setup_time_min IS NOT NULL AND cycle_time_sec IS NOT NULL AND lifecycle_status = 'Released'`, [pv.item_revision_id, op.operation_id, op.work_center_id]))) {
       failures.push(fail('7', 'PRODUCTION_STANDARD.MISSING_TIME', { routingOperationId: op.master_id }));
@@ -117,6 +126,8 @@ export async function validateProductionVersion(
   if (routingOps.some((op) => op.predecessor_seq === op.seq)) {
     failures.push(fail('4', 'ROUTING.CYCLE'));
   }
+
+  const warnings: ValidationFailure[] = factoryIds.size > 1 ? [{ rule: '5', severity: 'WARN', code: 'INTER_FACTORY_ROUTING' }] : [];
 
   if (!(await exists(db, `SELECT 1 FROM md_resource_calendar WHERE available_from <= NOW() AND available_to > NOW() AND lifecycle_status = 'Released'`, []))) {
     failures.push(fail('8', 'RESOURCE_CALENDAR.MISSING'));
@@ -132,6 +143,7 @@ export async function validateProductionVersion(
     production_version_id: productionVersionId,
     valid: failures.length === 0,
     failures,
+    warnings,
     delegated_rules: [{ rule: '9', delegated_to: 'mes-traceability-service', reason: 'Traceability policy is outside mes-master-data-service ownership.' }],
   };
 }

@@ -190,8 +190,6 @@ export const mdRoutingHeader = pgTable('md_routing_header', {
   ...commonMasterColumns(),
   name: jsonb('name').$type<Record<string, string>>().notNull(),
   description: jsonb('description').$type<Record<string, string>>(),
-  itemRevisionId: uuid('item_revision_id').notNull(),
-  siteId: uuid('site_id').notNull(),
   businessVersion: varchar('business_version', { length: 30 }).notNull().default('1'),
   routingType: varchar('routing_type', { length: 30 }).notNull().default('Standard'),
   productionPurpose: jsonb('production_purpose').$type<Record<string, string>>(),

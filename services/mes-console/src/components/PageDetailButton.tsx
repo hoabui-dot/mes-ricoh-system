@@ -144,6 +144,31 @@ const details: Array<{ match: RegExp; detail: Detail }> = [
     },
   },
   {
+    match: /^\/(console\/mes\/)?master-data\/workstations(?:\/|$)/,
+    detail: {
+      ...baseMes,
+      title: l('Workstation và công đoạn được hỗ trợ', 'Workstation and supported operations', 'Workstationと対応工程', 'Workstation 및 지원 공정'),
+      summary: l('Khai báo các công đoạn mà Workstation có thể thực hiện và thời gian kế hoạch riêng cho từng công đoạn.', 'Define the Operations a Workstation can execute and the planning times for each Operation.', 'Workstationが実行できる工程と、工程ごとの計画時間を定義します。', 'Workstation이 실행할 수 있는 공정과 공정별 계획 시간을 정의합니다.'),
+      howToUse: [
+        l('Tạo hoặc chọn Operation từ Danh mục công đoạn, sau đó thêm vào Supported operations.', 'Create or select an Operation from the Operation Catalog, then add it to Supported operations.', '工程カタログで工程を作成または選択し、対応工程に追加します。', '공정 카탈로그에서 공정을 생성하거나 선택한 뒤 지원 공정에 추가합니다.'),
+        l('Nhập Cycle Time, Setup Time và Reference Quantity cho từng dòng; mỗi Operation có bộ giá trị độc lập.', 'Enter Cycle Time, Setup Time, and Reference Quantity for each row; every Operation has its own independent values.', '各行にサイクル時間、段取り時間、基準数量を入力します。工程ごとに独立した値を持ちます。', '각 행에 사이클 시간, 셋업 시간 및 참조 수량을 입력합니다. 공정마다 독립된 값을 가집니다.'),
+        l('Gán Workstation vào Work Center. Routing chọn Work Center, còn planning tự động tìm Workstation đủ điều kiện.', 'Assign the Workstation to a Work Center. Routing selects the Work Center; planning resolves an eligible Workstation automatically.', 'WorkstationをWork Centerに割り当てます。RoutingはWork Centerを選び、計画が対象Workstationを自動解決します。', 'Workstation을 Work Center에 배정합니다. Routing은 Work Center를 선택하고 계획이 적합한 Workstation을 자동으로 결정합니다.'),
+      ],
+      data: [
+        l('Cycle Time là thời gian xử lý ước tính của cặp Workstation + Operation cho Reference Quantity, không phải thời gian chung của Workstation.', 'Cycle Time is the estimated processing time for the Workstation + Operation pair for the Reference Quantity, not a generic Workstation property.', 'サイクル時間はWorkstation + 工程の組み合わせが基準数量を処理する推定時間であり、Workstation共通の値ではありません。', '사이클 시간은 Workstation + 공정 조합이 참조 수량을 처리하는 예상 시간이며 Workstation의 공통 속성이 아닙니다.'),
+        l('Setup Time là thời gian chuẩn bị xảy ra một lần trước khi sản xuất: thay khuôn, lắp dụng cụ, vệ sinh, làm nóng máy hoặc kiểm tra an toàn.', 'Setup Time is preparation performed once before production: mold/tool change, cleaning, warm-up, or safety inspection.', '段取り時間は生産前に一度行う準備（治工具交換、清掃、暖機、安全点検など）です。', '셋업 시간은 생산 전에 한 번 수행하는 준비 시간으로 금형/공구 교체, 청소, 예열 및 안전 점검을 포함합니다.'),
+        l('Reference Quantity là số lượng được Cycle Time biểu diễn; planning tự quy đổi thời lượng cho số lượng sản xuất khác.', 'Reference Quantity is the quantity represented by Cycle Time; planning scales the estimate for other production quantities.', '基準数量はサイクル時間が表す数量であり、計画は別の生産数量に合わせて時間を換算します。', '참조 수량은 사이클 시간이 나타내는 수량이며 계획은 다른 생산 수량에 맞춰 시간을 환산합니다.'),
+      ],
+      statuses: [
+        l('Workstation phải có Operation capability hợp lệ, Cycle Time lớn hơn 0, Setup Time không âm và Reference Quantity lớn hơn 0.', 'A Workstation capability requires Cycle Time greater than 0, non-negative Setup Time, and Reference Quantity greater than 0.', 'Workstation能力にはサイクル時間>0、段取り時間>=0、基準数量>0が必要です。', 'Workstation 능력에는 사이클 시간 > 0, 셋업 시간 >= 0, 참조 수량 > 0이 필요합니다.'),
+        l('Machine Groups là cấu hình thực thi tại Workstation; Routing không chọn trực tiếp Workstation.', 'Machine Groups execute at the Workstation; Routing does not select a Workstation directly.', 'Machine GroupがWorkstationで実行し、RoutingはWorkstationを直接選択しません。', 'Machine Group이 Workstation에서 실행하며 Routing은 Workstation을 직접 선택하지 않습니다.'),
+      ],
+      notes: [
+        l('Tổng thời lượng kế hoạch gồm Setup Time + thời gian chạy theo Reference Quantity, sau đó có thể cộng queue/move time và các hệ số năng lực.', 'Planned duration includes Setup Time plus run time scaled from Reference Quantity, then may include queue/move time and capacity factors.', '計画時間は段取り時間と基準数量から換算した実行時間を含み、キュー/移動時間や能力係数が加算される場合があります。', '계획 시간은 셋업 시간과 참조 수량에서 환산한 실행 시간을 포함하며 대기/이동 시간과 능력 계수가 추가될 수 있습니다.'),
+      ],
+    },
+  },
+  {
     match: /^\/(console\/mes\/)?master-data\/equipment|^\/(console\/mes\/)?master-data\/production-standards|^\/(console\/mes\/)?master-data\/reason-codes|^\/(console\/mes\/)?master-data\/skills/,
     detail: {
       ...baseMes,

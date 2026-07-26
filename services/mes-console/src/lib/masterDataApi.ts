@@ -30,7 +30,7 @@ export class MasterDataApiError extends Error {
 }
 
 export async function fetchResource(resource: string, user?: { userId?: string; roles?: string[] } | null, query = '') {
-  const resp = await fetch(`${masterDataBaseUrl()}/${resource}${query}`, { headers: authHeaders(user) });
+  const resp = await fetch(`${masterDataBaseUrl()}/${resource}${query}`, { headers: authHeaders(user), cache: 'no-store' });
   if (!resp.ok) {
     const error = await resp.json().catch(() => ({}));
     throw new MasterDataApiError(resource, resp.status, error.message || error.error || `Cannot load ${resource}`);
@@ -47,7 +47,7 @@ export async function postResource(resource: string, payload: Record<string, unk
   });
   if (!resp.ok) {
     const error = await resp.json().catch(() => ({}));
-    throw new Error(error.message || error.error || `Cannot create ${resource}`);
+    throw Object.assign(new Error(error.message || error.error || `Cannot create ${resource}`), { code: error.error, details: error.details });
   }
   return resp.json();
 }
@@ -60,7 +60,7 @@ export async function putResource(resource: string, id: string, payload: Record<
   });
   if (!resp.ok) {
     const error = await resp.json().catch(() => ({}));
-    throw new Error(error.message || error.error || `Cannot update ${resource}`);
+    throw Object.assign(new Error(error.message || error.error || `Cannot update ${resource}`), { code: error.error, details: error.details });
   }
   return resp.json();
 }

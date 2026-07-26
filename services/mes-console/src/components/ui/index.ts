@@ -4,7 +4,7 @@ export { Card } from './card';
 export { Input } from './input';
 export { SelectBase, type SelectBaseOption, type SelectBaseProps } from './select';
 export { ComboboxBase, type ComboboxBaseOption } from './combobox';
-export { InfoTooltip } from './info-tooltip';
+export { InfoTooltip, FieldHelpTooltip, FieldHelpPopover } from './info-tooltip';
 export { Modal, type ModalProps } from './modal';
 export { Confirmation, type ConfirmationProps } from './confirmation';
 export {

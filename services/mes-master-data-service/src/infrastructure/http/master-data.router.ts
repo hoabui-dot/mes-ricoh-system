@@ -8,6 +8,7 @@ import { formatRoutingCode } from './routing-numbering.js';
 const SERVICE_NAME = 'mes-master-data-service';
 const IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
+const WORKER_SKILL_LEVELS = new Set(['Basic', 'L1', 'L2', 'L3', 'L4', 'L5']);
 
 async function allocateRoutingCode(client: PoolClient): Promise<string> {
   const { rows } = await client.query<{ number_date: string; current_value: string }>(`
@@ -117,8 +118,15 @@ async function persistMachineGroups(client: PoolClient, workstationId: string, g
   if (!workstation.rows[0] || workstation.rows[0].active_flag !== true) throw Object.assign(new Error('WORKSTATION_NOT_FOUND_OR_INACTIVE'), { statusCode: 422 });
   const ws = workstation.rows[0];
   const output: Record<string, any>[] = [];
+  const selectedUnitIds = new Set<string>();
   for (const raw of groups as Record<string, any>[]) {
     const groupName = machineGroupName(raw.name || raw.group_name);
+    // Replacing an active workstation configuration must not replay its historical start date.
+    // Only future-dated changes retain the requested effective date.
+    const now = new Date();
+    const requestedEffectiveFrom = new Date(String(raw.effective_from || now.toISOString()));
+    const effectiveFrom = (requestedEffectiveFrom > now ? requestedEffectiveFrom : now).toISOString();
+    const effectiveTo = raw.effective_to ? new Date(String(raw.effective_to)).toISOString() : null;
     const legacyMembers = [raw.primary_machine_id ? { machine_id: raw.primary_machine_id, machine_unit_id: raw.primary_machine_unit_id, role: 'Primary', requirement_type: 'Required', required_quantity: 1 } : null, ...(Array.isArray(raw.supporting_machines) ? raw.supporting_machines : []).map((member: Record<string, any>) => ({ machine_id: member.machine_id, machine_unit_id: member.machine_unit_id, role: 'Supporting', requirement_type: member.requirement_type === 'Optional' ? 'Optional' : 'Required', required_quantity: 1 }))].filter(Boolean) as Record<string, any>[];
     const lines = (Array.isArray(raw.requirements) ? raw.requirements : legacyMembers) as Record<string, any>[];
     if (!lines.length || !lines.some((line) => line.role === 'Primary')) throw Object.assign(new Error('MACHINE_GROUP_PRIMARY_REQUIREMENT_REQUIRED'), { statusCode: 422 });
@@ -134,13 +142,18 @@ async function persistMachineGroups(client: PoolClient, workstationId: string, g
       const machine = await client.query(`SELECT master_id, code, name, site_id, active_flag, execution_status, planning_resource_flag FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [member.machine_id]);
       if (!machine.rows[0] || machine.rows[0].site_id !== ws.site_id || machine.rows[0].active_flag !== true || machine.rows[0].execution_status === 'OutOfService') throw Object.assign(new Error('MACHINE_HIERARCHY_OR_STATUS_INVALID'), { statusCode: 422 });
       const pinned = Array.isArray(member.pinned_machine_unit_ids) ? member.pinned_machine_unit_ids.map(String) : (member.machine_unit_id ? [String(member.machine_unit_id)] : []);
-      const units = await client.query(`SELECT mu.*, eq.site_id, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_id = $1 AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND eq.active_flag = TRUE AND eq.execution_status = 'Available' ORDER BY mu.unit_sequence FOR UPDATE`, [member.machine_id]);
+      const units = await client.query(`SELECT mu.*, eq.site_id, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_id = $1 AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND eq.active_flag = TRUE AND eq.execution_status = 'Available' AND NOT (mu.machine_unit_id = ANY($4::uuid[])) AND NOT EXISTS (SELECT 1 FROM md_resource_assignment ra WHERE ra.machine_unit_id = mu.machine_unit_id AND ra.assignment_role = 'Primary' AND ra.workstation_id IS DISTINCT FROM $5::uuid AND ra.effective_from < $3::timestamptz AND $2::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz)) ORDER BY mu.unit_sequence, mu.code FOR UPDATE`, [member.machine_id, effectiveFrom, effectiveTo || 'infinity', [...selectedUnitIds], workstationId]);
       const selected = pinned.length ? units.rows.filter((unit) => pinned.includes(String(unit.machine_unit_id))) : units.rows.slice(0, quantity);
-      if (selected.length < quantity) throw Object.assign(new Error('MACHINE_REQUIREMENT_QUANTITY_UNAVAILABLE'), { statusCode: 422 });
+      if (selected.length < quantity) {
+        const conflicting = await client.query(`SELECT ra.machine_unit_id, mu.code AS machine_unit_code, ws.code AS workstation_code, ws.name AS workstation_name FROM md_resource_assignment ra JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id JOIN md_workstation ws ON ws.master_id = ra.workstation_id WHERE ra.machine_unit_id IN (SELECT machine_unit_id FROM md_machine_unit WHERE machine_id = $1 AND active_flag = TRUE AND execution_status = 'Available') AND ra.assignment_role = 'Primary' AND ra.workstation_id IS DISTINCT FROM $4::uuid AND ra.effective_from < $3::timestamptz AND $2::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz) ORDER BY mu.unit_sequence`, [member.machine_id, effectiveFrom, effectiveTo || 'infinity', workstationId]);
+        if (member.role === 'Primary' && conflicting.rows.length) throw Object.assign(new Error('This physical machine is already assigned as a Primary Machine.'), { statusCode: 409, code: 'MACHINE_UNIT_PRIMARY_CONFLICT', details: { machine_id: member.machine_id, role: member.role, requested_quantity: quantity, available_quantity: selected.length, conflicts: conflicting.rows } });
+        throw Object.assign(new Error('Not enough physical machines are available.'), { statusCode: 422, code: 'MACHINE_REQUIREMENT_QUANTITY_UNAVAILABLE', details: { machine_id: member.machine_id, role: member.role, requested_quantity: quantity, available_quantity: selected.length, conflicts: conflicting.rows } });
+      }
+      selected.forEach((unit) => selectedUnitIds.add(String(unit.machine_unit_id)));
       resolved.push({ ...member, required_quantity: quantity, requirement_type: member.requirement_type === 'Optional' ? 'Optional' : 'Required', machine: machine.rows[0], units: selected });
     }
     const groupCode = await allocateResourceCode(client, 'MG');
-    const group = await client.query(`INSERT INTO md_workstation_machine_group (code, name, description, site_id, shopfloor_id, work_center_id, workstation_id, group_type, minimum_required_machines, maximum_concurrent_jobs, lifecycle_status, effective_from, effective_to, created_by) VALUES ($1,$2::jsonb,$3::jsonb,$4,$5,$6,$7,$8,1,1,$9,$10,$11,$12) RETURNING *`, [groupCode, JSON.stringify(groupName), raw.description ? JSON.stringify(machineGroupName(raw.description)) : null, ws.site_id, ws.shopfloor_id, ws.work_center_id, ws.master_id, raw.group_type || null, raw.status || 'Draft', new Date(String(raw.effective_from || new Date().toISOString())).toISOString(), raw.effective_to ? new Date(String(raw.effective_to)).toISOString() : null, context.userId]);
+    const group = await client.query(`INSERT INTO md_workstation_machine_group (code, name, description, site_id, shopfloor_id, work_center_id, workstation_id, group_type, minimum_required_machines, maximum_concurrent_jobs, lifecycle_status, effective_from, effective_to, created_by) VALUES ($1,$2::jsonb,$3::jsonb,$4,$5,$6,$7,$8,1,1,$9,$10,$11,$12) RETURNING *`, [groupCode, JSON.stringify(groupName), raw.description ? JSON.stringify(machineGroupName(raw.description)) : null, ws.site_id, ws.shopfloor_id, ws.work_center_id, ws.master_id, raw.group_type || null, raw.status || 'Draft', effectiveFrom, effectiveTo, context.userId]);
     for (const [lineIndex, member] of resolved.entries()) {
       await client.query(`INSERT INTO md_workstation_machine_requirement (machine_group_id, machine_id, role, required_quantity, requirement_type, pinned_machine_unit_ids, sequence_no, effective_from, effective_to, created_by) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10)`, [group.rows[0].master_id, member.machine.master_id, member.role, member.required_quantity, member.requirement_type, JSON.stringify(member.units.map((unit: any) => String(unit.machine_unit_id))), lineIndex + 1, group.rows[0].effective_from, group.rows[0].effective_to, context.userId]);
       for (const [unitIndex, unit] of member.units.entries()) await client.query(`INSERT INTO md_resource_assignment (code, name, site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id, assignment_type, assignment_role, requirement_type, sequence_no, scheduling_flag, oee_aggregation_flag, effective_from, effective_to, created_by) VALUES ($1,$2::jsonb,$3,$4,$5,$6,$7,$8,'MachineGroupMember',$9,$10,$11,$12,$13,$14,$15,$16)`, [`RA-${groupCode}-${String(lineIndex + 1).padStart(2, '0')}-${String(unitIndex + 1).padStart(2, '0')}`, JSON.stringify({ vi: 'Đơn vị trong nhóm máy', en: 'Machine group unit', ja: 'マシングループユニット', ko: '머신 그룹 단위' }), ws.site_id, ws.work_center_id, ws.master_id, member.machine.master_id, group.rows[0].master_id, unit.machine_unit_id, member.role, member.requirement_type, lineIndex + 1, true, member.role === 'Primary' || member.requirement_type === 'Required', group.rows[0].effective_from, group.rows[0].effective_to, context.userId]);
@@ -266,7 +279,7 @@ function validateEngineeringMetadata(table: TableDefinition, body: Record<string
     return { ...base, item_revision_id: row['item_revision_id'], site_id: row['site_id'], base_quantity: row['base_quantity'], base_uom_id: row['base_uom_id'], description: row['description'], business_version: row['business_version'], purpose: row['purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
   }
   if (table.tableName === 'md_routing_header') {
-    return { ...base, item_revision_id: row['item_revision_id'], site_id: row['site_id'], description: row['description'], business_version: row['business_version'], routing_type: row['routing_type'], production_purpose: row['production_purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
+    return { ...base, description: row['description'], business_version: row['business_version'], routing_type: row['routing_type'], production_purpose: row['production_purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
   }
   if (table.tableName === 'md_production_version') {
     return { ...base, item_revision_id: row['item_revision_id'], mbom_header_id: row['mbom_header_id'], routing_header_id: row['routing_header_id'], site_id: row['site_id'] };
@@ -329,7 +342,7 @@ export function masterDataRouter(pool: Pool): Router {
       );
       res.json({ data: rows });
     } catch (err) {
-      next(err);
+      return next(err);
     }
   });
 
@@ -382,7 +395,10 @@ export function masterDataRouter(pool: Pool): Router {
         FROM md_ebom_line l WHERE l.ebom_header_id = $2 ORDER BY l.seq`, [mbomRow.master_id, req.params['id']]);
       await client.query('COMMIT');
       return res.status(201).json({ data: mbomRow, source_ebom_id: req.params['id'] });
-    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      return next(err);
+    } finally { client.release(); }
   });
 
   router.get('/production-ready-item-revisions', async (req, res, next) => {
@@ -712,7 +728,10 @@ export function masterDataRouter(pool: Pool): Router {
       await client.query(`UPDATE md_employee_skill SET active_flag = FALSE, effective_to = NOW(), ended_by = $3, ended_at = NOW(), updated_by = $3, updated_at = NOW() WHERE employee_id = $1 AND skill_id = $2 AND active_flag = TRUE AND effective_to IS NULL`, [body['employee_id'], req.params['id'], context.userId]);
       const { rows } = await client.query(`INSERT INTO md_employee_skill (employee_id, skill_id, level, qualification_status, certificate_code, certified_at, expires_at, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [body['employee_id'], req.params['id'], body['level'], body['qualification_status'] || 'Active', body['certificate_code'] || null, body['certified_at'] || null, body['expires_at'] || null, context.userId]);
       await client.query('COMMIT'); return res.status(201).json({ data: rows[0] });
-    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      return next(err);
+    } finally { client.release(); }
   });
 
   router.post('/worker-skills/:id/assignments/:employeeId/end', async (req, res, next) => {
@@ -854,7 +873,7 @@ export function masterDataRouter(pool: Pool): Router {
 
   router.get('/workstations/:id/machine-groups', async (req, res, next) => {
     try {
-      const { rows } = await pool.query(`SELECT mg.*, s.code AS site_code, sf.code AS shopfloor_code, wc.code AS work_center_code, ws.code AS workstation_code FROM md_workstation_machine_group mg JOIN md_site s ON s.master_id = mg.site_id JOIN md_shopfloor sf ON sf.master_id = mg.shopfloor_id JOIN md_work_center wc ON wc.master_id = mg.work_center_id JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.workstation_id = $1 ORDER BY mg.code`, [req.params['id']]);
+      const { rows } = await pool.query(`SELECT mg.*, s.code AS site_code, sf.code AS shopfloor_code, wc.code AS work_center_code, ws.code AS workstation_code FROM md_workstation_machine_group mg JOIN md_site s ON s.master_id = mg.site_id JOIN md_shopfloor sf ON sf.master_id = mg.shopfloor_id JOIN md_work_center wc ON wc.master_id = mg.work_center_id JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.workstation_id = $1 AND mg.lifecycle_status NOT IN ('Inactive','Obsolete') AND (mg.effective_to IS NULL OR mg.effective_to > NOW()) ORDER BY mg.code`, [req.params['id']]);
       for (const group of rows) {
         const members = await pool.query(`SELECT ra.master_id, ra.machine_group_id, ra.equipment_id AS machine_id, eq.code AS machine_code, eq.name AS machine_name, ra.machine_unit_id, mu.code AS machine_unit_code, mu.execution_status, ra.assignment_role AS role, ra.requirement_type, ra.sequence_no, ra.effective_from, ra.effective_to FROM md_resource_assignment ra JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id WHERE ra.machine_group_id = $1 ORDER BY ra.sequence_no, ra.effective_from`, [group.master_id]);
         group.members = members.rows;
@@ -889,11 +908,17 @@ export function masterDataRouter(pool: Pool): Router {
       await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
       const workstation = await client.query(`SELECT master_id, active_flag FROM md_workstation WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
       if (!workstation.rows[0] || workstation.rows[0].active_flag !== true) throw Object.assign(new Error('WORKSTATION_NOT_FOUND_OR_INACTIVE'), { statusCode: 422 });
-      await client.query(`UPDATE md_workstation_operation_capability SET active_flag = FALSE, effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE workstation_id = $1 AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id'], context.userId]);
+      await client.query(`UPDATE md_workstation_operation_capability SET active_flag = FALSE, effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE workstation_id = $1 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW())`, [req.params['id'], context.userId]);
       const created: Record<string, any>[] = [];
+      const seenOperationIds = new Set<string>();
+      const replacementNow = new Date();
       for (const entry of entries) {
         if (!entry.operation_id || Number(entry.cycle_time_sec) <= 0) throw Object.assign(new Error('WORKSTATION_CAPABILITY_TIMING_REQUIRED'), { statusCode: 422 });
-        const result = await client.query(`INSERT INTO md_workstation_operation_capability (workstation_id, operation_id, cycle_time_sec, setup_time_min, base_quantity, efficiency_factor, scheduling_mode, effective_from, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [req.params['id'], entry.operation_id, Number(entry.cycle_time_sec), Number(entry.setup_time_min || 0), Number(entry.base_quantity || 1), Number(entry.efficiency_factor || 1), entry.scheduling_mode || 'Finite', entry.effective_from || new Date().toISOString(), context.userId]);
+        if (seenOperationIds.has(String(entry.operation_id))) throw Object.assign(new Error('WORKSTATION_CAPABILITY_DUPLICATE'), { statusCode: 409 });
+        seenOperationIds.add(String(entry.operation_id));
+        const requestedEffectiveFrom = entry.effective_from ? new Date(String(entry.effective_from)) : replacementNow;
+        const effectiveFrom = requestedEffectiveFrom > replacementNow ? requestedEffectiveFrom : replacementNow;
+        const result = await client.query(`INSERT INTO md_workstation_operation_capability (workstation_id, operation_id, cycle_time_sec, setup_time_min, base_quantity, efficiency_factor, scheduling_mode, effective_from, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [req.params['id'], entry.operation_id, Number(entry.cycle_time_sec), Number(entry.setup_time_min || 0), Number(entry.base_quantity || 1), Number(entry.efficiency_factor || 1), entry.scheduling_mode || 'Finite', effectiveFrom.toISOString(), context.userId]);
         created.push(result.rows[0]);
       }
       await client.query('COMMIT'); return res.json({ data: created });
@@ -906,12 +931,16 @@ export function masterDataRouter(pool: Pool): Router {
       const groups = Array.isArray(req.body?.groups) ? req.body.groups : [];
       if (!groups.length) return res.status(422).json({ error: 'AT_LEAST_ONE_MACHINE_GROUP_REQUIRED' });
       await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
-      await client.query(`UPDATE md_resource_assignment SET active_flag = FALSE, effective_to = NOW(), ended_by = $2, ended_at = NOW(), updated_by = $2, updated_at = NOW() WHERE workstation_id = $1 AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id'], context.userId]);
+      await client.query(`UPDATE md_resource_assignment SET effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE workstation_id = $1 AND effective_to IS NULL`, [req.params['id'], context.userId]);
       await client.query(`UPDATE md_workstation_machine_requirement SET active_flag = FALSE, effective_to = NOW(), ended_by = $2, ended_at = NOW(), updated_by = $2, updated_at = NOW() WHERE machine_group_id IN (SELECT master_id FROM md_workstation_machine_group WHERE workstation_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')) AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id'], context.userId]);
       await client.query(`UPDATE md_workstation_machine_group SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE workstation_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['id'], context.userId]);
       const created = await persistMachineGroups(client, req.params['id'], groups, context);
       await client.query('COMMIT'); return res.json({ data: created });
-    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      if (err?.code === '23P01') return res.status(409).json({ error: 'MACHINE_UNIT_ALREADY_ASSIGNED', message: 'A physical machine unit is already assigned to another active Primary requirement.' });
+      return next(err);
+    } finally { client.release(); }
   });
 
   router.get('/machines/:id/change-impact', async (req, res, next) => {
@@ -998,7 +1027,7 @@ export function masterDataRouter(pool: Pool): Router {
     try {
       const params = req.query['resource_type'] && req.query['resource_id'] ? [req.query['resource_type'], req.query['resource_id']] : [];
       const where = params.length ? 'WHERE rsa.resource_type = $1 AND rsa.resource_id = $2' : '';
-      const { rows } = await pool.query(`SELECT rsa.*, s.code AS skill_code, s.name AS skill_name, s.skill_group, s.scope FROM md_resource_skill_assignment rsa JOIN md_skill s ON s.master_id = rsa.skill_id AND s.legacy_flag = FALSE ${where} ORDER BY s.code`, params);
+      const { rows } = await pool.query(`SELECT rsa.*, s.code AS skill_code, s.name AS skill_name, s.skill_group, s.scope FROM md_resource_skill_assignment rsa JOIN md_skill s ON s.master_id = rsa.skill_id AND s.legacy_flag = FALSE ${where}${params.length ? ' AND' : ' WHERE'} rsa.active_flag = TRUE AND (rsa.effective_to IS NULL OR rsa.effective_to > NOW()) ORDER BY s.code`, params);
       return res.json({ data: rows });
     } catch (err) { return next(err); }
   });
@@ -1054,6 +1083,37 @@ export function masterDataRouter(pool: Pool): Router {
     } catch (err) { return next(err); }
   });
 
+  router.get('/operations/:operationId/supported-work-centers', async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT wc.master_id AS work_center_id, wc.code AS work_center_code, wc.name AS work_center_name,
+               sf.code AS shopfloor_code, sf.name AS shopfloor_name,
+               s.code AS factory_code, s.name AS factory_name,
+               COUNT(DISTINCT ws.master_id)::INT AS supporting_workstation_count
+        FROM md_work_center wc
+        JOIN md_shopfloor sf ON sf.master_id = wc.shopfloor_id
+        JOIN md_site s ON s.master_id = wc.site_id
+        JOIN md_work_center_composition composition
+          ON composition.work_center_id = wc.master_id
+         AND composition.active_flag = TRUE
+         AND (composition.effective_to IS NULL OR composition.effective_to > NOW())
+        JOIN md_workstation ws
+          ON ws.master_id = composition.workstation_id
+         AND ws.work_center_id = wc.master_id
+         AND ws.active_flag = TRUE
+         AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+        JOIN md_workstation_operation_capability capability
+          ON capability.workstation_id = ws.master_id
+         AND capability.operation_id = $1
+         AND capability.active_flag = TRUE
+         AND (capability.effective_to IS NULL OR capability.effective_to > NOW())
+        WHERE wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+        GROUP BY wc.master_id, wc.code, wc.name, sf.code, sf.name, s.code, s.name
+        ORDER BY wc.code`, [req.params['operationId']]);
+      return res.json({ items: rows.map((row) => ({ work_center: { id: row.work_center_id, code: row.work_center_code, name: row.work_center_name }, shopfloor: { code: row.shopfloor_code, name: row.shopfloor_name }, factory: { code: row.factory_code, name: row.factory_name }, supporting_workstation_count: row.supporting_workstation_count })) });
+    } catch (err) { return next(err); }
+  });
+
   router.get('/operations/:id', async (req, res, next) => {
     try {
       const operation = await pool.query(`SELECT * FROM md_operation WHERE master_id = $1`, [req.params['id']]);
@@ -1061,6 +1121,102 @@ export function masterDataRouter(pool: Pool): Router {
       const dependencies = await pool.query(`SELECT ws.code AS workstation_code, ws.name AS workstation_name, wc.code AS work_center_code, wc.name AS work_center_name FROM md_workstation_operation_capability c JOIN md_workstation ws ON ws.master_id = c.workstation_id LEFT JOIN md_work_center wc ON wc.master_id = ws.work_center_id WHERE c.operation_id = $1 AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())`, [req.params['id']]);
       return res.json({ data: { ...operation.rows[0], supporting_workstations: dependencies.rows } });
     } catch (err) { return next(err); }
+  });
+
+  router.get('/operations/:id/worker-skill-requirements', async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT osr.master_id, osr.operation_id, osr.skill_id, osr.minimum_level,
+               osr.required_persons, osr.mandatory_flag, osr.effective_from, osr.effective_to,
+               osr.active_flag, sk.code AS skill_code, sk.name AS skill_name, sk.scope AS skill_scope
+        FROM md_operation_skill_requirement osr
+        JOIN md_skill sk ON sk.master_id = osr.skill_id
+        WHERE osr.operation_id = $1 AND osr.routing_operation_id IS NULL
+          AND osr.active_flag = TRUE AND (osr.effective_to IS NULL OR osr.effective_to > NOW())
+        ORDER BY sk.code`, [req.params['id']]);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.put('/operations/:id/worker-skill-requirements', async (req, res, next) => {
+    const context = getContext(req); const body = normalizeBody(req.body); const requirements = Array.isArray(body['requirements']) ? body['requirements'] as Record<string, any>[] : [];
+    const client = await pool.connect();
+    try {
+      const operation = await client.query(`SELECT master_id, code FROM md_operation WHERE master_id = $1`, [req.params['id']]);
+      if (!operation.rows[0]) throw Object.assign(new Error('OPERATION_NOT_FOUND'), { statusCode: 404 });
+      const activeRequirements = requirements.filter((item) => item['status'] !== 'Inactive' && item['active_flag'] !== false);
+      const skillIds = activeRequirements.map((item) => String(item['skill_id'] || ''));
+      if (new Set(skillIds).size !== skillIds.length) throw Object.assign(new Error('OPERATION_WORKER_SKILL_DUPLICATE'), { statusCode: 422 });
+      if (activeRequirements.some((item) => !item['skill_id'])) throw Object.assign(new Error('OPERATION_WORKER_SKILL_SCOPE_INVALID'), { statusCode: 422 });
+      if (activeRequirements.some((item) => !WORKER_SKILL_LEVELS.has(String(item['minimum_level'])))) throw Object.assign(new Error('OPERATION_WORKER_SKILL_LEVEL_INVALID'), { statusCode: 422 });
+      if (activeRequirements.some((item) => !Number.isInteger(Number(item['required_persons'])) || Number(item['required_persons']) < 1)) throw Object.assign(new Error('OPERATION_WORKER_SKILL_PERSONS_INVALID'), { statusCode: 422 });
+      for (const item of activeRequirements) {
+        const from = item['effective_from'] ? new Date(String(item['effective_from'])) : new Date();
+        const to = item['effective_to'] ? new Date(String(item['effective_to'])) : null;
+        if (Number.isNaN(from.getTime()) || (to && (Number.isNaN(to.getTime()) || to <= from))) throw Object.assign(new Error('OPERATION_WORKER_SKILL_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+      }
+      if (skillIds.length) {
+        const validSkills = await client.query(`SELECT master_id FROM md_skill WHERE master_id = ANY($1::uuid[]) AND scope = 'Employee' AND legacy_flag = FALSE AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [skillIds]);
+        if (validSkills.rows.length !== skillIds.length) throw Object.assign(new Error('OPERATION_WORKER_SKILL_SCOPE_INVALID'), { statusCode: 422 });
+      }
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      await client.query(`UPDATE md_operation_skill_requirement SET active_flag = FALSE, effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE operation_id = $1 AND routing_operation_id IS NULL AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id'], context.userId]);
+      const created: Record<string, any>[] = [];
+      for (const [index, item] of requirements.entries()) {
+        const active = item['status'] !== 'Inactive' && item['active_flag'] !== false;
+        const from = item['effective_from'] ? new Date(String(item['effective_from'])) : new Date();
+        const to = item['effective_to'] ? new Date(String(item['effective_to'])) : null;
+        const skill = await client.query(`SELECT code FROM md_skill WHERE master_id = $1`, [String(item['skill_id'])]);
+        if (!skill.rows[0]) throw Object.assign(new Error('OPERATION_WORKER_SKILL_SCOPE_INVALID'), { statusCode: 422 });
+        const result = await client.query(`
+          INSERT INTO md_operation_skill_requirement
+            (code, name, version_no, lifecycle_status, effective_from, effective_to, created_by,
+             operation_id, skill_id, minimum_level, required_persons, mandatory_flag, active_flag)
+          VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        [`${operation.rows[0].code}-WSK-${Date.now()}-${index + 1}`, `${skill.rows[0].code} worker skill requirement`, active ? 'Released' : 'Inactive', from, to, context.userId, req.params['id'], String(item['skill_id']), String(item['minimum_level'] || 'L1'), Number(item['required_persons'] || 1), item['mandatory_flag'] !== false, active]);
+        created.push(result.rows[0]);
+      }
+      await client.query('COMMIT'); return res.json({ data: created });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.get('/routing-operations/:id/worker-skill-requirements', async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT osr.master_id, osr.operation_id, osr.routing_operation_id, osr.skill_id,
+               osr.minimum_level, osr.required_persons, osr.mandatory_flag,
+               osr.effective_from, osr.effective_to, osr.active_flag,
+               sk.code AS skill_code, sk.name AS skill_name, sk.scope AS skill_scope
+        FROM md_operation_skill_requirement osr JOIN md_skill sk ON sk.master_id = osr.skill_id
+        WHERE osr.routing_operation_id = $1 AND osr.active_flag = TRUE
+          AND (osr.effective_to IS NULL OR osr.effective_to > NOW()) ORDER BY sk.code`, [req.params['id']]);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.put('/routing-operations/:id/worker-skill-requirements', async (req, res, next) => {
+    const context = getContext(req); const requirements = Array.isArray(req.body?.requirements) ? req.body.requirements as Record<string, any>[] : []; const client = await pool.connect();
+    try {
+      const routingOperation = await client.query(`SELECT ro.master_id, ro.operation_id, ro.code, wc.site_id FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.master_id = $1`, [req.params['id']]);
+      if (!routingOperation.rows[0]) throw Object.assign(new Error('ROUTING_OPERATION_NOT_FOUND'), { statusCode: 404 });
+      const activeRequirements = requirements.filter((item) => item['status'] !== 'Inactive' && item['active_flag'] !== false); const skillIds = activeRequirements.map((item) => String(item['skill_id'] || ''));
+      if (new Set(skillIds).size !== skillIds.length) throw Object.assign(new Error('OPERATION_WORKER_SKILL_DUPLICATE'), { statusCode: 422 });
+      if (activeRequirements.some((item) => !WORKER_SKILL_LEVELS.has(String(item['minimum_level'])))) throw Object.assign(new Error('OPERATION_WORKER_SKILL_LEVEL_INVALID'), { statusCode: 422 });
+      if (activeRequirements.some((item) => !Number.isInteger(Number(item['required_persons'])) || Number(item['required_persons']) < 1)) throw Object.assign(new Error('OPERATION_WORKER_SKILL_PERSONS_INVALID'), { statusCode: 422 });
+      const validSkills = skillIds.length ? await client.query(`SELECT master_id FROM md_skill WHERE master_id = ANY($1::uuid[]) AND scope = 'Employee' AND legacy_flag = FALSE AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [skillIds]) : { rows: [] };
+      if (validSkills.rows.length !== skillIds.length) throw Object.assign(new Error('OPERATION_WORKER_SKILL_SCOPE_INVALID'), { statusCode: 422 });
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      await client.query(`UPDATE md_operation_skill_requirement SET active_flag = FALSE, effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE routing_operation_id = $1 AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id'], context.userId]);
+      const created: Record<string, any>[] = [];
+      for (const [index, item] of requirements.entries()) {
+        const active = item['status'] !== 'Inactive' && item['active_flag'] !== false; const from = item['effective_from'] ? new Date(String(item['effective_from'])) : new Date(); const to = item['effective_to'] ? new Date(String(item['effective_to'])) : null;
+        if (to && (Number.isNaN(to.getTime()) || to <= from)) throw Object.assign(new Error('OPERATION_WORKER_SKILL_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+        const skill = await client.query(`SELECT code FROM md_skill WHERE master_id = $1`, [String(item['skill_id'])]); if (!skill.rows[0]) throw Object.assign(new Error('OPERATION_WORKER_SKILL_SCOPE_INVALID'), { statusCode: 422 });
+        const result = await client.query(`INSERT INTO md_operation_skill_requirement (code, name, version_no, lifecycle_status, effective_from, effective_to, created_by, operation_id, skill_id, site_id, routing_operation_id, minimum_level, required_persons, mandatory_flag, active_flag) VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`, [`${routingOperation.rows[0].code}-WSK-${Date.now()}-${index + 1}`, `${skill.rows[0].code} worker skill requirement`, active ? 'Released' : 'Inactive', from, to, context.userId, routingOperation.rows[0].operation_id, String(item['skill_id']), routingOperation.rows[0].site_id, req.params['id'], String(item['minimum_level'] || 'L1'), Number(item['required_persons'] || 1), item['mandatory_flag'] !== false, active]);
+        created.push(result.rows[0]);
+      }
+      await client.query('COMMIT'); return res.json({ data: created });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
   });
 
   router.put('/resource-skill-assignments/:resourceType/:resourceId', async (req, res, next) => {
@@ -1074,10 +1230,10 @@ export function masterDataRouter(pool: Pool): Router {
       const valid = await client.query(`SELECT master_id FROM md_skill WHERE master_id = ANY($1::uuid[]) AND scope = $2 AND legacy_flag = FALSE AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [skillIds, resourceType]);
       if (valid.rows.length !== skillIds.length) return res.status(422).json({ error: 'RESOURCE_SKILL_SCOPE_INVALID' });
       await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
-      const current = await client.query(`SELECT assignment_id, skill_id FROM md_resource_skill_assignment WHERE resource_type = $1 AND resource_id = $2 AND active_flag = TRUE AND effective_to IS NULL FOR UPDATE`, [resourceType, resourceId]);
-      const wanted = new Set(skillIds);
-      for (const row of current.rows) if (!wanted.has(String(row.skill_id))) await client.query(`UPDATE md_resource_skill_assignment SET active_flag = FALSE, effective_to = NOW(), ended_by = $3, ended_at = NOW(), updated_by = $3, updated_at = NOW() WHERE assignment_id = $1 AND skill_id = $2`, [row.assignment_id, row.skill_id, context.userId]);
-      for (const skillId of skillIds) if (!current.rows.some((row) => String(row.skill_id) === skillId)) await client.query(`INSERT INTO md_resource_skill_assignment (resource_type, resource_id, skill_id, minimum_level, required_flag, effective_from, created_by) VALUES ($1,$2,$3,$4,TRUE,NOW(),$5)`, [resourceType, resourceId, skillId, body['minimum_level'] || 'Basic', context.userId]);
+      await client.query(`SELECT assignment_id FROM md_resource_skill_assignment WHERE resource_type = $1 AND resource_id = $2 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW()) FOR UPDATE`, [resourceType, resourceId]);
+      const replacementNow = new Date().toISOString();
+      await client.query(`UPDATE md_resource_skill_assignment SET active_flag = FALSE, effective_to = $3, ended_by = $4, ended_at = NOW(), updated_by = $4, updated_at = NOW() WHERE resource_type = $1 AND resource_id = $2 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW())`, [resourceType, resourceId, replacementNow, context.userId]);
+      for (const skillId of skillIds) await client.query(`INSERT INTO md_resource_skill_assignment (resource_type, resource_id, skill_id, minimum_level, required_flag, effective_from, created_by) VALUES ($1,$2,$3,$4,TRUE,$5,$6)`, [resourceType, resourceId, skillId, body['minimum_level'] || 'Basic', replacementNow, context.userId]);
       const { rows } = await client.query(`SELECT * FROM md_resource_skill_assignment WHERE resource_type = $1 AND resource_id = $2 AND active_flag = TRUE AND effective_to IS NULL ORDER BY created_at`, [resourceType, resourceId]);
       await client.query('COMMIT'); return res.json({ data: rows });
     } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
@@ -1239,13 +1395,48 @@ export function masterDataRouter(pool: Pool): Router {
     } catch (err) { return next(err); }
   });
 
+  router.get('/workstations/machine-availability', async (req, res, next) => {
+    try {
+      const effectiveFrom = new Date(String(req.query['effective_from'] || new Date().toISOString()));
+      const effectiveTo = req.query['effective_to'] ? new Date(String(req.query['effective_to'])) : null;
+      const workstationId = typeof req.query['workstation_id'] === 'string' && req.query['workstation_id'] ? req.query['workstation_id'] : null;
+      const { rows } = await pool.query(`
+        SELECT eq.master_id AS machine_id, eq.code, eq.name, eq.quantity,
+               COUNT(mu.machine_unit_id) FILTER (WHERE mu.active_flag = TRUE) AS total_units,
+               COUNT(mu.machine_unit_id) FILTER (WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM md_resource_assignment ra
+                   WHERE ra.machine_unit_id = mu.machine_unit_id
+                     AND ra.assignment_role = 'Primary'
+                     AND ra.workstation_id IS DISTINCT FROM $3::uuid
+                     AND ra.effective_from < $2::timestamptz
+                     AND $1::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz)
+                 )) AS available_unit_count,
+               COALESCE(jsonb_agg(jsonb_build_object('machine_unit_id', mu.machine_unit_id, 'code', mu.code, 'execution_status', mu.execution_status)) FILTER (WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM md_resource_assignment ra
+                   WHERE ra.machine_unit_id = mu.machine_unit_id
+                     AND ra.assignment_role = 'Primary'
+                     AND ra.workstation_id IS DISTINCT FROM $3::uuid
+                     AND ra.effective_from < $2::timestamptz
+                     AND $1::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz)
+                 )), '[]'::jsonb) AS units
+        FROM md_equipment eq
+        LEFT JOIN md_machine_unit mu ON mu.machine_id = eq.master_id
+        WHERE eq.active_flag = TRUE AND eq.execution_status = 'Available'
+        GROUP BY eq.master_id, eq.code, eq.name, eq.quantity
+        ORDER BY eq.code`, [effectiveFrom.toISOString(), effectiveTo ? effectiveTo.toISOString() : 'infinity', workstationId]);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
   router.get('/workstations/:id', async (req, res, next) => {
     try {
       const detail = await pool.query(`SELECT ws.*, s.code AS site_code, s.name AS site_name, a.code AS area_code, a.name AS area_name, wc.code AS work_center_code, wc.name AS work_center_name FROM md_workstation ws JOIN md_site s ON s.master_id = ws.site_id LEFT JOIN md_production_area a ON a.master_id = ws.area_id LEFT JOIN md_work_center wc ON wc.master_id = ws.work_center_id WHERE ws.master_id = $1`, [req.params['id']]);
       if (!detail.rows[0]) return res.status(404).json({ error: 'Not Found' });
       const assignments = await pool.query(`SELECT ra.*, wc.code AS work_center_code, wc.name AS work_center_name, eq.code AS equipment_code, eq.name AS equipment_name, mu.code AS machine_unit_code, mg.code AS machine_group_code FROM md_resource_assignment ra JOIN md_work_center wc ON wc.master_id = ra.work_center_id LEFT JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id LEFT JOIN md_workstation_machine_group mg ON mg.master_id = ra.machine_group_id WHERE ra.workstation_id = $1 ORDER BY ra.effective_from DESC`, [req.params['id']]);
-      const groups = await pool.query(`SELECT mg.*, s.code AS site_code, sf.code AS shopfloor_code, wc.code AS work_center_code, ws.code AS workstation_code FROM md_workstation_machine_group mg JOIN md_site s ON s.master_id = mg.site_id JOIN md_shopfloor sf ON sf.master_id = mg.shopfloor_id JOIN md_work_center wc ON wc.master_id = mg.work_center_id JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.workstation_id = $1 ORDER BY mg.code`, [req.params['id']]);
-      const capabilities = await pool.query(`SELECT c.*, o.code AS operation_code, o.name AS operation_name FROM md_workstation_operation_capability c JOIN md_operation o ON o.master_id = c.operation_id WHERE c.workstation_id = $1 ORDER BY c.effective_from DESC, o.code`, [req.params['id']]);
+      const groups = await pool.query(`SELECT mg.*, s.code AS site_code, sf.code AS shopfloor_code, wc.code AS work_center_code, ws.code AS workstation_code FROM md_workstation_machine_group mg JOIN md_site s ON s.master_id = mg.site_id JOIN md_shopfloor sf ON sf.master_id = mg.shopfloor_id JOIN md_work_center wc ON wc.master_id = mg.work_center_id JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.workstation_id = $1 AND mg.lifecycle_status NOT IN ('Inactive','Obsolete') AND (mg.effective_to IS NULL OR mg.effective_to > NOW()) ORDER BY mg.code`, [req.params['id']]);
+      const capabilities = await pool.query(`SELECT c.*, o.code AS operation_code, o.name AS operation_name FROM md_workstation_operation_capability c JOIN md_operation o ON o.master_id = c.operation_id WHERE c.workstation_id = $1 AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW()) ORDER BY c.effective_from DESC, o.code`, [req.params['id']]);
       for (const group of groups.rows) {
         group.members = assignments.rows.filter((assignment) => assignment.machine_group_id === group.master_id);
         const requirements = await pool.query(`SELECT r.*, eq.code AS machine_code, eq.name AS machine_name FROM md_workstation_machine_requirement r JOIN md_equipment eq ON eq.master_id = r.machine_id WHERE r.machine_group_id = $1 ORDER BY r.sequence_no`, [group.master_id]);
@@ -1280,20 +1471,21 @@ export function masterDataRouter(pool: Pool): Router {
       const contextResult = await pool.query(`
         SELECT ro.master_id AS routing_operation_id, ro.operation_id, ro.seq, ro.queue_time_min, ro.move_time_min,
                op.code AS operation_code, op.name AS operation_name, wc.master_id AS work_center_id, wc.code AS work_center_code,
-               wc.name AS work_center_name, wc.site_id, wc.active_flag AS work_center_active, rh.item_revision_id,
-               rh.site_id AS routing_site_id, r.revision_code, i.code AS item_code, i.name AS item_name, i.item_group
+               wc.name AS work_center_name, wc.site_id, wc.active_flag AS work_center_active, pv.item_revision_id,
+               r.revision_code, i.code AS item_code, i.name AS item_name, i.item_group
         FROM md_routing_operation ro
         JOIN md_routing_header rh ON rh.master_id = ro.routing_header_id
         JOIN md_operation op ON op.master_id = ro.operation_id
         JOIN md_work_center wc ON wc.master_id = ro.work_center_id
-        JOIN md_item_revision r ON r.master_id = rh.item_revision_id
+        JOIN md_production_version pv ON pv.routing_header_id = rh.master_id AND pv.item_revision_id = $2 AND pv.site_id = $1
+        JOIN md_item_revision r ON r.master_id = pv.item_revision_id
         JOIN md_item i ON i.master_id = r.item_id
-        WHERE ro.master_id = $1`, [routingOperationId]);
+        WHERE ro.master_id = $3`, [siteId, productRevisionId, routingOperationId]);
       const context = contextResult.rows[0] as Record<string, any> | undefined;
       const blockingErrors: Array<Record<string, any>> = [];
       const warnings: Array<Record<string, any>> = [];
       if (!context) return res.status(404).json({ status: 'Blocked', blocking_errors: [{ code: 'ROUTING_OPERATION_NOT_FOUND' }], warnings: [], candidates: [] });
-      if (context.site_id !== siteId || context.routing_site_id !== siteId || context.item_revision_id !== productRevisionId || context.work_center_id !== workCenterId || !context.work_center_active) blockingErrors.push({ code: 'ROUTING_CONTEXT_INVALID', message: 'Routing Operation, Product Revision, Work Center, and Site must match an active planning context.' });
+      if (context.site_id !== siteId || context.item_revision_id !== productRevisionId || context.work_center_id !== workCenterId || !context.work_center_active) blockingErrors.push({ code: 'ROUTING_CONTEXT_INVALID', message: 'Routing Operation, Production Version, Work Center, and Site must match an active planning context.' });
       const shift = await pool.query('SELECT master_id, code, name, start_time, end_time FROM md_shift WHERE master_id = $1 AND site_id = $2', [shiftId, siteId]);
       if (!shift.rows[0]) blockingErrors.push({ code: 'SHIFT_SITE_INVALID', message: 'Shift does not belong to the requested Site.' });
       const assignments = await pool.query(`
@@ -1452,8 +1644,8 @@ export function masterDataRouter(pool: Pool): Router {
       }
       if (['md_production_version', 'md_mbom_header', 'md_routing_header'].includes(table.tableName)) {
         const filters: string[] = [];
-        if (typeof req.query['item_revision_id'] === 'string' && req.query['item_revision_id']) { params.push(req.query['item_revision_id']); filters.push(`${table.tableName}.item_revision_id = $${params.length}`); }
-        if (typeof req.query['site_id'] === 'string' && req.query['site_id']) { params.push(req.query['site_id']); filters.push(`${table.tableName}.site_id = $${params.length}`); }
+        if (table.tableName !== 'md_routing_header' && typeof req.query['item_revision_id'] === 'string' && req.query['item_revision_id']) { params.push(req.query['item_revision_id']); filters.push(`${table.tableName}.item_revision_id = $${params.length}`); }
+        if (table.tableName !== 'md_routing_header' && typeof req.query['site_id'] === 'string' && req.query['site_id']) { params.push(req.query['site_id']); filters.push(`${table.tableName}.site_id = $${params.length}`); }
         if (typeof req.query['lifecycle_status'] === 'string' && req.query['lifecycle_status']) { params.push(req.query['lifecycle_status']); filters.push(`${table.tableName}.lifecycle_status = $${params.length}`); }
         if (filters.length) where = `WHERE ${filters.join(' AND ')}`;
       }
@@ -1480,12 +1672,10 @@ export function masterDataRouter(pool: Pool): Router {
                  LEFT JOIN md_item i ON i.master_id = r.item_id
                  ${where.replaceAll('md_production_version.', 'pv.')} ORDER BY pv.code, pv.version_no LIMIT $1`;
       } else if (table.tableName === 'md_routing_header') {
-        query = `SELECT rt.*, r.revision_code, i.code AS item_code, i.name AS item_name, s.code AS site_code,
-                        (SELECT COUNT(*)::INT FROM md_routing_operation ro WHERE ro.routing_header_id = rt.master_id) AS operation_count
+        query = `SELECT rt.*,
+                        (SELECT COUNT(*)::INT FROM md_routing_operation ro WHERE ro.routing_header_id = rt.master_id) AS operation_count,
+                        (SELECT COUNT(DISTINCT wc.site_id)::INT FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.routing_header_id = rt.master_id) AS factory_count
                  FROM md_routing_header rt
-                 LEFT JOIN md_item_revision r ON r.master_id = rt.item_revision_id
-                 LEFT JOIN md_item i ON i.master_id = r.item_id
-                 LEFT JOIN md_site s ON s.master_id = rt.site_id
                  ${where.replaceAll('md_routing_header.', 'rt.')} ORDER BY rt.code, rt.version_no LIMIT $1`;
       } else if (table.tableName === 'md_mbom_header') {
         query = `SELECT mb.*, r.revision_code, i.code AS item_code, i.name AS item_name, s.code AS site_code,
@@ -1500,10 +1690,14 @@ export function masterDataRouter(pool: Pool): Router {
         query = `SELECT ro.*, op.code AS operation_code, op.name AS operation_name, op.description AS operation_description,
                         op.operation_type, op.confirmation_mode, op.quantity_reporting,
                         op.requires_material_scan, op.requires_output_label, op.allow_partial_completion,
-                        wc.code AS work_center_code, wc.name AS work_center_name
+                        wc.code AS work_center_code, wc.name AS work_center_name,
+                        sf.code AS shopfloor_code, sf.name AS shopfloor_name,
+                        s.code AS factory_code, s.name AS factory_name
                  FROM md_routing_operation ro
                  LEFT JOIN md_operation op ON op.master_id = ro.operation_id
                  LEFT JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+                 LEFT JOIN md_shopfloor sf ON sf.master_id = wc.shopfloor_id
+                 LEFT JOIN md_site s ON s.master_id = wc.site_id
                  ${where.replaceAll('md_routing_operation.', 'ro.')} ORDER BY ro.routing_header_id, ro.seq LIMIT $1`;
       } else if (table.tableName === 'md_resource_capability') {
         query = `SELECT rc.*, op.code AS operation_code, op.name AS operation_name, wc.code AS work_center_code, wc.name AS work_center_name,
@@ -1574,7 +1768,7 @@ export function masterDataRouter(pool: Pool): Router {
                  ORDER BY ws.code, ws.version_no LIMIT $1`;
       } else if (table.tableName === 'md_equipment') {
         query = `SELECT eq.*, s.code AS site_code, s.name AS site_name, wc.code AS work_center_code, wc.name AS work_center_name,
-                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.active_flag = TRUE) AS available_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND NOT EXISTS (SELECT 1 FROM md_resource_assignment ra WHERE ra.machine_unit_id = mu.machine_unit_id AND ra.assignment_role = 'Primary' AND ra.effective_from < NOW() AND NOW() < COALESCE(ra.effective_to, 'infinity'::timestamptz))) AS available_unit_count,
                         (SELECT COUNT(*)::INT FROM md_resource_assignment ra WHERE ra.equipment_id = eq.master_id AND (ra.effective_to IS NULL OR ra.effective_to > NOW())) AS active_assignment_count
                  FROM md_equipment eq JOIN md_site s ON s.master_id = eq.site_id LEFT JOIN md_work_center wc ON wc.master_id = eq.work_center_id
                  ORDER BY eq.code, eq.version_no LIMIT $1`;
@@ -1723,6 +1917,7 @@ export function masterDataRouter(pool: Pool): Router {
         if (!['StartFinish', 'QuantityOnly', 'Auto'].includes(String(body['confirmation_mode']))) throw Object.assign(new Error('OPERATION_CONFIRMATION_MODE_INVALID'), { statusCode: 422 });
         if (!['GoodOnly', 'GoodScrap'].includes(String(body['quantity_reporting'] || 'GoodOnly'))) throw Object.assign(new Error('OPERATION_QUANTITY_REPORTING_INVALID'), { statusCode: 422 });
         body['quantity_reporting'] = body['quantity_reporting'] || 'GoodOnly';
+        delete body['active_flag'];
       }
       if (table.tableName === 'md_skill') {
         const scope = String(body['scope'] || body['scope_type'] || '');
@@ -1755,8 +1950,8 @@ export function masterDataRouter(pool: Pool): Router {
       if (table.tableName === 'md_production_standard') {
         if (!body['site_id'] || !body['item_revision_id'] || !body['routing_operation_id'] || !body['work_center_id']) throw Object.assign(new Error('PRODUCTION_STANDARD_REQUIRED_FIELDS'), { statusCode: 422 });
         if (Number(body['base_quantity'] || 1) <= 0 || Number(body['setup_time_min'] || 0) < 0 || Number(body['cycle_time_sec']) <= 0 || Number(body['labor_count'] || 1) <= 0 || Number(body['standard_yield'] || 1) <= 0 || Number(body['efficiency_factor'] || 1) <= 0) throw Object.assign(new Error('PRODUCTION_STANDARD_NUMERIC_RULE_INVALID'), { statusCode: 422 });
-        const operation = await client.query(`SELECT ro.operation_id, ro.work_center_id, rh.item_revision_id, rh.site_id FROM md_routing_operation ro JOIN md_routing_header rh ON rh.master_id = ro.routing_header_id WHERE ro.master_id = $1`, [body['routing_operation_id']]);
-        if (!operation.rows[0] || operation.rows[0].item_revision_id !== body['item_revision_id'] || operation.rows[0].work_center_id !== body['work_center_id'] || operation.rows[0].site_id !== body['site_id']) throw Object.assign(new Error('PRODUCTION_STANDARD_ROUTING_CONTEXT_INVALID'), { statusCode: 422 });
+        const operation = await client.query(`SELECT ro.operation_id, ro.work_center_id, wc.site_id FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.master_id = $1`, [body['routing_operation_id']]);
+        if (!operation.rows[0] || operation.rows[0].work_center_id !== body['work_center_id'] || operation.rows[0].site_id !== body['site_id']) throw Object.assign(new Error('PRODUCTION_STANDARD_ROUTING_CONTEXT_INVALID'), { statusCode: 422 });
         body['operation_id'] = body['operation_id'] || operation.rows[0].operation_id;
         if (body['equipment_id']) {
           const equipmentEligibility = await client.query(`
@@ -1771,7 +1966,7 @@ export function masterDataRouter(pool: Pool): Router {
         body['valid_from'] = body['valid_from'] || body['effective_from'] || new Date().toISOString();
       }
       if (table.tableName === 'md_operation_skill_requirement') {
-        const operation = await client.query(`SELECT ro.operation_id, rh.site_id FROM md_routing_operation ro JOIN md_routing_header rh ON rh.master_id = ro.routing_header_id WHERE ro.master_id = $1`, [body['routing_operation_id']]);
+        const operation = await client.query(`SELECT ro.operation_id, wc.site_id FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.master_id = $1`, [body['routing_operation_id']]);
         if (!operation.rows[0] || !body['skill_id']) throw Object.assign(new Error('OPERATION_SKILL_ROUTING_REQUIRED'), { statusCode: 422 });
         const skill = await client.query(`SELECT 1 FROM md_skill WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [body['skill_id']]);
         if (!skill.rows[0]) throw Object.assign(new Error('OPERATION_SKILL_INACTIVE'), { statusCode: 422 });
@@ -1779,13 +1974,26 @@ export function masterDataRouter(pool: Pool): Router {
         body['site_id'] = body['site_id'] || operation.rows[0].site_id;
         if (Number(body['required_persons'] || 1) <= 0) throw Object.assign(new Error('OPERATION_SKILL_REQUIRED_PERSONS_INVALID'), { statusCode: 422 });
       }
+      if (table.tableName === 'md_routing_header') {
+        delete body['item_revision_id'];
+        delete body['site_id'];
+      }
       if (table.tableName === 'md_routing_operation') {
         const operation = await client.query(`SELECT lifecycle_status FROM md_operation WHERE master_id = $1`, [body['operation_id']]);
         if (!operation.rows[0] || ['Inactive', 'Obsolete'].includes(String(operation.rows[0].lifecycle_status))) throw Object.assign(new Error('ROUTING_OPERATION_INACTIVE'), { statusCode: 422 });
-        const exposed = await client.query(`SELECT 1 FROM md_work_center_composition c JOIN md_workstation ws ON ws.master_id = c.workstation_id WHERE c.work_center_id = $1 AND c.operation_id = $2 AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW()) AND ws.active_flag = TRUE LIMIT 1`, [body['work_center_id'], body['operation_id']]);
+        const exposed = await client.query(`
+          SELECT 1 FROM md_work_center wc
+          JOIN md_work_center_composition c ON c.work_center_id = wc.master_id
+            AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())
+          JOIN md_workstation ws ON ws.master_id = c.workstation_id
+            AND ws.work_center_id = wc.master_id AND ws.active_flag = TRUE
+            AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+          JOIN md_workstation_operation_capability capability ON capability.workstation_id = ws.master_id
+            AND capability.operation_id = $2 AND capability.active_flag = TRUE
+            AND (capability.effective_to IS NULL OR capability.effective_to > NOW())
+          WHERE wc.master_id = $1 AND wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+          LIMIT 1`, [body['work_center_id'], body['operation_id']]);
         if (!exposed.rows[0]) throw Object.assign(new Error('WORKCENTER_OPERATION_NOT_SUPPORTED'), { statusCode: 422 });
-        const capability = await client.query(`SELECT 1 FROM md_resource_capability WHERE work_center_id = $1 AND operation_id = $2 AND active_flag = TRUE AND cycle_time_sec > 0`, [body['work_center_id'], body['operation_id']]);
-        if (!capability.rows[0]) throw Object.assign(new Error('Routing operation is not enabled for this Work Center or has no cycle time'), { statusCode: 422 });
       }
       const record: Record<string, unknown> = {
         ...body,
@@ -1829,10 +2037,11 @@ export function masterDataRouter(pool: Pool): Router {
         });
       }
       await client.query('COMMIT');
-      res.status(201).json(rows[0]);
-    } catch (err) {
+      return res.status(201).json(rows[0]);
+    } catch (err: any) {
       await client.query('ROLLBACK');
-      next(err);
+      if (err?.code === '23P01') return res.status(409).json({ error: 'MACHINE_UNIT_ALREADY_ASSIGNED', message: 'A physical machine unit is already assigned to another active Primary requirement.' });
+      return next(err);
     } finally {
       client.release();
     }
@@ -1859,8 +2068,14 @@ export function masterDataRouter(pool: Pool): Router {
     if (table.tableName === 'md_workstation') {
       for (const projectionField of ['site_code', 'site_name', 'area_code', 'area_name', 'work_center_code', 'work_center_name', 'assignments', 'machine_groups', 'operation_capabilities', 'skill_ids', 'code_reservation_id', 'machine_id']) delete body[projectionField];
     }
+    if (table.tableName === 'md_routing_header') {
+      delete body['item_revision_id'];
+      delete body['site_id'];
+    }
     if (table.tableName === 'md_operation') {
       delete body['code']; delete body['version_no'];
+      // md_operation uses the shared lifecycle_status column; active_flag is a legacy client field.
+      delete body['active_flag'];
       if (body['operation_type'] !== undefined && !['Production', 'Inspection', 'Packing', 'Handling'].includes(String(body['operation_type']))) return res.status(422).json({ error: 'OPERATION_TYPE_INVALID' });
       if (body['confirmation_mode'] !== undefined && !['StartFinish', 'QuantityOnly', 'Auto'].includes(String(body['confirmation_mode']))) return res.status(422).json({ error: 'OPERATION_CONFIRMATION_MODE_INVALID' });
       if (body['quantity_reporting'] !== undefined && !['GoodOnly', 'GoodScrap'].includes(String(body['quantity_reporting']))) return res.status(422).json({ error: 'OPERATION_QUANTITY_REPORTING_INVALID' });

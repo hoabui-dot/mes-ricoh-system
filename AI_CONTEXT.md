@@ -4143,3 +4143,125 @@ Machine dependency projections and stable delete errors are available; required 
 quantity reductions. Docker migration/build/runtime checks passed. Remaining gaps are full dependency-impact dialog
 navigation, inline Other-skill creation, actor directory name projection, and complete execution legacy-path
 revalidation migration.
+
+## 63. Workstation Form Validation and Capability Replacement Flow (2026-07-26)
+
+Implementation reports:
+`implementation-fix/Translate-Workstation-Required-Fields-Error.md`,
+`implementation-fix/Fix-Workstation-Machine-Group-Availability-and-Assignment-Validation.md`, and
+`implementation-fix/Fix-Workstation-Capability-Duplicate-On-Noop-Edit.md`.
+
+### Current MES Console form flow
+
+The Workstation create and edit screens are implemented by the shared resource form in
+`services/mes-console/src/routes/master-data/ResourceFoundationScreen.tsx`. The form is used by
+`/master-data/workstations/new` and `/master-data/workstations/:id/edit`.
+
+1. On entering either route, the form loads the current hierarchy and resource data. Work Center selection is
+   the authoritative parent selection; Site, Shopfloor, Factory, and legacy Area are derived from that Work Center
+   and must not be independently treated as user-owned values.
+2. The form fetches the focused physical-unit projection from
+   `GET /api/mes/master-data/workstations/machine-availability`. Requests use `cache: no-store`, including when
+   navigating from edit to create, so stale machine quantities and assignments are not reused.
+3. Each Machine Group contains requirement lines in the actual UI state shape
+   `machine_groups[].requirements[]`. A requirement has `machine_id`, `role` (`Primary` or `Supporting`),
+   `requirement_type` (`Required` or `Optional`), quantity, and optionally a selected physical unit. The old
+   `primary_machine_id` shape is not valid for this editor.
+4. Every group must have exactly one Primary requirement. A machine cannot be selected as both Primary and
+   Supporting in the same group. The client counts requested quantities across all groups and disables or rejects
+   selections that exceed the available physical-unit count. Optional Supporting shortages are warnings; Required
+   shortages block save.
+5. Supported operations are stored as Workstation capabilities. Each capability line keeps `operation_id`,
+   `cycle_time_sec`, `setup_time_min`, `base_quantity`, `efficiency_factor`, `scheduling_mode`, and effectivity.
+   Operation IDs are submitted as backend identifiers, while the UI displays localized operation names and business
+   codes. The same operation may not appear twice in one submitted capability payload.
+6. The create form sends the Workstation payload, including `work_center_id` and `machine_groups`/requirements.
+   After the Workstation exists, the form synchronizes machine groups, capabilities, and scoped skills through their
+   transaction-backed endpoints. The form is reset through `emptyResourceForm()` whenever the route changes into
+   create mode, so a previous edit cannot populate a new Workstation.
+7. Edit saves are confirmation-gated for dependency-sensitive resources. The UI preserves backend error codes and
+   maps them through `resourceFoundation.*` translations in Vietnamese, English, Japanese, and Korean. It must not
+   weaken validation to make a save button usable.
+
+### Backend validation and transaction rules
+
+The authoritative implementation is in
+`services/mes-master-data-service/src/infrastructure/http/master-data.router.ts` and the resource migration
+chain `0023` through `0031`.
+
+- Workstation creation requires an active Work Center and at least one Machine Group. The hierarchy trigger and
+  service validation enforce the same-site relationship and derive the parent chain.
+- Machine availability is calculated per physical row in `md_machine_unit`, not only from the aggregate Machine
+  status or quantity. Active Primary assignments belonging to another Workstation and overlapping the requested
+  effective period are excluded. In edit mode, the current Workstation's own historical/current units are allowed
+  back into its candidate set.
+- Group replacement runs transactionally. It validates active machines, group membership, exactly one Primary per
+  group, unique physical units, Required/Optional semantics, quantity capacity, effective dates, and primary-unit
+  exclusion. Physical units are never silently double-booked. Stable errors include
+  `MACHINE_REQUIREMENT_QUANTITY_UNAVAILABLE`, `MACHINE_UNIT_PRIMARY_CONFLICT`,
+  `MACHINE_UNIT_ALREADY_ASSIGNED`, and `WORK_CENTER_AND_MACHINE_GROUPS_REQUIRED`.
+- Workstation capability replacement first locks and validates the Workstation, ends current active capability rows
+  by setting `active_flag = false` and `effective_to = now()`, then inserts the submitted replacement rows in one
+  transaction. Current or historical client dates are replaced with one new `now()` timestamp; explicitly future
+  dates are preserved. This is required because the database constraint is unique on
+  `(workstation_id, operation_id, effective_from)` and historical rows remain for auditability.
+- Duplicate `operation_id` values are detected before capability insertion and return
+  `WORKSTATION_CAPABILITY_DUPLICATE`; a database `23505` is mapped to the same stable error. Transaction rollback
+  prevents partial capability replacement.
+- Resource history is ended, not deleted, during replacement. Delete/deactivate operations remain dependency-aware
+  and must not remove manufacturing history or effective-dated assignments.
+
+### Known live data mapping and verification
+
+The user-reported ID `261110cd-b878-46d6-82e4-950d67ce72bc` is not present in the live MES master-data database.
+The matching persisted Workstation is `261110cd-b878-46ae-856b-b7556ed056d5`, code `WS-MOLD-KIOSK01`. Its active
+capability rows had three unique operation IDs. A no-op capability `PUT` resubmitting the historical dates now
+returns three new active rows successfully instead of `WORKSTATION_CAPABILITY_DUPLICATE`.
+
+Verification completed on 2026-07-26:
+
+- MES master-data service and MES Console production builds passed.
+- Both Docker images were rebuilt and containers recreated.
+- `mes-master-data-service` reported healthy; MES Console was running on port `13052`.
+- Workstation edit route for the actual persisted ID returned HTTP 200.
+- Valid Primary plus Supporting machine-unit assignment was verified without a false availability conflict.
+- `git diff --check` passed.
+
+Future changes to Workstation forms must preserve this contract: refresh availability on entry, use the
+`machine_groups[].requirements[]` state shape, keep physical-unit accounting client-side as early feedback, retain
+all backend validations as authoritative, and treat capability/equipment replacement as atomic effective-dated
+operations.
+
+## 64. Workstation Form Hydration and Historical Group Projection (2026-07-26)
+
+Process source: `process-fix/Fix-Workstation-Form-Data-Hydration-and-Stale-State.md`.
+Implementation report: `implementation-fix/Fix-Workstation-Form-Data-Hydration-and-Stale-State.md`.
+
+The Workstation form loader now owns a monotonically increasing request generation. Every route/entity load captures
+its generation and ignores all later responses if the route changes. This protects `setForm`, resource lists,
+availability, code reservations, and detail state from delayed requests caused by React Strict Mode, route reuse, or
+edit-to-create/create-to-edit navigation. Create entry resets `emptyResourceForm()` before loading and never appends
+Machine Groups or merges a fetched detail into previous state.
+
+Workstation edit hydration reads the detail, skill assignments, and physical-unit availability with `no-store`. The
+detail is normalized once and committed with one complete form replacement. Availability errors are fatal to the
+load instead of falling back to stale aggregate Machine counts. The form displays loading status for Basic data,
+Machine Groups, Supported Operations, Skills, and Machine availability and disables Save until the Workstation load
+is complete.
+
+The backend Workstation detail projection now filters `md_workstation_machine_group` rows to
+`lifecycle_status NOT IN ('Inactive','Obsolete')` and an effective period that has not ended. Historical groups are
+retained for audit and assignment history, but they are not returned as current editable form defaults. This is
+critical because replacing a group ends the previous effective row rather than deleting it.
+
+Focused verification is available through:
+`WORKSTATION_ID=<id> npm run verify:mes:workstation-hydration`.
+The script prints current group IDs/codes, removes the last current group through the real replacement API, reloads
+the Workstation, confirms the group is absent, and restores the original current payload in `finally`. It refuses to
+mutate a fixture with fewer than two current groups. The live fixture
+`261110cd-b878-46ae-856b-b7556ed056d5` currently has one current group and two historical groups, so the safe
+runtime check verified historical exclusion but did not perform the destructive remove test.
+
+Both MES Console and master-data service were rebuilt with `docker compose build --no-cache`; the edit route returned
+HTTP 200 and the master-data service restarted successfully. Future hydration changes must keep backend current-row
+filtering, client request invalidation, no-store reads, complete form replacement, and explicit loading/error states.

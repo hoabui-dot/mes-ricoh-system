@@ -1562,6 +1562,40 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
       ALTER TABLE md_skill ADD COLUMN IF NOT EXISTS description JSONB;
     `,
   },
+  {
+    name: '0029_operation_worker_skill_default_constraints',
+    sql: `
+      ALTER TABLE md_operation_skill_requirement
+        ADD CONSTRAINT ck_md_operation_skill_required_persons_positive CHECK (required_persons > 0),
+        ADD CONSTRAINT ck_md_operation_skill_effective_dates CHECK (effective_to IS NULL OR effective_to > effective_from);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_operation_default_worker_skill_active
+        ON md_operation_skill_requirement(operation_id, skill_id)
+        WHERE routing_operation_id IS NULL AND active_flag = TRUE AND effective_to IS NULL;
+      CREATE INDEX IF NOT EXISTS ix_md_operation_skill_operation_resolution
+        ON md_operation_skill_requirement(operation_id, routing_operation_id, active_flag, effective_from, effective_to);
+    `,
+  },
+  {
+    name: '0030_decouple_routing_ownership',
+    sql: `
+      ALTER TABLE md_routing_header DROP COLUMN IF EXISTS item_revision_id;
+      ALTER TABLE md_routing_header DROP COLUMN IF EXISTS site_id;
+      CREATE INDEX IF NOT EXISTS ix_md_routing_operation_work_center_operation
+        ON md_routing_operation(work_center_id, operation_id);
+    `,
+  },
+  {
+    name: '0031_machine_unit_primary_assignment_exclusivity',
+    sql: `
+      ALTER TABLE md_resource_assignment DROP CONSTRAINT IF EXISTS ex_md_resource_assignment_primary_equipment;
+      ALTER TABLE md_resource_assignment ADD CONSTRAINT ex_md_resource_assignment_primary_equipment
+        EXCLUDE USING gist (
+          (COALESCE(machine_unit_id, equipment_id)) WITH =,
+          tstzrange(effective_from, COALESCE(effective_to, 'infinity'::timestamptz), '[)') WITH &&
+        )
+        WHERE (assignment_role = 'Primary' AND COALESCE(machine_unit_id, equipment_id) IS NOT NULL);
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {
