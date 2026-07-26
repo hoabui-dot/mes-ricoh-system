@@ -23,6 +23,7 @@
     "migrate:mes:legacy-skills": "tsx scripts/migrate-legacy-skills-to-central-skill-management.ts",
     "test:mes:operation-flow": "node scripts/test-mes-operation-workstation-workcenter-flow.mjs",
     "verify:mes:workstation-hydration": "node scripts/verify-workstation-form-hydration.mjs",
+    "verify:mes:workstation-replacements": "node scripts/verify-workstation-replacement-semantics.mjs",
     "i18n:scan": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts",
     "i18n:scan:wms-console": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts services/wms-console/src",
     "test": "npm run test --workspaces --if-present",

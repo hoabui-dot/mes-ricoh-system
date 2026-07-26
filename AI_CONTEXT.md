@@ -4265,3 +4265,37 @@ runtime check verified historical exclusion but did not perform the destructive 
 Both MES Console and master-data service were rebuilt with `docker compose build --no-cache`; the edit route returned
 HTTP 200 and the master-data service restarted successfully. Future hydration changes must keep backend current-row
 filtering, client request invalidation, no-store reads, complete form replacement, and explicit loading/error states.
+
+## 65. Workstation Repeatable Section Replacement Semantics (2026-07-26)
+
+Implementation report: `implementation-fix/Fix-Workstation-Supported-Operations-Save-Replacement-Semantics.md`.
+Verification script: `scripts/verify-workstation-replacement-semantics.mjs`.
+
+The Workstation edit form treats each repeatable section as a complete desired current state:
+
+`submitted form state = complete desired active state`
+
+It is never an append payload and is never merged with current database rows.
+
+Supported Operations are hydrated from the Workstation detail projection only when
+`md_workstation_operation_capability.active_flag = TRUE` and the effective period has not ended. The capability PUT
+locks the Workstation, rejects duplicate `operation_id` values inside the submitted payload, ends all current
+effective capability rows, inserts the submitted capabilities once, and commits. Unchanged Operations therefore save
+successfully. Removed Operations remain historical inactive rows and are absent from the next edit form. A defensive
+database unique violation is still mapped to `WORKSTATION_CAPABILITY_DUPLICATE`, but valid replacement should not
+trigger it.
+
+Machine Groups use the same model. Current detail/list projections exclude `Inactive`/`Obsolete` and ended groups.
+The group PUT transaction ends current assignments, requirements, and groups, then persists only the submitted group
+list. Historical groups are retained for audit and never become editable defaults.
+
+Workstation Skills now use explicit replacement rather than keep-current/insert-missing logic. The API validates the
+submitted skill IDs and scope, locks current effective assignments, ends all current Workstation Skill rows, inserts
+each submitted skill exactly once, and returns the new current set. An empty Workstation Skill list is valid and ends
+all current Workstation Skills; Machine Skills retain the existing required-non-empty rule.
+
+The MES Console save sequence sends the complete form arrays to the three replacement endpoints and preserves backend
+error codes. The replacement smoke test passed against Workstation
+`261110cd-b878-46ae-856b-b7556ed056d5` for unchanged Operations, adding one Operation exactly once, removing that
+Operation, unchanged Machine Groups, and unchanged Workstation Skills. Both images were rebuilt with
+`docker compose build --no-cache`; the master-data service is healthy and the edit route returns HTTP 200.
