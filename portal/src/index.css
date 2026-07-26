@@ -23,8 +23,8 @@
   --color-text-secondary: #8b9dbf;
   --color-text-muted:     #4a5a78;
 
-  --color-accent:         #6366f1;
-  --color-accent-glow:    rgba(99, 102, 241, 0.3);
+  --color-accent:         #f59e0b;
+  --color-accent-glow:    rgba(245, 158, 11, 0.24);
 
   --color-success:        #10b981;
   --color-warning:        #f59e0b;
@@ -91,4 +91,16 @@ html, body {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
   border-radius: var(--radius-sm);
+}
+
+.portal-theme-light {
+  --color-bg-base: #eef2f5;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-border-hover: rgba(15, 23, 42, 0.24);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-success: #047857;
 }

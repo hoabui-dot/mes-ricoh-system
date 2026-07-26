@@ -70,6 +70,7 @@ export const api = {
   createLocation: (zoneId: string, body: Partial<Location>) => request<Location>(`${md}/zones/${zoneId}/locations`, { method: 'POST', body: JSON.stringify(body) }),
   listLocations: () => request<{ data: Location[] }>(`${md}/locations?limit=500`).then((r) => normalizeList<Location>(r)),
   getLocation: (id: string) => request<Location>(`${md}/locations/${id}`),
+  getBin: (id: string) => request<Bin>(`${md}/bins/${id}`),
   updateLocation: (id: string, body: Partial<Location>) => request<Location>(`${md}/locations/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   listLocationBins: (id: string) => request<{ data: Bin[] }>(`${md}/locations/${id}/bins`).then((r) => normalizeList<Bin>(r)),
   createBin: (locationId: string, body: Partial<Bin>) => request<Bin>(`${md}/locations/${locationId}/bins`, { method: 'POST', body: JSON.stringify(body) }),
@@ -81,5 +82,10 @@ export const api = {
   getReceipt: (id: string) => request<Receipt>(`${inbound}/receipts/${id}`),
   confirmReceipt: (id: string) => request<Receipt>(`${inbound}/receipts/${id}/confirm`, { method: 'POST' }),
   createMaterialRequest: (body: Record<string, unknown>) => request<MaterialRequest>(`${outbound}/material-requests`, { method: 'POST', body: JSON.stringify(body) }),
+  listMaterialRequests: () => request<{ data: MaterialRequest[] }>(`${outbound}/material-requests?limit=500`).then((r) => normalizeList<MaterialRequest>(r)),
   getMaterialRequest: (id: string) => request<MaterialRequest>(`${outbound}/material-requests/${id}`),
+  listMaterialRequestMovements: (woId: string, workCenterRef: string, itemRevisionId: string) => {
+    const params = new URLSearchParams({ wo_id: woId, work_center_ref: workCenterRef, item_revision_id: itemRevisionId, limit: '200' });
+    return request<InventoryMovement[]>(`${inv}/movements?${params}`).then((r) => normalizeList<InventoryMovement>(r));
+  },
 };

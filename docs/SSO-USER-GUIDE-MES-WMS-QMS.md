@@ -1,4 +1,4 @@
-# Won Seal Tech MOM Platform
+# S-Factory MOM Platform
 ## User Guide: SSO and the MES, WMS, and QMS Flow
 
 **Audience:** plant managers, executives, operators, warehouse staff, and QC technicians

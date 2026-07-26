@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudflared Quick Tunnel (%i)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=neurosus
+Group=neurosus
+Environment=HOME=/home/neurosus
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:%i
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/neurosus/cloudflared-%i.log
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target

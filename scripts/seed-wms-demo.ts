@@ -512,8 +512,8 @@ async function seedOutbound(pool: Pool, refs: Awaited<ReturnType<typeof getMesRe
     for (const [woCode, wcCode, itemCode, required, already, shortfall, available, transferred, status, offset] of requests) {
       const requestId = stableUuid(`material-request:${woCode}:${itemCode}`);
       await client.query(
-        `INSERT INTO material_request (request_id, wo_id, work_center_ref, item_revision_id, required_qty, already_staged_qty, shortfall_qty, available_qty, transferred_qty, status, detail, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
+        `INSERT INTO material_request (request_id, request_code, wo_id, work_center_ref, work_center_code, item_revision_id, item_code, work_order_code, work_order_name, uom_code, required_qty, already_staged_qty, shortfall_qty, available_qty, transferred_qty, status, detail, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'KG', $10, $11, $12, $13, $14, $15, $16::jsonb, $17)
          ON CONFLICT (request_id) DO UPDATE
          SET required_qty = EXCLUDED.required_qty,
              already_staged_qty = EXCLUDED.already_staged_qty,
@@ -525,9 +525,14 @@ async function seedOutbound(pool: Pool, refs: Awaited<ReturnType<typeof getMesRe
              created_at = EXCLUDED.created_at`,
         [
           requestId,
+          `MR-${woCode.replace(/[^A-Za-z0-9]/g, '').slice(-12)}`,
           stableUuid(`wo:${woCode}`),
           wc(wcCode),
+          wcCode,
           item(itemCode),
+          itemCode,
+          woCode,
+          `Material request for ${woCode}`,
           required,
           already,
           shortfall,

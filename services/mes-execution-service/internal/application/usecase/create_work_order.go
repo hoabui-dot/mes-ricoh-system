@@ -2,26 +2,49 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 type CreateWOInput struct {
-	ItemRevisionID string
-	ItemCode       string
-	ItemName       string
-	Quantity       float64
-	UOMID          string
-	SiteID         string
-	PlannedStartAt string
-	PlannedEndAt   string
-	UserID         string
-	TraceID        string
+	ProductionVersionID string
+	ItemRevisionID      string
+	ItemCode            string
+	ItemName            string
+	Quantity            float64
+	UOMID               string
+	SiteID              string
+	PlannedStartAt      string
+	PlannedEndAt        string
+	UserID              string
+	TraceID             string
 }
+
+func localizedOperationName(code string) string {
+	names := map[string]map[string]string{
+		"OP-MIX":  {"vi": "Luyện cán cao su", "en": "Rubber Mixing", "ja": "ゴム混練", "ko": "고무 혼련"},
+		"OP-PREP": {"vi": "Chuẩn bị lõi kim loại", "en": "Metal Core Preparation", "ja": "金属コア準備", "ko": "금속 코어 준비"},
+		"OP-CUT":  {"vi": "Cắt phôi cao su", "en": "Rubber Blank Cutting", "ja": "ゴムブランク切断", "ko": "고무 블랭크 절단"},
+		"OP-MOLD": {"vi": "Đúc lưu hóa", "en": "Compression Molding", "ja": "圧縮成形", "ko": "압축 성형"},
+		"OP-TRIM": {"vi": "Cắt via và hoàn thiện", "en": "Deflashing and Finishing", "ja": "バリ取り・仕上げ", "ko": "버 제거 및 마감"},
+		"OP-QC":   {"vi": "Kiểm tra chất lượng", "en": "Quality Inspection", "ja": "品質検査", "ko": "품질 검사"},
+	}
+	name := names[code]
+	if name == nil {
+		name = map[string]string{"vi": code, "en": code, "ja": code, "ko": code}
+	}
+	encoded, _ := json.Marshal(name)
+	return string(encoded)
+}
+
+const WorkOrderCodePrefix = "WO"
 
 func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInput) (map[string]interface{}, error) {
 	tx, err := pool.Begin(ctx)
@@ -35,22 +58,26 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	}
 
 	var pvID, mbomHeaderID, routingHeaderID string
-	err = tx.QueryRow(ctx, `
-		SELECT master_id, mbom_header_id, routing_header_id
-		FROM rm_production_version
-		WHERE item_revision_id = $1 AND site_id = $2
-		LIMIT 1
-	`, input.ItemRevisionID, input.SiteID).Scan(&pvID, &mbomHeaderID, &routingHeaderID)
+	if input.ProductionVersionID != "" {
+		err = tx.QueryRow(ctx, `SELECT master_id, mbom_header_id, routing_header_id FROM rm_production_version WHERE master_id = $1 AND item_revision_id = $2 AND site_id = $3`, input.ProductionVersionID, input.ItemRevisionID, input.SiteID).Scan(&pvID, &mbomHeaderID, &routingHeaderID)
+	} else {
+		err = tx.QueryRow(ctx, `SELECT master_id, mbom_header_id, routing_header_id FROM rm_production_version WHERE item_revision_id = $1 AND site_id = $2 ORDER BY is_default DESC LIMIT 1`, input.ItemRevisionID, input.SiteID).Scan(&pvID, &mbomHeaderID, &routingHeaderID)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("no Production Version found for Item %s at Site %s: %w", input.ItemCode, input.SiteID, err)
 	}
 
-	var seq int
-	_, _ = tx.Exec(ctx, `CREATE SEQUENCE IF NOT EXISTS wo_code_seq START 1000`)
-	if err := tx.QueryRow(ctx, `SELECT nextval('wo_code_seq')`).Scan(&seq); err != nil {
-		seq = 1001
+	var seq int64
+	numberDate := time.Now().UTC().Format("2006-01-02")
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO wo_numbering_daily (number_date, current_value)
+		VALUES ($1::DATE, 1)
+		ON CONFLICT (number_date) DO UPDATE SET current_value = wo_numbering_daily.current_value + 1, updated_at = NOW()
+		RETURNING current_value
+	`, numberDate).Scan(&seq); err != nil {
+		return nil, fmt.Errorf("ERR-WO-CODE-GENERATION: %w", err)
 	}
-	woCode := fmt.Sprintf("WO-%d", seq)
+	woCode := fmt.Sprintf("%s-%s-%04d", WorkOrderCodePrefix, strings.ReplaceAll(numberDate, "-", ""), seq)
 
 	var woID, createdBy string
 	err = tx.QueryRow(ctx, `
@@ -163,10 +190,10 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO wo_operation (
-					wo_id, sequence_no, operation_id, operation_code, work_center_id, predecessor_seq,
+					wo_id, sequence_no, operation_id, routing_operation_id, operation_code, operation_name, work_center_id, predecessor_seq,
 					standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, status
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Pending')
-			`, woID, o.seq, *o.opID, opCodeStr, *o.wcID, predStr, setupTime, cycleTime, eff); err != nil {
+				) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, 'Pending')
+			`, woID, o.seq, *o.opID, *o.masterID, opCodeStr, localizedOperationName(opCodeStr), *o.wcID, predStr, setupTime, cycleTime, eff); err != nil {
 				return nil, fmt.Errorf("failed to insert wo_operation: %w", err)
 			}
 		}

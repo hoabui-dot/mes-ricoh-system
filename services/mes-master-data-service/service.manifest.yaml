@@ -30,6 +30,12 @@ publishes_events:
   - name: MES.MasterData.EquipmentActivated.v2
     topic: MES.MasterData.EquipmentActivated.v2
     payload: master_id, code, name(LocalizedText), version_no, site_id, work_center_id, equipment_type
+  - name: MES.MasterData.ResourceAssignmentCreated.v1
+    topic: MES.MasterData.ResourceAssignmentCreated.v1
+    payload: assignment_id, site_id, work_center_id, workstation_id, equipment_id, assignment_role, effective_from, effective_to
+  - name: MES.MasterData.ResourceAssignmentEnded.v1
+    topic: MES.MasterData.ResourceAssignmentEnded.v1
+    payload: assignment_id, effective_to
   - name: MES.MasterData.EmployeeCreated.v1
     topic: MES.MasterData.EmployeeCreated.v1
     payload: master_id, code, version_no, site_id, default_work_center_id, employee_status
@@ -38,6 +44,8 @@ publishes_events:
     payload: master_id, code, version_no, site_id, start_time, end_time, crosses_midnight
   - name: MES.MasterData.EmployeeScheduleAssigned.v1
     topic: MES.MasterData.EmployeeScheduleAssigned.v1
+  - name: MES.MasterData.EmployeeSkillAssigned.v1
+    topic: MES.MasterData.EmployeeSkillAssigned.v1
     payload: schedule_ids, employee_ids, shift_id, work_center_id, date_range
 
 consumes_events: []
@@ -76,6 +84,18 @@ http_endpoints:
   - method: PUT
     path: /api/mes/master-data/employees/:id/skills
     description: Replace employee skill assignments
+  - method: GET
+    path: /api/mes/master-data/resource-assignments
+    description: List effective-dated resource assignments with projected business identities
+  - method: POST
+    path: /api/mes/master-data/resource-assignments/:id/end
+    description: End an assignment by setting effective_to and preserving history
+  - method: POST
+    path: /api/mes/master-data/resource-assignments/:id/move
+    description: Close the current assignment and create its effective-dated replacement
+  - method: POST
+    path: /api/mes/master-data/resource-planning/readiness
+    description: Evaluate effective assignments, capabilities, calendars, standards, and skill requirements without allocating a resource
 
 notes:
   - "Traceability config tables (policy/numbering/split-rule/label-template) are owned by mes-traceability-service, not here."

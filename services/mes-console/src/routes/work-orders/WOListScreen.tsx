@@ -4,7 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { ClipboardList, PlusCircle, RefreshCw, Eye } from 'lucide-react';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
-import { Badge, Button } from '../../components/ui';
+import { Button } from '../../components/ui';
+import { StatusBadge } from '../../components/StatusBadge';
+import { WorkOrderDetailModal } from './WorkOrderDetailModal';
+import { normalizeWorkOrderDetail } from './workOrderDetail';
+import { gatewayBaseUrl } from '../../lib/masterDataApi';
 
 export const WOListScreen: React.FC = () => {
   const { user } = useAuth();
@@ -15,13 +19,15 @@ export const WOListScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchWorkOrders = async () => {
     setLoading(true);
     setError(null);
     try {
       const host = window.location.hostname;
-      const resp = await fetch(`http://${host}:18000/api/mes/execution/work-orders?limit=50`, {
+      const resp = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders?limit=50`, {
         headers: { 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER' },
       });
       if (!resp.ok) {
@@ -41,25 +47,20 @@ export const WOListScreen: React.FC = () => {
     fetchWorkOrders();
   }, []);
 
+  const openDetail = async (wo: any) => {
+    setDetailLoading(true);
+    try {
+      const host = window.location.hostname;
+      const resp = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${wo.wo_id}`, { headers: { 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER' } });
+      if (!resp.ok) throw new Error(t('woDetail.loadFailed'));
+      setSelectedWorkOrder(normalizeWorkOrderDetail(await resp.json()));
+    } catch (err: any) { setError(err); } finally { setDetailLoading(false); }
+  };
+
   const filteredWOs = workOrders.filter((wo) => {
     if (statusFilter === 'ALL') return true;
     return wo.status === statusFilter;
   });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'bg-emerald-950/80 border-emerald-800 text-amber-200';
-      case 'Approved':
-        return 'bg-primary/50 border-primary text-sky-100';
-      case 'InProgress':
-        return 'bg-amber-950/80 border-amber-800 text-amber-300';
-      case 'Rejected':
-        return 'bg-rose-950/80 border-rose-800 text-rose-300';
-      default:
-        return 'bg-slate-800 border-slate-700 text-slate-300';
-    }
-  };
 
   if (error) return <ErrorBoundaryCard error={error} onRetry={fetchWorkOrders} />;
 
@@ -119,7 +120,7 @@ export const WOListScreen: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-slate-800/60">
             {filteredWOs.map((wo) => (
-              <tr key={wo.wo_id} className="hover:bg-slate-800/40 transition">
+              <tr key={wo.wo_id} onClick={() => void openDetail(wo)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') void openDetail(wo); }} tabIndex={0} className="cursor-pointer hover:bg-slate-800/40 transition">
                 <td className="px-6 py-4 font-mono font-bold text-amber-300">{wo.wo_code}</td>
                 <td className="px-6 py-4 font-medium text-slate-100">{wo.item_code}</td>
                 <td className="px-6 py-4 font-mono font-semibold text-slate-200">{wo.quantity} {wo.uom || t('uom.pcs')}</td>
@@ -127,19 +128,19 @@ export const WOListScreen: React.FC = () => {
                   {wo.target_completion_date ? formatDate(wo.target_completion_date) : t('common.notAvailable')}
                 </td>
                 <td className="px-6 py-4">
-                  <Badge className={getStatusBadge(wo.status)}>
+                  <StatusBadge status={wo.status}>
                     {t(`status.wo.${wo.status}`)}
-                  </Badge>
+                  </StatusBadge>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <Button
-                    onClick={() => navigate(`/work-orders/${wo.wo_id}`)}
+                    onClick={(event) => { event.stopPropagation(); void openDetail(wo); }}
                     variant="secondary"
                     size="sm"
                     className="ml-auto"
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>{t('common.edit')}</span>
+                    <span>{t('common.detail')}</span>
                   </Button>
                 </td>
               </tr>
@@ -147,6 +148,8 @@ export const WOListScreen: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {detailLoading && <div className="text-sm text-muted-foreground">{t('common.loading')}</div>}
+      {selectedWorkOrder && <WorkOrderDetailModal wo={selectedWorkOrder} onClose={() => setSelectedWorkOrder(null)} onOpen={() => navigate(`/work-orders/${selectedWorkOrder.wo_id}`)} />}
     </div>
   );
 };

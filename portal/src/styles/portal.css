@@ -9,7 +9,18 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  background: var(--color-bg-base);
+  transition: background var(--transition-normal), color var(--transition-normal);
 }
+
+.portal-header-actions { display: flex; align-items: center; gap: var(--space-sm); }
+.portal-language-control { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-surface); }
+.portal-language-control svg { width: 15px; height: 15px; margin: 0 4px; color: var(--color-text-secondary); }
+.portal-language-control button, .portal-icon-button { border: 0; background: transparent; color: var(--color-text-secondary); cursor: pointer; min-height: 32px; min-width: 32px; border-radius: var(--radius-sm); font: inherit; font-size: 11px; font-weight: 700; }
+.portal-language-control button:hover, .portal-language-control button.is-active, .portal-icon-button:hover { background: var(--color-accent); color: #111827; }
+.portal-icon-button { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-border); background: var(--color-bg-surface); }
+.portal-icon-button svg { width: 17px; height: 17px; }
+.portal-empty-icon { width: 48px; height: 48px; color: var(--color-accent); }
 
 /* ── Animated Background ─────────────────────────────────────────────────── */
 .portal-bg {
@@ -26,6 +37,8 @@
   opacity: 0.12;
   animation: orbFloat 12s ease-in-out infinite;
 }
+
+.portal-bg-orb { display: none; }
 
 .portal-bg-orb-1 {
   width: 600px;
@@ -270,6 +283,10 @@
   gap: var(--space-lg);
   min-height: 220px;
   outline: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
 }
 
 .app-card:not(.app-card--disabled):hover {
@@ -319,10 +336,16 @@
 }
 
 .app-card-icon {
-  font-size: 2rem;
-  line-height: 1;
-  filter: drop-shadow(0 0 8px rgba(255,255,255,0.2));
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  color: var(--card-color, var(--color-accent));
+  background: color-mix(in srgb, var(--card-color, var(--color-accent)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-color, var(--color-accent)) 28%, transparent);
 }
+.app-card-icon svg { width: 24px; height: 24px; }
 
 .app-card-badge {
   padding: 4px 10px;
@@ -381,6 +404,7 @@
   color: var(--card-color, var(--color-accent));
   transition: gap var(--transition-fast);
 }
+.app-card-open-text svg { width: 16px; height: 16px; }
 
 .app-card:not(.app-card--disabled):hover .app-card-open-text {
   gap: var(--space-sm);

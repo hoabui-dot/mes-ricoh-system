@@ -1,7 +1,7 @@
 {
   "name": "mes-master-data-service",
   "version": "1.0.0",
-  "description": "MES Master Data service for Won Seal Tech MOM Platform",
+  "description": "MES Master Data service for S-Factory MOM Platform",
   "private": true,
   "type": "module",
   "scripts": {

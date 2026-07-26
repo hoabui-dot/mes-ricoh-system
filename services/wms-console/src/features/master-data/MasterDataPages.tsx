@@ -458,6 +458,17 @@ export function LocationDetailPage() {
   );
 }
 
+export function BinDetailPage() {
+  const { id = '' } = useParams();
+  const { t } = useI18n();
+  const resolve = useLocalizedText();
+  const bin = useQuery({ queryKey: ['wms', 'bin', id], queryFn: () => api.getBin(id), enabled: Boolean(id) });
+  const location = useQuery({ queryKey: qk.locations, queryFn: api.listLocations, enabled: Boolean(bin.data?.location_id) });
+  if (bin.isError) return <ErrorState error={bin.error} onRetry={() => void bin.refetch()} />;
+  const parent = (location.data ?? []).find((item) => item.location_id === bin.data?.location_id);
+  return <><PageHeader title={bin.data?.bin_code ?? t('master.bins.title')}><Link to={parent ? `/master-data/locations/${parent.location_id}` : '/master-data/bins'}><Button variant="outline">{t('common.back')}</Button></Link></PageHeader><Card className="grid gap-2 p-5"><div className="font-semibold">{resolve(bin.data?.bin_name) || t('common.notAvailable')}</div><div className="text-sm text-muted-foreground">{t('master.locationId')}: {parent?.location_code || t('common.notAvailable')}</div><div className="text-sm text-muted-foreground">{t('master.capacity')}: {bin.data?.capacity_qty ?? t('common.notAvailable')}</div><StatusBadge status={bin.data?.status} /></Card></>;
+}
+
 export function BackendGapPage({ titleKey }: { titleKey: string }) {
   const { t } = useI18n();
   return <><PageHeader title={t(titleKey)} /><EmptyState backendGap title={t('common.backendGap')} body={t('common.todoVerify')} /></>;

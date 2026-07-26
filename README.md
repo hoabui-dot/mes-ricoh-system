@@ -1,4 +1,4 @@
-# MOM Platform — Won Seal Tech
+# MOM Platform — S-Factory
 
 **Manufacturing Operations Management Platform**  
 MES · WMS · QMS — Kizuna 3, Long An

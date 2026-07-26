@@ -56,17 +56,23 @@ type BalanceRow struct {
 }
 
 type MovementRow struct {
-	MovementID     string  `json:"movement_id"`
-	MovementType   string  `json:"movement_type"`
-	LotID          string  `json:"lot_id"`
-	LotCode        string  `json:"lot_code"`
-	ItemRevisionID string  `json:"item_revision_id"`
-	FromLocationID *string `json:"from_location_id,omitempty"`
-	ToLocationID   *string `json:"to_location_id,omitempty"`
-	Qty            float64 `json:"qty"`
-	WOID           *string `json:"wo_id,omitempty"`
-	WorkCenterRef  *string `json:"work_center_ref,omitempty"`
-	OccurredAt     string  `json:"occurred_at"`
+	MovementID       string         `json:"movement_id"`
+	MovementType     string         `json:"movement_type"`
+	LotID            string         `json:"lot_id"`
+	LotCode          string         `json:"lot_code"`
+	ItemRevisionID   string         `json:"item_revision_id"`
+	FromLocationID   *string        `json:"from_location_id,omitempty"`
+	ToLocationID     *string        `json:"to_location_id,omitempty"`
+	Qty              float64        `json:"qty"`
+	WOID             *string        `json:"wo_id,omitempty"`
+	WorkCenterRef    *string        `json:"work_center_ref,omitempty"`
+	OccurredAt       string         `json:"occurred_at"`
+	ExpiryDate       *string        `json:"expiry_date,omitempty"`
+	UOMCode          string         `json:"uom_code,omitempty"`
+	FromLocationCode string         `json:"from_location_code,omitempty"`
+	FromLocationName map[string]any `json:"from_location_name,omitempty"`
+	ToLocationCode   string         `json:"to_location_code,omitempty"`
+	ToLocationName   map[string]any `json:"to_location_name,omitempty"`
 }
 
 func CreateReceipt(ctx context.Context, pool *pgxpool.Pool, input ReceiptInput) (string, error) {
@@ -293,7 +299,7 @@ func ListBalances(ctx context.Context, pool *pgxpool.Pool, itemRevisionID, locat
 	return out, rows.Err()
 }
 
-func ListMovements(ctx context.Context, pool *pgxpool.Pool, locationID, lotID string, limit int) ([]MovementRow, error) {
+func ListMovements(ctx context.Context, pool *pgxpool.Pool, locationID, lotID, woID, workCenterRef, itemRevisionID string, limit int) ([]MovementRow, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -311,14 +317,22 @@ func ListMovements(ctx context.Context, pool *pgxpool.Pool, locationID, lotID st
 		       m.qty::float8,
 		       m.wo_id::text,
 		       m.work_center_ref::text,
-		       m.occurred_at::text
+		       m.occurred_at::text,
+		       l.expiry_date::text, l.uom_code,
+		       COALESCE(from_loc.location_code, ''), COALESCE(from_loc.location_name, '{}'::jsonb),
+		       COALESCE(to_loc.location_code, ''), COALESCE(to_loc.location_name, '{}'::jsonb)
 		FROM inv_stock_movement m
 		JOIN inv_lot l ON l.lot_id = m.lot_id
+		LEFT JOIN rm_storage_location from_loc ON from_loc.location_id = m.from_location_id
+		LEFT JOIN rm_storage_location to_loc ON to_loc.location_id = m.to_location_id
 		WHERE (NULLIF($1, '')::uuid IS NULL OR m.from_location_id = NULLIF($1, '')::uuid OR m.to_location_id = NULLIF($1, '')::uuid)
 		  AND (NULLIF($2, '')::uuid IS NULL OR m.lot_id = NULLIF($2, '')::uuid)
+		  AND (NULLIF($3, '')::uuid IS NULL OR m.wo_id = NULLIF($3, '')::uuid)
+		  AND (NULLIF($4, '')::uuid IS NULL OR m.work_center_ref = NULLIF($4, '')::uuid)
+		  AND (NULLIF($5, '')::uuid IS NULL OR l.item_revision_id = NULLIF($5, '')::uuid)
 		ORDER BY m.occurred_at DESC, m.movement_id DESC
-		LIMIT $3
-	`, locationID, lotID, limit)
+		LIMIT $6
+	`, locationID, lotID, woID, workCenterRef, itemRevisionID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -338,6 +352,12 @@ func ListMovements(ctx context.Context, pool *pgxpool.Pool, locationID, lotID st
 			&row.WOID,
 			&row.WorkCenterRef,
 			&row.OccurredAt,
+			&row.ExpiryDate,
+			&row.UOMCode,
+			&row.FromLocationCode,
+			&row.FromLocationName,
+			&row.ToLocationCode,
+			&row.ToLocationName,
 		); err != nil {
 			return nil, err
 		}

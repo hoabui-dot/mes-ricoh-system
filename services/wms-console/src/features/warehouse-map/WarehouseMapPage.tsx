@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Factory, Info, Search } from 'lucide-react';
 import { useI18n, useLocalizedText } from '@mom-platform/i18n-ui-shared';
 import { api } from '../../lib/api/client';
 import { qk } from '../../lib/queryKeys';
 import type { Balance, Bin, InventoryMovement, Location, Warehouse, Zone } from '../../lib/api/types';
-import { daysUntil } from '../../lib/utils';
+import { daysUntil, formatWmsQuantity } from '../../lib/utils';
 import { Card, Input, Sheet, SheetContent, SheetTitle, Tabs, TabsContent, TabsList, TabsTrigger, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../components/ui';
 import { DataTable } from '../../components/shared/DataTable';
 import { ExpiryBadge } from '../../components/shared/ExpiryBadge';
@@ -24,10 +25,12 @@ function heat(balanceQty: number, maxQty: number, hasExpired: boolean, nearExpir
 }
 
 export function WarehouseMapPage() {
-  const { t, formatNumber } = useI18n();
+  const { t } = useI18n();
   const resolve = useLocalizedText();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Location | null>(null);
+  const [searchParams] = useSearchParams();
+  const scopedLocationId = searchParams.get('location_id');
   const warehouses = useQuery({ queryKey: qk.warehouses, queryFn: api.listWarehouses });
   const zoneQueries = useQueries({ queries: (warehouses.data ?? []).map((warehouse) => ({ queryKey: qk.zones(warehouse.warehouse_id), queryFn: () => api.listWarehouseZones(warehouse.warehouse_id) })) });
   const zones = zoneQueries.flatMap((query) => query.data ?? []);
@@ -50,10 +53,17 @@ export function WarehouseMapPage() {
   const binsByLocation = new Map<string, Bin[]>();
   bins.forEach((bin) => binsByLocation.set(bin.location_id, [...(binsByLocation.get(bin.location_id) ?? []), bin]));
   const matching = (location: Location) => {
+    if (scopedLocationId && location.location_id !== scopedLocationId) return false;
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return location.location_code.toLowerCase().includes(q) || (byLocation.get(location.location_id) ?? []).some((row) => row.lot_code.toLowerCase().includes(q));
   };
+
+  useEffect(() => {
+    if (!scopedLocationId) return;
+    const location = locations.find((item) => item.location_id === scopedLocationId);
+    if (location) setSelected(location);
+  }, [locations, scopedLocationId]);
 
   return (
     <TooltipProvider>
@@ -138,7 +148,7 @@ export function WarehouseMapPage() {
                                     <span className="font-mono text-xs font-bold">{location.location_code}</span>
                                     {location.location_purpose === 'WorkCenterStaging' ? <Factory className="h-4 w-4 text-info" /> : null}
                                   </div>
-                                  <div className="mt-3 text-xs tabular">{formatNumber(qty)}</div>
+                                  <div className="mt-3 text-xs tabular">{formatWmsQuantity(qty)}</div>
                                   <div className="mt-1 grid grid-cols-4 gap-1">
                                     {(binsByLocation.get(location.location_id) ?? []).slice(0, 8).map((bin) => <span key={bin.bin_id} className="h-2 rounded-sm bg-slate-700/40" />)}
                                   </div>
@@ -148,7 +158,7 @@ export function WarehouseMapPage() {
                                 <div className="space-y-1">
                                   <div className="font-mono">{location.location_code}</div>
                                   <div>{t(`purpose.${location.location_purpose}`)}</div>
-                                  <div>{formatNumber(qty)}</div>
+                                  <div>{formatWmsQuantity(qty)}</div>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -174,13 +184,13 @@ export function WarehouseMapPage() {
 }
 
 function LocationDrawer({ location, zone, balances }: { location: Location; zone?: Zone; balances: Balance[] }) {
-  const { t, formatNumber } = useI18n();
+  const { t } = useI18n();
   const movementParams = new URLSearchParams({ location_id: location.location_id, limit: '20' });
   const movements = useQuery({ queryKey: qk.movements(movementParams.toString()), queryFn: () => api.listMovements(movementParams), refetchInterval: MAP_REFETCH_MS });
   const balanceColumn = createColumnHelper<Balance>();
   const balanceColumns = [
     balanceColumn.accessor('lot_code', { header: t('inventory.lotCode') }),
-    balanceColumn.accessor('on_hand_qty', { header: t('common.quantity'), cell: (info) => <span className="tabular">{formatNumber(info.getValue())}</span> }),
+    balanceColumn.accessor('on_hand_qty', { header: t('common.quantity'), cell: (info) => <span className="tabular">{formatWmsQuantity(info.getValue())}</span> }),
     balanceColumn.accessor('expiry_date', { header: t('inventory.expiry'), cell: (info) => <ExpiryBadge expiryDate={info.getValue()} /> }),
   ];
   const movementColumn = createColumnHelper<InventoryMovement>();
@@ -188,7 +198,7 @@ function LocationDrawer({ location, zone, balances }: { location: Location; zone
     movementColumn.accessor('occurred_at', { header: t('movement.occurredAt'), cell: (info) => <span className="font-mono text-xs">{new Date(info.getValue()).toLocaleString()}</span> }),
     movementColumn.accessor('movement_type', { header: t('movement.type'), cell: (info) => <span className="font-semibold">{t(`movement.type.${info.getValue()}`)}</span> }),
     movementColumn.accessor('lot_code', { header: t('inventory.lotCode'), cell: (info) => <span className="font-mono text-xs">{info.getValue()}</span> }),
-    movementColumn.accessor('qty', { header: t('common.quantity'), cell: (info) => <span className="tabular">{formatNumber(info.getValue())}</span> }),
+    movementColumn.accessor('qty', { header: t('common.quantity'), cell: (info) => <span className="tabular">{formatWmsQuantity(info.getValue())}</span> }),
   ];
   return (
     <Tabs defaultValue="overview" className="mt-6">

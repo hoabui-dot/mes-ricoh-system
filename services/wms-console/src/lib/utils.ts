@@ -18,6 +18,11 @@ export function daysUntil(date?: string | null): number | null {
   return Math.ceil((target.getTime() - today.getTime()) / 86400000);
 }
 
+// Keep operational quantities visually unambiguous across locale settings.
+export function formatWmsQuantity(value: number): string {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 3 }).format(value);
+}
+
 export function normalizeList<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) return payload as T[];
   if (payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)) {

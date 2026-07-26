@@ -1,19 +1,30 @@
 export type LocalizedSeedText = { vi: string; en: string; ja: string; ko: string };
 
 export const LOCALIZED_COLUMNS_BY_TABLE = new Map<string, string[]>([
+  ['md_site', ['name']],
   ['md_item', ['name']],
   ['md_item_revision', ['name']],
   ['md_work_center', ['name']],
+  ['md_production_area', ['name', 'description']],
+  ['md_workstation', ['name', 'description']],
+  ['md_resource_assignment', ['name']],
   ['md_equipment', ['name']],
   ['md_skill', ['name']],
   ['md_reason_code', ['name']],
   ['md_operation', ['name']],
+  ['md_mbom_header', ['name', 'description', 'change_reason', 'engineering_note']],
+  ['md_routing_header', ['name', 'description', 'production_purpose', 'change_reason', 'engineering_note']],
   ['md_work_instruction', ['instruction_text']],
 ]);
 
 const localized = (vi: string, en: string, ja: string, ko: string): LocalizedSeedText => ({ vi, en, ja, ko });
 
 export const SEED_LOCALIZED_TEXT: Record<string, Record<string, Record<string, LocalizedSeedText>>> = {
+  md_site: {
+    'SITE-KZ3': {
+      name: localized('S-Factory - Kizuna 3', 'S-Factory - Kizuna 3', 'S-Factory - キズナ3', 'S-Factory - 키즈나 3'),
+    },
+  },
   md_reason_code: {
     'QC-BOND-FAIL': {
       name: localized('Lỗi bám dính', 'Bonding Failure', '接着不良', '접착 불량'),
@@ -93,6 +104,27 @@ export const SEED_LOCALIZED_TEXT: Record<string, Record<string, Record<string, L
       name: localized('Trạm kiểm tra chất lượng', 'Quality Inspection', '品質検査ワークセンター', '품질 검사 워크센터'),
     },
   },
+  md_production_area: {
+    'AREA-RUBBER': {
+      name: localized('Khu vực gia công cao su', 'Rubber Processing Area', 'ゴム加工エリア', '고무 가공 구역'),
+      description: localized('Khu vực luyện, cắt và chuẩn bị cao su.', 'Mixing, cutting, and rubber preparation area.', '混練、切断、ゴム準備エリア。', '혼련, 절단 및 고무 준비 구역.'),
+    },
+    'AREA-MOLDING': {
+      name: localized('Khu vực ép lưu hóa', 'Vulcanization Molding Area', '加硫成形エリア', '가황 성형 구역'),
+      description: localized('Khu vực ép, lưu hóa và kiểm tra sản phẩm.', 'Molding, vulcanization, and product inspection area.', '成形、加硫、製品検査エリア。', '성형, 가황 및 제품 검사 구역.'),
+    },
+  },
+  md_workstation: {
+    'WS-MOLD-KIOSK01': {
+      name: localized('Trạm kiosk máy ép 01', 'Molding Kiosk 01', '成形キオスク01', '성형 키오스크 01'),
+      description: localized('Điểm thực thi cho máy ép thủy lực.', 'Execution point for hydraulic molding.', '油圧成形用の実行ポイント。', '유압 성형 실행 지점.'),
+    },
+  },
+  md_resource_assignment: {
+    'ASSIGN-MOLD-KIOSK01': {
+      name: localized('Gán kiosk máy ép', 'Molding kiosk assignment', '成形キオスク割当', '성형 키오스크 할당'),
+    },
+  },
   md_equipment: {
     'EQ-MOLD-HYD01': {
       name: localized('Máy ép 500 tấn', '500-ton hydraulic press', '500トン油圧プレス', '500톤 유압 프레스'),
@@ -102,13 +134,13 @@ export const SEED_LOCALIZED_TEXT: Record<string, Record<string, Record<string, L
     },
   },
   md_skill: {
-    SK_MIX_MASTER: {
+    'SK-WC-MIX-MASTER': {
       name: localized('Kỹ thuật luyện cán cao cấp', 'Advanced rubber mixing skill', '上級ゴム混練スキル', '고급 고무 혼련 기술'),
     },
-    SK_VULCAN_OPERATOR: {
+    'SK-WC-VULCAN-OPERATOR': {
       name: localized('Vận hành máy ép lưu hóa áp lực cao', 'High-pressure vulcanizing press operation', '高圧加硫プレス操作', '고압 가황 프레스 운전'),
     },
-    SK_INSPECTION: {
+    'SK-WC-INSPECTION': {
       name: localized('Kỹ thuật viên QC', 'QC technician skill', 'QC 技術者スキル', 'QC 기술자 역량'),
     },
   },

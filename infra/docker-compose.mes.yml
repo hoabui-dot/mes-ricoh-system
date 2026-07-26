@@ -199,7 +199,8 @@ services:
       context: ..
       dockerfile: services/mes-console/Dockerfile
       args:
-        VITE_KEYCLOAK_URL: http://100.68.50.41:18080
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://jar-planes-possession-liberal.trycloudflare.com}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://progressive-differ-constitutional-immigration.trycloudflare.com}
     container_name: mes-console
     networks: [platform-net]
     ports:
@@ -207,7 +208,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3052
-      VITE_KEYCLOAK_URL: http://100.68.50.41:18080
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://jar-planes-possession-liberal.trycloudflare.com}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://progressive-differ-constitutional-immigration.trycloudflare.com}
 
 volumes:
   mes-master-data-db-data:

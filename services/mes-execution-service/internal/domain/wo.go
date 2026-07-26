@@ -91,6 +91,25 @@ type ComputeResult struct {
 	PlannedEndAt         string             `json:"planned_end_at"`
 	Operations           []ComputedOpResult `json:"operations"`
 	CapacityWarnings     []string           `json:"capacity_warnings"`
+	LaborWarnings        []string           `json:"labor_warnings"`
+	LaborShortages       []LaborShortage    `json:"labor_shortages"`
+	LaborAssignments     []LaborAssignment  `json:"labor_assignments"`
+}
+
+type LaborShortage struct {
+	OperationCode   string `json:"operation_code"`
+	SkillCode       string `json:"skill_code"`
+	RequiredPersons int    `json:"required_persons"`
+	EligiblePersons int    `json:"eligible_persons"`
+	Mandatory       bool   `json:"mandatory"`
+}
+type LaborAssignment struct {
+	OperationCode string `json:"operation_code"`
+	EmployeeCode  string `json:"employee_code"`
+	EmployeeName  any    `json:"employee_name"`
+	SkillCode     string `json:"skill_code"`
+	MatchedLevel  string `json:"matched_level"`
+	Status        string `json:"status"`
 }
 
 type ComputedOpResult struct {

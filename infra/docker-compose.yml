@@ -22,6 +22,11 @@ services:
     build:
       context: ..
       dockerfile: portal/Dockerfile
+      args:
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://jar-planes-possession-liberal.trycloudflare.com}
+        VITE_MES_URL: ${VITE_MES_URL:-https://speaker-eyes-acrylic-administrator.trycloudflare.com}
+        VITE_WMS_URL: ${VITE_WMS_URL:-https://mrna-internationally-corn-traveller.trycloudflare.com}
+        VITE_QMS_URL: ${VITE_QMS_URL:-https://vision-persons-accessories-livestock.trycloudflare.com}
     container_name: platform-portal
     networks: [platform-net]
     ports:

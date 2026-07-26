@@ -5,7 +5,7 @@ import { WarehouseMapPage } from './features/warehouse-map/WarehouseMapPage';
 import { BalancesPage, DiscrepanciesPage, LotDetailPage, MovementsPage } from './features/inventory/InventoryPages';
 import { NewReceiptPage, ReceiptDetailPage, ReceiptsListPage } from './features/inbound/InboundPages';
 import { NewRequestPage, RequestDetailPage, RequestsListPage } from './features/outbound/OutboundPages';
-import { BackendGapPage, BinsPage, ItemUomPage, LocationDetailPage, LocationsPage, WarehouseDetailPage, WarehousesPage, ZoneDetailPage, ZonesPage } from './features/master-data/MasterDataPages';
+import { BackendGapPage, BinDetailPage, BinsPage, ItemUomPage, LocationDetailPage, LocationsPage, WarehouseDetailPage, WarehousesPage, ZoneDetailPage, ZonesPage } from './features/master-data/MasterDataPages';
 import { NotFoundPage } from './features/NotFoundPage';
 
 export const router = createBrowserRouter(
@@ -21,6 +21,7 @@ export const router = createBrowserRouter(
       <Route path="/master-data/locations" element={<LocationsPage />} />
       <Route path="/master-data/locations/:id" element={<LocationDetailPage />} />
       <Route path="/master-data/bins" element={<BinsPage />} />
+      <Route path="/master-data/bins/:id" element={<BinDetailPage />} />
       <Route path="/master-data/item-uom-mapping" element={<ItemUomPage />} />
       <Route path="/inventory/balances" element={<BalancesPage />} />
       <Route path="/inventory/lots/:lotId" element={<LotDetailPage />} />

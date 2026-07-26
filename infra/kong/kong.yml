@@ -55,6 +55,7 @@ plugins:
         - X-User-ID
         - X-Role-Code
         - X-Trace-ID
+        - Idempotency-Key
       exposed_headers:
         - X-Trace-ID
       credentials: true
@@ -320,6 +321,17 @@ services:
         strip_path: false
         methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
     plugins: *wms_auth_plugins
+
+  - name: wms-outbound-realtime-service
+    url: http://wms-outbound-service:3090
+    connect_timeout: 5000
+    read_timeout: 30000
+    routes:
+      - name: wms-outbound-realtime-route
+        paths:
+          - /api/wms/outbound/realtime
+        strip_path: false
+        methods: [GET, OPTIONS]
 
   - name: wms-outbound-service
     url: http://wms-outbound-service:3090

@@ -71,6 +71,12 @@ export interface InventoryMovement {
   wo_id?: string | null;
   work_center_ref?: string | null;
   occurred_at: string;
+  expiry_date?: string | null;
+  uom_code?: string;
+  from_location_code?: string;
+  from_location_name?: LocalizedText | string;
+  to_location_code?: string;
+  to_location_name?: LocalizedText | string;
 }
 
 export interface Receipt {
@@ -84,8 +90,17 @@ export interface Receipt {
 
 export interface MaterialRequest {
   request_id: string;
+  request_code?: string;
+  source_system?: string;
+  work_order_code?: string;
+  work_order_name?: string;
   wo_id?: string;
   work_center_ref?: string;
+  work_center_code?: string;
+  work_center_name?: string;
+  item_code?: string;
+  item_name?: string;
+  uom_code?: string;
   item_revision_id?: string;
   required_qty?: number;
   requested_qty?: number;
@@ -99,4 +114,5 @@ export interface MaterialRequest {
   detail?: Record<string, unknown>;
   details?: Record<string, unknown>;
   created_at?: string;
+  updated_at?: string;
 }

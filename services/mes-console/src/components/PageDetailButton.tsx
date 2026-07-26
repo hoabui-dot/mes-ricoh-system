@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, CheckCircle2, Info, ListChecks, Route, X, XCircle, type LucideIcon } from 'lucide-react';
+import { BookOpen, Info, ListChecks, X, type LucideIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 import { Button, Card } from './ui';
@@ -12,9 +12,25 @@ type Detail = {
   data: Localized[];
   statuses: Localized[];
   notes: Localized[];
+  process?: ProcessStep[];
 };
 
+type ProcessStep = { title: Localized; description: Localized; severity?: 'normal' | 'advisory' | 'blocking' | 'async' };
+
 const l = (vi: string, en: string, ja: string, ko: string): Localized => ({ vi, en, ja, ko });
+
+const workOrderCreationProcess: ProcessStep[] = [
+  { title: l('Chọn sản phẩm sẵn sàng', 'Select a production-ready product revision', '製造可能な製品リビジョンを選択', '생산 가능한 제품 리비전 선택'), description: l('Chọn Item Revision đã release từ danh sách tìm kiếm; không nhập mã thủ công.', 'Select a released Item Revision from the searchable list instead of typing a code.', '検索リストからリリース済みItem Revisionを選択し、コードを手入力しません。', '검색 목록에서 릴리스된 Item Revision을 선택하고 코드를 직접 입력하지 않습니다.') },
+  { title: l('Nhập số lượng và ngày mục tiêu', 'Enter quantity and target date', '数量と目標日を入力', '수량과 목표일 입력'), description: l('UOM được lấy theo sản phẩm đã chọn và ngày kết thúc phải hợp lệ.', 'The UOM comes from the selected product and the target date must be valid.', 'UOMは選択製品から取得し、目標日は有効である必要があります。', 'UOM은 선택한 제품에서 가져오며 목표일은 유효해야 합니다.') },
+  { title: l('Kiểm tra yêu cầu', 'Validate the creation request', '作成リクエストを検証', '생성 요청 검증'), description: l('MES kiểm tra định danh, số lượng, thời gian và người dùng xác thực.', 'MES checks identifiers, quantity, dates, and authenticated user context.', 'MESは識別子、数量、日付、認証ユーザーを確認します。', 'MES는 식별자, 수량, 날짜 및 인증 사용자 컨텍스트를 확인합니다.'), severity: 'blocking' },
+  { title: l('Kiểm tra Item Revision', 'Validate the Item Revision', 'Item Revisionを検証', 'Item Revision 검증'), description: l('Revision phải tồn tại, đã release và sẵn sàng cho site/ngày sản xuất.', 'The revision must exist, be released, and be ready for the site and production date.', 'リビジョンは存在し、リリース済みでサイトと製造日に有効である必要があります。', '리비전은 존재하고 릴리스되어 사이트와 생산일에 유효해야 합니다.'), severity: 'blocking' },
+  { title: l('Resolve Production Version', 'Resolve the Production Version', 'Production Versionを解決', 'Production Version 확인'), description: l('MES resolve Production Version phù hợp với Item Revision và site.', 'MES resolves the matching Production Version for the revision and site.', 'MESはリビジョンとサイトに合うProduction Versionを解決します。', 'MES는 리비전과 사이트에 맞는 Production Version을 확인합니다.'), severity: 'blocking' },
+  { title: l('Kiểm tra MBOM và nhu cầu vật tư', 'Validate MBOM and material demand', 'MBOMと資材需要を検証', 'MBOM 및 자재 소요량 검증'), description: l('MES kiểm tra MBOM đã release và tính nhu cầu theo số lượng cùng scrap rate.', 'MES verifies the released MBOM and calculates material demand from quantity and scrap rate.', 'MESはリリース済みMBOMを検証し、数量とスクラップ率から資材需要を計算します。', 'MES는 릴리스된 MBOM을 검증하고 수량과 스크랩률로 자재 소요량을 계산합니다.'), severity: 'blocking' },
+  { title: l('Kiểm tra Routing', 'Validate the Routing', 'Routingを検証', 'Routing 검증'), description: l('MES kiểm tra routing đã release, công đoạn, thứ tự và WorkCenter liên kết.', 'MES verifies the released routing, operations, sequence, and linked Work Centers.', 'MESはリリース済みRouting、工程、順序、WorkCenterを検証します。', 'MES는 릴리스된 Routing, 공정, 순서 및 연결된 WorkCenter를 검증합니다.'), severity: 'blocking' },
+  { title: l('Kiểm tra năng lực được hỗ trợ', 'Check supported resource readiness', '対応リソース準備を確認', '지원 리소스 준비 상태 확인'), description: l('WorkCenter, Production Standard, capability và lịch chỉ được kiểm tra khi backend hỗ trợ; capacity hiện là advisory.', 'Work Center, Production Standard, capability, and calendar checks run only where supported; capacity is currently advisory.', 'WorkCenter、Production Standard、capability、カレンダーは対応範囲で確認し、能力は現在アドバイザリです。', 'WorkCenter, Production Standard, capability, 캘린더는 지원 범위에서 확인하며 능력은 현재 참고용입니다.'), severity: 'advisory' },
+  { title: l('Tạo Draft Work Order', 'Create the Draft Work Order', 'Draft Work Orderを作成', 'Draft 작업지시 생성'), description: l('MES commit header, operations và material requirements trong một transaction.', 'MES commits the header, operations, and material requirements in one transaction.', 'MESはヘッダー、工程、資材所要量を1つのトランザクションでコミットします。', 'MES는 헤더, 공정 및 자재 소요량을 하나의 트랜잭션으로 커밋합니다.') },
+  { title: l('Xếp hàng sự kiện tích hợp', 'Queue the integration event', '統合イベントをキューに登録', '통합 이벤트 대기열 등록'), description: l('MES ghi MES.Execution.WOCreated.v1 vào transactional outbox; downstream xử lý bất đồng bộ và chưa được xem là hoàn tất.', 'MES records MES.Execution.WOCreated.v1 in the transactional outbox; downstream processing is asynchronous and is not claimed as completed.', 'MES.Execution.WOCreated.v1をトランザクション・アウトボックスに記録します。後続処理は非同期で完了扱いにしません。', 'MES.Execution.WOCreated.v1을 트랜잭션 아웃박스에 기록합니다. 다운스트림 처리는 비동기이며 완료로 간주하지 않습니다.'), severity: 'async' },
+];
 
 const baseMes: Detail = {
   title: l('Chi tiết màn hình MES', 'MES page details', 'MES画面の詳細', 'MES 화면 상세'),
@@ -42,6 +58,14 @@ const details: Array<{ match: RegExp; detail: Detail }> = [
       ...baseMes,
       title: l('Danh sách lệnh sản xuất', 'Work order list', '製造指図一覧', '작업 지시 목록'),
       summary: l('Theo dõi WO, trạng thái phê duyệt, capacity/stock check và tiến độ sản xuất.', 'Track work orders, approval status, capacity/stock checks, and production progress.', 'WO、承認状態、能力/在庫確認、生産進捗を追跡します。', 'WO, 승인 상태, 능력/재고 확인, 생산 진행을 추적합니다.'),
+      data: [
+        l('WO code là mã duy nhất do backend cấp cho mỗi lệnh sản xuất.', 'WO code is the unique backend-generated code for each Work Order.', 'WO codeはバックエンドが付与する製造指図の一意コードです。', 'WO code는 백엔드가 생성한 작업지시의 고유 코드입니다.'),
+        l('Product và quantity cho biết sản phẩm/revision cần sản xuất và sản lượng cùng UOM.', 'Product and quantity show the product/revision to manufacture and requested quantity with UOM.', 'Productとquantityは製造する製品/リビジョンと数量・UOMを示します。', 'Product와 quantity는 생산할 제품/리비전과 UOM이 포함된 요청 수량을 보여줍니다.'),
+        l('Status và planned period cho biết vòng đời WO và thời gian sản xuất dự kiến.', 'Status and planned period show the Work Order lifecycle and planned production window.', 'Statusとplanned periodは製造指図のライフサイクルと計画期間を示します。', 'Status와 planned period는 작업지시 수명주기와 계획 생산 기간을 보여줍니다.'),
+      ],
+      statuses: [
+        l('Dùng bộ lọc trạng thái để thu hẹp Draft, Approved, InProgress hoặc Completed; mở chi tiết để Compute & Check và approve/reject.', 'Use the status filter for Draft, Approved, InProgress, or Completed; open details for Compute & Check and approve/reject actions.', 'ステータスフィルターでDraft、Approved、InProgress、Completedを絞り、詳細でCompute & Checkと承認/却下を実行します。', '상태 필터로 Draft, Approved, InProgress, Completed를 좁히고 상세에서 Compute & Check와 승인/반려를 실행합니다.'),
+      ],
     },
   },
   {
@@ -49,7 +73,26 @@ const details: Array<{ match: RegExp; detail: Detail }> = [
     detail: {
       ...baseMes,
       title: l('Tạo lệnh sản xuất', 'Create work order', '製造指図作成', '작업 지시 생성'),
-      summary: l('Nhập mã sản phẩm, số lượng và ngày mục tiêu; backend kiểm tra master-data readiness trước khi tạo WO.', 'Enter product code, quantity, and target date; the backend checks master-data readiness before creating a WO.', '品目コード、数量、目標日を入力し、バックエンドがマスタ準備状況を確認してWOを作成します。', '품목 코드, 수량, 목표일을 입력하면 백엔드가 마스터 데이터 준비 상태를 확인한 뒤 WO를 생성합니다.'),
+      summary: l('Chọn revision sản phẩm đã sẵn sàng, nhập số lượng và ngày mục tiêu; backend kiểm tra master-data readiness trước khi tạo WO.', 'Select a production-ready item revision, enter quantity and target date; the backend checks master-data readiness before creating a WO.', '生産準備済みの品目リビジョンを選択し、数量と目標日を入力すると、バックエンドがマスタ準備状況を確認してWOを作成します。', '생산 준비가 완료된 품목 리비전을 선택하고 수량과 목표일을 입력하면 백엔드가 마스터 데이터 준비 상태를 확인한 뒤 WO를 생성합니다.'),
+      process: workOrderCreationProcess,
+      howToUse: [
+        l('Chọn Item Revision đã release, nhập số lượng và ngày mục tiêu, sau đó bấm Khởi tạo WO & kiểm tra readiness.', 'Select a released Item Revision, enter quantity and target date, then create the WO and run readiness checks.', 'リリース済みItem Revision、数量、目標日を入力し、WO作成と準備確認を実行します。', '릴리스된 Item Revision, 수량, 목표일을 입력한 뒤 WO 생성과 준비 상태 확인을 실행합니다.'),
+        l('MES tạo Demand từ MBOM/Production Version, kiểm tra Routing và các công đoạn có thể lập lịch trước khi lưu WO Draft.', 'MES derives demand from the MBOM/Production Version and checks Routing and schedulable operations before saving a WO Draft.', 'MESはMBOM/Production Versionから需要を計算し、Routingとスケジュール可能な工程を確認してWO Draftを保存します。', 'MES는 MBOM/Production Version에서 소요량을 계산하고 Routing과 일정 가능 공정을 확인한 후 WO Draft를 저장합니다.'),
+        l('Sau khi tạo, mở chi tiết WO để Compute & Check, kiểm tra capacity/WMS stock, rồi chuyển sang phê duyệt.', 'Open the WO detail for Compute & Check, review capacity/WMS stock, then send it for approval.', '作成後にWO詳細でCompute & Checkを実行し、能力とWMS在庫を確認して承認します。', '생성 후 WO 상세에서 Compute & Check를 실행하고 능력과 WMS 재고를 확인한 뒤 승인합니다.'),
+      ],
+      data: [
+        l('Item Revision liên kết tới Item, MBOM, Routing, Production Version và UOM; số lượng tạo ra nhu cầu nguyên liệu theo định mức.', 'The Item Revision links the Item, MBOM, Routing, Production Version, and UOM; quantity drives material demand from the BOM.', 'Item RevisionはItem、MBOM、Routing、Production Version、UOMを結び、数量からBOM需要を計算します。', 'Item Revision은 Item, MBOM, Routing, Production Version, UOM을 연결하며 수량으로 BOM 소요량을 계산합니다.'),
+        l('WorkCenter, Equipment, Employee và Skill không được gán thủ công trong form này; chúng được kiểm tra qua readiness/capacity theo Routing và Production Standard.', 'WorkCenter, Equipment, Employee, and Skill are not manually assigned in this form; readiness/capacity checks resolve them from Routing and Production Standards.', 'このフォームでWorkCenter、設備、従業員、スキルを手動割当せず、RoutingとProduction Standardから準備/能力を確認します。', '이 폼에서 WorkCenter, 설비, 직원, 스킬을 직접 지정하지 않고 Routing과 Production Standard에서 준비/능력을 확인합니다.'),
+        l('WMS không được gọi để tạo WO Draft; tồn kho được kiểm tra ở Compute & Check và material staging diễn ra khi execution yêu cầu.', 'WMS is not called to create the WO Draft; stock is checked during Compute & Check and staged when execution requests material.', 'WO Draft作成時にWMSを呼び出さず、Compute & Checkで在庫を確認し、実行時に資材をステージします。', 'WO Draft 생성 시 WMS를 호출하지 않으며 Compute & Check에서 재고를 확인하고 실행 시 자재를 스테이징합니다.'),
+      ],
+      statuses: [
+        l('Readiness đạt: Item Revision, MBOM, Routing, Production Version đã release và có hiệu lực tại site.', 'Readiness passes when the Item Revision, MBOM, Routing, and Production Version are released and effective for the site.', 'Item Revision、MBOM、Routing、Production Versionがサイトでリリースされ有効なら準備確認に合格します。', 'Item Revision, MBOM, Routing, Production Version이 사이트에서 릴리스되고 유효하면 준비 확인에 통과합니다.'),
+        l('Readiness không đạt: hệ thống trả danh sách prerequisite thiếu; sửa master data rồi tạo lại, không lưu WO không hợp lệ.', 'Readiness fails with a missing-prerequisite list; fix master data and retry instead of saving an invalid WO.', '準備確認に失敗すると不足項目を表示します。マスタを修正して再試行し、不正なWOは保存しません。', '준비 상태가 실패하면 누락 prerequisite 목록을 표시합니다. 마스터를 수정하고 다시 시도하며 잘못된 WO는 저장하지 않습니다.'),
+        l('WO Draft chỉ là kế hoạch; Approved mới được phép đi vào execution, còn Rejected phải có lý do.', 'WO Draft is planning data; Approved can enter execution, while Rejected requires a reason.', 'WO Draftは計画データです。Approvedで実行可能になり、Rejectedには理由が必要です。', 'WO Draft는 계획 데이터이며 Approved 상태에서 실행할 수 있고 Rejected에는 사유가 필요합니다.'),
+      ],
+      notes: [
+        l('Demo không tự động phân công một nhân viên cụ thể trong form tạo WO. Employee/Skill/WorkCenter là dữ liệu năng lực được kiểm tra theo ca và standard.', 'The demo does not automatically assign a named employee in this form. Employee/Skill/WorkCenter data is used for shift and standard capacity checks.', 'デモでは作成フォームから特定従業員を自動割当しません。従業員/スキル/WorkCenterはシフトと標準能力確認に使用します。', '데모에서는 생성 폼에서 특정 직원을 자동 배정하지 않습니다. 직원/스킬/WorkCenter는 교대와 표준 능력 확인에 사용됩니다.'),
+      ],
     },
   },
   {
@@ -128,13 +171,23 @@ function text(value: Localized, locale: SupportedLocale) {
 
 function Section({ icon: Icon, title, items, locale }: { icon: LucideIcon; title: Localized; items: Localized[]; locale: SupportedLocale }) {
   return (
-    <section className="rounded-md border border-slate-700 bg-slate-950/55 p-4">
-      <div className="mb-3 flex items-center gap-2 font-bold text-slate-100"><Icon className="h-4 w-4 text-action" />{text(title, locale)}</div>
-      <ul className="space-y-2 text-sm leading-6 text-slate-300">
-        {items.map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-action" />{text(item, locale)}</li>)}
-      </ul>
+    <section>
+      <div className="mb-3 flex items-center gap-2 border-b border-border pb-2 font-bold text-foreground"><Icon className="h-4 w-4 text-action" />{text(title, locale)}</div>
+      <ol className="space-y-3 text-sm leading-6 text-muted-foreground">
+        {items.map((item, index) => <li key={index} className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-action/40 bg-action/10 text-xs font-bold text-action">{index + 1}</span><span>{text(item, locale)}</span></li>)}
+      </ol>
     </section>
   );
+}
+
+function ProcessSection({ steps, locale }: { steps: ProcessStep[]; locale: SupportedLocale }) {
+  const severityLabel: Record<NonNullable<ProcessStep['severity']>, Localized> = {
+    normal: l('Thông tin', 'Info', '情報', '정보'),
+    advisory: l('Khuyến nghị', 'Advisory', 'アドバイザリ', '권고'),
+    blocking: l('Có thể chặn tạo WO', 'Blocking', 'ブロッキング', '차단 가능'),
+    async: l('Bất đồng bộ', 'Async', '非同期', '비동기'),
+  };
+  return <section><div className="mb-3 flex items-center gap-2 border-b border-border pb-2 font-bold text-foreground"><ListChecks className="h-4 w-4 text-action" />{text(l('Quy trình tạo lệnh sản xuất', 'How the Work Order is created', '作業指図の作成プロセス', '작업지시 생성 프로세스'), locale)}</div><ol className="space-y-3">{steps.map((step, index) => <li key={index} className="flex gap-3 border-b border-border/70 pb-3 last:border-0"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-action text-sm font-black text-action-foreground">{String(index + 1).padStart(2, '0')}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-foreground">{text(step.title, locale)}</h3>{step.severity && <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{text(severityLabel[step.severity], locale)}</span>}</div><p className="mt-1 text-sm leading-6 text-muted-foreground">{text(step.description, locale)}</p></div></li>)}</ol></section>;
 }
 
 export function PageDetailButton() {
@@ -144,24 +197,30 @@ export function PageDetailButton() {
   const detail = pick(pathname);
   return (
     <>
-      <Button size="sm" variant="outline" className="bg-slate-950/80" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="outline" className="bg-card text-foreground" onClick={() => setOpen(true)}>
         <Info className="h-4 w-4" />{text(l('Chi tiết trang', 'Page details', '画面詳細', '화면 상세'), locale)}
       </Button>
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true">
-          <Card className="max-h-[86vh] w-full max-w-4xl overflow-y-auto p-6">
-            <div className="flex items-start justify-between gap-4">
+          <Card className="max-h-[88vh] w-full max-w-5xl overflow-hidden p-0">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-5">
               <div>
-                <h2 className="flex items-center gap-3 text-xl font-black text-slate-100"><BookOpen className="h-5 w-5 text-action" />{text(detail.title, locale)}</h2>
-                <p className="mt-3 rounded-md border border-action/30 bg-action/10 p-4 text-sm leading-6 text-slate-200">{text(detail.summary, locale)}</p>
+                <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground"><BookOpen className="h-5 w-5 text-action" />{text(l('Hướng dẫn trang', 'Page guide', '画面ガイド', '페이지 가이드'), locale)}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{text(detail.title, locale)}</p>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-foreground">{text(detail.summary, locale)}</p>
               </div>
-              <Button size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label="Close"><X className="h-4 w-4" /></Button>
+              <Button size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label={text(l('Đóng', 'Close', '閉じる', '닫기'), locale)}><X className="h-4 w-4" /></Button>
             </div>
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <Section icon={Route} title={l('Cách dùng', 'How to use', '使い方', '사용 방법')} items={detail.howToUse} locale={locale} />
-              <Section icon={ListChecks} title={l('Dữ liệu trên màn hình', 'Data shown here', '表示データ', '표시 데이터')} items={detail.data} locale={locale} />
-              <Section icon={CheckCircle2} title={l('Trạng thái quan trọng', 'Important statuses', '重要な状態', '중요 상태')} items={detail.statuses} locale={locale} />
-              <Section icon={XCircle} title={l('Lưu ý demo', 'Demo notes', 'デモ注意点', '데모 참고')} items={detail.notes} locale={locale} />
+            <div className="grid max-h-[calc(88vh-150px)] overflow-y-auto lg:grid-cols-[190px_minmax(0,1fr)]">
+              <nav className="border-b border-border bg-muted/20 p-5 lg:border-b-0 lg:border-r" aria-label={text(l('Mục lục hướng dẫn', 'Guide navigation', 'ガイドナビゲーション', '가이드 탐색'), locale)}>
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">MES Console</p>
+                <a href="#guide-how-to-use" className="block rounded-md border-l-2 border-action bg-action/10 px-3 py-2 text-sm font-semibold text-foreground">{text(l('Cách dùng', 'How to use', '使い方', '사용 방법'), locale)}</a>
+                <a href="#guide-context" className="mt-1 block rounded-md border-l-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:bg-hover hover:text-foreground">{text(detail.process ? l('Quy trình tạo', 'Creation process', '作成プロセス', '생성 프로세스') : l('Giải thích trang', 'Understanding this page', '画面の説明', '페이지 설명'), locale)}</a>
+              </nav>
+              <div className="space-y-8 p-6">
+                <div id="guide-how-to-use"><Section icon={BookOpen} title={l('Cách dùng', 'How to use', '使い方', '사용 방법')} items={detail.howToUse} locale={locale} /></div>
+                <div id="guide-context">{detail.process ? <ProcessSection steps={detail.process} locale={locale} /> : <Section icon={ListChecks} title={l('Giải thích trang', 'Understanding this page', '画面の説明', '페이지 설명')} items={[...detail.data, ...detail.statuses, ...detail.notes]} locale={locale} />}</div>
+              </div>
             </div>
           </Card>
         </div>

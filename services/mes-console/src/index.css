@@ -8,6 +8,9 @@
     --foreground: 210 40% 96%;
     --card: 222 38% 10%;
     --card-foreground: 210 40% 96%;
+    --surface: 222 38% 10%;
+    --surface-subtle: 217 33% 14%;
+    --surface-elevated: 222 38% 13%;
     --primary: 204 80% 24%;
     --primary-foreground: 210 40% 98%;
     --secondary: 217 33% 17%;
@@ -22,8 +25,122 @@
     --destructive: 348 83% 47%;
     --destructive-foreground: 210 40% 98%;
     --border: 215 28% 22%;
+    --border-strong: 215 28% 34%;
     --input: 222 47% 8%;
     --ring: 24 96% 48%;
+    --selected: 24 96% 48%;
+    --selected-foreground: 20 14% 4%;
+    --hover: 217 33% 17%;
+    --success: 142 71% 45%;
+    --success-foreground: 142 70% 92%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 92%;
+    --danger: 348 83% 47%;
+    --danger-foreground: 348 83% 94%;
+    --info: 199 89% 48%;
+    --info-foreground: 199 89% 92%;
+  }
+
+  :root.mes-light {
+    --background: 210 40% 96%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --surface: 0 0% 100%;
+    --surface-subtle: 210 40% 98%;
+    --surface-elevated: 0 0% 100%;
+    --primary: 204 80% 24%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 92%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 92%;
+    --muted-foreground: 215 16% 40%;
+    --input: 0 0% 100%;
+    --border: 215 25% 78%;
+    --border-strong: 215 20% 58%;
+    --selected: 24 96% 48%;
+    --selected-foreground: 20 14% 4%;
+    --hover: 210 40% 93%;
+    --success: 142 55% 38%;
+    --success-foreground: 142 60% 24%;
+    --warning: 32 85% 40%;
+    --warning-foreground: 24 75% 25%;
+    --danger: 348 65% 42%;
+    --danger-foreground: 348 70% 30%;
+    --info: 199 75% 35%;
+    --info-foreground: 199 75% 25%;
+  }
+
+  /* Legacy MES screens still use slate utility classes. Keep those screens
+     readable when the user switches to the semantic light theme. */
+  :root.mes-light [class~="bg-slate-900"] {
+    background-color: hsl(var(--card));
+  }
+
+  :root.mes-light [class~="bg-slate-950"] {
+    background-color: hsl(210 40% 98%);
+  }
+
+  :root.mes-light [class~="bg-slate-800"] {
+    background-color: hsl(var(--secondary));
+  }
+
+  :root.mes-light [class*="bg-emerald-950"] {
+    background-color: hsl(var(--success) / 0.12);
+  }
+
+  :root.mes-light [class*="bg-amber-950"] {
+    background-color: hsl(var(--warning) / 0.14);
+  }
+
+  :root.mes-light [class*="bg-rose-950"] {
+    background-color: hsl(var(--danger) / 0.12);
+  }
+
+  :root.mes-light [class~="border-slate-800"] {
+    border-color: hsl(var(--border));
+  }
+
+  :root.mes-light [class~="border-slate-700"] {
+    border-color: hsl(215 20% 65%);
+  }
+
+  :root.mes-light [class~="text-slate-100"] {
+    color: hsl(var(--foreground));
+  }
+
+  :root.mes-light [class~="text-slate-200"] {
+    color: hsl(222 47% 18%);
+  }
+
+  :root.mes-light [class~="text-slate-300"] {
+    color: hsl(215 25% 27%);
+  }
+
+  :root.mes-light [class~="text-slate-400"] {
+    color: hsl(215 20% 38%);
+  }
+
+  :root.mes-light [class~="text-slate-500"] {
+    color: hsl(215 16% 42%);
+  }
+
+  :root.mes-light [class~="text-amber-100"],
+  :root.mes-light [class~="text-amber-200"],
+  :root.mes-light [class~="text-amber-300"],
+  :root.mes-light [class~="text-amber-400"] {
+    color: hsl(var(--warning-foreground));
+  }
+
+  :root.mes-light [class~="text-rose-200"],
+  :root.mes-light [class~="text-rose-300"],
+  :root.mes-light [class~="text-rose-400"] {
+    color: hsl(var(--danger-foreground));
+  }
+
+  :root.mes-light [class~="hover\:bg-slate-800\/40"]:hover,
+  :root.mes-light [class~="hover\:bg-slate-800\/50"]:hover {
+    background-color: hsl(210 40% 93%);
   }
 
   * {
@@ -49,10 +166,10 @@
   }
 
   .mes-panel {
-    @apply rounded-md border border-border bg-card text-card-foreground shadow-[0_18px_45px_rgba(2,6,23,0.22)];
+    @apply rounded-md border border-border bg-surface text-card-foreground shadow-[0_18px_45px_rgba(2,6,23,0.22)];
   }
 
-  .mes-page-header {
+.mes-page-header {
     @apply mes-panel flex items-center justify-between gap-4 p-5;
   }
 
@@ -65,11 +182,11 @@
   }
 
   .mes-table {
-    @apply w-full text-left text-sm text-slate-300;
+    @apply w-full text-left text-sm text-foreground;
   }
 
   .mes-table thead {
-    @apply border-b border-border bg-slate-950/80 text-xs font-bold uppercase text-slate-300;
+    @apply border-b border-border bg-muted text-xs font-bold uppercase text-foreground;
   }
 
   .mes-table th {
@@ -85,7 +202,7 @@
   }
 
   .mes-table tbody tr {
-    @apply transition hover:bg-slate-800/45;
+    @apply transition hover:bg-muted/70;
   }
 
   .mes-form-field {
@@ -94,5 +211,103 @@
 
   .mes-action {
     @apply inline-flex items-center justify-center gap-2 rounded-md border border-action bg-action px-4 py-2 text-sm font-semibold text-action-foreground transition hover:bg-action-hover disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .mes-main {
+    @apply bg-background;
+    background-image: radial-gradient(circle at top right, hsl(var(--action) / 0.08), transparent 34%), linear-gradient(180deg, hsl(var(--primary) / 0.22), transparent 260px);
+  }
+
+  .mes-nav-active .mes-nav-icon {
+    @apply text-action;
+  }
+
+  .mes-light .mes-main {
+    background-image: radial-gradient(circle at top right, hsl(var(--action) / 0.08), transparent 34%), linear-gradient(180deg, hsl(var(--primary) / 0.04), transparent 260px);
+  }
+}
+
+.mes-route-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--surface) / 0.84);
+}
+
+.mes-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.mes-breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mes-breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: hsl(var(--muted-foreground));
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.mes-breadcrumb-link:hover {
+  color: hsl(var(--foreground));
+}
+
+.mes-breadcrumb-section {
+  color: hsl(var(--muted-foreground));
+}
+
+.mes-breadcrumb-current {
+  color: hsl(var(--foreground));
+  font-weight: 700;
+}
+
+.mes-route-header-context {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mes-route-header-kicker {
+  color: hsl(var(--action));
+  font-weight: 800;
+}
+
+.mes-route-header-path {
+  color: hsl(var(--muted-foreground));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+@media (max-width: 760px) {
+  .mes-route-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .mes-route-header-path {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

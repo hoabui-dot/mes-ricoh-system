@@ -1,8 +1,8 @@
 # AI_CONTEXT.md - Canonical Full Context for AI Agents
 
-Last updated: 2026-07-23
+Last updated: 2026-07-24
 Repository: `/home/neurosus/mes-system`
-Project: Won Seal Tech MOM Platform - MES / WMS / QMS
+Project: S-Factory MOM Platform - MES / WMS / QMS
 Audience: AI agents, engineers, architects, and maintainers continuing this codebase.
 
 This is the first file to read before making changes in this repository. It consolidates:
@@ -20,23 +20,55 @@ needing to rediscover the whole repository from scratch.
 
 Do not treat any single prompt as current truth by itself.
 
-Use this precedence order:
+Use this precedence order exactly:
 
-1. Running source code, service manifests, Docker Compose files, migrations, and tests.
-2. Implementation records in `implementation/` and `implementation-fix/`.
-3. Current progress tracker: `process/PROJECT_WORKLOAD_PROGRESS.md`.
-4. This `AI_CONTEXT.md`.
-5. Product catalogs in `product-doc/`.
-6. Historical process prompts in `process/` and `process-fix/`.
+1. Running source code.
+2. Service manifests.
+3. Docker Compose and infrastructure configuration.
+4. Database migrations and schemas.
+5. Automated tests.
+6. API handlers, domain logic, repositories, consumers, producers, and frontend behavior.
+7. Implementation records in `implementation/` and `implementation-fix/`.
+8. Current progress tracker: `process/PROJECT_WORKLOAD_PROGRESS.md`.
+9. This `AI_CONTEXT.md`.
+10. Product catalogs and design documents in `product-doc/`.
+11. Historical process prompts in `process/` and `process-fix/`.
 
 Prompt files describe intended work at a point in time. Implementation records and source code describe
 what actually exists. Some product/process docs are deliberately historical and may still mention
 obsolete scaffolding such as the old Hello World validator. The Hello World service has been
 decommissioned and removed from active code/runtime.
 
+### Evidence status vocabulary
+
+Every new claim added to this context must be classified with one of these statuses. Do not convert a
+product requirement or process instruction into an implemented fact without evidence:
+
+- `IMPLEMENTED_AND_VERIFIED`: source exists and a repeatable build, test, runtime, API, or database check passed.
+- `IMPLEMENTED_BUT_NOT_TESTED`: source exists but verification is still missing.
+- `PARTIALLY_IMPLEMENTED`: some required behavior exists, but a documented part is absent or incomplete.
+- `DOCUMENTED_INTENT_ONLY`: only product/process documentation describes the behavior.
+- `PLANNED`: explicitly scheduled but not implemented.
+- `MISSING`: searched source, manifests, migrations, and tests do not contain the behavior.
+- `AMBIGUOUS`: evidence exists but the contract or ownership is unclear.
+- `CONFLICTING_SOURCES`: code and documentation disagree; code wins for current behavior and the discrepancy must be recorded.
+- `DEPRECATED`: historical behavior or artifact no longer belongs to the active runtime.
+- `DEMO_ONLY`: implemented for seeded/demo workflows and not proven as production-grade behavior.
+
+For each important claim record the evidence path, owning service, verification command/result, confidence,
+and any discrepancy. When evidence is insufficient, use this exact form:
+
+```text
+Status: MISSING_OR_UNVERIFIED
+Expected behavior: <documented or requested behavior>
+Evidence searched: <paths, handlers, migrations, tests, runtime checks>
+Gap: <what cannot be proven>
+Recommended clarification: <specific next question or test>
+```
+
 ## 1. Current Executive Summary
 
-Won Seal Tech manufactures technical rubber products and rubber-metal automotive components. The MOM
+S-Factory manufactures technical rubber products and rubber-metal automotive components. The MOM
 platform is being built as three independent but integrated clusters:
 
 - MES: Manufacturing execution, master data, traceability, work orders, kiosk, and planning console.
@@ -60,6 +92,22 @@ Current implementation state:
   URL-persisted 10/50/100 pagination, action-specific Radix AlertDialogs for irreversible mutations,
   WMS-matching navy/slate/amber tokens, and QMS JA/KO fallback flags registered in the MES Translation
   Review Queue (`qms_console_i18n_resource`, two OPEN flags).
+- UI issue note fixes are recorded in `implementation-fix/ui-note-fix.md`: canonical MES Item/Production
+  Version field mappings, translated Tier-2 titles, routing nowrap, detailed WO page guidance, Portal
+  i18n/icon cleanup, and persisted Portal/MES light-dark mode.
+- MES Console light-theme audit/refinement is implemented in `services/mes-console/src/index.css`,
+  `tailwind.config.js`, `Sidebar.tsx`, `Navbar.tsx`, the shared badge primitives, and `StatusBadge.tsx`:
+  semantic surface/border/selected/hover/status tokens, readable light-mode legacy compatibility,
+  a dark-readable selected sidebar state, and centralized status tones are present. Status:
+  `IMPLEMENTED_AND_VERIFIED` by MES typecheck/build and `git diff --check`; browser screenshot review is
+  `IMPLEMENTED_BUT_NOT_TESTED` in this latest pass.
+- MES Item Revision release-route fix is implemented: `ItemsScreen.tsx` calls the canonical
+  `releaseResource('item-revisions', revisionId, user)` contract. The old nested
+  `/items/{itemId}/revisions/{revisionId}/release` URL was not registered and caused the first 404.
+  The UI now only submits `Draft`, `InReview`, or `Inactive` revisions and never re-releases a revision
+  already in `Released`. Status: `IMPLEMENTED_AND_VERIFIED`; a safe runtime contract probe returned the
+  expected `409 Record is not releasable or not found` for a valid-shaped nonexistent ID, proving the
+  request reaches the release handler rather than the 404 fallback.
 - Hello World scaffolding validator was used during Phase 0, then removed from source/runtime on
   2026-07-22.
 
@@ -109,7 +157,7 @@ Current active task after WMS Console:
 
 ## 2. Business Context
 
-Won Seal Tech manufactures technical rubber products, especially rubber-metal automotive parts such as
+S-Factory manufactures technical rubber products, especially rubber-metal automotive parts such as
 automotive engine mounts. The MES MVP controls the production route, materials, labels, work orders,
 shopfloor operator workflow, and planning/manager console.
 
@@ -2534,10 +2582,1564 @@ Cleanup/decommission rules:
 Immediate next milestone:
 
 - Phase 3 Step 3 QMS Console (inspection queue, result recording, NCR, disposition, and CAPA UI) is complete.
-- Phase 4 Platform E2E Integration is the next workload.
+- Phase 4 Platform E2E Integration is the next workload; it remains pending.
 - Phase 4 cross-cluster E2E integration, load/security/chaos hardening.
 - Step 3b trace: `implementation/phase-3-3-qms-console.md`; optional `libs/console-ui-shared` extraction is
   a Phase 4 anti-drift follow-up because WMS/QMS currently have identical local primitive APIs.
 - Current cross-console SSO behavior and role/user flow: `docs/SSO-USER-GUIDE-MES-WMS-QMS.md`.
 - Latest SSO audit: `implementation-fix/sso-mes-wms-qms-verification.md`; it records the corrected live
   WMS client URL and the remaining MES Kong bearer-auth gap.
+
+## 20. Transformation Audit and Latest Repository Evidence
+
+This section was added after applying `implementation-fix/Transform-AI_CONTEXT.md` on 2026-07-23. It
+records architecture evidence and the latest verified changes that were not present in earlier context
+snapshots. It is additive to the product catalogs and implementation reports above; when it conflicts
+with an older paragraph, the source-precedence rules in section 0 apply.
+
+### 20.1 Repository and frontend architecture diagnosis
+
+Status: `IMPLEMENTED_AND_VERIFIED`
+
+Evidence:
+
+- `services/mes-console/package.json`: React 18, Vite, TypeScript, Tailwind, `lucide-react`, and Radix
+  Select dependency.
+- `services/mes-console/tailwind.config.js`: Tailwind content scanning covers `index.html` and
+  `src/**/*.{js,ts,jsx,tsx}`; semantic colors are bound to CSS HSL variables.
+- `services/mes-console/postcss.config.js`: Tailwind/PostCSS build path is active.
+- `services/mes-console/vite.config.ts`: Vite is the actual MES Console build/runtime toolchain.
+- `services/mes-console/src/index.css`: global tokens, base styles, shared `.mes-panel`, `.mes-table`,
+  `.mes-form-field`, `.mes-action`, and light-mode compatibility rules.
+- `services/mes-console/src/components/ui/`: local shadcn-style primitives. These are not a separately
+  installed shadcn package; they are repository-owned components using Tailwind and selected Radix
+  primitives.
+
+Dark-mode mechanism:
+
+- The default token set in `:root` is the dark industrial theme.
+- `Navbar.tsx` reads `mes-console-theme` from `localStorage`, toggles `mes-light` on
+  `document.documentElement`, and persists the choice.
+- `:root.mes-light` overrides semantic tokens and narrowly adapts legacy slate/semantic utility classes.
+- There is no Tailwind `darkMode` configuration and no `dark:` class strategy in MES. Do not introduce
+  a second dark-mode mechanism without an explicit migration.
+
+Architecture conclusion:
+
+- Tailwind is fully configured and used, but older MES pages contain many direct slate/amber/rose
+  utility overrides. The compatibility selectors in `index.css` protect light-mode readability while
+  pages are incrementally moved to semantic primitives.
+- `Button`, `Input`, `SelectBase`, `Card`, `Badge`, and table styles are shared inside MES. WMS and QMS
+  have parallel local primitive sets with similar APIs; they are not currently extracted into a shared
+  workspace package.
+- Arbitrary gradients remain only in the controlled `.mes-main` background; new page-level arbitrary
+  colors are prohibited unless documented as an intentional overlay or status exception.
+
+### 20.2 Semantic color token table
+
+The following is the current MES token contract. Values are HSL triplets consumed through Tailwind;
+the exact declarations are in `services/mes-console/src/index.css`.
+
+| Token | Purpose | Light role | Dark role | Primary consumers | Contrast intent |
+|---|---|---|---|---|---|
+| `background` | Application canvas | Cool off-white | Deep navy | `body`, `.mes-main` | Keeps page canvas distinct from surfaces. |
+| `foreground` | Primary text | Deep blue-gray | Light slate | headings, body text | Normal text target >= 4.5:1. |
+| `surface` / `card` | Primary panel | White | Navy charcoal | cards, page headers, sidebar surfaces | Elevated by border/shadow, not color noise. |
+| `surface-subtle` | Secondary structure | Pale cool slate | Muted navy | sidebar, grouped controls | Separates navigation from content. |
+| `surface-elevated` | Dialog/popover elevation | White | Raised charcoal | future dialogs/popovers | Used with border and shadow. |
+| `border` | Standard structure | Visible cool gray | Dark slate | panels, tables, inputs | Non-text structure target >= 3:1 where meaningful. |
+| `border-strong` | Selected/focused grouping | Darker cool gray | Strong slate | selected controls and groups | Reserved for emphasis. |
+| `primary` | Deep navy brand | Deep navy | Deep navy | header, primary identity | Paired with `primary-foreground`. |
+| `action` / `selected` | Safety orange action and active indicator | Orange | Safety amber-orange | primary buttons, active nav, focus ring | Paired with dark `action-foreground`. |
+| `hover` | Interaction surface | Light slate | Dark slate | nav/table/control hover | Must not rely on text color alone. |
+| `success` | Released/approved/completed/pass | Green tone | Green tone | `StatusBadge` | Paired with dark light-mode or light dark-mode foreground. |
+| `warning` | Draft/in-review/pending/quarantine | Amber tone | Amber tone | `StatusBadge`, alerts | Amber is not used as low-contrast body text. |
+| `danger` | Rejected/failed/blocked/expired | Red tone | Red tone | `StatusBadge`, destructive actions | Paired with readable semantic foreground. |
+| `info` | In-progress/technical information | Cyan/blue tone | Cyan/blue tone | `StatusBadge`, nav icons | Used for technical state, not generic decoration. |
+| `muted-foreground` | Secondary labels | Medium blue-gray | Muted light slate | subtitles, table headers | Kept readable; no excessive opacity. |
+
+### 20.3 Shared UI state contract
+
+Status: `IMPLEMENTED_AND_VERIFIED` for shared primitives; `PARTIALLY_IMPLEMENTED` for legacy route
+markup that still overrides them.
+
+- `Button`: default/action, secondary, ghost, outline, destructive, icon/sm sizes; focus ring,
+  disabled opacity/pointer protection, and theme-aware foreground tokens are centralized in
+  `src/components/ui/button.tsx`.
+- `Input`: semantic input/surface/foreground/placeholder/focus tokens in `input.tsx`.
+- `SelectBase`: Radix Select with controlled values, keyboard navigation, empty-value normalization,
+  selected indicator, disabled state, and a deliberately visible menu surface in `select.tsx`.
+- `Badge`: shared variants `default`, `success`, `warning`, `danger`, `info`, `neutral`, and
+  `secondary` in `src/components/ui/badge.tsx`.
+- `StatusBadge`: centralized status-to-tone mapping in `src/components/StatusBadge.tsx`. Current
+  mappings include success (`Released`, `Approved`, `Completed`, `Active`, `Pass`), info
+  (`InProgress`), warning (`Pending`, `InReview`, `OnLeave`, `Quarantined`), neutral (`Draft` and
+  unknown), and danger (`Rejected`, `Cancelled`, `Blocked`, `Fail`, `Inactive`, `Obsolete`, `Expired`).
+- `.mes-table`: shared text, header, border, row-divider, and hover hierarchy in `index.css`.
+- `Sidebar.tsx`: active navigation uses a tinted action background, readable foreground, visible
+  border indicator, and action-colored active icon; it no longer uses bright amber body text for the
+  selected label.
+- `PageDetailButton.tsx`: uses semantic card/foreground styling for its trigger and content summary;
+  it no longer forces a black/dark trigger in light mode.
+
+Known exception: legacy route files still contain exact slate/amber/rose classes in forms and status
+markup. `:root.mes-light` compatibility rules adapt these known classes for light mode without changing
+dark mode. New code must use semantic tokens or shared components instead of adding to this exception.
+
+### 20.4 Item Revision release contract and business logic
+
+Owning service: `mes-master-data-service`.
+
+Status: `IMPLEMENTED_AND_VERIFIED` for the current API route and UI fix; `DEMO_ONLY` for the current
+seed state because all seeded revisions are already Released.
+
+Business rule evidence:
+
+- `product-doc/II-PRODUCTS-&-MBOM-CATALOG.md`: Item Revision has lifecycle `Draft`, `InReview`,
+  `Released`, `Obsolete`; released revisions are immutable and new changes require a new revision.
+- `services/mes-master-data-service/src/domain/table-registry.ts`: resource `item-revisions` maps to
+  `md_item_revision`, publishes `MES.MasterData.ItemRevisionReleased.v2`, and is protected after release.
+- `services/mes-master-data-service/src/infrastructure/http/master-data.router.ts`: generic
+  `POST /api/mes/master-data/:resource/:id/release` updates the resource row, writes audit/outbox data,
+  and returns 409 when the record is missing or not in `Draft`, `InReview`, or `Inactive`.
+- `services/mes-console/src/lib/masterDataApi.ts`: `releaseResource(resource, id, user)` is the
+  canonical frontend release helper.
+- `services/mes-console/src/routes/master-data/ItemsScreen.tsx`: release now calls
+  `releaseResource('item-revisions', revisionId, user)`; it never includes the parent item ID in the
+  URL and does not select an already Released default revision.
+
+Previous defect:
+
+- The UI called `/items/{itemId}/revisions/{revisionId}/release`, which is not registered by the
+  generic router and fell through to the service 404 handler (`Not Found`).
+- The same selection expression preferred `is_default` or `lifecycle_status === 'Released'`, which
+  would have caused a second error after the URL fix because a Released row is not releasable.
+
+Current runtime data:
+
+- Database query on `mes-master-data-db` returned 9 item revisions; all are `Released`.
+- Therefore the current demo UI disables the release action for every seeded item until a Draft,
+  InReview, or Inactive revision is created. This is intentional protection against an invalid
+  lifecycle transition, not a missing endpoint.
+
+Safe verification:
+
+```bash
+docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml exec -T \
+  mes-master-data-service node -e "fetch('http://127.0.0.1:3020/api/mes/master-data/item-revisions/00000000-0000-0000-0000-000000000000/release',{method:'POST',headers:{'X-User-ID':'00000000-0000-0000-0000-000000000001','X-Role-Code':'PROD_MANAGER'}}).then(async r=>console.log(r.status,await r.text()))"
+```
+
+Observed result: `409 {"error":"Record is not releasable or not found"}`. This is a non-mutating
+probe using a valid-shaped nonexistent ID and proves the canonical route is reached. The UI build and
+MES Console Docker image build both passed after the fix.
+
+### 20.5 Latest verification ledger
+
+All results below were observed in the current repository/runtime on 2026-07-23:
+
+| Check | Result | Evidence/status |
+|---|---|---|
+| MES workspace production build | Passed; Vite warning only for >500 kB bundle | `npm run build --workspace=mes-console`; `IMPLEMENTED_AND_VERIFIED` |
+| MES workspace typecheck | Passed | `npm run typecheck --workspace=mes-console`; `IMPLEMENTED_AND_VERIFIED` |
+| WMS workspace production build | Passed; Vite warning only for >500 kB bundle | `npm run build --workspace=wms-console`; `IMPLEMENTED_AND_VERIFIED` |
+| QMS workspace production build | Passed; Vite warning only for >500 kB bundle | `npm run build --workspace=qms-console`; `IMPLEMENTED_AND_VERIFIED` |
+| Full targeted MES/WMS/QMS Docker image build | Passed for 14 images | `docker compose ... build ...`; `IMPLEMENTED_AND_VERIFIED` |
+| MES traceability Go dependency repair | Passed | `go mod tidy`, `go build ./cmd/server`, `go test ./...`; `IMPLEMENTED_AND_VERIFIED` |
+| MES/WMS/QMS compose recreation | Application containers recreated and running; configured healthchecks healthy | `docker compose ... up -d`, `docker compose ... ps`; `IMPLEMENTED_AND_VERIFIED` |
+| MES Console release fix image | Built and restarted on host port `13052` | targeted Docker build/up; `IMPLEMENTED_AND_VERIFIED` |
+| Host-side curl from restricted agent sandbox | Not usable | published ports returned `000` due sandbox network boundary; use compose health or container-local probes |
+| Browser visual light/dark screenshot regression | Not completed in latest context pass | `MISSING_OR_UNVERIFIED`; use Playwright/manual browser check |
+
+Bundle-size warnings are non-failing optimization warnings. Do not report them as build failures.
+
+### 20.6 Current gap and risk register
+
+| Status | Gap | Evidence / next action |
+|---|---|---|
+| `PARTIALLY_IMPLEMENTED` | MES legacy Kong routes still lack equivalent bearer JWT/client/role enforcement used by WMS/QMS | `implementation-fix/sso-mes-wms-qms-verification.md`; Phase 4 security task |
+| `IMPLEMENTED_BUT_NOT_TESTED` | Item Revision release success path has not been exercised against a newly created Draft revision in the current demo DB | Create a controlled Draft fixture or add an integration test, release it once, assert outbox/event/audit, then clean up |
+| `DEMO_ONLY` | Current seed revisions are all Released, so the visible release action has no positive demo case | Add a deliberately Draft revision seed only if product/demo owner approves lifecycle fixture |
+| `IMPLEMENTED_BUT_NOT_TESTED` | MES light-theme visual screenshots and keyboard-state review | Verify Items, MBOM, Routing, Production Version, WO, Employees, Shifts, Work Calendar, Work Centers, Equipment, Production Standards, Reason Codes, Skills in both modes |
+| `PARTIALLY_IMPLEMENTED` | QMS Japanese/Korean-specific strings still use shared English fallback in two registered review flags | Translate dictionaries and close flags through MES Translation Review Queue |
+| `PLANNED` | Optional `libs/console-ui-shared` extraction for duplicated WMS/QMS primitives | Phase 4 anti-drift follow-up after import/deployment tests |
+
+### 20.7 Latest changed-file index for the current workstream
+
+- Theme foundation: `services/mes-console/src/index.css`, `services/mes-console/tailwind.config.js`.
+- Navigation/header: `services/mes-console/src/components/Sidebar.tsx`, `Navbar.tsx`.
+- Shared status UI: `services/mes-console/src/components/ui/badge.tsx`,
+  `services/mes-console/src/components/StatusBadge.tsx`, `components/ui/index.ts`.
+- Page details: `services/mes-console/src/components/PageDetailButton.tsx`.
+- Item release behavior: `services/mes-console/src/routes/master-data/ItemsScreen.tsx`,
+  `services/mes-console/src/lib/masterDataApi.ts`.
+- MES traceability Go dependency metadata repaired earlier: `services/mes-traceability-service/go.mod`
+  and `go.sum`.
+- Historical UI/design rationale: `implementation-fix/ui-note-fix.md` and
+  `implementation-fix/Audit-and-Refine-the-MES-Console-Light-Theme-Color-System.md`.
+
+### 20.8 Required procedure for the next AI agent
+
+1. Read this file and `process/PROJECT_WORKLOAD_PROGRESS.md`.
+2. Identify whether the request is roadmap work (`implementation/`) or hotfix/regression work
+   (`implementation-fix/`).
+3. Inspect current source, service manifest, Compose, migration/schema, tests, and runtime before
+   trusting product documentation.
+4. Classify each important conclusion with the evidence status vocabulary in section 0.
+5. Preserve one database owner per service and do not implement cross-service database reads.
+6. For release/lifecycle actions, verify the exact resource route, allowed state transition, permissions,
+   audit trigger, outbox event, and idempotency behavior before changing UI.
+7. For UI changes, use existing semantic tokens and shared primitives; do not add route-specific dark
+   colors to solve a light-mode problem.
+8. Run focused typecheck/build/tests, then the relevant Docker rebuild/recreate and container-local
+   health/log checks.
+9. Update the matching implementation record, workload tracker, and this context when the work changes
+   current behavior or verification status.
+
+## 21. Transform Audit Baseline and Operational Catalogs
+
+This section is the current evidence-backed expansion required by
+`implementation-fix/Transform-AI_CONTEXT.md`. The repository audit that supports it is
+`implementation-fix/AI_CONTEXT-repository-audit.md`. Every status below is deliberate:
+
+- `IMPLEMENTED_AND_VERIFIED`: source and a focused build/runtime/test check prove the behavior.
+- `IMPLEMENTED_BUT_NOT_TESTED`: source exists, but the required positive or negative verification is missing.
+- `PARTIALLY_IMPLEMENTED`: only part of the requested business behavior is present.
+- `DOCUMENTED_INTENT_ONLY`: product/process documents describe it, but active code was not proven.
+- `PLANNED` / `MISSING`: no active implementation was found.
+- `DEMO_ONLY`: seeded or UI-visible behavior exists for demonstration, not as a complete production capability.
+
+### 21.1 Bounded-context ownership map
+
+| Context | Owning runtime | Persistent owner | UI clients | Integration boundary |
+|---|---|---|---|---|
+| Identity and application routing | Keycloak, Kong, Portal | Keycloak realm/config; portal DB where applicable | Portal, MES, WMS, QMS, Kiosk | OIDC/token validation and forwarded identity |
+| MES master data | `mes-master-data-service` | `mes_master_data_db` | MES Console, MES Kiosk | REST, `MES.MasterData.*` outbox events |
+| MES execution | `mes-execution-service` | `mes_execution_db` | MES Console, Kiosk | REST; WMS outbound and traceability HTTP clients; execution outbox |
+| MES traceability | `mes-traceability-service` | `mes_traceability_db` | Kiosk and execution flows | REST plus traceability events |
+| WMS master data | `wms-master-data-service` | WMS master-data DB | WMS Console, MES staging | REST |
+| WMS inventory | `wms-inventory-service` | WMS inventory DB | WMS Console, MES staging | REST; immutable ledger and balance projection |
+| WMS inbound/outbound | `wms-inbound-service`, `wms-outbound-service` | Separate WMS bounded-context DBs | WMS Console, MES execution | REST and outbox/event consumers |
+| QMS inspection | `qms-inspection-service` | QMS inspection DB | QMS Console | REST; inspection result/failure events |
+| QMS nonconformance | `qms-nonconformance-service` | QMS NCR/CAPA DB | QMS Console | Inspection-failure consumer and outbox |
+
+Rule: a UI may call an owning service through its API, but it must not read another service's
+database. A resource name in a frontend route does not establish ownership; the handler and migration do.
+
+### 21.2 Mandatory Work Order contract
+
+#### Business purpose and actors
+
+A Work Order converts a demand for a released product revision into an executable production plan. The
+primary actors are a planner/production manager (create, compute, approve/reject), an operator (start and
+confirm an operation), WMS (material staging/availability), and traceability/QMS dependencies. The product
+documents describe a richer planning model than the current execution service proves. Current status:
+`PARTIALLY_IMPLEMENTED`.
+
+#### Entry points and actual API contract
+
+| Method | Gateway/application path | Owning handler | Auth evidence | Payload/result |
+|---|---|---|---|---|
+| `POST` | `/api/mes/execution/work-orders` | `handleCreateWorkOrder` | Forwarded `X-User-ID`; gateway enforcement must be verified | `item_revision_id`, `item_code`, `item_name`, `quantity`, `uom_id`, `site_id`, `planned_start_at`, `planned_end_at`; returns created WO |
+| `GET` | `/api/mes/execution/work-orders?limit=N` | `handleListWorkOrders` | Same gateway assumption | Recent `wo_id`, `wo_code`, `item_code`, `quantity`, `status`, `created_at`; maximum 500 |
+| `GET` | `/api/mes/execution/work-orders/{id}` | `handleGetWOByID` | Same gateway assumption | Header, operations, material requirements, approval logs |
+| `POST` | `/api/mes/execution/work-orders/{id}/compute-check` | `handleComputeCheck` | Same gateway assumption | Computed operation timing/readiness result |
+| `POST` | `/api/mes/execution/work-orders/{id}/approve` | `handleApproveWO` | `X-Role-Code` is consumed by handler; exact trusted-header chain is a security gap | Optional `comment`; approval result and WMS check behavior |
+| `POST` | `/api/mes/execution/work-orders/{id}/reject` | `handleRejectWO` | Same | Optional `comment`; rejected/cancelled result |
+| `POST` | `/api/mes/execution/work-orders/{id}/stage-materials` | `handleStageMaterials` | Same | No body required; WMS staging results, `409` for shortage, `503` for dependency failure |
+| `POST` | `/api/mes/execution/work-orders/{id}/operations/{opId}/start` | `handleStartOperation` | Operator identity header; default terminal is demo-only | `{terminal_ref}`; execution session |
+| `POST` | `/api/mes/execution/work-orders/{id}/operations/{opId}/confirm` | `handleConfirmOperation` | Operator and role headers | session, good/scrap qty, reason, label/material scans, pieces, idempotency attempt |
+| `POST` | `/api/mes/execution/work-orders/{id}/operations/{opId}/abort` | `handleAbortSession` | Operator identity header | `{session_id}`; aborted session |
+| `GET` | `/api/mes/execution/work-orders/{id}/operations/{opId}/consumption` | `handleGetConsumption` | Same gateway assumption | Material consumption ledger rows |
+
+The current handler defaults (`systemUserID`, `OPERATOR`, `KIOSK-LINE-01`, sample item/site/UOM, and
+default dates) are `DEMO_ONLY` fallbacks. They are not acceptable substitutes for required validation in
+a production deployment.
+
+#### Form and input contract
+
+| Field | Type | Required business meaning | Current validation |
+|---|---|---|---|
+| `item_revision_id` | UUID | Product revision to manufacture | Readiness lookup; missing/invalid behavior is not uniformly normalized |
+| `item_code`, `item_name` | text | Snapshot for WO display | Defaults exist in handler; authoritative revision lookup is a gap |
+| `quantity` | number | Planned output | Positive fallback/default exists; range/precision rules need stronger proof |
+| `uom_id` | UUID | Quantity unit | Demo default exists; conversion validation not proven |
+| `site_id` | UUID | Manufacturing scope | Readiness check; wrong-site rules require explicit test coverage |
+| `planned_start_at`, `planned_end_at` | RFC3339 text | Planning window | End defaults to +24 hours; ordering/calendar validation is incomplete |
+| `terminal_ref` | text | Workstation/terminal identity | Defaults to a demo terminal; terminal ownership/scope enforcement unproven |
+| `qty_good`, `qty_scrap` | number | Operation result | Confirm handler reads both; quantity-balance and reason guards are source-dependent and need tests |
+| `reason_code` | text | Required explanation for scrap/failure paths | Accepted as optional at HTTP boundary; mandatory cases must be verified in use case/tests |
+| `session_id` | UUID | Active execution session | Confirm/abort use it as the session key |
+| scan fields | UUID/text | Input label or material identity | Traceability/material clients validate downstream where configured |
+| `idempotency_attempt` | text | Confirmation retry correlation | Default `1`; durable idempotency semantics require verification |
+
+#### Lifecycle and guards
+
+Observed `wo_header` states include `Draft`, `Approved`, `InProgress`, `Completed`, and `Cancelled`.
+Observed operation/session states include `Pending`, `InProgress`, `Finished`, and `Aborted`.
+The handlers prove the following transitions; enum names alone are not treated as proof:
+
+| Current | Action | Actor | Guard | Next | Side effects | Status |
+|---|---|---|---|---|---|---|
+| absent | create | planner | demand and master-data readiness | `Draft` | header, operations, requirements, WOCreated outbox | `IMPLEMENTED_AND_VERIFIED` |
+| `Draft` | approve | authorized production role | production version and requirements/readiness; transaction | `Approved` | approval log, WMS reservation/check path, WOApproved outbox | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `Draft`/reviewable | reject | authorized role | action accepted by approval use case | `Cancelled`/rejected behavior | approval log and event path | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `Approved` | start operation | operator | previous operation sequence and session checks | WO/operation `InProgress` | execution session, start outbox | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `InProgress` | confirm | operator | active session, quantity/scan/use-case checks | operation `Finished` | confirmation, consumption, traceability call, confirmation event | `IMPLEMENTED_BUT_NOT_TESTED` |
+| all operations finished | complete | execution path | no unfinished operations and output/traceability checks | WO `Completed` | completion record/event | `IMPLEMENTED_BUT_NOT_TESTED` |
+| active session | abort | operator | session exists and is active | session `Aborted` | session mutation | `IMPLEMENTED_BUT_NOT_TESTED` |
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: POST create [IMPLEMENTED]
+    Draft --> Approved: approve [PARTIAL: role/header chain]
+    Draft --> Cancelled: reject [PARTIAL]
+    Approved --> InProgress: start first operation [IMPLEMENTED]
+    InProgress --> InProgress: confirm operation [IMPLEMENTED]
+    InProgress --> Completed: all operations finished [PARTIAL]
+    InProgress --> Cancelled: cancellation guard [UNPROVEN]
+    InProgress --> [*]: abort session [IMPLEMENTED]
+```
+
+The diagram reflects the code path, not the full product roadmap. Scheduling, labor, equipment, QMS
+release gates, and offline kiosk transitions are not silently inserted into it.
+
+#### Persistence, transaction, integration, and recovery
+
+- `wo_header` owns the Work Order identity, product/site snapshot, quantity, status, audit fields, and
+  row version. `wo_operation` owns route execution order/status. `wo_material_requirement` owns component
+  demand, backflush/phantom flags, and WMS stock-check result/detail. `wo_approval_log` is append-oriented
+  approval evidence.
+- `execution_session`, `operation_confirmation`, and `material_consumption` hold execution evidence.
+  Foreign keys bind them to the Work Order/operation. Lifecycle/audit triggers exist in the execution schema.
+- Creation, approval, operation start, confirmation, consumption, and completion use database transactions
+  where their use cases open a transaction. Outbox writes are part of the proven transaction in those paths.
+- WMS staging is a separate action. A WMS timeout/circuit failure returns `503 WMS_STAGING_UNAVAILABLE` or
+  `DEPENDENCY_UNAVAILABLE`; shortage returns `409` and stores shortage detail. There is no distributed
+  transaction across MES and WMS, so retry/reconciliation is required.
+- Traceability is called synchronously by confirmation. Dependency failure is mapped to `503` when the shared
+  retryable-dependency classifier recognizes it. The local transaction must not be described as globally atomic.
+- Durable duplicate protection, stale-version conflict handling, print retry, and offline queue behavior are
+  not all proven in the current handler set. They remain `IMPLEMENTED_BUT_NOT_TESTED`, `PARTIAL`, or `MISSING`
+  per feature rather than being promised to an AI agent.
+
+#### Work Order error and recovery matrix
+
+| Condition | Current evidence/status | HTTP/user effect | Recovery |
+|---|---|---|---|
+| Work Order not found | handler query | `404` on detail; compute currently maps use-case error to `404` | Refresh/list and verify identifier |
+| Missing/invalid master data | readiness check | `422` with `missing_prerequisites` | Fix released item revision/MBOM/routing/production version |
+| Quantity/date invalid | demand/handler checks | `400` or use-case error; exact normalized code is incomplete | Correct payload; add contract tests |
+| Invalid lifecycle transition | approval/use-case guards | `409` or raw conflict message | Refresh state and perform allowed action |
+| WMS shortage | staging result status | `409` with per-requirement shortage detail | Replenish, allocate, or adjust WO demand under policy, then retry staging |
+| WMS unavailable/circuit open | dependency classifier/client | `503` `WMS_STAGING_UNAVAILABLE` or `DEPENDENCY_UNAVAILABLE` | Retry after dependency recovery; reconcile WMS result |
+| Traceability unavailable | confirm dependency | `503` when classified retryable | Retry with same business request only if idempotency is proven |
+| invalid scan/consumed/expired label | downstream/use-case validation | `400`/dependency error depending on source | Scan correct label and do not retry a rejected label blindly |
+| labor/skill/equipment unavailable | no complete handler proof | `UNPROVEN` | Treat as a product gap; do not claim Compute and Check enforces it |
+| duplicate request/stale version | partial row-version/idempotency evidence | exact response not fully verified | Add integration tests and explicit conflict contract |
+| outbox/persistence failure | transaction error path | `500` or rollback | Retry after health recovery; inspect outbox/audit before replay |
+
+### 21.3 Active feature catalog
+
+The following is the active catalog at evidence level. A page/resource is listed as implemented only when
+its route/source and owning API were found. “CRUD” means the actual exposed operations, not the operations
+desired by the product documents.
+
+| Feature group | Active UI/pages | Actual API/resource surface | Lifecycle/status | Evidence status |
+|---|---|---|---|---|
+| Items and revisions | MES master-data Items | `items`, `item-revisions`, generic CRUD plus release | Revision release protection and outbox | `IMPLEMENTED_AND_VERIFIED` |
+| MBOM | MES MBOM | MBOM header/lines/substitutes resource endpoints | Draft/review/released behavior varies by handler | `PARTIALLY_IMPLEMENTED` |
+| Routing and operations | MES Routings/Operations | routing headers/operations and generic resources | Release/readiness paths present | `PARTIALLY_IMPLEMENTED` |
+| Production versions | MES Production Versions | CRUD, validate, release/readiness | Release and validation handlers present | `IMPLEMENTED_BUT_NOT_TESTED` |
+| Resources | Work Centers, Workstations, Equipment, assignments, capabilities, calendars | master-data resources plus resource-specific endpoints | active/inactive and scope fields | `PARTIALLY_IMPLEMENTED` |
+| Workforce | Employees, Shifts, Skills, schedules, work calendar | CRUD, employee skills, bulk schedules | skill data exists; runtime labor enforcement unproven | `PARTIALLY_IMPLEMENTED` |
+| Execution | Work Orders and operation flow | execution endpoints in 21.2 | lifecycle and outbox present | `PARTIALLY_IMPLEMENTED` |
+| Traceability | kiosk/traceability flows | labels, genealogy, split/consume/issue APIs | labels and genealogy present; route-wide rules need tests | `PARTIALLY_IMPLEMENTED` |
+| WMS master data | warehouses, zones, locations, map | WMS master-data resources | CRUD/read model and descriptions | `IMPLEMENTED_AND_VERIFIED` |
+| WMS inventory | balances, ledger, movements | inventory APIs, paginated tables, movement detail | ledger/balance invariants and idempotency | `IMPLEMENTED_BUT_NOT_TESTED` |
+| WMS inbound/outbound | inbound, receipt, putaway, outbound, allocation, picking, staging, dispatch | dedicated inbound/outbound endpoints | FEFO and shortage paths | `PARTIALLY_IMPLEMENTED` |
+| QMS inspection | plans, characteristics, defect codes, queue/results | inspection router CRUD/release/result record | server-side evaluation and failure event | `PARTIALLY_IMPLEMENTED` |
+| QMS NCR/CAPA | NCR queue, dispositions, CAPA | nonconformance router and inspection-failure consumer | Open/InProgress/Verified/Closed and dispositions | `IMPLEMENTED_BUT_NOT_TESTED` |
+| Authentication | Portal, per-console login, Kiosk | Keycloak OIDC and Kong paths | realm/client/role routing | `IMPLEMENTED_BUT_NOT_TESTED` for negative token cases |
+
+### 21.4 WMS and QMS behavioral boundaries
+
+WMS inventory has two authoritative views: an immutable movement ledger and a balance projection. An
+inventory mutation must preserve quantity arithmetic, source/destination constraints, lot/expiry rules,
+duplicate movement protection, and transaction/outbox boundaries. Current UI pagination defaults to 10 with
+10/50/100 choices where the shared table is applied. Any status/type label not passed through the console
+i18n/status mapping is a localization defect, not a new database state.
+
+QMS inspection plans contain localized names, characteristics, measurement type, limits, target, UOM,
+defect, and mandatory flags. Variable characteristics require a UOM; minimum cannot exceed maximum.
+Results are evaluated server-side. A failure can be consumed by the nonconformance service to create an NCR;
+NCR disposition and CAPA are QMS-owned. Future automatic MES/WMS hold, rework, return, or scrap effects are
+`PLANNED` unless an active consumer proves them. QMS handlers use role checks for manager/executive actions;
+full negative authorization coverage is still `IMPLEMENTED_BUT_NOT_TESTED`.
+
+### 21.5 Page-to-service traceability matrix
+
+| Application | Representative route/page | Query owner | Mutation owner | Key state/UI behavior | Status |
+|---|---|---|---|---|---|
+| Portal | `/` and application links | Portal/auth/session | navigation/logout | Keycloak login and console visibility | `IMPLEMENTED_BUT_NOT_TESTED` |
+| MES Console | `/master-data/items` | MES master data | MES master data lifecycle | revision release button disabled for non-releasable state | `IMPLEMENTED_AND_VERIFIED` |
+| MES Console | `/master-data/mboms`, `/master-data/routings` | MES master data | MES master data | detail modal, CRUD, release/readiness | `PARTIALLY_IMPLEMENTED` |
+| MES Console | execution/work-order page | MES execution | MES execution | WO list/detail and lifecycle actions | `PARTIALLY_IMPLEMENTED` |
+| MES Kiosk | terminal/operator execution routes | MES execution/traceability | execution/traceability | start, scan, confirm, abort | `PARTIALLY_IMPLEMENTED` |
+| WMS Console | warehouse map | WMS master data/inventory | map/read model and movements | recent movements and detail/error states | `IMPLEMENTED_BUT_NOT_TESTED` |
+| WMS Console | inventory/balances | WMS inventory | WMS inventory | table pagination and translated statuses | `IMPLEMENTED_BUT_NOT_TESTED` |
+| WMS Console | inbound/outbound pages | WMS inbound/outbound | same owning service | dialogs require confirmation before mutation | `PARTIALLY_IMPLEMENTED` |
+| QMS Console | plans/inspection queue/results | QMS inspection | QMS inspection | localized plan/characteristic/result UI | `PARTIALLY_IMPLEMENTED` |
+| QMS Console | NCR/CAPA pages | QMS nonconformance | QMS nonconformance | confirmation dialogs and lifecycle badges | `IMPLEMENTED_BUT_NOT_TESTED` |
+
+Frontend error handling uses route ErrorBoundary/404 behavior and toast/dialog mutation states. Pages that
+display raw backend `error` strings remain a UX/i18n gap; the API catalog must preserve the raw code for
+diagnosis while the UI maps stable codes to localized remediation text.
+
+### 21.6 Event and integration atlas
+
+| Event family | Producer | Trigger | Consumer/effect | Delivery/status |
+|---|---|---|---|---|
+| `MES.MasterData.*` | MES master data | lifecycle mutation | registered downstream consumers where configured | outbox relay; `IMPLEMENTED_BUT_NOT_TESTED` end to end |
+| `MES.Execution.WOCreated/WOApproved/*` | MES execution | create/approval/execution transaction | traceability or operational consumers where configured | outbox; `PARTIALLY_IMPLEMENTED` |
+| material consumption | MES execution | confirm/consumption | inventory/traceability integration depending on client/event | outbox plus synchronous calls; `PARTIAL` |
+| WMS inventory movement | WMS inventory | receipt/adjustment/transfer/dispatch | balance projection and audit/read models | ledger/projection; `IMPLEMENTED_BUT_NOT_TESTED` |
+| `QMS.Nonconformance.InspectionFailed.v1` | QMS inspection | failed finalized result | QMS nonconformance consumer creates NCR | Kafka/outbox consumer; `IMPLEMENTED_BUT_NOT_TESTED` |
+| `QMS.Nonconformance.CAPAClosed.v1` | QMS nonconformance | CAPA close | future downstream effects not proven | outbox; `PLANNED` downstream integration |
+
+Canonical envelope fields observed in event code include event type/version, event ID, source service,
+occurred time, trace ID, correlation ID, and payload. Outbox relay/retry exists in the relevant services;
+the repository does not prove a uniform dead-letter, ordering, or compatibility policy for every topic.
+
+```mermaid
+flowchart LR
+    MES[ MES Execution\n[SYNC] ] -->|WMS outbound client| WMS[ WMS Outbound\n[SYNC] ]
+    MES -->|Traceability client| TRACE[ MES Traceability\n[SYNC] ]
+    MES -->|outbox events| EK[(Kafka / Schema Registry)\n[ASYNC]]
+    QI[QMS Inspection] -->|InspectionFailed\n[ASYNC]| QN[QMS Nonconformance]
+    QN -->|NCR/CAPA outbox\n[ASYNC]| EK
+```
+
+This map intentionally distinguishes proven synchronous clients from asynchronous outbox paths. It does
+not imply that a QMS failure currently blocks or automatically changes MES/WMS state.
+
+### 21.7 Role, scope, and security atlas
+
+| Role/evidence | Application surface | Observed actions | Scope/enforcement status |
+|---|---|---|---|
+| `PROD_MANAGER` / production approval role | MES Console | master-data release, WO approval paths | Handler role checks exist in selected paths; complete matrix untested |
+| `OPERATOR` | MES Kiosk/execution | start, confirm, abort | Header role is consumed; trusted-token/audience enforcement must be proven |
+| `PLANT_MANAGER`, `EXECUTIVE` | QMS Console | plan/defect/CAPA manager actions | Router checks exist; site/area scope coverage unproven |
+| WMS operational roles | WMS Console/services | receipt, allocation, pick, dispatch, adjustments | Source and gateway checks require full negative test matrix |
+| Keycloak realm roles | Portal/console visibility | application access and logout | Realm/client configuration is the authority; direct console and wrong-client cases remain test gaps |
+
+Security invariant: frontend visibility is not authorization. Any route accepting `X-User-ID` or
+`X-Role-Code` must be behind a gateway/auth layer that validates the bearer token, client/audience, and
+scope, then overwrites forwarded identity headers. This is a current security risk until an integration test
+proves it.
+
+### 21.8 Canonical business rules
+
+| Rule ID | Rule | Enforced by | Status |
+|---|---|---|---|
+| `BR-MES-REV-001` | A released Item Revision is immutable; release only an allowed pre-release state | master-data router/table registry | `IMPLEMENTED_AND_VERIFIED` |
+| `BR-MES-WO-001` | Work Order creation requires demand shape and master-data readiness | execution create handler/use cases | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `BR-MES-WO-002` | Approval/rejection is a lifecycle action with approval log and transaction | execution approval use case | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `BR-MES-EXEC-001` | Operation confirmation requires an execution session and records good/scrap/consumption evidence | execution use case | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `BR-MES-EXEC-002` | Traceability dependency failure must not be presented as successful confirmation | execution/traceability client | `PARTIALLY_IMPLEMENTED` |
+| `BR-WMS-INV-001` | Inventory ledger is immutable and balance is derived/projected from movements | WMS inventory service/schema | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `BR-WMS-INV-002` | WMS shortage is a conflict result and must preserve shortage detail | MES staging and WMS outbound | `IMPLEMENTED_AND_VERIFIED` at handler level |
+| `BR-QMS-INSP-001` | Variable inspection characteristics require UOM and valid limits | QMS inspection router | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `BR-QMS-NCR-001` | A failed inspection can create one NCR through consumer/idempotency protection | QMS nonconformance consumer/router | `IMPLEMENTED_BUT_NOT_TESTED` |
+| `BR-SEC-SSO-001` | Console access requires a token valid for the intended Keycloak client/audience and realm role | Keycloak/Kong/backend | `PARTIALLY_IMPLEMENTED` |
+
+Use these IDs in future implementation records, tests, errors, and flow updates instead of restating
+different versions of the same rule.
+
+### 21.9 Implemented behavior versus product intent
+
+| Concern | Current implementation | Product intent | Gap/risk | Next step |
+|---|---|---|---|---|
+| WO stock availability | WMS check/staging path and shortage detail | reservation and complete availability planning | distributed consistency and reconciliation | add contract/idempotency/failure tests |
+| finite-capacity scheduling | operation timing computation | capacity-aware schedule | not proven | implement or explicitly defer scheduler |
+| labor and skills | master data and assignments | enforce skill/certification/availability | runtime guards unproven | add Compute/Start guards and tests |
+| equipment availability | equipment master data | real-time readiness | no complete runtime proof | integrate equipment state source |
+| MES API authentication | forwarded identity headers and gateway design | strict token/client/role enforcement | header spoofing risk if bypassed | add Kong-to-service negative tests |
+| QMS integration | inspection failure to QMS NCR | automatic MES/WMS holds/rework/scrap effects | downstream consumers not proven | define event contracts and consumers |
+| substitution approval | MBOM substitute fields/routes | controlled substitute approval | lifecycle enforcement needs proof | add approval/state tests |
+| WMS reservation | outbound client/check path | durable reservation across retries | no distributed transaction | idempotent reservation/reconciliation |
+| print failure recovery | label issue paths exist in traceability | durable print/reprint recovery | printer/device failure coverage incomplete | add print command status and retry contract |
+| offline kiosk | online execution flow | offline queue/sync | not found/proven | keep explicitly planned |
+
+## 22. Required end-to-end flow atlas
+
+### Flow A/B: product configuration to Work Order
+
+1. A planner creates an Item, then an Item Revision, MBOM, Routing, and Production Version in MES master
+   data. Each owner validates its own row and release state. Status: `PARTIAL`; every desired readiness rule
+   is not yet proven.
+2. The planner submits the Work Order payload in 21.2. MES determines demand and checks readiness, then
+   creates header/operation/material rows plus an outbox event. Status: `IMPLEMENTED_BUT_NOT_TESTED`.
+3. Compute and Check reads WO quantity/date and persisted operations and returns calculated timing. It is not
+   a finite-capacity, labor, or live equipment scheduler. Status: `PARTIAL`.
+4. Approval writes an approval log and may call WMS material reservation/check behavior. Approval is not a
+   distributed transaction. Status: `PARTIAL`.
+
+```mermaid
+sequenceDiagram
+    actor Planner
+    participant UI as MES Console
+    participant EX as MES Execution [SYNC]
+    participant MD as MES Master Data
+    participant WMS as WMS Outbound [SYNC]
+    participant K as Outbox/Kafka [ASYNC]
+    Planner->>UI: Enter demand
+    UI->>EX: POST /work-orders
+    EX->>EX: DetermineDemand + readiness [PARTIAL]
+    EX->>MD: Validate/readiness dependency
+    EX->>EX: Insert WO/ops/materials in transaction
+    EX->>K: WOCreated outbox
+    Planner->>UI: Compute and Check
+    UI->>EX: POST /{id}/compute-check
+    Planner->>UI: Approve
+    UI->>EX: POST /{id}/approve
+    EX->>WMS: reserve/check materials [SYNC]
+    EX->>K: WOApproved outbox
+```
+
+### Flow C/J: material staging and WMS movement
+
+MES staging calls WMS outbound separately from the approval transaction. WMS owns allocation, FEFO,
+picking, staging, and dispatch state. A shortage is returned as a conflict with detail; a timeout/open
+circuit is a retryable dependency failure. WMS owns the immutable movement ledger and balance projection.
+The exact event chain and compensation across services are `PARTIAL`, not assumed atomic.
+
+### Flow D/E/F: operation execution, split, and label issue
+
+The kiosk/operator starts a Work Order operation with a terminal reference, confirms good/scrap quantities,
+optional reason and scanned label/material data, and the execution service records confirmation and
+consumption. Traceability is called synchronously where configured. Parent/child split, genealogy, label
+numbering/template selection, print command, and reprint must be treated per endpoint evidence; offline
+queue and printer recovery are `PLANNED`/`PARTIAL` unless a dedicated handler proves them.
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant Kiosk
+    participant EX as MES Execution [SYNC]
+    participant TR as Traceability [SYNC]
+    participant E as Execution DB
+    Operator->>Kiosk: Login with Keycloak token
+    Operator->>Kiosk: Start operation / terminal
+    Kiosk->>EX: POST operation/start
+    EX->>E: Session + InProgress transaction
+    Operator->>Kiosk: Scan and enter good/scrap
+    Kiosk->>EX: POST operation/confirm + idempotency attempt
+    EX->>TR: Validate/create traceability [SYNC]
+    EX->>E: Confirmation + consumption + Finished
+    EX-->>Kiosk: Success or retryable dependency error
+```
+
+### Flow G/H: quality pass/fail
+
+QMS records and evaluates inspection results. A failed finalized result can publish/consume
+`InspectionFailed` to create an NCR, after which QMS disposition and CAPA actions proceed through their
+own guards. Automatic MES/WMS blocking, rework, return, or scrap consequences are not claimed unless an
+active consumer is found. This is the required boundary between implemented QMS flow and product intent.
+
+### Flow K/L: SSO and dependency recovery
+
+Portal redirects to the configured Keycloak realm/client. Console access should be reached with a token whose
+realm, audience/client, and roles match the target application. Kong must validate the token and trusted
+forwarded identity before backend handlers use role headers. For synchronous WMS/traceability calls, timeout
+or open circuit maps to a retryable error, local transaction rollback where applicable, and no false success.
+Outbox events already committed before a downstream failure remain for relay; cross-service compensation is
+not globally automatic.
+
+## 23. Relationship and state atlas
+
+### 23.1 Core relationship matrix
+
+| Source | Target | Relationship/owner | Validation time | Failure consequence |
+|---|---|---|---|---|
+| Site | Item/Work Center/Location | scope association; respective context owns row | master-data create/readiness | wrong-site readiness failure |
+| Item | Item Revision | one-to-many; MES master data | revision create/release | invalid or missing revision |
+| Item Revision | MBOM/Routing/Production Version | released revision configuration | release/readiness | WO cannot be created or computed |
+| MBOM | MBOM Line | one-to-many; MBOM owner | create/validate/release | missing/invalid material demand |
+| Routing | Routing Operation | one-to-many ordered route | create/validate/release | missing operation/timing |
+| Routing Operation | Work Center/Standard | runtime dependency | compute/start | unavailable or incomplete operation |
+| Work Order | Work Order Operation/Material Requirement | execution-owned composition | create/confirm | invalid execution/shortage |
+| Work Order | WMS Inventory | synchronous request, WMS owns stock | approve/stage/consume | shortage/dependency failure |
+| Work Order Operation | Label/Genealogy | synchronous traceability relation | confirm | no false completion on dependency error |
+| Inspection Result | NCR | async QMS consumer relation | finalize fail | NCR creation/retry/idempotency path |
+| NCR | Disposition/CAPA | QMS-owned one-to-many/link | disposition/CAPA action | invalid lifecycle conflict |
+| User | Role/Resource Scope/Terminal | identity and scope mapping | login/action | authorization failure |
+
+Relationships are stored directly when foreign keys exist, resolved synchronously for HTTP clients, and
+projected asynchronously only where an outbox/consumer is present. Effective dating and release rules must
+be read from the owning migration/handler; enum names are not sufficient evidence. Deletion is generally
+restricted for released/audited records and must be checked per resource.
+
+### 23.2 Lifecycle state coverage
+
+| Entity | Proven states/actions | Evidence status |
+|---|---|---|
+| Item Revision | Draft/InReview/Released/Inactive/Obsolete; release guard | `IMPLEMENTED_AND_VERIFIED` |
+| MBOM/Routing/Production Version | draft/review/released patterns and resource handlers | `PARTIALLY_IMPLEMENTED` |
+| Work Order | Draft, Approved, InProgress, Completed, Cancelled through use cases | `IMPLEMENTED_BUT_NOT_TESTED` |
+| Work Order Operation | Pending/InProgress/Finished | `IMPLEMENTED_BUT_NOT_TESTED` |
+| Execution Session | active/aborted/completed behavior in use cases | `IMPLEMENTED_BUT_NOT_TESTED` |
+| WMS inbound/outbound | request/receipt/putaway and allocation/pick/stage/dispatch handlers | `PARTIALLY_IMPLEMENTED` |
+| Inspection Result | pending/finalized with pass/fail evaluation | `PARTIALLY_IMPLEMENTED` |
+| NCR/CAPA | Open/InProgress/Verified/Closed and disposition handlers | `IMPLEMENTED_BUT_NOT_TESTED` |
+
+## 24. Documentation completeness and next workload
+
+The transform audit is now recorded, but exhaustive generated catalogs still have verification work. The
+next documentation step is to enumerate every active frontend route, Kong route, handler, migration table,
+event schema/consumer, and negative authorization test into machine-checkable inventories. That work belongs
+in the next implementation-fix record and must not be represented as complete in this file until generated
+from repository evidence.
+
+The current implementation baseline remains Phase 4 pending. No new product phase is claimed by this
+documentation update.
+
+## 26. MES Console Shared Route Header
+
+Status: `IMPLEMENTED_AND_VERIFIED` after the MES Console production build.
+
+`services/mes-console/src/components/RouteHeader.tsx` is the shared route-aware breadcrumb/header
+primitive. It is mounted once in `services/mes-console/src/App.tsx`, so all active routes receive it,
+including canonical paths, legacy `/console/mes/*` aliases, Work Order detail/create paths, MBOM detail
+paths, and the 404 route. Labels use existing MES i18n keys plus localized `home`, `detail`, breadcrumb,
+and page-navigation keys for VI/EN/JA/KO.
+
+The header provides accessible navigation semantics, a home link, section/current-route hierarchy, current
+pathname context, and responsive stacking for narrow tablet/mobile layouts. Page-specific action toolbars and
+business headers remain owned by their screens; the shared header does not duplicate those mutation actions.
+
+## 25. Real-Time Work Order Creation Progress
+
+Source of truth: `process-expend/Real-Time-Work-Order.md` and
+`implementation/mes-work-order-creation-realtime-progress.md`.
+
+Status: `PARTIALLY_IMPLEMENTED`. The current implementation exposes real persisted workflow progress for
+the existing synchronous MES creation contract. It does not claim separate MBOM/routing/resource/labor
+steps that the current create API does not emit.
+
+### 25.1 Current backend behavior
+
+- `POST /api/mes/execution/work-order-creation-workflows` accepts the existing create payload plus required
+  `Idempotency-Key`, creates a persisted workflow row, and returns `202` with `workflow_id`.
+- The in-process workflow runner emits actual `workflow.started`, request validation, master-data readiness,
+  creation transaction, `outbox_queued`, and final workflow events.
+- Readiness calls `CheckMasterDataReadiness` against the execution read model and exposes the resolved released
+  Production Version, MBOM, and Routing IDs.
+- Creation delegates to the existing `CreateWorkOrder` use case. That use case commits the WO header,
+  exploded material requirements, routing operations, and `MES.Execution.WOCreated.v1` transactional outbox
+  write together. The workflow reports `event_queued`, not downstream completion.
+- `GET /api/mes/execution/work-order-creation-workflows/:id` returns the owner-scoped persisted snapshot and
+  ordered events.
+- `GET /api/mes/execution/ws/work-order-creation` sends a `workflow.snapshot` on connection, then streams
+  versioned ordered events. The service verifies workflow ownership; Kong/Keycloak must remain the trusted
+  token and forwarded-identity boundary.
+
+### 25.2 Persistence and event statuses
+
+Migration `services/mes-execution-service/migrations/000006_work_order_creation_workflows.up.sql` adds
+`wo_creation_workflow` and `wo_creation_workflow_event`. Each event includes event ID, workflow ID,
+correlation ID, schema version, sequence, timestamp, source service, event type, and step/workflow payload.
+The frontend ignores duplicate sequences and requests the HTTP snapshot when it detects a gap or disconnect.
+
+Verified successful sequence: `workflow.started` -> request validation success -> readiness started/success ->
+transaction started/success -> `outbox_queued` -> `workflow.succeeded`.
+
+### 25.3 Current MES Console behavior
+
+`services/mes-console/src/routes/work-orders/WOCreateScreen.tsx` keeps the surface open as a large responsive
+dialog, displays timeline and summary columns, shows connection state, renders inline failures/skipped work,
+and only enables `Open Work Order` after persisted success. Strings are translated in `services/mes-console/src/i18n.ts`
+for Vietnamese, English, Japanese, and Korean. No timer or fabricated percentage drives progress.
+
+### 25.4 Verification evidence
+
+- MES Console production build: passed.
+- MES execution `go test ./...`: passed.
+- Targeted execution Docker build/recreate: passed; migration 000006 applied and service healthy.
+- Controlled container workflow probe: eight persisted events, `WO-1012`, six operations, five materials.
+- Same-user/same-payload idempotency probe: one Work Order remained.
+
+### 25.5 Explicit gaps
+
+- WebSocket browser integration and gateway negative-authorization tests are `IMPLEMENTED_BUT_NOT_TESTED`.
+- Browser WebSocket uses an owner identity query parameter because browser WebSocket cannot set arbitrary
+  headers; production exposure depends on Kong validating the Keycloak token and trusted identity.
+- Workflow execution is in-process. A service restart after `accepted` can leave a workflow without a worker;
+  durable queue/worker recovery is a Phase 4 hardening item.
+- The creation UX now uses the production-ready item-revision selector and submits explicit revision/site/
+  UOM/production-version IDs; the earlier limitation is superseded by section 27 below.
+- Separate MBOM, routing, resource, labor, capacity, and production-standard progress steps are not claimed.
+
+## 27. Work Order Creation UX Upgrade
+
+Source of truth: `process-expend/Improve-Work-Order-Creation-UX.md` and
+`implementation/mes-work-order-creation-ux.md`.
+
+Status: `IMPLEMENTED_AND_VERIFIED` for the current demo contract.
+
+The MES Work Order create form no longer asks the operator to type an item code as the primary
+selection. It calls `GET /api/mes/master-data/production-ready-item-revisions` with debounced search,
+planned date, optional site, and limit. The master-data service joins item, item revision, UOM,
+production version, MBOM, routing, and site records, then applies the existing production-version
+validation engine. Only released/effective and structurally ready configurations are returned.
+
+The selector option identity is `production_version_id`, not only `item_revision_id`, because one
+revision may have multiple valid production versions. The form stores the complete selected
+production configuration object and clears it only if a later remote refresh no longer returns that
+PV. The selected summary shows localized item name, revision, PV, UOM, site, MBOM ID, Routing ID, and
+readiness. The request submits `item_id`, `item_revision_id`,
+`production_version_id`, `uom_id`, `site_id`, quantity, and target date. The typed/display code is
+compatibility metadata; the backend resolves authoritative master data and performs final readiness.
+
+New Work Orders use the execution service's atomic daily counter and format `WO-YYYYMMDD-####`.
+Migration `000007_work_order_numbering_daily.up.sql` uses an `INSERT ... ON CONFLICT DO UPDATE`
+counter inside the Work Order transaction and preserves the existing unique code constraint. Legacy
+`WO-####` records remain unchanged. `GET /api/mes/execution/work-order-code-preview` is advisory only
+and returns `is_reserved: false`; concurrency can make the final code differ.
+
+The Page Detail modal is now a route-aware guide with two primary sections only: localized How to use
+instructions and one route-specific context section. Work Order creation has a ten-step ordered
+process; list pages describe their actual columns, filters, status meanings, and actions. Content is
+available in VI/EN/JA/KO and uses a semantic, scrollable dialog with anchor navigation.
+
+Verification on 2026-07-23: MES Console and master-data TypeScript builds passed; execution `go test
+./...` passed; affected Docker images built and were recreated; migration 000007 applied; live
+readiness endpoint returned valid configurations including two PVs for one revision; live preview
+returned `WO-20260723-0001`; MES Console returned HTTP 200. Existing Schema Registry compatibility
+409 startup warnings remain a pre-existing platform condition and did not prevent service health.
+
+Remaining boundaries: preview is not a reservation; readiness has a simple limit rather than cursor
+pagination; the workflow runner remains in-process; and separate downstream MBOM/routing/resource/
+capacity progress is not emitted by the current create contract.
+
+## 28. Internal Database ID Display Policy
+
+Source of truth: `process-fix/exposing-internal-database-IDs.md` and the audit recorded in
+`implementation/mes-work-order-creation-ux.md`.
+
+Status: `IMPLEMENTED` for the audited MES Console surfaces.
+
+Normal business UI must display business identity: Item/Revision code, Production Version code, MBOM
+code/name, Routing code/name, Work Center code/name, Employee code/name, Site code/name, UOM code, and
+localized statuses. UUIDs are retained only for API payloads, route/mutation parameters, React keys,
+logs, technical diagnostics, and explicit technical references.
+
+The master-data list contract enriches Production Version, Routing, and MBOM responses with related
+business display fields. The production-ready Work Order selector returns MBOM/Routing business codes
+and names alongside stable IDs. MES Console audit fixes removed visible UUID fallbacks from Production
+Version, Routing, MBOM, Work Order detail, Tier-2 notes, and workflow progress result rendering.
+
+## 29. MBOM and Routing Domain Model Enrichment
+
+Source of truth: `implementation-fix/Enrich-MBOM-and-Routing-Domain-Models.md` and
+`implementation-fix/mes-mbom-routing-domain-model-and-ux-enrichment.md`.
+
+Status: `IMPLEMENTED_AND_RUNTIME_VERIFIED` on 2026-07-23.
+
+Migration `0007_enrich_mbom_routing_domain_models` enriched MES MBOM and Routing headers with JSONB
+LocalizedText `name`, `description`, `change_reason`, and `engineering_note`, business version,
+purpose/type, validity and engineering reference metadata. Operations now have localized descriptions
+and quantity-reporting, partial-completion, operator-instruction, and quality-requirement fields.
+The migration is forward-only, preserves IDs, foreign keys, released lifecycle identity, and
+production-version references, and disables released-row protection only for controlled backfill.
+Existing verified records were backfilled from item, revision, site, code, and operation-sequence
+evidence; insufficiently evidenced records use code fallbacks and remain translation-review
+candidates.
+
+The seed normalizer writes JSONB LocalizedText for the new fields. API creation requires a non-empty
+Vietnamese primary name and validates localized metadata, dates, reference-document length, and
+MBOM/Routing enums. Partial updates remain valid without resending the name. List/readiness APIs
+return stable IDs plus business display fields: product/revision/site/UOM codes and localized names,
+Routing operation count, operation/work-center descriptions, and MBOM/Routing code/name.
+
+Event names and versions were not changed. MBOM/Routing event payloads add optional fields while
+retaining existing IDs, code, version, and lifecycle fields, so existing consumers remain compatible.
+
+MES Console now uses `/master-data/mboms/new`, `/master-data/routings/new`, and
+`/master-data/routings/:id/operations`. Inline MBOM header quick-create was removed. Dedicated forms
+use the shared VI/EN/JA/KO localized editor and cover basic, quantity/type, validity, and engineering
+metadata. Lists show localized business meaning, product/revision/site, purpose/type, UOM, and
+operation count. Routing operation selection shows operation/work-center code plus localized name
+and execution behavior.
+
+Verification: master-data and console TypeScript/production builds passed; Docker images were rebuilt
+and recreated; migration and localized seed startup succeeded; live MBOM, Routing, routing-operation,
+and production-readiness responses returned enriched fields. No browser-driver test is available in
+the repository, so browser screenshot automation remains an explicit verification gap.
+
+## 30. Work Order Form Display Identity
+
+On 2026-07-23, the MES Work Order creation form was refined so the production-ready selector uses the
+localized product name as its primary visible label. Item code, revision code, Production Version
+code, UOM, site, MBOM code, and Routing code remain secondary context rather than the only displayed
+identity. The readiness summary shows localized MBOM and Routing names with codes as references. The
+workflow progress header and summary show the localized product name first.
+
+This is display-only: the selector still uses `production_version_id` as its control value and the
+request still submits authoritative `item_id`, `item_revision_id`, `production_version_id`, `uom_id`,
+and `site_id`. The API contract and backend validation were not weakened or changed.
+
+## 31. MBOM and Item Creation Form Identity
+
+On 2026-07-23, MBOM creation stopped exposing an editable Version field. The form retains the
+backend default business version `1` and shows a generated, read-only MBOM code preview. Item
+creation now generates a read-only Item code preview when the modal opens; the generated code remains
+the submitted `code` value and backend uniqueness remains authoritative.
+
+Item Name creation now uses the shared `LocalizedTextFields` component with required Vietnamese and
+VI/EN/JA/KO fields. Each locale has an `Apply for all` action that copies the entered source value to
+all locale fields. The same component is used by MBOM localized name, description, change reason, and
+engineering note fields. Item Type remains a stable backend enum (`FG`, `SFG`, `RM`) but the UI now
+shows an information tooltip and translated descriptions explaining Finished Good, Semi-Finished
+Good, and Raw Material in all four supported languages.
+
+Code previews are client-side demo-form identity only, using a date and random suffix. They are
+read-only display values; the backend continues to validate and persist the submitted code.
+
+## 32. Browser Request-ID Compatibility
+
+On 2026-07-23, Work Order creation failed in a deployed browser runtime because the form called
+`crypto.randomUUID()` directly while that runtime exposed `crypto` without `randomUUID`. The shared
+`services/mes-console/src/lib/codePreview.ts` now provides `generateRequestId()`, using
+`crypto.randomUUID` when available, `crypto.getRandomValues` as the browser fallback, and a
+timestamp/random fallback for restricted runtimes. Work Order idempotency keys and generated code
+previews use this helper. The API contract and idempotency behavior are unchanged.
+
+## 33. Work Order Idempotency-Key CORS Contract
+
+The Work Order creation POST sends an `Idempotency-Key` header so duplicate submissions are protected
+by the execution workflow contract. On 2026-07-23, browser preflight failed because the header was
+missing from both Kong's global CORS allow-list and the execution service's direct CORS middleware.
+Both allow-lists now include `Idempotency-Key`. Authentication, forwarded identity headers, origin
+behavior, and backend idempotency semantics are unchanged.
+
+## 34. Work Order Operation Display Contract
+
+The execution Work Order detail endpoint now returns `operation_name` as LocalizedText in addition to
+the stable `operation_code`. Migration `000008_operation_names.up.sql` added the field to
+`wo_operation` and backfilled live legacy data. The verified database had 74 rows: 11 each for
+`OP-MIX`, `OP-PREP`, `OP-CUT`, `OP-MOLD`, `OP-TRIM`, and `OP-QC`, plus 18 generic `OP` rows. Known
+operations use evidence-based VI/EN/JA/KO names; unknown legacy codes use a controlled code fallback.
+
+New Work Order routing snapshots persist the same localized names. MES Console Work Order detail no
+longer shows a separate Operation Code column or an empty Operation Name column. It shows one
+localized Operation column as `Localized operation name (operation code)`, preserving the code only as
+technical context and using the current locale with a code translation fallback.
+
+## 35. Routing Detail UX and Backend Numbering
+
+Source of truth: `implementation-fix/routing-detail-modal-and-numbering.md`.
+
+Status: `IMPLEMENTED_AND_RUNTIME_VERIFIED` on 2026-07-23.
+
+MES Console `/master-data/routings` is now a business-facing routing inspection surface. A row click
+or keyboard activation opens a responsive detail modal with routing code, localized name and
+description, version, type, product/revision, site, lifecycle status, validity, and operation count.
+The modal renders operations in sequence order as a vertical process flow. Each operation displays
+sequence, business operation code, localized name, short description, work center, and predecessor
+indicators. A selected-operation panel displays scheduling mode, queue/move time, overlap,
+transfer-batch, milestone, confirmation, material-scan, and output-label requirements. UUIDs are
+retained only as API relationships and are not shown in the UI. Multiple predecessor values are
+rendered when the response supplies them; the current database relation remains the single
+`predecessor_seq` field and is therefore accurately shown as linear/first-or-dependent.
+
+New Routing Codes are owned by `mes-master-data-service`, not the browser. Migration
+`0008_routing_numbering_and_operation_timing` creates `md_routing_numbering_daily`, adds operation
+execution-detail columns with backward-compatible defaults, and creates a unique index on
+`md_routing_header(code)`. The create handler allocates a code inside the existing PostgreSQL
+transaction using an atomic `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` counter:
+`RT-YYYYMMDD-####`. Concurrent requests receive distinct values and the database remains the final
+uniqueness guard. `GET /api/mes/master-data/routing-headers/code-preview` is advisory only and
+returns `{ preview_code, is_reserved: false }`; the create form shows it read-only and the backend
+overwrites any submitted preview or client value.
+
+The pure formatter is covered by Vitest. Master-data and MES Console builds passed, both Docker
+images were rebuilt and recreated, migration 0008 was confirmed in startup logs, the master-data
+container became healthy, and the live preview plus routing-header/routing-operation endpoints
+returned the expected business and execution fields. The known Schema Registry compatibility warning
+for an existing ItemRevision subject is unrelated and remains non-blocking. Browser automation is
+not configured, so live container/API verification supplements the production build.
+
+## 36. MES Work Order Detail Contract and MES-to-WMS Material Requests
+
+Source of truth: `implementation-fix/mes-wms-work-order-material-request-integration.md` and
+`scripts/test-mes-wms-material-request-flow.sh`.
+
+On 2026-07-23 the live execution endpoint for Work Order `WO-1004` returned a document response with
+`header`, `operations`, `material_requirements`, and `approval_logs`. MES Console previously treated
+the response as a flat header, causing the Work Order detail route to render stale/undefined fields
+and crash in the deployed UI. `WODetailScreen` now normalizes `data.data || data`, requires a valid
+`header.wo_id`, and supplies safe arrays for every child collection before rendering. It displays
+material requirements and WMS staging results without exposing UUIDs as business identity.
+
+The verified executable-ready lifecycle is `Released`; `InProgress` remains stageable. Approval
+transitions Draft/PendingApproval to Released, writes the approval log, and writes
+`MES.Execution.WOApproved.v1` through the MES transactional outbox. There is no WMS Kafka consumer
+for that event in the current repository, so the canonical request creator is the existing explicit
+`POST /api/mes/execution/work-orders/:id/stage-materials` command. This prevents two independent
+automatic paths from creating duplicate WMS demand. The command rejects non-executable states with
+`WMS_INVALID_WORK_ORDER_STATE`, excludes phantom requirements, maps requirements to issue/fallback
+Work Centers, and persists WMS response status/detail on each MES material requirement.
+
+WMS outbound remains idempotent using an advisory transaction lock and the logical key
+`wo_id + work_center_ref + item_revision_id + required_qty`. Repeated staging returned the same
+request IDs and business request codes such as `MR-1DF642E8`; no second transfer was created. WMS
+uses existing WorkCenterStaging quantity first and transfers only the shortfall from eligible
+Storage inventory through the existing circuit-breaker-protected inventory client. Current WMS
+status vocabulary is intentionally limited to the schema-supported `Staged` and `Shortage` states.
+
+Migrations `000002_material_request_business_identity` and forward-only `000003_material_request_display_fields`
+add request code/source/update metadata and nullable item/work-center display fields. WMS outbound now
+exposes `GET /api/wms/outbound/material-requests`; WMS Console renders generated MES requests instead
+of the previous backend-gap placeholder. The non-destructive integration script checks health,
+detail shape, staging, duplicate-safe retry, and list visibility, and reports unsupported cases as
+`SKIPPED_WITH_DOCUMENTED_GAP`. Current run: 8 PASS, 0 FAIL, 18 documented skips. Full event-consumer,
+cancellation, request-line, reconciliation, isolated-fixture, and failure-injection flows remain
+Phase 4 gaps and are not claimed as implemented.
+
+## 37. WMS Outbound Request Table Display Contract
+
+On 2026-07-23, WMS `/outbound/requests` was refined after the table showed untranslated or misused
+headers and raw identifiers. Dedicated VI/EN/JA/KO keys now label request code, Work Order, Work
+Center, required quantity, request status, and creation time. The creation-time cell is formatted
+as exactly `HH:mm dd/mm/yyyy`; it no longer uses `common.created`, which is reserved for the
+successful-create toast. Required quantity includes the UOM immediately after the number, with the
+current demo fallback rendered as `item(s)`.
+
+The MES-to-WMS request contract now carries `work_order_code`, `work_order_name`, `work_center_code`,
+`item_code`, and optional `uom_code`. WMS migrations 000004 and 000005 persist these fields and grant
+the application role the update permission needed to enrich existing idempotent rows. The WMS list
+API returns these business fields, and the UI uses Work Order code/name and Work Center code without
+showing UUIDs. Live WO-1004 refresh confirmed `WO-1004` and `Cao su chân máy ô tô` in the request
+payload/list. The MES execution read model currently lacks the seeded Work Center projection, so
+missing Work Center code is shown with a translated unavailable label pending event replay.
+
+## 38. Product Recipe, S-Factory Rebrand, and Demo Cleanup
+
+The repository has no persisted EBOM or Product Recipe aggregate. Items, item revisions, MBOMs,
+routings, production versions, work centers, and production standards remain separate resources
+owned by `mes-master-data-service`. The implemented decision is Option 2: a read/navigation
+aggregator is consolidated into `/master-data/production-versions`: each Production Version row opens
+the combined Item Revision/MBOM/Routing detail and explicitly marks EBOM unavailable. The former
+`/master-data/product-recipes` path redirects to Production Version for bookmark compatibility. Existing
+CRUD screens remain authoritative writers; no duplicate recipe schema was added.
+
+The MES Work Order list opens a document detail modal using the shared
+`services/mes-console/src/routes/work-orders/workOrderDetail.ts` normalizer. The route detail page
+keeps compute, approval, rejection, and material-staging actions. Create Work Order is removed from
+the sidebar but remains available from the list page. `RouteHeader` now contains breadcrumbs only.
+`LocalizedTextFields` is the shared bordered VI/EN/JA/KO editor with Apply for all.
+
+Item Management now renders localized Item Type descriptions with the business code suffix, uses the
+shared `InfoTooltip`, and opens a combined Item plus Revision detail modal on row click or keyboard
+activation. Routing creation displays localized revision names and translated routing types, removes
+the UI Change Reason field, and includes a capability-constrained Operation Flow step. Migration 0009
+adds positive `cycle_time_sec` to the existing `md_resource_capability` table. Work Center CRUD edits
+operation capabilities and cycle time; the master-data API rejects routing operations without an
+active matching capability. This preserves `mes-master-data-service` as the sole owner.
+
+Active user-facing brand text is now `S-Factory` across portal, MES, kiosk, Keycloak display metadata,
+product documentation, seed site data, and the MES flow test. The Keycloak realm identifier
+`wonsealtech` and other technical integration identifiers remain unchanged intentionally.
+
+`scripts/consolidated-demo-cleanup-reseed.sh` is the guarded demo-data maintenance entrypoint. It
+requires `APPLY=1 APP_ENV=development|demo CONFIRM_DEMO_CLEANUP=YES`, truncates only MES execution,
+WMS outbound/inventory/inbound transactions, and QMS inspection/nonconformance transactions, then
+resets the MES demo Work Order numbering counter, invokes the existing WMS and QMS seed scripts,
+restarts the MES master-data service for its idempotent master-data/read-model seed, and prints
+verification counts. Master-data databases are preserved. The WMS seed now populates mandatory
+request code plus business display fields.
+The complete guarded run on 2026-07-23 succeeded: MES execution transaction tables 0, WMS 7
+material requests/24 movements/6 receipts, QMS 4 inspection results/4 NCRs/4 CAPAs.
+
+Evidence report: `implementation-expand/Product-Recipe-Model-Decision-Global-Rebrand-and-Data-Cleanup-Migration.md`.
+
+Maintenance rule: any future change to the consolidated cleanup/reseed script must update this
+section and its `implementation-expand` evidence report, preserve the development/demo guardrails,
+keep SQL inside the owning service database, record pre/post counts, and rerun the dry-run, guarded
+runtime, full workspace build, and Docker health checks. Do not add production execution flags or
+truncate master-data tables without a separately approved forward migration.
+
+## 39. Cross-Document Reconciliation: EBOM, Labor Matching, Production Version CRUD, Item Completeness
+
+Audit source: `process-expand/Cross-Doc-Reconciliation,-EBOM-Design,-Labor/Shift-Matching,-Production-Version-CRUD,-Item-Master-Data-Completeness.md`,
+the current `product-doc` catalogs, and runtime source under `services/mes-master-data-service` and
+`services/mes-execution-service`. Evidence status is classified using the repository precedence rule.
+
+### 39.1 Product catalog versus running master-data schema
+
+- `md_item` has required `code`, localized `name`, `item_group`, `item_type`, and non-null `base_uom_id`
+  in `schema.ts`/the labor-resource migration. Product documentation additionally specifies planning,
+  procurement, tracking, scrap, and lifecycle fields that are not present in this runtime table.
+  **CONFLICTING_SOURCES**; running schema wins.
+- `md_item_revision` has item, revision code, site, default flag, and common lifecycle/audit columns.
+  Specification reference, effective dates, change reason, and released-by are not present in the
+  running table. **CONFLICTING_SOURCES**.
+- `md_mbom_header` has item revision, site, business version, purpose, localized name/description,
+  quantities/UOM and engineering fields. Product-document lifecycle/effective fields are represented
+  through common columns where available; the documented header naming is not a separate runtime code
+  field. **CONFLICTING_SOURCES**.
+- `md_mbom_line` has parent/sequence/component/quantity/UOM, scrap, issue operation, backflush, and
+  phantom fields. Optional flag and effective dates from the catalog are absent. **CONFLICTING_SOURCES**.
+- `md_component_substitute` has source line, substitute revision, and priority. Conversion factor,
+  maximum usage, approval, and effective-from fields are absent. **CONFLICTING_SOURCES**.
+- `md_production_version` has item revision, MBOM header, routing header, site, default flag, and common
+  lifecycle/audit columns. Product-document lot-size and effective-date fields are absent.
+  **CONFLICTING_SOURCES**.
+
+### 39.2 Confirmed missing capabilities
+
+- The Production Version route is currently a read/navigation aggregator; there is no dedicated
+  `/master-data/production-versions/new` or `/:id/edit` screen. The generic backend registry exposes
+  the resource but does not provide the requested constrained CRUD workflow. **MISSING**.
+- No `md_ebom_*` table, EBOM route, or EBOM console screen exists in the repository. **MISSING**.
+- `md_operation_skill_requirement` exists and is seeded, but no routing-operation skill editor and no
+  employee eligibility/scoring/assignment logic exists in Work Order Compute & Check. **PARTIALLY_IMPLEMENTED**
+  for master data, **MISSING** for runtime labor matching.
+
+### 39.3 Employee and availability model
+
+`md_employee.default_work_center_id` is an optional employee attribute, not a Work Center roster join.
+Skills are independently stored in `md_employee_skill`; shift membership is stored in
+`md_employee_shift_schedule`. `md_employee_shift_schedule.schedule_status` already exists with the
+database constraint `Scheduled`, `Absent`, `OnLeave`, or `Cancelled`, and defaults to `Scheduled`.
+There is no clock-in, attendance, or real-time presence table/handler. **IMPLEMENTED_AND_VERIFIED** for
+scheduled status; **MISSING** for real-time attendance. Labor matching must use scheduled presence as
+an explicit availability proxy.
+
+### 39.4 Item UI gap
+
+`services/mes-console/src/routes/master-data/ItemsScreen.tsx` currently creates Items without a UOM
+selector, has no Item/Revision edit action, and exposes release only; no deactivation command is wired
+for this screen. The backend `md_item.base_uom_id` is non-null, so the UI cannot claim completeness.
+**PARTIALLY_IMPLEMENTED** for the data model and **MISSING** for the requested UI actions.
+
+### 39.5 Implementation decisions
+
+EBOM will be additive and owned by master data. Work Order explosion remains MBOM-only. Labor
+assignments will be execution-owned and recalculated on Compute & Check until Work Order approval;
+approved assignments are not silently overwritten. Scheduled shift status is the only availability
+signal in this scope. `BR-MES-LABOR-001` ranks matching employees by operation Work Center, closest
+sufficient skill level, lowest same-shift assignment load, then employee code ascending.
+
+## 40. Cross-Doc Implementation Status (2026-07-24)
+
+Evidence report: `implementation-expand/Cross-Doc-Reconciliation-EBOM-Labor-PV-Item-Completeness.md`.
+Master-data migration `0010_ebom_and_mbom_traceability` is applied in the running container and adds
+EBOM header/line data plus MBOM source-line traceability. `/master-data/eboms` supports design-tree
+create/release and released-EBOM-to-MBOM-draft conversion. Production Version create/edit routes use
+server-side Item Revision/Site/Released MBOM/Routing predicates. Item create/edit/deactivate handles
+required Base UOM.
+
+Execution migration `000009_labor_assignments_and_read_models` is applied and Compute & Check returns
+labor assignments, optional warnings, and mandatory shortages. Assignment recomputation is allowed
+until approval; approved/in-progress assignments are retained. Current master-data event projection
+does not populate the new employee/skill/schedule read models, so live labor matching is
+**PARTIALLY_IMPLEMENTED** and must not be described as fully available. Real-time attendance remains
+**MISSING**. MES execution still explodes Work Orders from MBOM only.
+
+## 41. MES Labor Demo Seed (2026-07-24)
+
+Evidence report: `implementation-expand/MES-Labor-Demo-Seed.md`.
+`npm run seed:mes:labor:demo` runs `scripts/seed-mes-labor-demo.sh`, an idempotent seed against the
+MES master-data database. It preserves master data and creates the existing `SHIFT-A` plus `SHIFT-B`
+and `SHIFT-C`, eight employees `EMP-001` through `EMP-008`, deterministic work-center and skill
+assignments, and weekday schedules over a rolling `CURRENT_DATE - 90` to `CURRENT_DATE + 90` window.
+`EMP-008` has a deliberate next-weekday `OnLeave` row; generated schedule rows otherwise use
+`Scheduled`. The verified live result is 8 employees, 3 shifts, and 1,032 schedules. The guarded
+`scripts/consolidated-demo-cleanup-reseed.sh` invokes this seed after the master-data service restart
+and verifies employee/schedule counts. Rerunning the seed is expected to retain the same counts.
+
+## 42. MES Console Tabbed Localization and Inline Item UOM (2026-07-24)
+
+Evidence report: `implementation-expand/MES-Console-Item-UOM-and-Tabbed-Localization.md`.
+The shared `services/mes-console/src/components/LocalizedTextFields.tsx` now uses the same tabbed
+VI/EN/JA/KO interaction as `LocalizedTextInput` in Work Center forms. This applies to Item, MBOM,
+Routing, and EBOM forms; Apply for all copies the active locale into all four values. Item creation and
+editing no longer select a preloaded UOM. The Base UOM card accepts a full name and sign, creates the
+UOM through `POST /api/mes/master-data/uoms` when the sign is new, reuses a matching sign otherwise,
+then submits the returned `base_uom_id`. Item UOM display uses `Full name (SIGN)`. This preserves the
+required `md_item.base_uom_id` foreign key and is **IMPLEMENTED_AND_VERIFIED** by typecheck, build,
+i18n scan, and diff checks.
+
+## 43. MES Console Display Indexes and Item Revision Labels (2026-07-24)
+
+Evidence report: `implementation-expand/MES-Console-Display-Indexes-and-Revision-Labels.md`.
+The MES console now separates visual ordinal positions from backend business sequence values.
+Routing Detail, the routing operation list, and the MBOM tree/line selectors display `1, 2, 3...`
+based on sorted operation or sibling position. Raw routing/MBOM `seq` values such as `10, 20, 30`
+remain unchanged for create/edit payloads and predecessor/dependency resolution. Routing Detail
+maps predecessor sequence references to the corresponding visual position when available.
+
+The master-data `md_item_revision` response now joins the parent `md_item` and exposes localized
+`item_name` plus `item_code`. EBOM Item Revision and Component Revision selectors display the
+localized Item name without a code; the revision name is the fallback, followed by the localized
+not-available label. This is **IMPLEMENTED_AND_VERIFIED**. The master-data service still logs the
+pre-existing Schema Registry backward-compatibility warning for the Item Revision event schema,
+but starts successfully and remains healthy.
+
+## 44. Prior Gap Closure and Item Revision Engineering Change Control (2026-07-24)
+
+Evidence report: `implementation-fix/close-prior-work-gaps.md`.
+Part A added master-data employee, schedule, and employee-skill event contracts plus execution local
+read-model consumers. Live runtime evidence now shows the EmployeeCreated payload carrying the
+localized `SK_MIX_MASTER` snapshot, `rm_employee_skill` containing `EMP-001 / SK_MIX_MASTER / L3`,
+and `rm_employee_shift_schedule` containing a `2026-07-24 Scheduled` row. The consolidated cleanup script now truncates
+`wo_operation_labor_assignment` and reports its post-cleanup count; EBOM master data remains preserved.
+
+Part B migrations `0011_item_revision_engineering_change_control`, `0012_item_revision_engineering_change_control_constraints`,
+and repair migration `0013_item_revision_backfill_repair` add revision-owned item-group/UOM/planning/
+procurement/tracking/scrap/specification/change-control fields, atomic per-item revision numbering,
+and UOM uniqueness. Item creation atomically creates `Item + R1 Draft`; successor creation requires a
+future/equal server-clock effective date and non-empty change reason; successor release closes the
+previous revision's effective window and default flag. The legacy `md_item` specification columns are
+**IMPLEMENTED_AND_VERIFIED as retained compatibility columns**, not dropped. A later drop migration is
+pending until the full read-path/UI audit and production probes are complete. Live probes verified UOM
+creation, atomic Item/R1 creation, backdate rejection, R2 numbering/linkage, R1 effective-to closure,
+and the concurrent UOM create-or-reuse invariant. No suitable live Work Order was present for a
+Compute & Check probe, so assignment scoring and explicit EMP-008 OnLeave exclusion remain
+**UNVERIFIED**. Full revision identity/status/effective-date UI rollout remains pending.
+
+## 45. MES Console Persistent Labels and Localized Employee Selectors (2026-07-24)
+
+Evidence report: `implementation-fix/mes-console-persistent.md`.
+The shared `SelectBase` now supports a persistent translated label and reusable two-line options:
+localized display name primary, italic muted business code secondary. The Employee create/edit form
+now labels Employee code, Full name, Site, Work Center, Status, hire date, and skill level. Site,
+Work Center, and Skill values resolve the current VI/EN/JA/KO locale with fallback instead of
+showing raw codes as values. Master-data migration `0014_site_localized_name` converted Site names
+to LocalizedText JSONB and enforced a non-empty Vietnamese name; Site, Work Center, and Skill create
+validation now follows the same rule. The governed i18n audit includes Site missing/code-mirrored
+checks and passed with zero open findings in the live demo database. The confirmed Employee form is
+**IMPLEMENTED_AND_VERIFIED**. Older forms with code-only selectors remain explicitly partial and are
+listed in the evidence report.
+
+## 46. MES Console Modal and Panel Layout Fix (2026-07-24)
+
+Evidence report: `implementation-fix/mes-console-modal-panel.md`.
+The Create EBOM issue was caused by a screen-local `fixed inset-0 z-50` overlay with no portal, no
+body scroll region, and no viewport height contract competing with the sticky `z-40` navbar. A shared
+portal-backed `Modal` now renders above the navbar at `z-[100]`, caps height relative to the
+viewport, scrolls only the body, and keeps header/footer action bars pinned. EBOM is
+**IMPLEMENTED_AND_VERIFIED** by production build and source inspection. Other legacy modal consumers
+are **PARTIAL** migration scope and are listed in the evidence report; browser screenshot and
+short-viewport automation remain unavailable.
+
+## 47. MES Master-Data 502 Rebuild and Filter Hotfix (2026-07-24)
+
+Evidence report: `implementation-fix/mes-master-data-502-rebuild.md`.
+Kong 502s during the service replacement were caused by temporary upstream connection refusal. The
+underlying persistent 500 was PostgreSQL `42702`: filtered Routing/MBOM queries used unqualified
+`site_id` predicates after joining Site and related tables. The filter builder now qualifies
+`item_revision_id`, `site_id`, and `lifecycle_status` with the base table. Master-data and MES Console
+images were rebuilt, Kong upstream resolution refreshed, and live MES Sites, Work Orders, filtered
+Routing, and filtered MBOM requests returned **200**. WMS/QMS probes without Keycloak tokens returned
+expected **401**, not 502.
+
+## 48. MES Console Real shadcn/ui Foundation (2026-07-24)
+
+Evidence report: `implementation-fix/Adopt-Real-shadcn-ui.md`.
+The MES Console now has a real shadcn generator contract in `services/mes-console/components.json`
+using the existing CSS-variable theme and `mes-light` mode. Official generated primitives are present
+for Button, Input, Label, Checkbox, Tooltip, Dialog, AlertDialog, Popover, Table, Calendar, and Form;
+the shared MES `Modal` facade is implemented on top of generated Dialog primitives. The generated Button
+was reconciled with MES semantics: safety-amber action default, semantic light-theme variants, and the
+legacy `type="button"` default are preserved.
+
+The Employee `common.site`/`common.level` leak was confirmed as missing locale resources, not a bad
+translation call. VI/EN/JA/KO entries were added. The static scanner now rejects rendered dotted
+translation-key literals while permitting intentional `titleKey`/`subtitleKey` props, and passes.
+
+`SelectBase`, `Badge`, and `Card` remain shared MES adapters because they preserve localized option
+rendering and status-tone behavior; full consumer-by-consumer migration remains an explicit follow-up.
+Browser screenshot and short-viewport verification are unavailable in the current environment. The
+adoption foundation is **IMPLEMENTED_AND_VERIFIED** by production build, scanner, and source inspection.
+
+## 49. MES-to-WMS Material Request Audit and Realtime Notifications (2026-07-24)
+
+Evidence report: `implementation-fix/mes-wms-material-request-flow-audit.md`; ADR:
+`docs/adr/0003-mes-wms-material-demand-and-realtime.md`.
+The explicit staging contract is confirmed as the single canonical WMS demand creator because MES
+approval publishes `MES.Execution.WOApproved.v1` but no WMS consumer exists for that event. MES staging
+now serializes commands by Work Order, excludes phantom/non-positive/already-Staged requirements, and
+aggregates duplicate MBOM lines by Work Order + Work Center + Item Revision before calling WMS.
+
+WMS retains its advisory lock through the idempotent path, canonicalizes the quantity identity, and
+enforces `uq_material_request_business_identity` through migration `000006`. Repeated logical requests
+return the existing record; shortage remains a business result, while dependency failures remain
+retryable. WMS event payloads include business display fields for downstream notifications.
+
+WMS previously had no WebSocket/SSE endpoint or console client. WMS Outbound now fans out staged/shortage
+outbox events through an authenticated WebSocket endpoint; WMS Console reconnects with jitter, shows
+connection status, deduplicates event IDs, invalidates affected queries, and refetches REST. This path is
+**IMPLEMENTED_BUT_NOT_TESTED** for valid-token event delivery because the live database has no Work Order
+and browser automation is unavailable. Docker rebuild, health, migration/index, invalid-token handshake,
+Go tests, and both console builds passed. Full live staging and valid-token realtime verification remain
+explicitly **UNVERIFIED**.
+
+## 50. Universal Name-Primary / Code-Secondary Display Rule (2026-07-24)
+
+Evidence report: `implementation-fix/Universal-Name-Primary-Display-Rule.md`; process:
+`process-fix/Universal-Name-Primary-Display-Rule.md`.
+
+This is a binding repository-wide UI rule for MES Console, WMS Console, QMS Console, and future
+consoles. Every business entity shown to a user must render its localized business name as the normal-
+weight primary identity. Its business code may appear only as smaller, muted secondary context. Raw
+internal UUIDs are never user-facing. This extends section 28 and must be applied by every future
+implementation or process prompt touching UI.
+
+The canonical existing example is the Work Order operation column: `Localized name (CODE)`. The Work
+Center column on that same screen was a known violation and is now supplied with projected localized
+name/code fields. MES Work Order material results show item name, code, quantity, UOM fallback, status,
+and Work Center identity. WMS outbound rows show item, Work Order, and Work Center names first with
+codes secondary. WMS request detail reads actual inventory-ledger movements through the inventory API,
+without cross-service database access.
+
+The live quantity investigation is **IMPLEMENTED_AND_VERIFIED**: MBOM math and stored WMS values match
+for all four named requests. The original issue was display/enrichment, not aggregation. UOM code/name
+enrichment for legacy execution rows is **PARTIAL / UNVERIFIED** and requires a future UOM projection;
+no fabricated UOM is permitted. The four audited WMS rows were backfilled from authoritative UOM data
+(`PCS` or `KG`) and now have item/work-center names and codes; broad historical UOM projection remains
+open.
+
+## 51. WMS Material Request Fulfillment Detail (2026-07-24)
+
+Evidence report: `implementation-fix/WMS-Material-Request-Fulfillment-Detail-Implementation.md`;
+process source: `implementation-fix/WMS-Material-Request-Fulfillment-Detail.md`.
+
+WMS request detail is now a traceability surface, not only an aggregate summary. The inventory API
+filters ledger movements by Work Order, Work Center, and Item Revision and returns lot code, expiry,
+UOM, source/destination location IDs/codes/names, quantity, timestamp, and movement type. The WMS
+Console resolves each location through the WMS master-data APIs and renders Warehouse → Zone →
+Storage Location → available Storage Bin links. Existing staging is represented by a real balance row;
+it is never reduced to a prose-only empty state. Shortage requests show the shortage summary and keep
+the same traceability table for any available movements. The warehouse map accepts `?location_id=` for
+a scoped deep link and reuses the existing map implementation.
+
+All WMS quantity surfaces use `formatWmsQuantity`, which produces unambiguous fixed decimal/thousands
+punctuation. The i18n scanner now checks literal translation calls against shared/app resource keys;
+the prior JSX-only scanner limitation is documented. Unknown translation calls fail the scan, while
+missing business names resolve to a translated unavailable label, never a raw dotted key.
+
+This implementation is **IMPLEMENTED_AND_VERIFIED** by service tests, WMS build, scanner regression,
+live API checks, migration, and container health. Browser click-through/screenshots and a genuine
+single-request multi-lot live fixture remain **UNVERIFIED**.
+
+## 52. WMS Material Request Detail UX (2026-07-24)
+
+Evidence report: `implementation-fix/Improve-WMS-Material-Request-Detail-UX-Implementation.md`;
+process source: `process-fix/Improve-WMS-Material-Request-Detail-UX.md`.
+
+WMS material-request detail rows now use a weighted location hierarchy instead of flat repeated text.
+Warehouse name/code is primary, Zone and Storage Location are compact linked context, and Bins are
+collapsed chips that expand only when needed. Each movement row has a directional source-to-destination
+route, while lot, quantity/UOM, expiry, movement type, and time remain independently scannable.
+Summary labels explain allocatable source stock and remaining staging shortage; tooltips describe
+multi-lot/bin/location aggregation and the shortage calculation. The page supports existing staging,
+full/partial allocation, and shortage states without changing the inventory-ledger API contract.
+
+The implementation is **IMPLEMENTED_AND_VERIFIED** by WMS Console build, i18n scan, Docker rebuild,
+and live API evidence. Browser screenshots and genuine multi-lot/multi-source single-request fixtures
+remain **UNVERIFIED**.
+
+## 53. Reusable WMS Location Hierarchy UX (2026-07-24)
+
+Evidence report: `implementation-fix/Redesign-WMS-Location-Hierarchy-Component-Implementation.md`;
+process source: `process-fix/Redesign-the-WMS-Location-Hierarchy-as-a-Reusable-UX-Component.md`.
+
+WMS material-request movement routes now use the shared `components/wms/location-hierarchy` family.
+`LocationHierarchyCard` renders Warehouse, Zone, Storage Location or Work Center staging location, and
+Bins as explicit display-only semantic nodes with icons, connector lines, localized primary names, and
+secondary codes. The only card navigation is the dedicated location icon. `LocationHierarchyBins` keeps
+available bins collapsed and shows their code/name/status inline when expanded; it supports an optional
+actual movement-bin ID without implying that every listed bin participated in the movement.
+The inventory movement API currently does not provide source/destination bin IDs, so the UI correctly
+labels current bins as available context until that contract is enriched.
+
+The implementation is **IMPLEMENTED_AND_VERIFIED** by WMS Console build, i18n scan, and source checks;
+Docker deployment and browser/keyboard review status are recorded in the implementation report.
+
+The Bin section also has a separate icon-only action to open the parent Location detail route. This
+action is intentionally independent from the Bin disclosure toggle and the individual Bin links, so
+users can inspect the location without changing the hierarchy card state.
+
+## 54. MES Resource Master Data Foundation (2026-07-24)
+
+Evidence report: `implementation-fix/mes-resource-master-data-foundation-phase-1.md`; process source:
+`process-expand/Complete-MES-Resource-Master-Data-Foundation.md`.
+
+The MES resource model is now explicit and effective-dated: `Site -> Production Area -> Work Center ->
+Workstation -> Equipment`. A Site is the plant boundary. A Production Area is an internal workshop,
+line, cell, or zone. A Work Center is a logical capacity/planning group. A Workstation is an execution
+point such as a kiosk, tablet, manual, or automatic station. Equipment is the physical machine or
+asset. Routing operations still reference Work Centers; equipment participation is represented by
+Resource Assignments.
+
+Migrations `0015`-`0018` added localized JSONB names/descriptions, Area sequence and parent metadata,
+Work Center resource/capacity/finite/concurrency fields, Workstation Area/execution/concurrency fields,
+Equipment manufacturer/model/serial/planning/execution-status/efficiency fields, and Assignment Site,
+role, scheduling, OEE, and effective-date fields. Database triggers enforce same-Site and same-Area
+hierarchy consistency, reject inactive or OutOfService assignment targets, validate Area parent Site
+and cycles, and a GiST exclusion constraint prevents overlapping Primary assignments for one Equipment.
+Assignment history is closed by `effective_to`; assignment move closes the old record and creates a
+replacement record. Delete is not the lifecycle operation.
+
+The master-data API has specialized assignment list/create/end/move endpoints and detail endpoints for
+Work Centers, Workstations, and Equipment. Assignment lifecycle events are written to the outbox:
+`MES.MasterData.ResourceAssignmentCreated.v1` and `MES.MasterData.ResourceAssignmentEnded.v1`. Generic
+resource projections include business names/codes, Site/Area context, child counts, and active
+assignment counts. UUIDs remain API/internal identifiers and are not intended for UI display.
+
+MES Console added `ResourceFoundationScreen` and reusable `ResourceHierarchy`. Production Area,
+Workstation, Equipment, Resource Assignment, and Work Center child routes use localized names as the
+primary identity, business code as secondary context, shared SelectBase/StatusBadge/localized-input
+components, assignment history, and a nested hierarchy view. Equipment forms expose execution status,
+planning-resource intent, and default efficiency. New translations are covered in VI/EN/JA/KO.
+
+Runtime state is **IMPLEMENTED_AND_VERIFIED** for builds, unit tests, i18n scanning, Docker startup,
+migrations, health, and resource API payloads. The existing Schema Registry incompatibility warning for
+`ItemRevisionReleased.v1` remains non-fatal and predates this task. Browser click-through/screenshot
+review was unavailable. Finite-capacity scheduling, machine allocation, kiosk enforcement, and OEE
+calculation are deliberately out of scope for this phase. The legacy Work Center list remains for
+backward compatibility while dedicated child/detail routes use the foundation implementation.
+## 55. MES Resource Detail React and Breadcrumb Hotfix (2026-07-24)
+
+The Workstation detail React error was a display-boundary bug, not bad resource data. Resource detail
+assignment projections correctly return localized objects such as `{vi, en, ja, ko}` for Work Center
+and Workstation names. Rendering those objects directly as JSX children caused minified React error
+31. `ResourceDetail` now resolves every localized assignment name through `useLocalizedText` before
+rendering and keeps business codes as secondary context.
+
+`RouteHeader` previously mapped resource collection routes but fell through to `common.notFound` for
+resource detail URLs. Explicit mappings now cover Work Center, Workstation, Equipment, Production Area,
+and Resource Assignment collection/detail routes. Transport JSON must be resolved at the UI display
+boundary and must never be rendered as a raw localized object.
+
+## 56. MES Resource Planning Constraints Phase 2 (2026-07-24)
+
+Evidence report: `implementation-fix/mes-resource-planning-constraints-phase-2.md`; process source:
+`process-fix/Complete-MES-Resource-Planning-Constraints-phase-2.md`.
+
+Phase 2 extends the Phase 1 resource hierarchy with planning constraints. Resource Capability now has
+Site, Product Revision or Item Group scope, Operation, Work Center, optional Equipment, eligibility,
+priority, speed factor, lot-size bounds, setup family, and effective dates. Equipment-specific capability
+rules take precedence over Work Center rules; explicit denial is a blocking result. Database validation
+checks active same-Site Work Centers, planning-eligible Equipment, and effective Resource Assignment.
+
+Resource Calendar now supports Work Center, Workstation, and Equipment daily records by Site, date, and
+Shift with Available/PlannedDown/Holiday status, minutes, capacity factor, reason, and deterministic
+uniqueness. Calendar inheritance is Equipment -> Workstation -> Work Center. Missing calendar data uses
+an advisory 480-minute/default-capacity fallback and is reported as a warning; PlannedDown/Holiday never
+adds capacity.
+
+Production Standards now include Site, Routing Operation, base quantity, setup/cycle time, labor count,
+yield, efficiency, source method, valid period, and review date. Released effective Equipment standards
+override Work Center standards; Work Center fallback is warned. Operation Skill Requirements now include
+Routing Operation, Site, required persons, mandatory flag, active state, and effective dates. Skill
+availability is reported as a requirement; Phase 2 does not claim employee schedule qualification.
+
+`POST /api/mes/master-data/resource-planning/readiness` is a non-persistent candidate projection. It
+checks routing context, effective scheduling assignments, Workstation/Equipment status and planning flag,
+capability precedence and lot limits, calendar inheritance, Production Standard precedence, and skill
+requirements. It returns backend-owned `Ready`, `ReadyWithWarnings`, or `Blocked` severity, stable error
+codes, deterministic candidate order, selected records, and decimal duration diagnostics. It does not
+persist a Work Order allocation.
+
+MES Console has dedicated planning CRUD routes for Resource Capabilities, Resource Calendars, Production
+Standards, and Operation Skill Requirements. The shared planning screen uses localized name-primary /
+code-secondary identity and SelectBase resource selectors; raw UUID inputs are not used for resource
+selection. The verification script is `scripts/test-mes-resource-planning-constraints.mjs`.
+
+Runtime status is **CORE_IMPLEMENTED_AND_VERIFIED**: migrations `0019`/`0020`, master-data build/tests,
+Console build, i18n scan, container health, four planning APIs, and a seeded `Ready` readiness probe all
+passed. Calendar month/bulk overwrite UX and an isolated mutation test database remain hardening gaps.
+Phase 3 owns persistent WO allocation, finite scheduling, reservation, operator assignment, kiosk
+enforcement, actual equipment confirmation, and OEE calculation.
+
+## 57. Phase 3 — Resource Planning in Work Order Allocation (2026-07-24)
+
+Process source: `process-fix/Phase-3—Integrate-Resource-Planning-into-Work-Order-Allocation.md`.
+Implementation report: `implementation-fix/mes-resource-planning-work-order-allocation-phase-3.md`.
+
+Before Phase 3, `wo_operation` had a logical Work Center and planned timestamps but no persistent
+Workstation/Equipment/Shift allocation, reservation occupancy, immutable planning snapshot,
+idempotency, audit history, or release-time readiness revalidation. Phase 3 keeps Routing Operations
+logical and stores physical resource decisions only in execution-owned Work Order allocation rows.
+
+Migration `000010_resource_allocations.up.sql` adds `wo_resource_allocation`,
+`wo_capacity_reservation`, `wo_resource_allocation_audit`, and
+`wo_resource_allocation_idempotency`, plus `wo_operation.routing_operation_id`. Allocation rows keep
+references and compact facts from the readiness response: assignment, capability, calendar,
+production standard, duration calculation, warning codes, actor, source, status, validation status,
+row version, and change reason. Reservations cover active Equipment, Workstation, and Work Center
+time windows. Superseded/cancelled reservations do not consume capacity. No historical Work Orders
+are fabricated allocations.
+
+`mes-execution-service` now has `ResourcePlanningClient`, a circuit-breaker guarded seven-second
+client for `POST /api/mes/master-data/resource-planning/readiness`, and `AllocationService`. The
+service revalidates every selected candidate, serializes resource mutations, detects overlapping
+active reservations, supports idempotent replay and conflicting-key rejection, writes transactional
+outbox events, records allocation audit, and marks stale allocations during revalidation. Current
+allocation endpoints are:
+
+- `GET /api/mes/execution/work-orders/:id/operations/:opId/resource-candidates`
+- `POST /api/mes/execution/work-orders/:id/operations/:opId/resource-allocation`
+- `POST /api/mes/execution/work-orders/:id/operations/:opId/reallocate`
+- `DELETE /api/mes/execution/work-orders/:id/operations/:opId/resource-allocation`
+- `POST /api/mes/execution/work-orders/:id/resource-allocations/revalidate`
+
+Approval now invokes allocation revalidation and blocks release unless every Work Order operation has
+a current valid committed allocation. Work Order detail exposes allocation state and the MES Console
+contains a translated Resource Planning section with operation status, candidate cards, duration,
+capacity/conflict warnings, and explicit selection/commit. UUIDs are not rendered as user-facing
+identity.
+
+Runtime verification: Docker build and Go compilation passed; MES Console build passed; migration
+`000010` applied in the live execution database; execution health is green; all four Phase 3 tables
+exist; the Work Order detail endpoint returns allocation-shaped operation data. Existing demo data was
+already Released with no shift/allocation, so it was not mutated and correctly cannot satisfy the new
+release gate. An isolated Phase 3 mutation script/database fixture remains required for genuine
+concurrency, conflict, stale-master-data, reallocation, and release-success evidence. Operator
+assignment, kiosk enforcement, actual equipment confirmation, autonomous scheduling, and OEE remain
+deferred.
+
+## 58. Correct MES Resource Hierarchy and Resource Management UX (2026-07-24)
+
+Process source: `process-fix/Correct MES-Resource-Hierarchy-and-Complete-Resource-Management-UX.md`.
+Implementation report: `implementation-fix/mes-resource-hierarchy-and-management-ux-correction.md`.
+
+The audited domain confirms that `md_site` is the physical Factory boundary. Existing `md_production_area`
+records describe workshop-level areas and are referenced by existing Work Centers, so their IDs and legacy
+route are preserved. Migration `0021_correct_resource_hierarchy_shopfloors` creates explicit `md_shopfloor`
+rows using the same IDs as the production areas, backfills Work Center and Workstation `shopfloor_id`, and
+adds Workstation machine requirement metadata. Migration `0022_shopfloor_version_compatibility` adds the
+version field required by the common master-data list contract.
+
+The canonical resource hierarchy is now Factory/Site -> Shopfloor -> Work Center -> Workstation -> Machine.
+The master-data registry aliases `factories` to `sites` and `machines` to legacy `equipment`; old routes remain
+compatible. Backend-owned daily numbering allocates FAC, SF, WC, WS, and MC business codes atomically through
+`md_resource_numbering_daily`. Work Center creation requires Shopfloor and derives Site/legacy Area. Workstation
+creation requires Work Center and at least one active same-Site eligible Machine, then creates the primary
+Resource Assignment in the same transaction. Safe-delete guards return `RESOURCE_REFERENCED` when dependent
+routing, assignment, capability, or production data exists.
+
+MES Console now has Factory, Shopfloor, and Machine routes, read-only generated-code fields, translated status
+switches/badges, hierarchy context, and Machine selectors for Workstation creation. Resource management tables
+paginate at 10 by default with 10/50/100 choices in all four supported locales. The Machine detail alias now
+renders manufacturer/model/serial fields, and production-area hierarchy rows are collapsed independently from
+the external-link navigation action.
+
+Runtime evidence: Docker rebuild/recreate succeeded; live Factory, Shopfloor, and Machine endpoints returned
+localized records; migrations 0021/0022 are applied; the live database contains two Shopfloors, four Work Centers
+with Shopfloor IDs, and one Workstation with a Shopfloor ID. MES Console build and master-data unit tests pass.
+The non-fatal pre-existing Schema Registry compatibility warning remains. Remaining gaps are a canonical
+Factory-to-Shopfloor tree visualization, derived-parent selectors in Resource Assignment CRUD, broader filters,
+and browser click-through evidence.
+
+## 59. Workstation Machine Groups and Machine Quantity (2026-07-24)
+
+Process source: `process-fix/Implement-Workstation-Machine-Groups-and-Machine-Quantity-Management.md`.
+Implementation report: `implementation-fix/mes-workstation-machine-groups-and-machine-quantity.md`.
+
+The former Workstation model accepted one `machine_id` and created one generic Primary assignment. Migration
+`0023_workstation_machine_groups_and_units` preserves `md_equipment` IDs as compatibility Machine Master/
+physical identities, adds required `quantity >= 1`, creates `md_machine_unit`, and backfills one unit per
+existing Machine. Unit codes use the existing Machine code plus a sequence suffix such as `EQ-MOLD-HYD01-01`.
+Quantity increases create additional units; reductions deactivate units only when no active assignment references
+them, otherwise `MACHINE_UNIT_ACTIVE_ASSIGNMENT` is returned. History is retained rather than deleting units.
+
+The same migration creates `md_workstation_machine_group` and extends `md_resource_assignment` with
+`machine_group_id`, `machine_unit_id`, `requirement_type`, and `sequence_no`. Deterministic legacy Workstation/
+Machine assignments become `MG-LEGACY-<workstation>` groups with one Required Primary member. New group APIs
+support list, atomic create, member add/end, and effective-dated Primary replacement. Group creation validates
+same-Site active machines, exactly one Primary, unique active physical units, minimum required member count,
+and Required/Optional Supporting semantics.
+
+MES Console Workstation forms now have a localized Machine Groups editor with multiple groups, Primary selection,
+Supporting checkboxes, Required/Optional controls, and minimum counts. Machine forms require quantity. Machine and
+Workstation detail APIs return units, group, role, requirement, effective dates, and business codes. Resource
+Assignment creation selects Workstation first and derives Site/Work Center, with optional Machine Group selection.
+
+Readiness now evaluates group candidates and returns `machine_group`, `primary_machine`, `supporting_machines`,
+Primary Equipment compatibility, capability/calendar/standard diagnostics, and blocking codes for missing or
+unavailable required members. Optional Supporting failure is a warning. Execution migration
+`000011_machine_group_allocations.up.sql` stores group/Primary Unit/Supporting Unit snapshots and creates
+MachineUnit reservations for required Supporting members in the same transaction as Workstation, Work Center,
+and Primary Equipment reservations.
+
+Runtime evidence: master-data migration 0023 and execution migration 000011 applied in Docker; builds and tests
+pass; live Machine units and Workstation group detail endpoints return migrated records; live readiness returns a
+group candidate with Primary unit identity. Remaining limitations are browser screenshots, a dedicated physical-
+unit editing picker/serial panel, full group-aware revalidation reporting, and explicit Supporting replacement
+policy configuration.
+
+## 60. Resource CRUD, Operation Capabilities, and Hierarchical Skills (2026-07-24)
+
+Process source: `process-fix/Complete-MES-Resource-CRUD,-Operation-Capabilities,-and-Hierarchical-Skill.md`.
+Implementation report: `implementation-fix/mes-resource-crud-operation-capabilities-and-hierarchical-skill.md`.
+
+Migration `0024_resource_crud_capabilities_and_skill_scopes` adds `md_workstation_machine_requirement` for Machine
+Group requirement lines with role, required quantity, Required/Optional type, optional pinned physical-unit IDs,
+sequence, effective period, active state, and actor timestamps. Existing resource assignments are backfilled and the
+old assignment/minimum columns remain temporarily for compatibility. Workstation creation accepts the new
+`requirements` payload, validates same-site active machines and available physical units, and stores compatibility
+assignment snapshots.
+
+The migration adds `md_workstation_operation_capability` for workstation/operation eligibility and cycle/setup/base
+quantity, efficiency, scheduling mode, effective dates, and lifecycle. Workstation detail and capability routes expose
+localized operation names and business codes. `GET /machines/:id/change-impact` reports active group demand,
+assignments, and capabilities before machine changes. Skill governance now has `md_skill_group`, scope types
+Machine/Workstation/WorkCenter/Employee, and `md_resource_skill_assignment`; existing skills use a localized LEGACY
+group. Skill-group and scoped assignment APIs are available.
+
+MES Console Workstation editing uses requirement lines instead of the deprecated minimum-machine control. New labels
+are translated in VI/EN/JA/KO. Docker migration/build verification is complete, and health, skill-group, and machine
+change-impact endpoints were exercised against live seeded data. Existing Schema Registry compatibility warnings are
+non-fatal. Full Work Center composition CRUD, a dedicated skill-management workspace, browser click-through evidence,
+and complete execution-side group-aware revalidation remain partial hardening work.
+
+## 62. MES Workstation and Machine Form i18n Hotfix (2026-07-24)
+
+Implementation report: `implementation-fix/mes-console-workstation-machine-i18n-hotfix.md`.
+
+The shared resource form no longer exposes English-only helper/caption text for Workstations or Machines. Generated
+code guidance, hierarchy caption, Workstation execution modes, and Machine execution statuses use VI/EN/JA/KO keys.
+Hierarchy context now resolves localized Factory, Shopfloor, and Work Center names instead of showing only codes.
+MES Console build, static i18n scan, diff check, and Docker rebuild/restart passed.
+
+## 61. Resource CRUD, Workstation Operations, Work Center Composition, and Skill Management (2026-07-24)
+
+Process source: `process-fix/Complete-MES-Resource-CRUD,-Workstation-Operations,-Work-Center-Composition,-and-Skill-Management.md`.
+Implementation report: `implementation-fix/mes-resource-crud-workstation-operations-work-center-composition-skill-management.md`.
+
+Migration `0025_work_center_composition_and_code_reservations` adds effective-dated
+`md_work_center_composition` rows, each linking a Work Center to a same-Shopfloor Workstation and one supported
+Operation. `POST /work-centers/:id/composition` replaces the active composition transactionally and rejects missing
+Workstations, cross-hierarchy Workstations, empty operation selections, and operations without active Workstation
+capabilities. Work Center detail remains the routing-facing logical resource; Routing does not reference Workstations.
+
+Backend business-code reservations are stored in `md_business_code_reservation` and exposed through
+`POST /business-codes/reservations`. Reservations are opaque, expire after two hours, and are consumed atomically by
+resource create handlers. Prefixes include FAC, SF, WC, WS, MC, scoped SKG, and scoped SK. Existing direct allocation
+remains a compatibility fallback.
+
+Workstation forms now persist supported operation capabilities with cycle time, setup time, base quantity, efficiency,
+and effectivity. Work Center forms select Shopfloor-filtered Workstations and operation checkboxes from the active
+capabilities. Skill Management routes are `/master-data/skills`, `/master-data/skills/machines`,
+`/master-data/skills/workstations`, and `/master-data/skills/work-centers`; the workspace manages central scoped
+groups/definitions, while Machine/Workstation/Work Center forms assign existing scoped skills. The status control now
+uses Radix Switch, and the corrupted Vietnamese `common.site` source is corrected to `Nhà máy`.
+
+Machine dependency projections and stable delete errors are available; required machine-demand checks block unsafe
+quantity reductions. Docker migration/build/runtime checks passed. Remaining gaps are full dependency-impact dialog
+navigation, inline Other-skill creation, actor directory name projection, and complete execution legacy-path
+revalidation migration.

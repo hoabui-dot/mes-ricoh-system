@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Copy } from 'lucide-react';
 import { SUPPORTED_LOCALES, languageNames, type LocalizedText, type SupportedLocale, useI18n } from '@mom-platform/i18n-ui-shared';
 import { Button, Input } from './ui';
 
@@ -12,6 +13,10 @@ interface LocalizedTextInputProps {
 export const LocalizedTextInput: React.FC<LocalizedTextInputProps> = ({ label, value, onChange, required }) => {
   const { t } = useI18n();
   const [activeLocale, setActiveLocale] = useState<SupportedLocale>('vi');
+  const applyForAll = () => {
+    const source = String(value[activeLocale] ?? '').trim();
+    if (source) onChange({ vi: source, en: source, ja: source, ko: source });
+  };
 
   return (
     <div className="space-y-2">
@@ -35,11 +40,10 @@ export const LocalizedTextInput: React.FC<LocalizedTextInputProps> = ({ label, v
           ))}
         </div>
       </div>
-      <Input
+      <div className="flex items-center justify-between gap-2"><span className="text-xs text-slate-400">{languageNames[activeLocale]}</span><Button type="button" size="sm" variant="ghost" disabled={!String(value[activeLocale] ?? '').trim()} onClick={applyForAll} title={t('common.applyForAll')}><Copy className="h-3 w-3" />{t('common.applyForAll')}</Button></div><Input
         required={required && activeLocale === 'vi'}
         value={value[activeLocale] ?? ''}
         onChange={(event) => onChange({ ...value, [activeLocale]: event.target.value })}
-        placeholder={`${languageNames[activeLocale]} ${label}`}
       />
       {required && !value.vi && <div className="text-xs text-amber-300">VI {t('common.name')} required</div>}
     </div>

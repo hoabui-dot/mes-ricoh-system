@@ -36,6 +36,32 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        surface: {
+          DEFAULT: 'hsl(var(--surface))',
+          subtle: 'hsl(var(--surface-subtle))',
+          elevated: 'hsl(var(--surface-elevated))',
+        },
+        selected: {
+          DEFAULT: 'hsl(var(--selected))',
+          foreground: 'hsl(var(--selected-foreground))',
+        },
+        hover: 'hsl(var(--hover))',
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+        },
+        danger: {
+          DEFAULT: 'hsl(var(--danger))',
+          foreground: 'hsl(var(--danger-foreground))',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--info))',
+          foreground: 'hsl(var(--info-foreground))',
+        },
         action: {
           DEFAULT: 'hsl(var(--action))',
           hover: 'hsl(var(--action-hover))',

@@ -5,6 +5,7 @@ import { api, setTokenProvider } from '../../lib/api/client';
 import { qk } from '../../lib/queryKeys';
 import { useAuth } from '../../context/AuthContext';
 import { useWarehouseFilter } from '../../context/WarehouseFilterContext';
+import { useWmsRealtime } from '../../hooks/useWmsRealtime';
 import { Button, SelectBase } from '../ui';
 import { CommandPalette } from './CommandPalette';
 
@@ -12,6 +13,7 @@ export function Topbar() {
   const { user, logout } = useAuth();
   const { t, locale, setLocale } = useI18n();
   const { warehouseId, setWarehouseId } = useWarehouseFilter();
+  const realtimeStatus = useWmsRealtime();
   const client = useQueryClient();
   setTokenProvider(() => user?.token);
   const warehouses = useQuery({ queryKey: qk.warehouses, queryFn: api.listWarehouses });
@@ -34,6 +36,10 @@ export function Topbar() {
         <div className={degraded ? 'flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs font-semibold text-amber-700' : 'flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs font-semibold text-success'}>
           {degraded ? <AlertTriangle className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
           {degraded ? t('topbar.breakerDegraded') : t('topbar.breakerHealthy')}
+        </div>
+        <div className={realtimeStatus === 'connected' ? 'hidden items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs font-semibold text-success xl:flex' : 'flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs font-semibold text-amber-700'}>
+          <span className="h-2 w-2 rounded-full bg-current" />
+          {t(`topbar.realtime.${realtimeStatus}`)}
         </div>
         <Languages className="h-4 w-4 text-muted-foreground" />
         <SelectBase

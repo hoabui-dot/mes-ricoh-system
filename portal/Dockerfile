@@ -2,6 +2,15 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_KEYCLOAK_URL
+ARG VITE_MES_URL
+ARG VITE_WMS_URL
+ARG VITE_QMS_URL
+ENV VITE_KEYCLOAK_URL=${VITE_KEYCLOAK_URL}
+ENV VITE_MES_URL=${VITE_MES_URL}
+ENV VITE_WMS_URL=${VITE_WMS_URL}
+ENV VITE_QMS_URL=${VITE_QMS_URL}
+
 COPY package.json package-lock.json ./
 COPY libs/shared-kernel/package.json ./libs/shared-kernel/
 COPY libs/i18n-ui-shared/package.json ./libs/i18n-ui-shared/

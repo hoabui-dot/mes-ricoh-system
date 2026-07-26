@@ -16,6 +16,7 @@ import (
 	sharedkernel "github.com/mom-platform/shared-kernel-go"
 	"github.com/mom-platform/wms-outbound-service/internal/infrastructure/events"
 	servicehttp "github.com/mom-platform/wms-outbound-service/internal/infrastructure/http"
+	"github.com/mom-platform/wms-outbound-service/internal/realtime"
 )
 
 func main() {
@@ -45,14 +46,16 @@ func main() {
 		defer pool.Close()
 	}
 
-	consumer := events.NewConsumer(brokers, pool)
+	keycloakURL := getEnv("KEYCLOAK_USERINFO_URL", "http://platform-keycloak:8080/realms/wonsealtech/protocol/openid-connect/userinfo")
+	hub := realtime.NewHub(keycloakURL)
+	consumer := events.NewConsumer(brokers, pool, hub)
 	consumer.Start()
 	defer consumer.Stop()
 	relay := sharedkernel.NewOutboxRelayWorker(sharedkernel.OutboxRelayConfig{Pool: pool, Brokers: brokers, ClientID: "wms-outbound-service", PollIntervalMs: 1000, BatchSize: 50, MaxRetries: 3})
 	relay.Start()
 	defer relay.Stop()
 
-	server := &http.Server{Addr: ":" + port, Handler: servicehttp.NewRouter(pool, inventoryURL), ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second}
+	server := &http.Server{Addr: ":" + port, Handler: servicehttp.NewRouter(pool, inventoryURL, hub), ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second}
 	go func() {
 		log.Printf("[Bootstrap] wms-outbound-service listening on :%s", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -93,7 +96,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
-	for _, relPath := range []string{"migrations/000001_initial_outbound_schema.up.sql"} {
+	for _, relPath := range []string{"migrations/000001_initial_outbound_schema.up.sql", "migrations/000002_material_request_business_identity.up.sql", "migrations/000003_material_request_display_fields.up.sql", "migrations/000004_material_request_work_order_identity.up.sql", "migrations/000005_material_request_identity_backfill_permission.up.sql", "migrations/000006_material_request_business_identity_unique.up.sql", "migrations/000007_material_request_name_fields.up.sql", "migrations/000008_item_revision_read_model.up.sql"} {
 		name := filepath.Base(relPath)
 		var applied string
 		if err := pool.QueryRow(ctx, `SELECT name FROM schema_migrations WHERE name = $1`, name).Scan(&applied); err == nil {

@@ -19,7 +19,7 @@ print("\n--- 1. Testing MES Console Frontend Availability ---")
 try:
     with urllib.request.urlopen(CONSOLE_URL) as resp:
         html = resp.read().decode()
-        assert "<title>Won Seal Tech — MES Planning & Master Data Console</title>" in html
+        assert "<title>S-Factory — MES Planning & Master Data Console</title>" in html
         print(f"✅ MES Console Frontend HTML loaded successfully at {CONSOLE_URL}")
 except Exception as e:
     print(f"❌ Failed to reach MES Console UI: {e}")

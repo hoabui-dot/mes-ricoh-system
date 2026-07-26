@@ -1,4 +1,4 @@
-# Product and Process Overview — Won Seal Tech MOM Platform
+# Product and Process Overview — S-Factory MOM Platform
 
 Version: 1.2.0
 Last updated: 2026-07-23
@@ -12,7 +12,7 @@ status; use the catalog files for field-level schema and validation detail.
 
 ## 1. Business Context
 
-Won Seal Tech manufactures technical rubber products and rubber-metal automotive components. The MES
+S-Factory manufactures technical rubber products and rubber-metal automotive components. The MES
 MVP controls the master data, work orders, traceability labels, shopfloor execution, kiosk workflow,
 and planner console needed to produce parts such as `FG-WS-CM01` (automotive engine mount).
 

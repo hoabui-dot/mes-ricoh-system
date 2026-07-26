@@ -125,7 +125,7 @@ export const LoginScreen: React.FC = () => {
         </form>
 
         <div className="text-center text-xs text-slate-600">
-          MOM Platform — Won Seal Tech Shopfloor Kiosk Gateway v1.0
+          S-Factory MOM Platform — Shopfloor Kiosk Gateway v1.0
         </div>
       </div>
     </div>

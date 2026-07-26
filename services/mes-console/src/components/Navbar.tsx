@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User, Shield } from 'lucide-react';
+import { LogOut, User, Shield, Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 import { Button } from './ui';
 
@@ -14,6 +15,12 @@ const localeLabels: Record<SupportedLocale, string> = {
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const { locale, setLocale, t } = useI18n();
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('mes-console-theme') as 'dark' | 'light') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('mes-light', theme === 'light');
+    localStorage.setItem('mes-console-theme', theme);
+  }, [theme]);
 
   return (
     <header className="h-16 bg-primary border-b border-border px-6 flex items-center justify-between sticky top-0 z-40 shadow-[0_12px_32px_rgba(2,6,23,0.28)]">
@@ -22,15 +29,15 @@ export const Navbar: React.FC = () => {
           W
         </div>
         <div>
-          <h1 className="text-base font-bold text-slate-100">Won Seal Tech — MES Console</h1>
-          <p className="text-xs text-slate-400">{t('navbar.subtitle')}</p>
+          <h1 className="text-base font-bold text-primary-foreground">S-Factory — MES Console</h1>
+          <p className="text-xs text-primary-foreground/75">{t('navbar.subtitle')}</p>
         </div>
       </div>
 
       <div className="flex items-center space-x-4">
-        <div className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-primary-foreground/80">
           <span>{t('navbar.language')}</span>
-          <div className="inline-flex rounded-md border border-slate-700 bg-slate-950 p-1" role="group" aria-label={t('navbar.language')}>
+          <div className="inline-flex rounded-md border border-primary-foreground/25 bg-primary/40 p-1" role="group" aria-label={t('navbar.language')}>
             {SUPPORTED_LOCALES.map((item) => (
               <Button
                 key={item}
@@ -46,13 +53,16 @@ export const Navbar: React.FC = () => {
             ))}
           </div>
         </div>
-        <div className="flex items-center space-x-3 bg-slate-950/75 px-3 py-1.5 rounded-md border border-slate-700">
-          <div className="w-8 h-8 bg-primary border border-slate-700 rounded-md flex items-center justify-center text-amber-300">
+        <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="ghost" size="icon" title={theme === 'dark' ? t('navbar.lightMode') : t('navbar.darkMode')} aria-label={theme === 'dark' ? t('navbar.lightMode') : t('navbar.darkMode')}>
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </Button>
+        <div className="flex items-center space-x-3 rounded-md border border-primary-foreground/20 bg-primary/35 px-3 py-1.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-primary-foreground/20 bg-primary text-action">
             <User className="w-4 h-4" />
           </div>
           <div className="text-left">
-            <div className="text-xs font-bold text-slate-200">{user?.username}</div>
-            <div className="text-[10px] font-mono text-amber-300 flex items-center space-x-1">
+            <div className="text-xs font-bold text-primary-foreground">{user?.username}</div>
+            <div className="flex items-center space-x-1 font-mono text-[10px] text-action">
               <Shield className="w-3 h-3" />
               <span>{user?.roles[0] || 'OPERATOR'}</span>
             </div>

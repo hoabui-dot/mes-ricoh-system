@@ -6,6 +6,7 @@ import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { MasterDataApiError, authHeaders, fetchResource, masterDataBaseUrl } from '../../lib/masterDataApi';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum } from '../../lib/i18nLabels';
+import { SelectBase } from '../../components/ui';
 
 type Preset = 'month' | 'quarter' | 'year';
 
@@ -124,8 +125,8 @@ export const WorkCalendarScreen: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-5 space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <label className="space-y-1 text-sm"><span className="text-slate-400">{t('workCalendar.workCenterFilter')}</span><select value={workCenterId} onChange={(e) => { setWorkCenterId(e.target.value); setEmployeeIds([]); }} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3"><option value="">{t('common.all')}</option>{workCenters.map((wc) => <option key={wc.master_id} value={wc.master_id}>{wc.code}</option>)}</select></label>
-            <label className="space-y-1 text-sm"><span className="text-slate-400">{t('workCalendar.shift')}</span><select value={shiftId} onChange={(e) => setShiftId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3">{shifts.map((shift) => <option key={shift.master_id} value={shift.master_id}>{shift.code} ({shift.start_time}-{shift.end_time})</option>)}</select></label>
+            <label className="space-y-1 text-sm"><span className="text-slate-400">{t('workCalendar.workCenterFilter')}</span><SelectBase value={workCenterId} onValueChange={(value) => { setWorkCenterId(value); setEmployeeIds([]); }} options={[{ value: '', label: t('common.all') }, ...workCenters.map((wc) => ({ value: wc.master_id, label: wc.code }))]} aria-label={t('workCalendar.workCenterFilter')} /></label>
+            <label className="space-y-1 text-sm"><span className="text-slate-400">{t('workCalendar.shift')}</span><SelectBase value={shiftId} onValueChange={setShiftId} options={shifts.map((shift) => ({ value: shift.master_id, label: `${shift.code} (${shift.start_time}-${shift.end_time})` }))} aria-label={t('workCalendar.shift')} /></label>
           </div>
           <div>
             <div className="text-sm text-slate-400 mb-2">{t('workCalendar.employees')}</div>

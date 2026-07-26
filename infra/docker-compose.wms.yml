@@ -166,14 +166,15 @@ services:
       MIGRATION_DATABASE_URL: postgresql://wms_outbound_owner:wms_outbound_owner_pass@wms-outbound-db:5432/wms_outbound_db
       INVENTORY_SERVICE_URL: http://wms-inventory-service:3070
       KAFKA_BROKERS: kafka:29092
+      KEYCLOAK_USERINFO_URL: http://platform-keycloak:8080/realms/wonsealtech/protocol/openid-connect/userinfo
 
   wms-console:
     build:
       context: ..
       dockerfile: services/wms-console/Dockerfile
       args:
-        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://100.68.50.41:18080}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://jar-planes-possession-liberal.trycloudflare.com}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://progressive-differ-constitutional-immigration.trycloudflare.com}
     container_name: wms-console
     networks: [platform-net]
     ports:

@@ -1,7 +1,7 @@
 {
   "realm": "wonsealtech",
-  "displayName": "Won Seal Tech",
-  "displayNameHtml": "<strong>Won Seal Tech</strong> — MOM Platform",
+  "displayName": "S-Factory",
+  "displayNameHtml": "<strong>S-Factory</strong> — MOM Platform",
   "enabled": true,
   "loginWithEmailAllowed": true,
   "registrationAllowed": false,
@@ -19,7 +19,6 @@
   "maxFailureWaitSeconds": 900,
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 5,
-
   "roles": {
     "realm": [
       {
@@ -49,7 +48,6 @@
       }
     ]
   },
-
   "clients": [
     {
       "clientId": "portal-client",
@@ -62,15 +60,33 @@
       "protocol": "openid-connect",
       "rootUrl": "http://100.68.50.41:13000",
       "baseUrl": "http://100.68.50.41:13000",
-      "redirectUris": ["http://100.68.50.41:13000/*", "http://localhost:13000/*", "http://localhost:3000/*", "https://*.trycloudflare.com/*", "*"],
-      "webOrigins": ["http://100.68.50.41:13000", "http://localhost:13000", "http://localhost:3000", "https://*.trycloudflare.com", "+", "*"],
+      "redirectUris": [
+        "http://100.68.50.41:13000/*",
+        "http://localhost:13000/*",
+        "http://localhost:3000/*",
+        "https://*.trycloudflare.com/*",
+        "*"
+      ],
+      "webOrigins": [
+        "http://100.68.50.41:13000",
+        "http://localhost:13000",
+        "http://localhost:3000",
+        "https://*.trycloudflare.com",
+        "+",
+        "*"
+      ],
       "adminUrl": "http://100.68.50.41:13000",
       "frontchannelLogout": true,
       "attributes": {
         "frontchannel.logout.url": "http://100.68.50.41:13000/logout",
         "post.logout.redirect.uris": "+"
       },
-      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+      "defaultClientScopes": [
+        "web-origins",
+        "roles",
+        "profile",
+        "email"
+      ]
     },
     {
       "clientId": "mes-client",
@@ -83,15 +99,33 @@
       "protocol": "openid-connect",
       "rootUrl": "http://100.68.50.41:13052",
       "baseUrl": "http://100.68.50.41:13052",
-      "redirectUris": ["http://100.68.50.41:13052/*", "http://localhost:13052/*", "http://100.68.50.41:4000/*", "http://localhost:4000/*", "*"],
-      "webOrigins": ["http://100.68.50.41:13052", "http://localhost:13052", "http://100.68.50.41:4000", "http://localhost:4000", "+", "*"],
+      "redirectUris": [
+        "http://100.68.50.41:13052/*",
+        "http://localhost:13052/*",
+        "http://100.68.50.41:4000/*",
+        "http://localhost:4000/*",
+        "*"
+      ],
+      "webOrigins": [
+        "http://100.68.50.41:13052",
+        "http://localhost:13052",
+        "http://100.68.50.41:4000",
+        "http://localhost:4000",
+        "+",
+        "*"
+      ],
       "adminUrl": "http://100.68.50.41:13052",
       "frontchannelLogout": true,
       "attributes": {
         "frontchannel.logout.url": "http://100.68.50.41:13052/logout",
         "post.logout.redirect.uris": "+"
       },
-      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+      "defaultClientScopes": [
+        "web-origins",
+        "roles",
+        "profile",
+        "email"
+      ]
     },
     {
       "clientId": "wms-client",
@@ -104,15 +138,29 @@
       "protocol": "openid-connect",
       "rootUrl": "http://100.68.50.41:13091",
       "baseUrl": "http://100.68.50.41:13091",
-      "redirectUris": ["http://100.68.50.41:13091/*", "http://localhost:13091/*", "*"],
-      "webOrigins": ["http://100.68.50.41:13091", "http://localhost:13091", "+", "*"],
+      "redirectUris": [
+        "http://100.68.50.41:13091/*",
+        "http://localhost:13091/*",
+        "*"
+      ],
+      "webOrigins": [
+        "http://100.68.50.41:13091",
+        "http://localhost:13091",
+        "+",
+        "*"
+      ],
       "adminUrl": "http://100.68.50.41:13091",
       "frontchannelLogout": true,
       "attributes": {
         "frontchannel.logout.url": "http://100.68.50.41:13091/logout",
         "post.logout.redirect.uris": "+"
       },
-      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+      "defaultClientScopes": [
+        "web-origins",
+        "roles",
+        "profile",
+        "email"
+      ]
     },
     {
       "clientId": "qms-client",
@@ -125,18 +173,31 @@
       "protocol": "openid-connect",
       "rootUrl": "http://100.68.50.41:13130",
       "baseUrl": "http://100.68.50.41:13130",
-      "redirectUris": ["http://100.68.50.41:13130/*", "http://localhost:13130/*", "*"],
-      "webOrigins": ["http://100.68.50.41:13130", "http://localhost:13130", "+", "*"],
+      "redirectUris": [
+        "http://100.68.50.41:13130/*",
+        "http://localhost:13130/*",
+        "*"
+      ],
+      "webOrigins": [
+        "http://100.68.50.41:13130",
+        "http://localhost:13130",
+        "+",
+        "*"
+      ],
       "adminUrl": "http://100.68.50.41:13130",
       "frontchannelLogout": true,
       "attributes": {
         "frontchannel.logout.url": "http://100.68.50.41:13130/logout",
         "post.logout.redirect.uris": "+"
       },
-      "defaultClientScopes": ["web-origins", "roles", "profile", "email"]
+      "defaultClientScopes": [
+        "web-origins",
+        "roles",
+        "profile",
+        "email"
+      ]
     }
   ],
-
   "users": [
     {
       "username": "admin",
@@ -152,7 +213,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["EXECUTIVE"],
+      "realmRoles": [
+        "EXECUTIVE"
+      ],
       "clientRoles": {
         "realm-management": [
           "realm-admin"
@@ -173,7 +236,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["PLANT_MANAGER"]
+      "realmRoles": [
+        "PLANT_MANAGER"
+      ]
     },
     {
       "username": "qc.tech01",
@@ -189,7 +254,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["QC_TECHNICIAN"]
+      "realmRoles": [
+        "QC_TECHNICIAN"
+      ]
     },
     {
       "username": "operator01",
@@ -205,7 +272,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["OPERATOR"]
+      "realmRoles": [
+        "OPERATOR"
+      ]
     },
     {
       "username": "warehouse.staff",
@@ -221,10 +290,11 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["WAREHOUSE_STAFF"]
+      "realmRoles": [
+        "WAREHOUSE_STAFF"
+      ]
     }
   ],
-
   "clientScopes": [
     {
       "name": "roles",

@@ -1,153 +1,263 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { PlusCircle, AlertTriangle, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, CheckCircle, ClipboardCopy, Clock3, Loader2, Radio, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
+import { Button, ComboboxBase } from '../../components/ui';
+import { generateRequestId } from '../../lib/codePreview';
+import { gatewayBaseUrl } from '../../lib/masterDataApi';
+
+type ReadyProduct = {
+  item_id: string;
+  item_code: string;
+  item_name: Record<string, string> | string;
+  item_revision_id: string;
+  revision_code: string;
+  display_code: string;
+  base_uom_id: string;
+  base_uom_code: string;
+  production_version_id: string;
+  production_version_code: string;
+  mbom_header_id: string;
+  mbom_name?: Record<string, string> | string;
+  mbom_code: string;
+  routing_header_id: string;
+  routing_name?: Record<string, string> | string;
+  routing_code: string;
+  site_id: string;
+  site_code: string;
+  readiness_status: 'Ready';
+};
+
+type StepStatus = 'pending' | 'running' | 'succeeded' | 'warning' | 'event_queued' | 'failed' | 'timed_out' | 'skipped' | 'cancelled';
+type WorkflowStep = { id: string; order: number; status: StepStatus; title_key?: string; message_key?: string; message_params?: Record<string, string | number>; result?: Record<string, any>; error?: { code?: string; detail?: string; retryable?: boolean; technical_reference?: string } };
+type WorkflowEvent = { event_type: string; sequence: number; workflow_id: string; step?: WorkflowStep; workflow?: { status?: string; work_order_id?: string; work_order_code?: string } };
+
+const stepDefinitions = [
+  { id: 'request_validation', order: 1, titleKey: 'workOrders.creation.steps.request.title' },
+  { id: 'master_data_readiness', order: 2, titleKey: 'workOrders.creation.steps.readiness.title' },
+  { id: 'create_transaction', order: 3, titleKey: 'workOrders.creation.steps.transaction.title' },
+  { id: 'outbox_queued', order: 4, titleKey: 'workOrders.creation.steps.outbox.title' },
+];
+
+function statusIcon(status: StepStatus) {
+  if (status === 'running') return <Loader2 className="h-4 w-4 animate-spin" />;
+  if (status === 'succeeded') return <Check className="h-4 w-4" />;
+  if (status === 'event_queued') return <Radio className="h-4 w-4" />;
+  if (status === 'failed' || status === 'timed_out') return <XCircle className="h-4 w-4" />;
+  if (status === 'warning') return <AlertTriangle className="h-4 w-4" />;
+  return <Clock3 className="h-4 w-4" />;
+}
 
 export const WOCreateScreen: React.FC = () => {
   const { user } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
-
-  const [itemCode, setItemCode] = useState('FG-WS-CM01');
+  const [itemCode, setItemCode] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [products, setProducts] = useState<ReadyProduct[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<ReadyProduct | null>(null);
+  const [expectedCode, setExpectedCode] = useState('');
   const [quantity, setQuantity] = useState<number>(500);
   const [targetDate, setTargetDate] = useState<string>('2026-08-01');
   const [submitting, setSubmitting] = useState(false);
-  const [missingPrereqs, setMissingPrereqs] = useState<string[] | null>(null);
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [workflowStatus, setWorkflowStatus] = useState('accepted');
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'unavailable'>('connecting');
+  const [events, setEvents] = useState<WorkflowEvent[]>([]);
+  const [workflowResult, setWorkflowResult] = useState<{ work_order_id?: string; work_order_code?: string; operationCount?: number; materialCount?: number } | null>(null);
+  const [workflowError, setWorkflowError] = useState<{ code?: string; detail?: string; technical_reference?: string } | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<number | null>(null);
+  const lastSequenceRef = useRef(0);
+  useEffect(() => {
+    const timer = window.setTimeout(async () => {
+      setProductsLoading(true);
+      setProductsError('');
+      try {
+        const host = window.location.hostname;
+        const response = await fetch(`${gatewayBaseUrl()}/api/mes/master-data/production-ready-item-revisions?search=${encodeURIComponent(productSearch)}&planned_date=${targetDate}&limit=50`, { headers: { 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER' } });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || t('workOrders.create.productSelector.loadError'));
+        const nextProducts = (data.data || []) as ReadyProduct[];
+        setProducts(nextProducts);
+        if (selectedProductId && !nextProducts.some((product) => product.production_version_id === selectedProductId)) {
+          setSelectedProductId('');
+          setSelectedProduct(null);
+          setItemCode('');
+        }
+      } catch (error: any) {
+        setProductsError(error.message || t('workOrders.create.productSelector.loadError'));
+      } finally { setProductsLoading(false); }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [productSearch, targetDate, user?.userId]);
+
+  useEffect(() => {
+    const loadPreview = async () => {
+      try {
+        const host = window.location.hostname;
+        const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-order-code-preview`, { headers: { 'X-User-ID': user?.userId || 'admin' } });
+        const data = await response.json();
+        if (response.ok) setExpectedCode(data.preview_code || '');
+      } catch { setExpectedCode(''); }
+    };
+    void loadPreview();
+  }, [user?.userId]);
+
+  const steps = useMemo(() => {
+    const byId = new Map(events.flatMap((event) => event.step ? [[event.step.id, event.step]] as const : []));
+    return stepDefinitions.map((definition) => ({ ...definition, ...(byId.get(definition.id) || { status: 'pending' as StepStatus }) }));
+  }, [events]);
+
+  const applyEvent = (event: WorkflowEvent) => {
+    if (event.sequence > lastSequenceRef.current + 1 && lastSequenceRef.current > 0 && workflowId) {
+      void recoverSnapshot(workflowId);
+      return;
+    }
+    if (event.sequence <= lastSequenceRef.current) return;
+    lastSequenceRef.current = event.sequence;
+    setEvents((current) => [...current.filter((item) => item.sequence !== event.sequence), event].sort((a, b) => a.sequence - b.sequence));
+    if (event.workflow?.status) setWorkflowStatus(event.workflow.status);
+    if (event.workflow?.work_order_id || event.workflow?.work_order_code) setWorkflowResult((current) => ({ ...current, work_order_id: event.workflow?.work_order_id, work_order_code: event.workflow?.work_order_code }));
+    if (event.step?.error) setWorkflowError(event.step.error);
+    if (event.step?.result) setWorkflowResult((current) => ({ ...current, ...event.step?.result }));
+  };
+
+  const recoverSnapshot = async (id: string) => {
+    try {
+      const host = window.location.hostname;
+      const resp = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-order-creation-workflows/${id}`, { headers: { 'X-User-ID': user?.userId || 'admin' } });
+      if (!resp.ok) throw new Error('snapshot');
+      const snapshot = await resp.json();
+      lastSequenceRef.current = 0;
+      setEvents([]);
+      (snapshot.events || []).forEach((event: WorkflowEvent) => applyEvent(event));
+      setWorkflowStatus(snapshot.status || 'running');
+      if (snapshot.work_order_id || snapshot.work_order_code) setWorkflowResult((current) => ({ ...current, work_order_id: snapshot.work_order_id, work_order_code: snapshot.work_order_code }));
+      setConnectionStatus('connected');
+    } catch {
+      setConnectionStatus('unavailable');
+    }
+  };
+
+  useEffect(() => {
+    if (!workflowId) return;
+    let disposed = false;
+    const connect = () => {
+      if (disposed) return;
+      setConnectionStatus(lastSequenceRef.current ? 'reconnecting' : 'connecting');
+      const host = window.location.hostname;
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const socket = new WebSocket(`${gatewayBaseUrl().replace(/^http/, protocol)} /api/mes/execution/ws/work-order-creation?workflow_id=${encodeURIComponent(workflowId)}&user_id=${encodeURIComponent(user?.userId || 'admin')}`.replace(' ', ''));
+      socketRef.current = socket;
+      socket.onopen = () => setConnectionStatus('connected');
+      socket.onmessage = (message) => {
+        try {
+          const event = JSON.parse(message.data) as WorkflowEvent;
+          if (event.event_type === 'workflow.snapshot' && Array.isArray((event as any).events)) {
+            ((event as any).events as WorkflowEvent[]).forEach(applyEvent);
+          } else applyEvent(event);
+        } catch { /* malformed transport data is ignored; HTTP snapshot remains authoritative */ }
+      };
+      socket.onclose = () => {
+        if (disposed) return;
+        setConnectionStatus('reconnecting');
+        void recoverSnapshot(workflowId);
+        reconnectRef.current = window.setTimeout(connect, 1500);
+      };
+      socket.onerror = () => setConnectionStatus('reconnecting');
+    };
+    connect();
+    return () => {
+      disposed = true;
+      if (reconnectRef.current) window.clearTimeout(reconnectRef.current);
+      socketRef.current?.close();
+      socketRef.current = null;
+    };
+  }, [workflowId, user?.userId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setMissingPrereqs(null);
-
+    setWorkflowError(null);
+    setEvents([]);
+    lastSequenceRef.current = 0;
     try {
       const host = window.location.hostname;
-      const resp = await fetch(`http://${host}:18000/api/mes/execution/work-orders`, {
+      const idempotencyKey = generateRequestId();
+        const resp = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-order-creation-workflows`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-ID': user?.userId || 'admin',
-          'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER',
-        },
-        body: JSON.stringify({
-          item_code: itemCode,
-          quantity: Number(quantity),
-          target_date: targetDate,
-        }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey, 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER' },
+          body: JSON.stringify({ item_id: selectedProduct?.item_id, item_code: selectedProduct?.display_code, item_name: selectedProduct?.item_name, item_revision_id: selectedProduct?.item_revision_id, production_version_id: selectedProduct?.production_version_id, quantity: Number(quantity), uom_id: selectedProduct?.base_uom_id, site_id: selectedProduct?.site_id, target_date: targetDate }),
       });
-
-      const data = await resp.json();
-
-      if (!resp.ok) {
-        // If CheckMasterDataReadiness returned missing prerequisites list
-        if (data.missing_prerequisites && Array.isArray(data.missing_prerequisites)) {
-          setMissingPrereqs(data.missing_prerequisites);
-          toast.error(t('woCreate.readinessFailed'));
-          return;
-        }
-        throw new Error(data.message || data.error || t('woCreate.createFailed'));
-      }
-
-      toast.success(t('woCreate.created', { code: data.wo_code || '' }));
-      navigate(`/work-orders/${data.wo_id || data.id}`);
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || t('woCreate.createFailed'));
+      setWorkflowId(data.workflow_id);
+      setWorkflowStatus(data.status || 'accepted');
     } catch (err: any) {
+      setWorkflowError({ code: 'ERR-WO-REQUEST-001', detail: err.message });
       toast.error(err.message);
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
+
+  const copyReference = async () => { if (workflowId) { await navigator.clipboard?.writeText(workflowId); toast.success(t('workOrders.creation.referenceCopied')); } };
+  const closeWorkflow = () => { if (workflowStatus === 'succeeded' && workflowResult?.work_order_id) navigate(`/work-orders/${workflowResult.work_order_id}`); else setWorkflowId(null); };
+  const connectionText = { connecting: t('workOrders.creation.connection.connecting'), connected: t('workOrders.creation.connection.connected'), reconnecting: t('workOrders.creation.connection.reconnecting'), unavailable: t('workOrders.creation.connection.unavailable') }[connectionStatus];
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => navigate('/work-orders')}
-          className="px-3.5 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white rounded-md text-sm font-semibold flex items-center space-x-2 transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>{t('woCreate.backToList')}</span>
-        </button>
-      </div>
-
+      <div className="flex items-center justify-between"><Button variant="secondary" onClick={() => navigate('/work-orders')}><ArrowLeft className="h-4 w-4" />{t('woCreate.backToList')}</Button></div>
       <div className="bg-slate-900 border border-slate-800 rounded-md p-6 shadow-2xl space-y-6">
-        <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
-          <div className="p-3 bg-action/10 border border-action/20 rounded-md text-action">
-            <PlusCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-100">{t('woCreate.title')}</h1>
-            <p className="text-xs text-slate-400">{t('woCreate.subtitle')}</p>
-          </div>
-        </div>
-
-        {/* Missing Prerequisites Warning Box */}
-        {missingPrereqs && missingPrereqs.length > 0 && (
-          <div className="bg-rose-950/40 border border-rose-800 rounded-md p-5 space-y-3">
-            <div className="flex items-center space-x-2 text-rose-400 font-bold text-sm">
-              <AlertTriangle className="w-5 h-5" />
-              <span>{t('woCreate.missingTitle', { count: missingPrereqs.length })}</span>
-            </div>
-            <ul className="space-y-1.5 pl-6 list-disc text-xs text-rose-200 font-mono">
-              {missingPrereqs.map((prereq, idx) => (
-                <li key={idx}>{prereq}</li>
-              ))}
-            </ul>
-            <p className="text-[11px] text-rose-300/80 pt-1">
-              {t('woCreate.missingHint')}
-            </p>
-          </div>
-        )}
-
+        <div className="border-b border-slate-800 pb-4"><h1 className="text-xl font-bold text-slate-100">{t('woCreate.title')}</h1><p className="text-xs text-slate-400">{t('woCreate.subtitle')}</p></div>
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('woCreate.itemCode')} *</label>
-            <input
-              type="text"
-              value={itemCode}
-              onChange={(e) => setItemCode(e.target.value)}
-              placeholder={t('items.codePlaceholder')}
-              className="w-full bg-slate-950 border border-slate-800 rounded-md p-3.5 font-mono text-sm text-slate-100 focus:outline-none focus:border-action"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('woCreate.quantity')} *</label>
-              <input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value))}
-                min={1}
-                className="w-full bg-slate-950 border border-slate-800 rounded-md p-3.5 font-mono text-sm text-slate-100 focus:outline-none focus:border-action"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('woCreate.targetDate')} *</label>
-              <input
-                type="date"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-md p-3.5 font-mono text-sm text-slate-100 focus:outline-none focus:border-action"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="pt-4 flex justify-end">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-6 py-3.5 bg-action hover:bg-action-hover text-white font-bold text-sm rounded-md flex items-center space-x-2 shadow-lg shadow-orange-600/20 transition disabled:opacity-50"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              <span>{t('woCreate.submit')}</span>
-            </button>
-          </div>
+          <div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('workOrders.create.fields.workOrderCode')}</label><input readOnly value={expectedCode} placeholder={t('workOrders.create.fields.workOrderCodePreview')} className="w-full cursor-text rounded-md border border-slate-700 bg-slate-950/60 p-3.5 font-mono text-sm text-slate-200 outline-none focus:border-action" /><p className="mt-1.5 text-xs text-slate-400">{t('workOrders.create.fields.workOrderCodeHelp')}</p></div>
+          <div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('workOrders.create.fields.productRevision')} *</label><ComboboxBase value={selectedProductId} options={products.map((product) => ({ value: product.production_version_id, label: localizedProductName(product.item_name) || product.display_code, description: `${product.display_code} · ${product.revision_code} · ${product.production_version_code} · ${product.base_uom_code} · ${product.site_code}` }))} onValueChange={(value) => { const product = products.find((item) => item.production_version_id === value); if (!product) return; setSelectedProductId(product.production_version_id); setSelectedProduct(product); setItemCode(product.display_code); }} onSearchChange={setProductSearch} placeholder={t('workOrders.create.productSelector.placeholder')} emptyMessage={t('workOrders.create.productSelector.empty')} loading={productsLoading} error={productsError || undefined} aria-label={t('workOrders.create.fields.productRevision')} />{!productsError && !productsLoading && products.length === 0 && <p className="mt-1.5 text-xs text-amber-300">{t('workOrders.create.productSelector.emptyHint')}</p>}</div>
+          {selectedProduct && <div className="rounded-md border border-action/30 bg-action/10 p-4"><div className="mb-2 text-xs font-bold uppercase tracking-wide text-action">{t('workOrders.create.selectedConfiguration')}</div><div className="grid gap-2 text-sm sm:grid-cols-2"><SummaryRow label={t('workOrders.create.fields.productName')} value={localizedProductName(selectedProduct.item_name)} /><SummaryRow label={t('workOrders.create.fields.revision')} value={selectedProduct.revision_code} mono /><SummaryRow label={t('workOrders.create.fields.productionVersion')} value={selectedProduct.production_version_code} mono /><SummaryRow label={t('workOrders.create.fields.uom')} value={selectedProduct.base_uom_code} /><SummaryRow label={t('workOrders.create.fields.site')} value={selectedProduct.site_code} mono /><SummaryRow label={t('workOrders.create.fields.readiness')} value={t('workOrders.create.readiness.ready')} /></div></div>}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('woCreate.quantity')} *</label><div className="flex items-center gap-2"><input required min={1} type="number" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-md p-3.5 font-mono text-sm text-slate-100 focus:outline-none focus:border-action" /><span className="font-mono text-xs text-slate-400">{selectedProduct?.base_uom_code || 'UOM'}</span></div></div><div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('woCreate.targetDate')} *</label><input required type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-md p-3.5 font-mono text-sm text-slate-100 focus:outline-none focus:border-action" /></div></div>
+          <div className="rounded-md border border-slate-700 bg-slate-950/40 p-4"><div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{t('workOrders.create.readiness.title')}</div><div className="grid gap-2 text-sm sm:grid-cols-2">{[
+            [t('workOrders.create.fields.revision'), selectedProduct?.revision_code],
+            [t('workOrders.create.fields.productionVersion'), selectedProduct?.production_version_code],
+            [t('workOrders.create.fields.mbom'), selectedProduct ? `${localizedBusinessName(selectedProduct.mbom_name, selectedProduct.mbom_code)} · ${selectedProduct.mbom_code}` : undefined],
+            [t('workOrders.create.fields.routing'), selectedProduct ? `${localizedBusinessName(selectedProduct.routing_name, selectedProduct.routing_code)} · ${selectedProduct.routing_code}` : undefined],
+          ].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 border-b border-slate-800 py-1.5"><span className="text-slate-300">{label}</span><span className={`text-right text-xs ${selectedProduct ? 'text-emerald-300' : 'text-slate-500'}`}>{selectedProduct ? value : t('workOrders.create.readiness.waiting')}</span></div>)}</div></div>
+          <div className="pt-4 flex justify-end"><Button type="submit" disabled={submitting || !selectedProduct}><CheckCircle className="h-4 w-4" />{t('woCreate.submit')}</Button></div>
         </form>
       </div>
+
+      {workflowId && <div className="fixed inset-0 z-50 bg-slate-950/80 p-4 sm:p-8 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="wo-progress-title">
+        <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-2xl flex flex-col">
+          <header className="border-b border-slate-700 px-5 py-4 flex flex-wrap justify-between gap-3"><div><h2 id="wo-progress-title" className="text-lg font-bold text-slate-100">{t('workOrders.creation.title')}</h2><p className="text-sm text-slate-100">{localizedProductName(selectedProduct?.item_name || '') || itemCode}</p><p className="text-xs text-slate-400">{itemCode} · {quantity} PCS · {targetDate}</p></div><div className="flex items-center gap-3 text-xs"><span className="flex items-center gap-1.5 text-slate-300"><Radio className={`h-3.5 w-3.5 ${connectionStatus === 'connected' ? 'text-emerald-400' : 'text-amber-400'}`} />{connectionText}</span><span className="rounded-full border border-slate-600 px-2.5 py-1 text-slate-200">{workflowStatus}</span></div></header>
+          <div className="overflow-y-auto p-5 grid lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,1fr)] gap-6">
+            <section aria-live="polite"><div className="mb-4 flex items-center justify-between"><h3 className="font-semibold text-slate-100">{t('workOrders.creation.timeline')}</h3><span className="text-xs text-slate-400">{steps.filter((step) => ['succeeded', 'event_queued'].includes(step.status)).length} / {steps.length} {t('workOrders.creation.completed')}</span></div><div className="space-y-3">{steps.map((step) => <WorkflowStepRow key={step.id} step={step} t={t} />)}</div>{workflowError && workflowStatus === 'failed' && <div className="mt-4 rounded-md border border-rose-700 bg-rose-950/30 p-4" aria-live="assertive"><p className="font-semibold text-rose-200">{t('workOrders.creation.failed')}</p><p className="mt-1 text-sm text-rose-100">{workflowError.detail || workflowError.code}</p><p className="mt-2 text-xs text-rose-300">{t('workOrders.creation.reference')}: {workflowError.technical_reference || workflowId}</p></div>}</section>
+            <aside className="rounded-md border border-slate-700 bg-slate-950/50 p-4 space-y-4"><h3 className="font-semibold text-slate-100">{t('workOrders.creation.summary')}</h3><SummaryRow label={t('workOrders.create.fields.productName')} value={localizedProductName(selectedProduct?.item_name || '') || itemCode} /><SummaryRow label={t('woCreate.itemCode')} value={itemCode} mono /><SummaryRow label={t('woCreate.quantity')} value={`${quantity} PCS`} /><SummaryRow label={t('woCreate.targetDate')} value={targetDate} /><div className="border-t border-slate-800 pt-3"><SummaryRow label={t('workOrders.creation.reference')} value={workflowId} mono /><button onClick={copyReference} className="mt-2 inline-flex items-center gap-1.5 text-xs text-cyan-300 hover:text-cyan-200"><ClipboardCopy className="h-3.5 w-3.5" />{t('workOrders.creation.copyReference')}</button></div>{workflowResult && <div className="border-t border-slate-800 pt-3 space-y-2"><SummaryRow label={t('workOrders.creation.workOrder')} value={workflowResult.work_order_code || workflowResult.work_order_id || '-'} mono /><SummaryRow label={t('workOrders.creation.operations')} value={workflowResult.operationCount ?? '-'} /><SummaryRow label={t('workOrders.creation.materials')} value={workflowResult.materialCount ?? '-'} /></div>}</aside>
+          </div>
+          <footer className="border-t border-slate-700 px-5 py-4 flex justify-end gap-3"><Button variant="secondary" onClick={() => setWorkflowId(null)} disabled={workflowStatus === 'running' || workflowStatus === 'accepted'}>{t('common.close')}</Button>{workflowStatus === 'succeeded' && <Button onClick={closeWorkflow}>{t('workOrders.creation.openWorkOrder')}</Button>}</footer>
+        </div>
+      </div>}
     </div>
   );
 };
+
+function SummaryRow({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) { return <div className="flex justify-between gap-3 text-sm"><span className="text-slate-400">{label}</span><span className={`text-right text-slate-100 ${mono ? 'font-mono text-xs' : ''}`}>{value}</span></div>; }
+
+function localizedProductName(value: Record<string, string> | string) {
+  if (typeof value === 'string') return value;
+  return value.vi || value.en || value.ja || value.ko || '';
+}
+
+function localizedBusinessName(value: Record<string, string> | string | undefined, fallback: string) {
+  if (!value) return fallback;
+  return typeof value === 'string' ? value : value.vi || value.en || value.ja || value.ko || fallback;
+}
+
+function WorkflowStepRow({ step, t }: { step: WorkflowStep & { titleKey: string }; t: (key: string, params?: Record<string, any>) => string }) {
+  const tone = { running: 'border-action bg-action/10 text-action', succeeded: 'border-emerald-700 bg-emerald-950/30 text-emerald-300', event_queued: 'border-cyan-700 bg-cyan-950/30 text-cyan-300', failed: 'border-rose-700 bg-rose-950/30 text-rose-300', warning: 'border-amber-700 bg-amber-950/30 text-amber-300', timed_out: 'border-rose-700 bg-rose-950/30 text-rose-300', pending: 'border-slate-700 bg-slate-950/30 text-slate-500', skipped: 'border-slate-700 bg-slate-950/30 text-slate-500', cancelled: 'border-slate-700 bg-slate-950/30 text-slate-500' }[step.status];
+  const message = step.message_key ? t(step.message_key, step.message_params) : t(`workOrders.creation.status.${step.status}`);
+  const businessResults = step.result && Object.entries(step.result).filter(([key]) => !/(^|_)(id|uuid)$/i.test(key) && !/Id$/.test(key));
+  return <div className={`rounded-md border p-3 ${tone}`}><div className="flex items-start gap-3"><span className="mt-0.5">{statusIcon(step.status)}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="font-semibold text-sm text-slate-100">{t(step.titleKey)}</p><span className="text-xs uppercase tracking-wide">{t(`workOrders.creation.status.${step.status}`)}</span></div><p className="mt-1 text-sm text-slate-300">{message}</p>{businessResults && businessResults.length > 0 && <p className="mt-2 text-xs text-slate-400">{businessResults.map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{step.error && <div className="mt-2 rounded border border-rose-800/80 bg-rose-950/40 p-2 text-xs text-rose-100"><p>{step.error.detail || step.error.code}</p>{step.error.technical_reference && <p className="mt-1 font-mono text-rose-300">{step.error.technical_reference}</p>}</div>}</div></div></div>;
+}

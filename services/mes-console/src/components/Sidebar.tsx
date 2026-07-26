@@ -2,7 +2,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   ClipboardList,
-  PlusCircle,
   Package,
   Layers,
   GitCommit,
@@ -16,31 +15,30 @@ import {
   Users,
   Clock,
   CalendarDays,
+  Map,
+  Monitor,
+  Link2,
 } from 'lucide-react';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 
 export const Sidebar: React.FC = () => {
   const { t } = useI18n();
-  const navSectionClass = "text-[11px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2 mt-4";
+  const navSectionClass = 'px-3 mb-2 mt-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground';
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center space-x-3 px-3 py-2.5 rounded-md text-sm font-semibold transition ${
       isActive
-        ? 'bg-action/15 text-amber-100 border border-action/45'
-        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+        ? 'mes-nav-active border-action/45 bg-action/15 text-foreground shadow-sm'
+        : 'border-transparent text-muted-foreground hover:bg-hover hover:text-foreground'
     }`;
 
   return (
-    <aside className="w-64 bg-slate-950 border-r border-border p-4 space-y-2 shrink-0 h-[calc(100vh-4rem)] overflow-y-auto">
+    <aside className="w-64 shrink-0 space-y-2 overflow-y-auto border-r border-border bg-surface-subtle p-4 h-[calc(100vh-4rem)]">
       <div>
         <div className={navSectionClass}>{t('nav.operations')}</div>
         <div className="space-y-1">
           <NavLink to="/work-orders" className={linkClass} end>
-            <ClipboardList className="w-4 h-4 text-amber-300" />
+            <ClipboardList className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.workOrders')}</span>
-          </NavLink>
-          <NavLink to="/work-orders/new" className={linkClass}>
-            <PlusCircle className="w-4 h-4 text-orange-300" />
-            <span>{t('nav.createWorkOrder')}</span>
           </NavLink>
         </div>
       </div>
@@ -49,20 +47,28 @@ export const Sidebar: React.FC = () => {
         <div className={navSectionClass}>{t('nav.masterDataTier1')}</div>
         <div className="space-y-1">
           <NavLink to="/master-data/items" className={linkClass}>
-            <Package className="w-4 h-4 text-amber-300" />
+            <Package className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.items')}</span>
           </NavLink>
           <NavLink to="/master-data/mboms" className={linkClass}>
-            <Layers className="w-4 h-4 text-sky-300" />
+            <Layers className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.mbom')}</span>
           </NavLink>
           <NavLink to="/master-data/routings" className={linkClass}>
-            <GitCommit className="w-4 h-4 text-amber-400" />
+            <GitCommit className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.routing')}</span>
           </NavLink>
           <NavLink to="/master-data/production-versions" className={linkClass}>
-            <Cpu className="w-4 h-4 text-orange-300" />
+            <Cpu className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.productionVersion')}</span>
+          </NavLink>
+          <NavLink to="/master-data/eboms" className={linkClass}>
+            <GitCommit className="mes-nav-icon h-4 w-4 text-info" />
+            <span>EBOM</span>
+          </NavLink>
+          <NavLink to="/master-data/operations" className={linkClass}>
+            <Gauge className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('operationCatalog.title')}</span>
           </NavLink>
         </div>
       </div>
@@ -71,15 +77,15 @@ export const Sidebar: React.FC = () => {
         <div className={navSectionClass}>{t('nav.labor')}</div>
         <div className="space-y-1">
           <NavLink to="/employees" className={linkClass}>
-            <Users className="w-4 h-4 text-orange-300" />
+            <Users className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.employees')}</span>
           </NavLink>
           <NavLink to="/shifts" className={linkClass}>
-            <Clock className="w-4 h-4 text-amber-400" />
+            <Clock className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.shifts')}</span>
           </NavLink>
           <NavLink to="/work-calendar" className={linkClass}>
-            <CalendarDays className="w-4 h-4 text-sky-400" />
+            <CalendarDays className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.workCalendar')}</span>
           </NavLink>
         </div>
@@ -88,28 +94,56 @@ export const Sidebar: React.FC = () => {
       <div>
         <div className={navSectionClass}>{t('nav.masterDataTier2')}</div>
         <div className="space-y-1">
+          <NavLink to="/master-data/factories" className={linkClass}>
+            <Map className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.factories')}</span>
+          </NavLink>
+          <NavLink to="/master-data/shopfloors" className={linkClass}>
+            <Map className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.shopfloors')}</span>
+          </NavLink>
           <NavLink to="/master-data/work-centers" className={linkClass}>
-            <Factory className="w-4 h-4 text-amber-300" />
+            <Factory className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.workCenters')}</span>
           </NavLink>
-          <NavLink to="/master-data/equipment" className={linkClass}>
-            <Wrench className="w-4 h-4 text-slate-400" />
-            <span>{t('nav.equipment')}</span>
+          <NavLink to="/master-data/workstations" className={linkClass}>
+            <Monitor className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.workstations')}</span>
+          </NavLink>
+          <NavLink to="/master-data/machines" className={linkClass}>
+            <Wrench className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.machines')}</span>
+          </NavLink>
+          <NavLink to="/master-data/resource-assignments" className={linkClass}>
+            <Link2 className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.assignments')}</span>
+          </NavLink>
+          <NavLink to="/master-data/resource-capabilities" className={linkClass}>
+            <Gauge className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.capabilities')}</span>
+          </NavLink>
+          <NavLink to="/master-data/resource-calendars" className={linkClass}>
+            <CalendarDays className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.calendars')}</span>
           </NavLink>
           <NavLink to="/master-data/production-standards" className={linkClass}>
-            <Gauge className="w-4 h-4 text-teal-400" />
+            <Gauge className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.productionStandards')}</span>
           </NavLink>
+          <NavLink to="/master-data/operation-skill-requirements" className={linkClass}>
+            <Award className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.operationSkillRequirements')}</span>
+          </NavLink>
           <NavLink to="/master-data/reason-codes" className={linkClass}>
-            <AlertTriangle className="w-4 h-4 text-rose-400" />
+            <AlertTriangle className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.reasonCodes')}</span>
           </NavLink>
           <NavLink to="/master-data/skills" className={linkClass}>
-            <Award className="w-4 h-4 text-amber-300" />
+            <Award className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.skills')}</span>
           </NavLink>
           <NavLink to="/console/mes/i18n-review" className={linkClass}>
-            <Languages className="w-4 h-4 text-amber-300" />
+            <Languages className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.i18nReview')}</span>
           </NavLink>
         </div>

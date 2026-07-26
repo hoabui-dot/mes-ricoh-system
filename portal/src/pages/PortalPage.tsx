@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type Keycloak from 'keycloak-js';
 import { APPS, ROLE_DISPLAY, type AppDefinition } from '../config/apps.ts';
 import AppCard from '../components/AppCard.tsx';
 import UserBadge from '../components/UserBadge.tsx';
 import '../styles/portal.css';
-import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
+import { SUPPORTED_LOCALES, languageNames, useI18n } from '@mom-platform/i18n-ui-shared';
 import { getVisibleApps, resolvePortalApps } from '../lib/appResolution.ts';
+import { Languages, Moon, ShieldAlert, Sun } from 'lucide-react';
 
 interface PortalPageProps {
   keycloak: Keycloak;
@@ -23,6 +24,7 @@ function getUserRoles(keycloak: Keycloak): string[] {
 
 export default function PortalPage({ keycloak }: PortalPageProps) {
   const { locale, setLocale, t } = useI18n();
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('mom-portal-theme') as 'dark' | 'light') || 'dark');
   const roles = getUserRoles(keycloak);
   const visibleApps = getVisibleApps(roles, APPS);
   const appDecision = resolvePortalApps(visibleApps);
@@ -51,9 +53,13 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
     window.location.assign(appDecision.app.url);
   }, [appDecision]);
 
+  useEffect(() => {
+    localStorage.setItem('mom-portal-theme', theme);
+  }, [theme]);
+
   if (appDecision.kind === 'redirect') {
     return (
-      <div className="portal-root">
+      <div className={`portal-root portal-theme-${theme}`}>
         <main className="portal-main">
           <div className="portal-empty" role="status">
             <h2>{t('portal.redirecting')}</h2>
@@ -64,7 +70,7 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
   }
 
   return (
-    <div className="portal-root">
+    <div className={`portal-root portal-theme-${theme}`}>
       {/* ── Background ── */}
       <div className="portal-bg" aria-hidden="true">
         <div className="portal-bg-orb portal-bg-orb-1" />
@@ -76,28 +82,26 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
       <header className="portal-header">
         <div className="portal-header-inner">
           <div className="portal-brand">
-            <div className="portal-brand-logo" aria-label="Won Seal Tech logo">
+            <div className="portal-brand-logo" aria-label="S-Factory logo">
               <span>W</span>
             </div>
             <div>
-              <div className="portal-brand-name">Won Seal Tech</div>
+              <div className="portal-brand-name">S-Factory</div>
               <div className="portal-brand-sub">MOM Platform</div>
             </div>
           </div>
-          <UserBadge
-            username={username}
-            email={email}
-            roleDisplay={roleDisplay}
-            onLogout={handleLogout}
-          />
-          <select
-            value={locale}
-            onChange={(event) => setLocale(event.target.value as SupportedLocale)}
-            aria-label={t('navbar.language')}
-            style={{ marginLeft: '1rem' }}
-          >
-            {SUPPORTED_LOCALES.map((item) => <option key={item} value={item}>{languageNames[item]}</option>)}
-          </select>
+          <div className="portal-header-actions">
+            <div className="portal-language-control" aria-label={t('portal.language')}>
+              <Languages aria-hidden="true" />
+              {SUPPORTED_LOCALES.map((item) => (
+                <button key={item} type="button" className={locale === item ? 'is-active' : ''} onClick={() => setLocale(item)} title={languageNames[item]} aria-pressed={locale === item}>{item.toUpperCase()}</button>
+              ))}
+            </div>
+            <button type="button" className="portal-icon-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? t('portal.theme.light') : t('portal.theme.dark')} title={theme === 'dark' ? t('portal.theme.light') : t('portal.theme.dark')}>
+              {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+            </button>
+            <UserBadge username={username} email={email} roleDisplay={roleDisplay} onLogout={handleLogout} />
+          </div>
         </div>
       </header>
 
@@ -134,7 +138,7 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
 
         {appDecision.kind === 'none' && (
           <div className="portal-empty" role="alert">
-            <span style={{ fontSize: '3rem' }}>🔒</span>
+            <ShieldAlert className="portal-empty-icon" aria-hidden="true" />
             <h2>{t('portal.noAccess')}</h2>
             <p>{t('portal.noAccessBody')}</p>
           </div>
@@ -143,11 +147,11 @@ export default function PortalPage({ keycloak }: PortalPageProps) {
         {/* ── Platform Info Footer ── */}
         <footer className="portal-footer">
           <div className="portal-footer-info">
-            <span>MOM Platform v1.0.0</span>
+            <span>{t('portal.footer.version')}</span>
             <span className="portal-footer-sep">·</span>
-            <span>Phase 0 — Platform Foundation</span>
+            <span>{t('portal.footer.phase')}</span>
             <span className="portal-footer-sep">·</span>
-            <span>Kizuna 3, Long An</span>
+            <span>{t('portal.footer.site')}</span>
           </div>
           <div className="portal-footer-status">
             <span className="portal-status-dot" />

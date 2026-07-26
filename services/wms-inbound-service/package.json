@@ -1,7 +1,7 @@
 {
   "name": "wms-inbound-service",
   "version": "1.0.0",
-  "description": "WMS Inbound service for Won Seal Tech MOM Platform",
+  "description": "WMS Inbound service for S-Factory MOM Platform",
   "private": true,
   "type": "module",
   "scripts": {

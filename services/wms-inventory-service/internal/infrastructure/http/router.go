@@ -27,7 +27,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			if err != nil {
 				limit = 50
 			}
-			rows, err := usecase.ListMovements(r.Context(), pool, r.URL.Query().Get("location_id"), r.URL.Query().Get("lot_id"), limit)
+			rows, err := usecase.ListMovements(r.Context(), pool, r.URL.Query().Get("location_id"), r.URL.Query().Get("lot_id"), r.URL.Query().Get("wo_id"), r.URL.Query().Get("work_center_ref"), r.URL.Query().Get("item_revision_id"), limit)
 			writeJSON(w, rows, err, http.StatusOK)
 		})
 		r.Post("/movements/receipt", func(w http.ResponseWriter, r *http.Request) {

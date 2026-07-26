@@ -19,7 +19,7 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 	}
 
 	rows, err := pool.Query(ctx, `
-		SELECT sequence_no, operation_code, work_center_id, standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor
+		SELECT sequence_no, operation_id, operation_code, work_center_id, standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor
 		FROM wo_operation WHERE wo_id = $1 ORDER BY sequence_no
 	`, woID)
 	if err != nil {
@@ -28,18 +28,19 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 	defer rows.Close()
 
 	type opInfo struct {
-		seq   int
-		code  string
-		wcID  string
-		setup float64
-		cycle float64
-		eff   float64
+		seq         int
+		operationID string
+		code        string
+		wcID        string
+		setup       float64
+		cycle       float64
+		eff         float64
 	}
 	var ops []opInfo
 	for rows.Next() {
 		var o opInfo
 		var setup, cycle, eff *float64
-		_ = rows.Scan(&o.seq, &o.code, &o.wcID, &setup, &cycle, &eff)
+		_ = rows.Scan(&o.seq, &o.operationID, &o.code, &o.wcID, &setup, &cycle, &eff)
 		o.setup = 15.0
 		if setup != nil {
 			o.setup = *setup
@@ -60,6 +61,14 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 	plannedStartStr := plannedStartAt.UTC().Format(time.RFC3339)
 	computedOps := make([]domain.ComputedOpResult, 0, len(ops))
 	capacityWarnings := []string{}
+	laborWarnings := []string{}
+	laborShortages := []domain.LaborShortage{}
+	laborAssignments := []domain.LaborAssignment{}
+	var woStatus string
+	_ = pool.QueryRow(ctx, `SELECT status::text FROM wo_header WHERE wo_id = $1`, woID).Scan(&woStatus)
+	if woStatus != "Approved" && woStatus != "Released" && woStatus != "InProgress" && woStatus != "Completed" {
+		_, _ = pool.Exec(ctx, `DELETE FROM wo_operation_labor_assignment WHERE wo_id = $1`, woID)
+	}
 
 	for _, o := range ops {
 		runTimeMinutes := (o.cycle / 60.0) * (quantity / o.eff)
@@ -86,6 +95,51 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 			PlannedStartAt:  opStart,
 			PlannedEndAt:    opEnd,
 		})
+
+		reqRows, reqErr := pool.Query(ctx, `SELECT r.skill_id, s.code, r.minimum_level, r.required_persons, r.mandatory_flag
+			FROM rm_operation_skill_requirement r JOIN rm_skill s ON s.master_id = r.skill_id WHERE r.operation_id = $1`, o.operationID)
+		if reqErr != nil {
+			laborWarnings = append(laborWarnings, fmt.Sprintf("Operation %s: labor read model unavailable", o.code))
+			continue
+		}
+		for reqRows.Next() {
+			var skillID, skillCode, minLevel string
+			var required int
+			var mandatory bool
+			if reqRows.Scan(&skillID, &skillCode, &minLevel, &required, &mandatory) != nil {
+				continue
+			}
+			candidateRows, candidateErr := pool.Query(ctx, `SELECT e.master_id, e.code, e.name, es.level
+				FROM rm_employee e JOIN rm_employee_skill es ON es.employee_id = e.master_id
+				JOIN rm_employee_shift_schedule sh ON sh.employee_id = e.master_id
+				WHERE es.skill_id = $1 AND e.employee_status = 'Active' AND sh.schedule_date = $2 AND sh.schedule_status = 'Scheduled'
+				ORDER BY (e.default_work_center_id = $3) DESC, es.level ASC, e.code ASC LIMIT $4`, skillID, plannedStartAt.UTC().Format("2006-01-02"), o.wcID, required)
+			if candidateErr != nil {
+				laborWarnings = append(laborWarnings, fmt.Sprintf("Operation %s: skill %s matching unavailable", o.code, skillCode))
+				continue
+			}
+			count := 0
+			for candidateRows.Next() {
+				var employeeID, employeeCode, matchedLevel string
+				var employeeName any
+				if candidateRows.Scan(&employeeID, &employeeCode, &employeeName, &matchedLevel) != nil {
+					continue
+				}
+				count++
+				_, _ = pool.Exec(ctx, `INSERT INTO wo_operation_labor_assignment (wo_id, wo_operation_id, employee_id, skill_id, minimum_level, matched_level, mandatory_flag) SELECT $1, wo_operation_id, $2, $3, $4, $5, $6 FROM wo_operation WHERE wo_id = $1 AND sequence_no = $7 ON CONFLICT DO NOTHING`, woID, employeeID, skillID, minLevel, matchedLevel, mandatory, o.seq)
+				laborAssignments = append(laborAssignments, domain.LaborAssignment{OperationCode: o.code, EmployeeCode: employeeCode, EmployeeName: employeeName, SkillCode: skillCode, MatchedLevel: matchedLevel, Status: "Proposed"})
+			}
+			candidateRows.Close()
+			if count < required {
+				shortage := domain.LaborShortage{OperationCode: o.code, SkillCode: skillCode, RequiredPersons: required, EligiblePersons: count, Mandatory: mandatory}
+				if mandatory {
+					laborShortages = append(laborShortages, shortage)
+				} else {
+					laborWarnings = append(laborWarnings, fmt.Sprintf("Operation %s: optional skill %s short by %d", o.code, skillCode, required-count))
+				}
+			}
+		}
+		reqRows.Close()
 	}
 
 	totalDurationMinutes := int(math.Ceil(currentTime.Sub(plannedStartAt).Minutes()))
@@ -97,5 +151,8 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 		PlannedEndAt:         currentTime.UTC().Format(time.RFC3339),
 		Operations:           computedOps,
 		CapacityWarnings:     capacityWarnings,
+		LaborWarnings:        laborWarnings,
+		LaborShortages:       laborShortages,
+		LaborAssignments:     laborAssignments,
 	}, nil
 }

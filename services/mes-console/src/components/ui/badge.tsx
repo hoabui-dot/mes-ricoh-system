@@ -1,13 +1,15 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'secondary';
+export type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'secondary';
 
 const variantClasses: Record<BadgeVariant, string> = {
   default: 'border-primary/40 bg-primary/15 text-primary-foreground',
-  success: 'border-emerald-700 bg-emerald-950/70 text-emerald-200',
-  warning: 'border-action/50 bg-action/15 text-amber-100',
-  danger: 'border-destructive/60 bg-destructive/15 text-rose-100',
+  success: 'border-success/40 bg-success/15 text-success-foreground',
+  warning: 'border-warning/50 bg-warning/15 text-warning-foreground',
+  danger: 'border-danger/45 bg-danger/15 text-danger-foreground',
+  info: 'border-info/40 bg-info/15 text-info-foreground',
+  neutral: 'border-border bg-secondary text-secondary-foreground',
   secondary: 'border-border bg-secondary text-secondary-foreground',
 };
 

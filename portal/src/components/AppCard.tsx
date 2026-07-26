@@ -1,4 +1,6 @@
 import type { AppDefinition } from '../config/apps.ts';
+import { Boxes, Factory, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { useI18n } from '@mom-platform/i18n-ui-shared';
 
 interface AppCardProps {
   app: AppDefinition;
@@ -7,10 +9,13 @@ interface AppCardProps {
 }
 
 export default function AppCard({ app, index, onClick }: AppCardProps) {
+  const { t } = useI18n();
   const isComingSoon = app.status === 'coming-soon';
+  const Icon = app.id === 'mes' ? Factory : app.id === 'wms' ? Boxes : ShieldCheck;
 
   return (
-    <div
+    <button
+      type="button"
       className={`app-card ${isComingSoon ? 'app-card--disabled' : ''}`}
       role="listitem"
       style={{
@@ -21,27 +26,26 @@ export default function AppCard({ app, index, onClick }: AppCardProps) {
       onClick={onClick}
       onKeyDown={(e) => e.key === 'Enter' && onClick()}
       tabIndex={isComingSoon ? -1 : 0}
-      aria-label={`Open ${app.name}`}
+      aria-label={`${t('portal.app.open')}: ${t(`portal.app.${app.id}.name`)}`}
       aria-disabled={isComingSoon}
     >
-      {/* Glow effect */}
       <div className="app-card-glow" aria-hidden="true" />
 
       {/* Header */}
       <div className="app-card-header">
-        <div className="app-card-icon">{app.icon}</div>
+        <div className="app-card-icon"><Icon aria-hidden="true" /></div>
         <div className="app-card-badge" aria-label={`System: ${app.acronym}`}>
           {app.acronym}
         </div>
         {isComingSoon && (
-          <div className="app-card-soon-badge">Sắp ra mắt</div>
+          <div className="app-card-soon-badge">{t('portal.app.available')}</div>
         )}
       </div>
 
       {/* Content */}
       <div className="app-card-content">
-        <h2 className="app-card-name">{app.name}</h2>
-        <p className="app-card-desc">{app.description}</p>
+        <h2 className="app-card-name">{t(`portal.app.${app.id}.name`)}</h2>
+        <p className="app-card-desc">{t(`portal.app.${app.id}.description`)}</p>
       </div>
 
       {/* Footer */}
@@ -50,13 +54,11 @@ export default function AppCard({ app, index, onClick }: AppCardProps) {
           <span className="app-card-coming-text">Phase 2+</span>
         ) : (
           <span className="app-card-open-text">
-            Mở hệ thống
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            {t('portal.app.open')}
+            <ArrowUpRight aria-hidden="true" />
           </span>
         )}
       </div>
-    </div>
+    </button>
   );
 }

@@ -21,13 +21,28 @@ type WMSOutboundClient struct {
 
 type MaterialRequestInput struct {
 	ItemRevisionID string  `json:"item_revision_id"`
+	ItemCode       string  `json:"item_code,omitempty"`
+	ItemName       string  `json:"item_name,omitempty"`
+	WorkOrderCode  string  `json:"work_order_code,omitempty"`
+	WorkOrderName  string  `json:"work_order_name,omitempty"`
 	WorkCenterRef  string  `json:"work_center_ref"`
+	WorkCenterCode string  `json:"work_center_code,omitempty"`
+	WorkCenterName string  `json:"work_center_name,omitempty"`
+	UOMCode        string  `json:"uom_code,omitempty"`
 	RequiredQty    float64 `json:"required_qty"`
 	WOID           string  `json:"wo_id"`
 }
 
 type MaterialRequestOutput struct {
 	RequestID        string                 `json:"request_id"`
+	RequestCode      string                 `json:"request_code"`
+	SourceSystem     string                 `json:"source_system,omitempty"`
+	WorkOrderCode    string                 `json:"work_order_code,omitempty"`
+	WorkOrderName    string                 `json:"work_order_name,omitempty"`
+	WorkCenterCode   string                 `json:"work_center_code,omitempty"`
+	ItemCode         string                 `json:"item_code,omitempty"`
+	ItemName         string                 `json:"item_name,omitempty"`
+	UOMCode          string                 `json:"uom_code,omitempty"`
 	Status           string                 `json:"status"`
 	StagingLocation  string                 `json:"staging_location_id"`
 	RequestedQty     float64                `json:"requested_qty"`

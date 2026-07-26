@@ -3,15 +3,16 @@ import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { Factory, Wrench, Gauge, AlertTriangle, Award, RefreshCw, Plus } from 'lucide-react';
 import { useI18n, useLocalizedText } from '@mom-platform/i18n-ui-shared';
+import { gatewayBaseUrl } from '../../lib/masterDataApi';
 
 interface Tier2AdminProps {
   entityType: 'work-centers' | 'equipment' | 'production-standards' | 'reason-codes' | 'skills';
-  title: string;
-  subtitle: string;
+  titleKey: string;
+  subtitleKey: string;
   icon: any;
 }
 
-export const Tier2AdminScreen: React.FC<Tier2AdminProps> = ({ entityType, title, subtitle, icon: Icon }) => {
+export const Tier2AdminScreen: React.FC<Tier2AdminProps> = ({ entityType, titleKey, subtitleKey, icon: Icon }) => {
   const { user } = useAuth();
   const { t } = useI18n();
   const text = useLocalizedText();
@@ -24,12 +25,12 @@ export const Tier2AdminScreen: React.FC<Tier2AdminProps> = ({ entityType, title,
     setError(null);
     try {
       const host = window.location.hostname;
-      const resp = await fetch(`http://${host}:18000/api/mes/master-data/${entityType}`, {
+      const resp = await fetch(`${gatewayBaseUrl()}/api/mes/master-data/${entityType}`, {
         headers: { 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PROD_MANAGER' },
       });
       if (!resp.ok) {
         if (resp.status === 503) throw { status: 503, message: 'Circuit breaker open' };
-        throw new Error(t('tier2.loadFailed', { title }));
+        throw new Error(t('tier2.loadFailed', { title: t(titleKey) }));
       }
       const data = await resp.json();
       setDataList(data.data || []);
@@ -54,8 +55,8 @@ export const Tier2AdminScreen: React.FC<Tier2AdminProps> = ({ entityType, title,
             <Icon className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-100">{title}</h1>
-            <p className="text-xs text-slate-400">{subtitle}</p>
+            <h1 className="text-xl font-bold text-slate-100">{t(titleKey)}</h1>
+            <p className="text-xs text-slate-400">{t(subtitleKey)}</p>
           </div>
         </div>
 
@@ -86,7 +87,7 @@ export const Tier2AdminScreen: React.FC<Tier2AdminProps> = ({ entityType, title,
                   {text(item.name) || item.work_center_name || item.equipment_name || item.reason_name || t('tier2.configured')}
                 </td>
                 <td className="px-6 py-4 text-xs font-mono text-slate-400">
-                  {item.description || item.site_id || t('tier2.defaultNote')}
+                  {item.description || item.site_code || t('tier2.defaultNote')}
                 </td>
                 <td className="px-6 py-4">
                   <span className="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800 text-amber-200 rounded-full text-xs font-semibold">
@@ -98,7 +99,7 @@ export const Tier2AdminScreen: React.FC<Tier2AdminProps> = ({ entityType, title,
             {dataList.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                  {t('tier2.empty', { title })}
+                  {t('tier2.empty', { title: t(titleKey) })}
                 </td>
               </tr>
             )}

@@ -76,7 +76,9 @@ func main() {
 	wmsOutboundURL := getEnv("WMS_OUTBOUND_SERVICE_URL", "http://wms-outbound-service:3090/api/wms/outbound")
 	wmsOutboundClient := client.NewWMSOutboundClient(wmsOutboundURL)
 
-	router := servicehttp.NewRouter(pool, traceabilityClient, wmsOutboundClient)
+	masterDataURL := getEnv("MASTER_DATA_SERVICE_URL", "http://mes-master-data-service:3020")
+	resourcePlanningClient := client.NewResourcePlanningClient(masterDataURL)
+	router := servicehttp.NewRouter(pool, traceabilityClient, wmsOutboundClient, resourcePlanningClient)
 
 	srv := &http.Server{
 		Addr:         ":" + port,
@@ -139,6 +141,12 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000003_execution_realtime_tables.up.sql",
 		"migrations/000004_i18n_read_models.up.sql",
 		"migrations/000005_wms_stock_check_status.up.sql",
+		"migrations/000006_work_order_creation_workflows.up.sql",
+		"migrations/000007_work_order_numbering_daily.up.sql",
+		"migrations/000008_operation_names.up.sql",
+		"migrations/000009_labor_assignments_and_read_models.up.sql",
+		"migrations/000010_resource_allocations.up.sql",
+		"migrations/000011_machine_group_allocations.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

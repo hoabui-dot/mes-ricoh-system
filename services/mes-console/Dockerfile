@@ -3,7 +3,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 ARG VITE_KEYCLOAK_URL
+ARG VITE_API_BASE_URL
 ENV VITE_KEYCLOAK_URL=${VITE_KEYCLOAK_URL}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 COPY package.json package-lock.json ./
 COPY libs/shared-kernel/package.json ./libs/shared-kernel/

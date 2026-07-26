@@ -4,18 +4,29 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 type RequestInput struct {
 	ItemRevisionID string  `json:"item_revision_id"`
+	ItemCode       string  `json:"item_code,omitempty"`
+	ItemName       string  `json:"item_name,omitempty"`
+	WorkOrderCode  string  `json:"work_order_code,omitempty"`
+	WorkOrderName  string  `json:"work_order_name,omitempty"`
 	WorkCenterRef  string  `json:"work_center_ref"`
+	WorkCenterCode string  `json:"work_center_code,omitempty"`
+	WorkCenterName string  `json:"work_center_name,omitempty"`
+	UOMCode        string  `json:"uom_code,omitempty"`
 	RequiredQty    float64 `json:"required_qty"`
 	WOID           string  `json:"wo_id"`
 	CreatedBy      string  `json:"created_by,omitempty"`
@@ -24,6 +35,15 @@ type RequestInput struct {
 
 type RequestOutput struct {
 	RequestID        string         `json:"request_id"`
+	RequestCode      string         `json:"request_code"`
+	SourceSystem     string         `json:"source_system,omitempty"`
+	WorkOrderCode    string         `json:"work_order_code,omitempty"`
+	WorkOrderName    string         `json:"work_order_name,omitempty"`
+	WorkCenterCode   string         `json:"work_center_code,omitempty"`
+	WorkCenterName   string         `json:"work_center_name,omitempty"`
+	ItemCode         string         `json:"item_code,omitempty"`
+	ItemName         string         `json:"item_name,omitempty"`
+	UOMCode          string         `json:"uom_code,omitempty"`
 	Status           string         `json:"status"`
 	StagingLocation  string         `json:"staging_location_id"`
 	RequestedQty     float64        `json:"requested_qty"`
@@ -58,6 +78,7 @@ var defaultInventoryBreaker = sharedkernel.NewCircuitBreaker(sharedkernel.Circui
 })
 
 func (s Service) RequestMaterialForWorkCenter(ctx context.Context, input RequestInput) (*RequestOutput, error) {
+	materialRequestAttempts.Add(1)
 	if input.ItemRevisionID == "" || input.WorkCenterRef == "" || input.WOID == "" || input.RequiredQty <= 0 {
 		return nil, fmt.Errorf("item_revision_id, work_center_ref, wo_id, and required_qty are required")
 	}
@@ -66,11 +87,27 @@ func (s Service) RequestMaterialForWorkCenter(ctx context.Context, input Request
 		return nil, err
 	}
 	defer lockTx.Rollback(ctx)
-	idempotencyKey := fmt.Sprintf("%s:%s:%s:%.6f", input.WOID, input.WorkCenterRef, input.ItemRevisionID, input.RequiredQty)
+	idempotencyKey := materialRequestIdentity(input)
 	if _, err := lockTx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, idempotencyKey); err != nil {
 		return nil, err
 	}
-	if existing, err := s.findExistingRequest(ctx, input); err == nil && existing != nil {
+	existing, findErr := s.findExistingRequest(ctx, input)
+	if findErr != nil && !errors.Is(findErr, pgx.ErrNoRows) {
+		return nil, findErr
+	}
+	if existing != nil {
+		materialRequestIdempotentReplays.Add(1)
+		existing.WorkOrderCode = input.WorkOrderCode
+		existing.WorkOrderName = input.WorkOrderName
+		existing.WorkCenterCode = input.WorkCenterCode
+		existing.WorkCenterName = input.WorkCenterName
+		existing.ItemCode = input.ItemCode
+		existing.ItemName = input.ItemName
+		existing.UOMCode = input.UOMCode
+		_, _ = s.Pool.Exec(ctx, `UPDATE material_request SET work_order_code = COALESCE(NULLIF($1, ''), work_order_code), work_order_name = COALESCE(NULLIF($2, ''), work_order_name), work_center_code = COALESCE(NULLIF($3, ''), work_center_code), work_center_name = COALESCE(NULLIF($4, ''), work_center_name), item_code = COALESCE(NULLIF($5, ''), item_code), item_name = COALESCE(NULLIF($6, ''), item_name), uom_code = COALESCE(NULLIF($7, ''), uom_code), updated_at = NOW() WHERE request_id = $8`, input.WorkOrderCode, input.WorkOrderName, input.WorkCenterCode, input.WorkCenterName, input.ItemCode, input.ItemName, input.UOMCode, existing.RequestID)
+		if err := lockTx.Commit(ctx); err != nil {
+			return nil, err
+		}
 		return existing, nil
 	}
 
@@ -111,34 +148,49 @@ func (s Service) RequestMaterialForWorkCenter(ctx context.Context, input Request
 	}
 	shortfall := max(0, input.RequiredQty-alreadyStaged)
 	requestID := uuid.New().String()
+	requestCode := "MR-" + strings.ToUpper(strings.ReplaceAll(requestID[:8], "-", ""))
 
 	if shortfall == 0 {
-		out := &RequestOutput{RequestID: requestID, Status: "Staged", StagingLocation: stagingLocationID, RequestedQty: input.RequiredQty, AlreadyStagedQty: alreadyStaged, ShortfallQty: 0, AvailableQty: availableWarehouse, TransferredQty: 0}
-		return out, s.persistAndPublish(ctx, input, out, "WMS.Outbound.MaterialStaged.v1")
+		out := &RequestOutput{RequestID: requestID, RequestCode: requestCode, SourceSystem: "MES", WorkOrderCode: input.WorkOrderCode, WorkOrderName: input.WorkOrderName, WorkCenterCode: input.WorkCenterCode, WorkCenterName: input.WorkCenterName, ItemCode: input.ItemCode, ItemName: input.ItemName, UOMCode: input.UOMCode, Status: "Staged", StagingLocation: stagingLocationID, RequestedQty: input.RequiredQty, AlreadyStagedQty: alreadyStaged, ShortfallQty: 0, AvailableQty: availableWarehouse, TransferredQty: 0}
+		if err := s.persistAndPublish(ctx, input, out, "WMS.Outbound.MaterialStaged.v1"); err != nil {
+			return nil, err
+		}
+		return out, lockTx.Commit(ctx)
 	}
 	if availableWarehouse+0.000001 < shortfall {
+		materialRequestShortages.Add(1)
 		out := &RequestOutput{
-			RequestID: requestID, Status: "Shortage", StagingLocation: stagingLocationID, RequestedQty: input.RequiredQty,
+			RequestID: requestID, RequestCode: requestCode, SourceSystem: "MES", WorkOrderCode: input.WorkOrderCode, WorkOrderName: input.WorkOrderName, WorkCenterCode: input.WorkCenterCode, WorkCenterName: input.WorkCenterName, ItemCode: input.ItemCode, ItemName: input.ItemName, UOMCode: input.UOMCode, Status: "Shortage", StagingLocation: stagingLocationID, RequestedQty: input.RequiredQty,
 			AlreadyStagedQty: alreadyStaged, ShortfallQty: shortfall, AvailableQty: availableWarehouse, TransferredQty: 0,
 			ErrorCode: "INSUFFICIENT_STOCK",
 			Details:   map[string]any{"requested_qty": input.RequiredQty, "already_staged_qty": alreadyStaged, "shortfall_qty": shortfall, "available_qty": availableWarehouse},
 		}
-		return out, s.persistAndPublish(ctx, input, out, "WMS.Outbound.MaterialShortageDeclared.v1")
+		if err := s.persistAndPublish(ctx, input, out, "WMS.Outbound.MaterialShortageDeclared.v1"); err != nil {
+			return nil, err
+		}
+		return out, lockTx.Commit(ctx)
 	}
 
 	transferred, err := s.transferShortfall(ctx, input, stagingLocationID, shortfall)
 	if err != nil {
 		return nil, err
 	}
-	out := &RequestOutput{RequestID: requestID, Status: "Staged", StagingLocation: stagingLocationID, RequestedQty: input.RequiredQty, AlreadyStagedQty: alreadyStaged, ShortfallQty: shortfall, AvailableQty: availableWarehouse, TransferredQty: transferred}
-	return out, s.persistAndPublish(ctx, input, out, "WMS.Outbound.MaterialStaged.v1")
+	out := &RequestOutput{RequestID: requestID, RequestCode: requestCode, SourceSystem: "MES", WorkOrderCode: input.WorkOrderCode, WorkOrderName: input.WorkOrderName, WorkCenterCode: input.WorkCenterCode, WorkCenterName: input.WorkCenterName, ItemCode: input.ItemCode, ItemName: input.ItemName, UOMCode: input.UOMCode, Status: "Staged", StagingLocation: stagingLocationID, RequestedQty: input.RequiredQty, AlreadyStagedQty: alreadyStaged, ShortfallQty: shortfall, AvailableQty: availableWarehouse, TransferredQty: transferred}
+	if err := s.persistAndPublish(ctx, input, out, "WMS.Outbound.MaterialStaged.v1"); err != nil {
+		return nil, err
+	}
+	return out, lockTx.Commit(ctx)
+}
+
+func materialRequestIdentity(input RequestInput) string {
+	return input.WOID + ":" + input.WorkCenterRef + ":" + input.ItemRevisionID + ":" + strconv.FormatFloat(input.RequiredQty, 'f', 6, 64)
 }
 
 func (s Service) findExistingRequest(ctx context.Context, input RequestInput) (*RequestOutput, error) {
 	var out RequestOutput
 	var rawDetail []byte
 	err := s.Pool.QueryRow(ctx, `
-		SELECT request_id::text, status, COALESCE((SELECT location_id::text FROM rm_storage_location WHERE staging_for_work_center_ref = material_request.work_center_ref AND location_purpose = 'WorkCenterStaging' LIMIT 1), '') AS staging_location_id,
+		SELECT request_id::text, request_code, source_system, COALESCE(work_order_code, ''), COALESCE(work_order_name, ''), COALESCE(work_center_code, ''), COALESCE(item_code, ''), COALESCE(uom_code, ''), status, COALESCE((SELECT location_id::text FROM rm_storage_location WHERE staging_for_work_center_ref = material_request.work_center_ref AND location_purpose = 'WorkCenterStaging' LIMIT 1), '') AS staging_location_id,
 		       required_qty::float8, already_staged_qty::float8, shortfall_qty::float8, available_qty::float8, transferred_qty::float8, detail
 		FROM material_request
 		WHERE wo_id = $1
@@ -149,6 +201,13 @@ func (s Service) findExistingRequest(ctx context.Context, input RequestInput) (*
 		LIMIT 1
 	`, input.WOID, input.WorkCenterRef, input.ItemRevisionID, input.RequiredQty).Scan(
 		&out.RequestID,
+		&out.RequestCode,
+		&out.SourceSystem,
+		&out.WorkOrderCode,
+		&out.WorkOrderName,
+		&out.WorkCenterCode,
+		&out.ItemCode,
+		&out.UOMCode,
 		&out.Status,
 		&out.StagingLocation,
 		&out.RequestedQty,
@@ -278,14 +337,14 @@ func (s Service) persistAndPublish(ctx context.Context, input RequestInput, out 
 		detail = []byte(`{}`)
 	}
 	_, err = tx.Exec(ctx, `
-		INSERT INTO material_request (request_id, wo_id, work_center_ref, item_revision_id, required_qty, already_staged_qty, shortfall_qty, available_qty, transferred_qty, status, detail)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
-	`, out.RequestID, input.WOID, input.WorkCenterRef, input.ItemRevisionID, input.RequiredQty, out.AlreadyStagedQty, out.ShortfallQty, out.AvailableQty, out.TransferredQty, out.Status, string(detail))
+		INSERT INTO material_request (request_id, request_code, source_system, wo_id, work_order_code, work_order_name, work_center_ref, work_center_code, work_center_name, item_revision_id, item_code, item_name, uom_code, required_qty, already_staged_qty, shortfall_qty, available_qty, transferred_qty, status, detail, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20::jsonb, NOW())
+	`, out.RequestID, out.RequestCode, "MES", input.WOID, input.WorkOrderCode, input.WorkOrderName, input.WorkCenterRef, input.WorkCenterCode, input.WorkCenterName, input.ItemRevisionID, input.ItemCode, input.ItemName, input.UOMCode, input.RequiredQty, out.AlreadyStagedQty, out.ShortfallQty, out.AvailableQty, out.TransferredQty, out.Status, string(detail))
 	if err != nil {
 		return err
 	}
 	payload := map[string]any{
-		"request_id": out.RequestID, "wo_id": input.WOID, "work_center_ref": input.WorkCenterRef, "item_revision_id": input.ItemRevisionID,
+		"request_id": out.RequestID, "request_code": out.RequestCode, "source_system": out.SourceSystem, "work_order_code": input.WorkOrderCode, "work_order_name": input.WorkOrderName, "work_center_code": input.WorkCenterCode, "work_center_name": input.WorkCenterName, "item_code": input.ItemCode, "item_name": input.ItemName, "uom_code": input.UOMCode, "wo_id": input.WOID, "work_center_ref": input.WorkCenterRef, "item_revision_id": input.ItemRevisionID,
 		"requested_qty": input.RequiredQty, "already_staged_qty": out.AlreadyStagedQty, "shortfall_qty": out.ShortfallQty,
 		"available_qty": out.AvailableQty, "transferred_qty": out.TransferredQty, "status": out.Status, "details": out.Details,
 	}

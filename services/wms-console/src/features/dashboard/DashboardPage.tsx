@@ -4,12 +4,12 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { api } from '../../lib/api/client';
 import { qk } from '../../lib/queryKeys';
-import { daysUntil } from '../../lib/utils';
+import { daysUntil, formatWmsQuantity } from '../../lib/utils';
 import { Card } from '../../components/ui';
 import { ErrorState } from '../../components/shared/ErrorState';
 
 export function DashboardPage() {
-  const { t, formatNumber } = useI18n();
+  const { t } = useI18n();
   const balances = useQuery({ queryKey: qk.balances('dashboard'), queryFn: () => api.listBalances(), refetchInterval: 20000 });
   const locations = useQuery({ queryKey: qk.locations, queryFn: api.listLocations });
   if (balances.isError) return <ErrorState error={balances.error} onRetry={() => void balances.refetch()} />;
@@ -22,10 +22,10 @@ export function DashboardPage() {
     <>
       <div className="mb-5"><h1 className="text-2xl font-black">{t('dashboard.title')}</h1><p className="mt-1 text-sm text-muted-foreground">{t('dashboard.subtitle')}</p></div>
       <div className="grid grid-cols-4 gap-4">
-        <Kpi label={t('dashboard.totalQty')} value={formatNumber(total)} to="/inventory/balances" />
-        <Kpi label={t('dashboard.expiring')} value={formatNumber(expiring)} to="/inventory/balances?expiry=7d" />
+        <Kpi label={t('dashboard.totalQty')} value={formatWmsQuantity(total)} to="/inventory/balances" />
+        <Kpi label={t('dashboard.expiring')} value={formatWmsQuantity(expiring)} to="/inventory/balances?expiry=7d" />
         <Kpi label={t('dashboard.shortages')} value="-" to="/outbound/requests?status=Shortage" />
-        <Kpi label={t('dashboard.stagingStock')} value={formatNumber(staging)} to="/warehouse-map" />
+        <Kpi label={t('dashboard.stagingStock')} value={formatWmsQuantity(staging)} to="/warehouse-map" />
       </div>
       <Card className="mt-4 h-80 p-5">
         <ResponsiveContainer width="100%" height="100%">

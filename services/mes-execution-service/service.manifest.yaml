@@ -20,6 +20,12 @@ publishes_events:
   - name: MES.Execution.MaterialConsumed.v1
     topic: MES.Execution.MaterialConsumed.v1
     payload: consumption_id, wo_id, wo_operation_id, work_center_id, component_revision_id, qty_consumed, uom, source
+  - name: MES.Execution.WOResourceAllocated.v1
+    topic: MES.Execution.WOResourceAllocated.v1
+    payload: allocation_id, wo_id, wo_operation_id, work_center, workstation, equipment, shift, planned_start_at, planned_end_at
+  - name: MES.Execution.WOResourceReallocated.v1
+    topic: MES.Execution.WOResourceReallocated.v1
+    payload: allocation_id, wo_id, wo_operation_id, candidate, planned_start_at, planned_end_at
 
 consumes_events:
   - name: MES.MasterData.ItemRevisionReleased.v2
@@ -73,6 +79,14 @@ synchronous_dependencies:
       half_open_trial_requests: 2
       graceful_failure: "HTTP 503 DEPENDENCY_UNAVAILABLE; mes-console uses existing retry UI pattern"
       idempotency: "wms-outbound-service serializes duplicate WO/work-center/item/quantity requests and returns the existing material request"
+  - service: mes-master-data-service
+    endpoints:
+      - POST /api/mes/master-data/resource-planning/readiness
+    caller: Work Order resource candidate, allocation, and release revalidation
+    circuit_breaker:
+      library: gobreaker via libs/shared-kernel-go
+      timeout: 7s
+      graceful_failure: "HTTP 503 DEPENDENCY_UNAVAILABLE; allocation is not persisted"
 
 http_endpoints:
   - method: POST
@@ -96,6 +110,21 @@ http_endpoints:
   - method: GET
     path: /api/mes/execution/work-orders
     description: List / filter Work Orders
+  - method: GET
+    path: /api/mes/execution/work-orders/:id/operations/:opId/resource-candidates
+    description: Resolve deterministic resource candidates through master-data readiness and show execution capacity conflicts
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/operations/:opId/resource-allocation
+    description: Revalidate and atomically commit one operation resource allocation and reservation
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/operations/:opId/reallocate
+    description: Supersede the current allocation with an audited replacement requiring a change reason
+  - method: DELETE
+    path: /api/mes/execution/work-orders/:id/operations/:opId/resource-allocation
+    description: Cancel a draft/pending allocation before release
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/resource-allocations/revalidate
+    description: Recheck committed allocations against current master-data readiness and capacity
 
 notes:
   - "Stage A scope only: WO planning/creation/approval. Kiosk Start/Finish, backflush, and QR mother-child scanning at OP-CUT are Stage B, deferred until mes-traceability-service exists."
@@ -103,6 +132,7 @@ notes:
   - "Phase 2 Step 2 implements WMS material staging as a separate retryable action, not inside the approval transaction. wo_material_requirement.stock_check_status is now NotChecked/Staged/Shortage and stock_check_detail stores the WMS response/shortage breakdown."
   - "MES.Execution.MaterialConsumed.v1 additively carries work_center_id so WMS inventory can decrement the correct WorkCenter staging location."
   - "Two deliberate synchronous calls to mes-master-data-service exist at the Approval gate (version freshness re-check + role/permission check), both circuit-breaker guarded via libs/shared-kernel-go/gobreaker."
+  - "Phase 3 resource allocation is execution-owned. It stores compact snapshots, reservations, idempotency records, and audit history; it never reads the master-data database directly. Release calls the same readiness contract and blocks missing or stale committed allocations."
   - "All synchronous HTTP dependencies use the shared circuit breaker baseline and emit OTel state-transition spans/metrics."
   - "Depends on libs/shared-kernel-go for EventEnvelope and OutboxRelayWorker. audit-trigger.sql and lifecycle-state-machine.sql are reused unmodified from the Node shared-kernel (DB-level, language agnostic)."
   - "Step 8 read-models preserve LocalizedText jsonb from Master Data .v2 events. This service does not resolve locale server-side."

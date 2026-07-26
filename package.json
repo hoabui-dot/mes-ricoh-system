@@ -18,13 +18,18 @@
     "i18n:register:qms-console": "tsx scripts/i18n-audit/register-qms-console-fallback-flags.ts",
     "seed:wms:demo": "tsx scripts/seed-wms-demo.ts",
     "seed:qms:demo": "tsx scripts/seed-qms-demo.ts",
+    "seed:mes:labor:demo": "bash scripts/seed-mes-labor-demo.sh",
+    "migrate:mes:legacy-fields": "tsx scripts/migrate-mes-legacy-fields.ts",
+    "migrate:mes:legacy-skills": "tsx scripts/migrate-legacy-skills-to-central-skill-management.ts",
+    "test:mes:operation-flow": "node scripts/test-mes-operation-workstation-workcenter-flow.mjs",
     "i18n:scan": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts",
     "i18n:scan:wms-console": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts services/wms-console/src",
     "test": "npm run test --workspaces --if-present",
     "infra:up": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml logs -f",
-    "infra:ps": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml ps"
+    "infra:ps": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml ps",
+    "cloudflare:urls": "bash scripts/show-cloudflare-urls.sh"
   },
   "devDependencies": {
     "typescript-eslint": "^8.0.0",

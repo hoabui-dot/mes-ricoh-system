@@ -13,6 +13,7 @@ const EVENT_TYPES = [
   'MES.MasterData.EmployeeCreated.v1',
   'MES.MasterData.ShiftCreated.v1',
   'MES.MasterData.EmployeeScheduleAssigned.v1',
+  'MES.MasterData.EmployeeSkillAssigned.v1',
 ];
 
 const schema = {

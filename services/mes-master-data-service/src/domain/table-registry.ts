@@ -8,6 +8,7 @@ export interface TableDefinition {
 
 export const TABLES: TableDefinition[] = [
   { resource: 'sites', tableName: 'md_site' },
+  { resource: 'shopfloors', tableName: 'md_shopfloor' },
   { resource: 'production-areas', tableName: 'md_production_area' },
   { resource: 'uoms', tableName: 'md_uom' },
   { resource: 'uom-conversions', tableName: 'md_uom_conversion' },
@@ -36,6 +37,8 @@ export const TABLES: TableDefinition[] = [
     eventType: 'MES.MasterData.ProductionVersionReleased.v1',
     releaseEventName: 'ProductionVersionReleased',
   },
+  { resource: 'ebom-headers', tableName: 'md_ebom_header', protectedAfterRelease: true },
+  { resource: 'ebom-lines', tableName: 'md_ebom_line', protectedAfterRelease: true },
   { resource: 'operations', tableName: 'md_operation' },
   {
     resource: 'routing-headers',
@@ -60,6 +63,9 @@ export const TABLES: TableDefinition[] = [
     releaseEventName: 'WorkCenterActivated',
   },
   { resource: 'workstations', tableName: 'md_workstation' },
+  { resource: 'machine-groups', tableName: 'md_workstation_machine_group' },
+  { resource: 'machine-requirements', tableName: 'md_workstation_machine_requirement' },
+  { resource: 'workstation-operation-capabilities', tableName: 'md_workstation_operation_capability' },
   {
     resource: 'equipment',
     tableName: 'md_equipment',
@@ -70,6 +76,9 @@ export const TABLES: TableDefinition[] = [
   { resource: 'resource-capabilities', tableName: 'md_resource_capability' },
   { resource: 'resource-calendars', tableName: 'md_resource_calendar' },
   { resource: 'skills', tableName: 'md_skill' },
+  { resource: 'skill-groups', tableName: 'md_skill_group' },
+  { resource: 'resource-skill-assignments', tableName: 'md_resource_skill_assignment' },
+  { resource: 'work-center-compositions', tableName: 'md_work_center_composition' },
   {
     resource: 'employees',
     tableName: 'md_employee',

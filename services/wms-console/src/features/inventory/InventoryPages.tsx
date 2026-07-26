@@ -6,7 +6,7 @@ import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { api } from '../../lib/api/client';
 import { qk } from '../../lib/queryKeys';
 import type { Balance, InventoryMovement } from '../../lib/api/types';
-import { daysUntil } from '../../lib/utils';
+import { daysUntil, formatWmsQuantity } from '../../lib/utils';
 import { Button, Card, Input, SelectBase } from '../../components/ui';
 import { DataTable } from '../../components/shared/DataTable';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -19,7 +19,7 @@ function Header({ title }: { title: string }) {
 }
 
 export function BalancesPage() {
-  const { t, formatNumber } = useI18n();
+  const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const locations = useQuery({ queryKey: qk.locations, queryFn: api.listLocations });
   const queryParams = new URLSearchParams();
@@ -42,7 +42,7 @@ export function BalancesPage() {
     column.accessor('lot_code', { header: t('inventory.lotCode'), cell: (info) => <Link className="font-mono font-semibold text-primary hover:underline" to={`/inventory/lots/${info.row.original.lot_id}`}>{info.getValue()}</Link> }),
     column.accessor('lot_id', { header: 'Lot ID', cell: (info) => <span className="font-mono text-xs text-muted-foreground">{info.getValue()}</span> }),
     column.accessor('location_id', { header: t('master.locationId'), cell: (info) => <div className="space-y-1"><div className="font-mono text-xs">{locationById.get(info.getValue())?.location_code ?? info.getValue()}</div><PurposeBadge purpose={locationById.get(info.getValue())?.location_purpose} /></div> }),
-    column.accessor('on_hand_qty', { header: t('common.quantity'), cell: (info) => <span className="tabular font-semibold">{formatNumber(info.getValue())}</span> }),
+    column.accessor('on_hand_qty', { header: t('common.quantity'), cell: (info) => <span className="tabular font-semibold">{formatWmsQuantity(info.getValue())}</span> }),
     column.accessor('expiry_date', { header: t('inventory.expiry'), cell: (info) => <ExpiryBadge expiryDate={info.getValue()} /> }),
     column.accessor('status', { header: t('common.status'), cell: (info) => <StatusBadge status={info.getValue()} /> }),
   ];
@@ -63,13 +63,13 @@ export function BalancesPage() {
 
 export function LotDetailPage() {
   const { lotId = '' } = useParams();
-  const { t, formatNumber } = useI18n();
+  const { t } = useI18n();
   const balances = useQuery({ queryKey: qk.balances(`lot:${lotId}`), queryFn: () => api.listBalances(), refetchInterval: 20000 });
   const rows = (balances.data ?? []).filter((row) => row.lot_id === lotId);
   const column = createColumnHelper<Balance>();
   const columns = [
     column.accessor('location_id', { header: t('master.locationId'), cell: (info) => <span className="font-mono text-xs">{info.getValue()}</span> }),
-    column.accessor('on_hand_qty', { header: t('common.quantity'), cell: (info) => <span className="tabular font-semibold">{formatNumber(info.getValue())}</span> }),
+    column.accessor('on_hand_qty', { header: t('common.quantity'), cell: (info) => <span className="tabular font-semibold">{formatWmsQuantity(info.getValue())}</span> }),
     column.accessor('expiry_date', { header: t('inventory.expiry'), cell: (info) => <ExpiryBadge expiryDate={info.getValue()} /> }),
   ];
   if (balances.isError) return <ErrorState error={balances.error} onRetry={() => void balances.refetch()} />;
@@ -77,7 +77,7 @@ export function LotDetailPage() {
 }
 
 export function MovementsPage() {
-  const { t, formatNumber } = useI18n();
+  const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const locations = useQuery({ queryKey: qk.locations, queryFn: api.listLocations });
   const queryParams = new URLSearchParams();
@@ -93,7 +93,7 @@ export function MovementsPage() {
     column.accessor('lot_code', { header: t('inventory.lotCode'), cell: (info) => <Link className="font-mono text-xs text-primary hover:underline" to={`/inventory/lots/${info.row.original.lot_id}`}>{info.getValue()}</Link> }),
     column.accessor('from_location_id', { header: t('movement.from'), cell: (info) => <span className="font-mono text-xs">{info.getValue() ? locationById.get(info.getValue()!)?.location_code ?? info.getValue() : '-'}</span> }),
     column.accessor('to_location_id', { header: t('movement.to'), cell: (info) => <span className="font-mono text-xs">{info.getValue() ? locationById.get(info.getValue()!)?.location_code ?? info.getValue() : '-'}</span> }),
-    column.accessor('qty', { header: t('common.quantity'), cell: (info) => <span className="tabular font-semibold">{formatNumber(info.getValue())}</span> }),
+    column.accessor('qty', { header: t('common.quantity'), cell: (info) => <span className="tabular font-semibold">{formatWmsQuantity(info.getValue())}</span> }),
   ];
   if (movements.isError) return <ErrorState error={movements.error} onRetry={() => void movements.refetch()} />;
   return (

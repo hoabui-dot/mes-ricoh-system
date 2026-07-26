@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Factory, Pencil, Plus, RefreshCw, Users, X } from 'lucide-react';
+import { Factory, Pencil, Plus, RefreshCw, Users, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
@@ -7,11 +7,12 @@ import { authHeaders, fetchResource, masterDataBaseUrl, postResource, putResourc
 import { useI18n, useLocalizedText } from '@mom-platform/i18n-ui-shared';
 import { LocalizedTextInput } from '../../components/LocalizedTextInput';
 import { translatedEnum } from '../../lib/i18nLabels';
+import { SelectBase } from '../../components/ui';
 
 type ModalMode = 'create' | 'edit';
 
 const WORK_CENTER_TYPES = ['Production', 'Inspection'] as const;
-const blank = { code: '', name: { vi: '' }, site_id: '', area_id: '', work_center_type: 'Production', active_flag: true };
+const blank = { code: '', code_reservation_id: '', name: { vi: '' }, site_id: '', shopfloor_id: '', area_id: '', work_center_type: 'Production', active_flag: true, capabilities: [] as any[], composition: [] as any[] };
 
 export const WorkCentersScreen: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +21,10 @@ export const WorkCentersScreen: React.FC = () => {
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
+  const [shopfloors, setShopfloors] = useState<any[]>([]);
+  const [operations, setOperations] = useState<any[]>([]);
+  const [workstations, setWorkstations] = useState<any[]>([]);
+  const [workstationCapabilities, setWorkstationCapabilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [headcount, setHeadcount] = useState<Record<string, any>>({});
@@ -34,14 +39,20 @@ export const WorkCentersScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [wc, siteRows, areaRows] = await Promise.all([
+      const [wc, siteRows, areaRows, shopfloorRows, operationRows, workstationRows, capabilityRows] = await Promise.all([
         fetchResource('work-centers', user),
         fetchResource('sites', user),
         fetchResource('production-areas', user),
+        fetchResource('shopfloors', user),
+        fetchResource('operations', user),
+        fetchResource('workstations', user),
+        fetchResource('workstation-operation-capabilities', user),
       ]);
       setWorkCenters(wc);
       setSites(siteRows);
-      setAreas(areaRows);
+      setAreas(areaRows); setShopfloors(shopfloorRows);
+      setOperations(operationRows);
+      setWorkstations(workstationRows); setWorkstationCapabilities(capabilityRows);
       const counts: Record<string, any> = {};
       await Promise.all(wc.map(async (row: any) => {
         const resp = await fetch(`${masterDataBaseUrl()}/work-centers/${row.master_id}/headcount`, { headers: authHeaders(user) });
@@ -59,9 +70,13 @@ export const WorkCentersScreen: React.FC = () => {
     void load();
   }, []);
 
-  const openModal = (mode: ModalMode, row?: any) => {
+  const openModal = async (mode: ModalMode, row?: any) => {
     setModal({ mode, row });
-    setForm(row ? { ...row, name: typeof row.name === 'string' ? { vi: row.name } : row.name } : { ...blank, site_id: sites[0]?.master_id || '', area_id: areas[0]?.master_id || '' });
+    let capabilities: any[] = []; let composition: any[] = [];
+    if (row) { capabilities = await fetchResource('resource-capabilities', user, `?work_center_id=${row.master_id}`); const response = await fetch(`${masterDataBaseUrl()}/work-centers/${row.master_id}/composition`, { headers: authHeaders(user) }); const payload = response.ok ? await response.json() : { data: [] }; composition = Object.values((payload.data || []).reduce((acc: Record<string, any>, item: any) => { acc[item.workstation_id] ||= { workstation_id: item.workstation_id, operation_ids: [] }; acc[item.workstation_id].operation_ids.push(item.operation_id); return acc; }, {})); }
+    let nextForm = row ? { ...row, name: typeof row.name === 'string' ? { vi: row.name } : row.name, capabilities, composition } : { ...blank, site_id: sites[0]?.master_id || '', area_id: areas[0]?.master_id || '' };
+    if (!row) { const response = await fetch(`${masterDataBaseUrl()}/business-codes/reservations`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify({ entity_type: 'WorkCenter' }) }); if (response.ok) { const payload = await response.json(); nextForm = { ...nextForm, code: payload.data?.code, code_reservation_id: payload.data?.reservation_id }; } }
+    setForm(nextForm);
   };
 
   const save = async (event: React.FormEvent) => {
@@ -69,14 +84,26 @@ export const WorkCentersScreen: React.FC = () => {
     try {
       const payload = {
         code: form.code,
+        code_reservation_id: form.code_reservation_id,
         name: form.name,
         site_id: form.site_id,
         area_id: form.area_id,
+        shopfloor_id: form.shopfloor_id,
         work_center_type: form.work_center_type,
         active_flag: Boolean(form.active_flag),
       };
-      if (modal?.mode === 'edit') await putResource('work-centers', modal.row.master_id, payload, user);
-      else await postResource('work-centers', payload, user);
+      const saved = modal?.mode === 'edit' ? await putResource('work-centers', modal.row.master_id, payload, user) : await postResource('work-centers', payload, user);
+      const workCenterId = modal?.mode === 'edit' ? modal.row.master_id : saved.master_id;
+      for (const capability of form.capabilities || []) {
+        if (!capability.operation_id || Number(capability.cycle_time_sec) <= 0) continue;
+        const capabilityPayload = { operation_id: capability.operation_id, work_center_id: workCenterId, capability_type: capability.capability_type || 'Eligible', cycle_time_sec: Number(capability.cycle_time_sec), active_flag: capability.active_flag !== false };
+        if (capability.master_id) await putResource('resource-capabilities', capability.master_id, capabilityPayload, user);
+        else await postResource('resource-capabilities', capabilityPayload, user);
+      }
+      if (form.composition?.length) {
+        const response = await fetch(`${masterDataBaseUrl()}/work-centers/${workCenterId}/composition`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify({ workstations: form.composition }) });
+        if (!response.ok) { const failure = await response.json().catch(() => ({})); throw new Error(failure.message || failure.error || t('workCenters.compositionSaveFailed')); }
+      }
       toast.success(t('workCenters.saved'));
       setModal(null);
       await load();
@@ -171,14 +198,27 @@ export const WorkCentersScreen: React.FC = () => {
           <form onSubmit={save} className="bg-slate-900 border border-slate-800 rounded-lg p-6 w-full max-w-xl space-y-4">
             <h3 className="font-bold text-lg">{modal.mode === 'edit' ? t('workCenters.edit') : t('workCenters.create')}</h3>
             <div className="grid grid-cols-2 gap-3">
-              <input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder={t('common.code')} className="bg-slate-950 border border-slate-800 rounded-lg p-3" />
+              <input readOnly required value={form.code} placeholder={t('common.code')} className="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-amber-200" />
               <LocalizedTextInput required label={t('common.name')} value={form.name} onChange={(name) => setForm({ ...form, name })} />
-              <select required value={form.site_id} onChange={(e) => setForm({ ...form, site_id: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-lg p-3">{sites.map((site) => <option key={site.master_id} value={site.master_id}>{site.code}</option>)}</select>
-              <select required value={form.area_id} onChange={(e) => setForm({ ...form, area_id: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-lg p-3">{areas.map((area) => <option key={area.master_id} value={area.master_id}>{area.code}</option>)}</select>
-              <select value={form.work_center_type} onChange={(e) => setForm({ ...form, work_center_type: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-                {WORK_CENTER_TYPES.map((type) => <option key={type} value={type}>{translatedEnum(t, 'workCenters.type', type)}</option>)}
-              </select>
+              <SelectBase required value={form.site_id} onValueChange={(value) => setForm({ ...form, site_id: value })} options={sites.map((site) => ({ value: site.master_id, label: `${text(site.name) || site.code} (${site.code})` }))} aria-label={t('common.site')} />
+              <SelectBase required value={form.shopfloor_id} onValueChange={(value) => setForm({ ...form, shopfloor_id: value })} options={shopfloors.filter((shopfloor) => !form.site_id || shopfloor.site_id === form.site_id).map((shopfloor) => ({ value: shopfloor.master_id, label: `${text(shopfloor.name) || shopfloor.code} (${shopfloor.code})` }))} aria-label={t('resourceFoundation.shopfloors')} />
+              <SelectBase required value={form.area_id} onValueChange={(value) => setForm({ ...form, area_id: value })} options={areas.map((area) => ({ value: area.master_id, label: area.code }))} aria-label={t('common.area')} />
+              <SelectBase value={form.work_center_type} onValueChange={(value) => setForm({ ...form, work_center_type: value })} options={WORK_CENTER_TYPES.map((type) => ({ value: type, label: translatedEnum(t, 'workCenters.type', type) }))} aria-label={t('common.type')} />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active_flag} onChange={(e) => setForm({ ...form, active_flag: e.target.checked })} /> {form.active_flag ? t('common.active') : t('common.inactive')}</label>
+            </div>
+            <div className="space-y-3 rounded-md border border-border bg-surface-subtle p-4">
+              <div><h4 className="font-semibold">{t('workCenters.capabilitiesTitle')}</h4><p className="text-xs text-muted-foreground">{t('workCenters.capabilitiesHelp')}</p></div>
+              {(form.capabilities || []).map((capability: any, index: number) => <div key={capability.master_id || index} className="grid grid-cols-[1fr_140px_auto] items-end gap-2">
+                <label className="space-y-1 text-xs"><span className="text-muted-foreground">{t('common.operation')}</span><SelectBase value={capability.operation_id} onValueChange={(value) => setForm({ ...form, capabilities: form.capabilities.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, operation_id: value } : item) })} options={operations.map((operation) => ({ value: operation.master_id, label: `${operation.code} - ${operation.name?.vi || operation.name?.en || ''}` }))} aria-label={t('common.operation')} /></label>
+                <label className="space-y-1 text-xs"><span className="text-muted-foreground">{t('workCenters.cycleTimeSec')}</span><input required type="number" min="0.001" step="0.001" value={capability.cycle_time_sec || ''} onChange={(event) => setForm({ ...form, capabilities: form.capabilities.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, cycle_time_sec: event.target.value } : item) })} className="w-full rounded-md border border-border bg-background p-2 text-foreground" /></label>
+                <button type="button" onClick={() => setForm({ ...form, capabilities: form.capabilities.filter((_item: any, itemIndex: number) => itemIndex !== index) })} className="rounded-md p-2 text-muted-foreground hover:bg-hover hover:text-danger" aria-label={t('common.remove')}><Trash2 className="h-4 w-4" /></button>
+              </div>)}
+              <button type="button" onClick={() => setForm({ ...form, capabilities: [...(form.capabilities || []), { operation_id: operations[0]?.master_id || '', cycle_time_sec: '' }] })} className="rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-hover">{t('workCenters.addCapability')}</button>
+            </div>
+            <div className="space-y-3 rounded-md border border-border bg-surface-subtle p-4">
+              <div><h4 className="font-semibold">{t('workCenters.compositionTitle')}</h4><p className="text-xs text-muted-foreground">{t('workCenters.compositionHelp')}</p></div>
+              {(form.composition || []).map((entry: any, index: number) => { const selected = workstationCapabilities.filter((capability) => capability.workstation_id === entry.workstation_id); return <div key={index} className="rounded-md border border-border p-3"><div className="flex gap-2"><SelectBase value={entry.workstation_id} onValueChange={(value) => setForm({ ...form, composition: form.composition.map((item: any, itemIndex: number) => itemIndex === index ? { workstation_id: value, operation_ids: [] } : item) })} options={workstations.filter((workstation) => !form.shopfloor_id || workstation.shopfloor_id === form.shopfloor_id).map((workstation) => ({ value: workstation.master_id, label: `${text(workstation.name) || workstation.code} (${workstation.code})` }))} aria-label={t('workCenters.workstation')} /><button type="button" onClick={() => setForm({ ...form, composition: form.composition.filter((_item: any, itemIndex: number) => itemIndex !== index) })} className="rounded-md p-2 text-muted-foreground" aria-label={t('common.remove')}><Trash2 className="h-4 w-4" /></button></div><div className="mt-2 grid gap-2 sm:grid-cols-2">{selected.map((capability) => <label key={capability.operation_id} className="flex items-center gap-2 rounded border border-border p-2 text-sm"><input type="checkbox" checked={(entry.operation_ids || []).includes(capability.operation_id)} onChange={(event) => setForm({ ...form, composition: form.composition.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, operation_ids: event.target.checked ? [...(item.operation_ids || []), capability.operation_id] : (item.operation_ids || []).filter((id: string) => id !== capability.operation_id) } : item) })} />{text(capability.operation_name) || capability.operation_code} <span className="font-mono text-xs text-muted-foreground">{capability.operation_code} · {capability.cycle_time_sec}s</span></label>)}</div>{entry.workstation_id && !selected.length ? <div className="mt-2 text-xs text-danger">{t('workCenters.noSupportedOperations')}</div> : null}</div>; })}
+              <button type="button" onClick={() => setForm({ ...form, composition: [...(form.composition || []), { workstation_id: '', operation_ids: [] }] })} className="rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-hover">{t('workCenters.addWorkstation')}</button>
             </div>
             <div className="flex justify-end gap-3"><button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-slate-800 rounded-lg">{t('common.cancel')}</button><button className="px-5 py-2 bg-action rounded-lg font-semibold">{t('common.save')}</button></div>
           </form>

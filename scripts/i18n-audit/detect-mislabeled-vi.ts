@@ -33,6 +33,7 @@ const ENGLISH_TERMS = [
 ];
 
 const LOCALIZED_COLUMNS = [
+  ['md_site', 'name'],
   ['md_item', 'name'],
   ['md_item_revision', 'name'],
   ['md_work_center', 'name'],
@@ -89,15 +90,13 @@ async function main() {
 
     for (const [tableName, columnName] of LOCALIZED_COLUMNS) {
       if (!(await columnExistsAsJsonb(pool, tableName, columnName))) continue;
-      const { rows } = await pool.query(
-        `SELECT master_id, ${columnName}->>'vi' AS vi_value
-         FROM ${tableName}
-         WHERE ${columnName} ? 'vi' AND btrim(${columnName}->>'vi') <> ''`,
-      );
+      const { rows } = await pool.query(`SELECT master_id, code, ${columnName}->>'vi' AS vi_value FROM ${tableName}`);
       for (const row of rows) {
         const value = String(row.vi_value ?? '').trim();
-        if (!value || VIETNAMESE_DIACRITIC_RE.test(value)) continue;
-        const confidence = detectEnglishConfidence(value);
+        const missing = !value;
+        const mirroredCode = value.toUpperCase() === String(row.code ?? '').trim().toUpperCase();
+        if (!missing && !mirroredCode && VIETNAMESE_DIACRITIC_RE.test(value)) continue;
+        const confidence = missing || mirroredCode ? 0.99 : detectEnglishConfidence(value);
         if (confidence <= 0) continue;
         await pool.query(
           `INSERT INTO i18n_data_quality_flag

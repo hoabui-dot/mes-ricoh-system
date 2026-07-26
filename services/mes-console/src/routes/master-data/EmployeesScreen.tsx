@@ -4,15 +4,23 @@ import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { MasterDataApiError, authHeaders, fetchResource, masterDataBaseUrl, postResource, putResource } from '../../lib/masterDataApi';
-import { useI18n } from '@mom-platform/i18n-ui-shared';
+import { useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum } from '../../lib/i18nLabels';
+import { Modal, SelectBase } from '../../components/ui';
 
 const EMPLOYEE_STATUSES = ['Active', 'Inactive', 'OnLeave'] as const;
 const blank = { code: '', name: '', site_id: '', default_work_center_id: '', employee_status: 'Active', hired_date: '' };
 
+function localizedText(value: unknown, locale: SupportedLocale): string {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+  const record = value as Record<string, unknown>;
+  return String(record[locale] || record.vi || record.en || record.ja || record.ko || '');
+}
+
 export const EmployeesScreen: React.FC = () => {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [employees, setEmployees] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
   const [workCenters, setWorkCenters] = useState<any[]>([]);
@@ -32,7 +40,7 @@ export const EmployeesScreen: React.FC = () => {
         fetchResource('employees', user, filters.work_center_id ? `?work_center_id=${filters.work_center_id}` : ''),
         fetchResource('sites', user),
         fetchResource('work-centers', user),
-        fetchResource('skills', user),
+        fetchResource('skills', user, '?scope=Employee'),
       ]);
       setEmployees(emp);
       setSites(siteRows);
@@ -127,8 +135,8 @@ export const EmployeesScreen: React.FC = () => {
       </div>
 
       <div className="flex gap-3">
-        <select value={filters.work_center_id} onChange={(e) => setFilters({ ...filters, work_center_id: e.target.value })} className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm"><option value="">{t('common.all')} {t('nav.workCenters')}</option>{workCenters.map((wc) => <option key={wc.master_id} value={wc.master_id}>{wc.code}</option>)}</select>
-        <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-sm"><option value="">{t('common.all')} {t('common.status')}</option>{EMPLOYEE_STATUSES.map((status) => <option key={status} value={status}>{translatedEnum(t, 'status.employee', status)}</option>)}</select>
+        <SelectBase label={t('nav.workCenters')} value={filters.work_center_id} onValueChange={(value) => setFilters({ ...filters, work_center_id: value })} className="h-10 w-auto min-w-48" options={[{ value: '', label: `${t('common.all')} ${t('nav.workCenters')}` }, ...workCenters.map((wc) => ({ value: wc.master_id, label: localizedText(wc.name, locale), secondaryLabel: wc.code }))]} aria-label={t('nav.workCenters')} />
+        <SelectBase label={t('common.status')} value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })} className="h-10 w-auto min-w-40" options={[{ value: '', label: `${t('common.all')} ${t('common.status')}` }, ...EMPLOYEE_STATUSES.map((status) => ({ value: status, label: translatedEnum(t, 'status.employee', status) }))]} aria-label={t('common.status')} />
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
@@ -139,24 +147,22 @@ export const EmployeesScreen: React.FC = () => {
       </div>
 
       {modal && (
-        <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-6">
-          <form onSubmit={save} className="bg-slate-900 border border-slate-800 rounded-lg p-6 w-full max-w-2xl space-y-4">
-            <h3 className="font-bold text-lg">{modal.master_id ? t('common.edit') : t('employees.create')}</h3>
+        <Modal open title={modal.master_id ? t('common.edit') : t('employees.create')} onClose={() => setModal(null)} footerLeft={<button type="button" onClick={() => setModal(null)} className="rounded-md border border-border bg-surface-subtle px-4 py-2 text-sm font-medium text-foreground hover:bg-hover">{t('common.cancel')}</button>} footer={<button type="submit" form="employee-form" className="rounded-md bg-action px-5 py-2 text-sm font-semibold text-white">{t('common.save')}</button>} className="max-w-2xl">
+          <form id="employee-form" onSubmit={save} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder={t('employees.code')} className="bg-slate-950 border border-slate-800 rounded-lg p-3" />
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('employees.fullName')} className="bg-slate-950 border border-slate-800 rounded-lg p-3" />
-              <select required value={form.site_id} onChange={(e) => setForm({ ...form, site_id: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-lg p-3">{sites.map((site) => <option key={site.master_id} value={site.master_id}>{site.code}</option>)}</select>
-              <select value={form.default_work_center_id || ''} onChange={(e) => setForm({ ...form, default_work_center_id: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-lg p-3"><option value="">{t('employees.noDefault')}</option>{workCenters.map((wc) => <option key={wc.master_id} value={wc.master_id}>{wc.code}</option>)}</select>
-              <select value={form.employee_status} onChange={(e) => setForm({ ...form, employee_status: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-lg p-3">{EMPLOYEE_STATUSES.map((status) => <option key={status} value={status}>{translatedEnum(t, 'status.employee', status)}</option>)}</select>
-              <input type="date" value={form.hired_date || ''} onChange={(e) => setForm({ ...form, hired_date: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-lg p-3" />
+              <label className="space-y-1"><span className="block text-sm font-medium text-slate-200">{t('employees.code')} *</span><input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder={t('employees.code')} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
+              <label className="space-y-1"><span className="block text-sm font-medium text-slate-200">{t('employees.fullName')} *</span><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('employees.fullName')} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
+              <SelectBase label={`${t('common.site')} *`} required value={form.site_id} onValueChange={(value) => setForm({ ...form, site_id: value })} options={sites.map((site) => ({ value: site.master_id, label: localizedText(site.name, locale), secondaryLabel: site.code }))} aria-label={t('common.site')} />
+              <SelectBase label={t('nav.workCenters')} value={form.default_work_center_id || ''} onValueChange={(value) => setForm({ ...form, default_work_center_id: value })} options={[{ value: '', label: t('employees.noDefault') }, ...workCenters.map((wc) => ({ value: wc.master_id, label: localizedText(wc.name, locale), secondaryLabel: wc.code }))]} aria-label={t('nav.workCenters')} />
+              <SelectBase label={t('common.status')} value={form.employee_status} onValueChange={(value) => setForm({ ...form, employee_status: value })} options={EMPLOYEE_STATUSES.map((status) => ({ value: status, label: translatedEnum(t, 'status.employee', status) }))} aria-label={t('common.status')} />
+              <label className="space-y-1"><span className="block text-sm font-medium text-slate-200">{t('employees.hired')}</span><input type="date" value={form.hired_date || ''} onChange={(e) => setForm({ ...form, hired_date: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
             </div>
             <div className="border border-slate-800 rounded-lg p-3">
               <div className="text-xs uppercase font-semibold text-slate-400 mb-2">{t('employees.skillPreview')}</div>
-              <div className="grid grid-cols-2 gap-2">{skills.map((skill) => <label key={skill.master_id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(selectedSkills[skill.master_id])} onChange={(e) => setSelectedSkills({ ...selectedSkills, [skill.master_id]: e.target.checked ? skill.minimum_level || 'L1' : '' })} />{skill.code}<select disabled={!selectedSkills[skill.master_id]} value={selectedSkills[skill.master_id] || skill.minimum_level || 'L1'} onChange={(e) => setSelectedSkills({ ...selectedSkills, [skill.master_id]: e.target.value })} className="ml-auto bg-slate-950 border border-slate-800 rounded px-2 py-1"><option>L1</option><option>L2</option><option>L3</option></select></label>)}</div>
+              <div className="grid grid-cols-1 gap-2">{skills.map((skill) => <div key={skill.master_id} className="flex items-center gap-2 text-sm"><label className="flex min-w-0 flex-1 items-center gap-2"><input type="checkbox" checked={Boolean(selectedSkills[skill.master_id])} onChange={(e) => setSelectedSkills({ ...selectedSkills, [skill.master_id]: e.target.checked ? skill.minimum_level || 'L1' : '' })} /><span className="min-w-0"><span className="block font-medium text-slate-100">{localizedText(skill.name, locale)}</span><span className="block text-xs italic text-slate-400">{skill.code}</span></span></label><SelectBase label={t('common.level')} disabled={!selectedSkills[skill.master_id]} value={selectedSkills[skill.master_id] || skill.minimum_level || 'L1'} onValueChange={(value) => setSelectedSkills({ ...selectedSkills, [skill.master_id]: value })} className="h-9 w-24" options={['L1', 'L2', 'L3'].map((level) => ({ value: level, label: level }))} aria-label={`${skill.code} level`} /></div>)}</div>
             </div>
-            <div className="flex justify-end gap-3"><button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-slate-800 rounded-lg">{t('common.cancel')}</button><button className="px-5 py-2 bg-action rounded-lg font-semibold">{t('common.save')}</button></div>
           </form>
-        </div>
+        </Modal>
       )}
     </div>
   );
