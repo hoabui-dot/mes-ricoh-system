@@ -39,10 +39,11 @@ RUN dotnet publish services/kiosk-ui/src/ND.KioskUi.Api/ND.KioskUi.Api.csproj -c
 # Stage 3: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-USER app
 COPY --chown=app:app --from=api-build /app/publish .
+COPY services/kiosk-ui/docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && mkdir -p /data /logs
 VOLUME ["/data", "/logs"]
 EXPOSE 5007
 ENV DOTNET_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:5007
-ENTRYPOINT ["dotnet", "ND.KioskUi.Api.dll"]
+ENTRYPOINT ["/entrypoint.sh"]

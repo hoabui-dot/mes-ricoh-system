@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
@@ -44,6 +46,18 @@ func localizedOperationName(code string) string {
 	return string(encoded)
 }
 
+func localizedNameValue(raw []byte) string {
+	var values map[string]string
+	if len(raw) > 0 && json.Unmarshal(raw, &values) == nil {
+		for _, locale := range []string{"vi", "en", "ja", "ko"} {
+			if value := strings.TrimSpace(values[locale]); value != "" {
+				return value
+			}
+		}
+	}
+	return strings.TrimSpace(string(raw))
+}
+
 const WorkOrderCodePrefix = "WO"
 
 func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInput) (map[string]interface{}, error) {
@@ -57,14 +71,69 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		return nil, fmt.Errorf("failed to set_config: %w", err)
 	}
 
-	var pvID, mbomHeaderID, routingHeaderID string
-	if input.ProductionVersionID != "" {
-		err = tx.QueryRow(ctx, `SELECT master_id, mbom_header_id, routing_header_id FROM rm_production_version WHERE master_id = $1 AND item_revision_id = $2 AND site_id = $3`, input.ProductionVersionID, input.ItemRevisionID, input.SiteID).Scan(&pvID, &mbomHeaderID, &routingHeaderID)
-	} else {
-		err = tx.QueryRow(ctx, `SELECT master_id, mbom_header_id, routing_header_id FROM rm_production_version WHERE item_revision_id = $1 AND site_id = $2 ORDER BY is_default DESC LIMIT 1`, input.ItemRevisionID, input.SiteID).Scan(&pvID, &mbomHeaderID, &routingHeaderID)
+	if input.ProductionVersionID == "" {
+		return nil, fmt.Errorf("PRODUCTION_VERSION_REQUIRED")
 	}
+	var pvID, mbomHeaderID, routingHeaderID, derivedItemRevisionID, derivedSiteID, derivedUOMID, pvCode, itemRevisionCode, itemCode, mbomCode, routingCode string
+	var pvName, itemName []byte
+	err = tx.QueryRow(ctx, `
+		SELECT pv.master_id, pv.item_revision_id, pv.mbom_header_id, pv.routing_header_id, pv.site_id,
+		       COALESCE(pv.code, ''), COALESCE(pv.name_i18n, '{}'::jsonb), COALESCE(ir.code, ''),
+		       COALESCE(ir.name, '{}'::jsonb), COALESCE(ir.base_uom_id::text, ''), COALESCE(ir.code, ''),
+		       COALESCE(mb.code, ''), COALESCE(rh.code, '')
+		FROM rm_production_version pv
+		JOIN rm_item_revision ir ON ir.master_id = pv.item_revision_id
+		JOIN rm_mbom_header mb ON mb.master_id = pv.mbom_header_id
+		JOIN rm_routing_header rh ON rh.master_id = pv.routing_header_id
+		WHERE pv.master_id = $1 AND pv.lifecycle_status = 'Released'
+	`, input.ProductionVersionID).Scan(&pvID, &derivedItemRevisionID, &mbomHeaderID, &routingHeaderID, &derivedSiteID, &pvCode, &pvName, &itemRevisionCode, &itemName, &derivedUOMID, &itemCode, &mbomCode, &routingCode)
 	if err != nil {
-		return nil, fmt.Errorf("no Production Version found for Item %s at Site %s: %w", input.ItemCode, input.SiteID, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("PRODUCTION_VERSION_NOT_FOUND")
+		}
+		return nil, fmt.Errorf("WORK_ORDER_MASTER_DATA_QUERY_FAILED: %w", err)
+	}
+	if derivedUOMID == "" {
+		return nil, fmt.Errorf("WORK_ORDER_MASTER_DATA_INCOMPLETE: Production Version %s has no projected Item Revision base UOM", pvID)
+	}
+
+	// The Production Version owns the configuration, but the executable Site is
+	// derived from every Routing Work Center. Never trust the PV/site projection
+	// when it disagrees with the released Routing structure.
+	var routingSite string
+	var routingSiteCount int
+	if err := tx.QueryRow(ctx, `
+		SELECT COALESCE(MIN(wc.site_id::text), ''), COUNT(DISTINCT wc.site_id)
+		FROM rm_routing_operation ro
+		JOIN rm_work_center wc ON wc.master_id = ro.work_center_id
+		WHERE ro.routing_header_id = $1
+	`, routingHeaderID).Scan(&routingSite, &routingSiteCount); err != nil {
+		return nil, fmt.Errorf("WORK_ORDER_MASTER_DATA_QUERY_FAILED: routing Site resolution: %w", err)
+	}
+	if routingSite == "" {
+		return nil, fmt.Errorf("ROUTING_SITE_CONTEXT_INVALID")
+	}
+	if routingSiteCount > 1 {
+		return nil, fmt.Errorf("ROUTING_SITE_CONTEXT_AMBIGUOUS")
+	}
+	if derivedSiteID == "" || derivedSiteID != routingSite {
+		return nil, fmt.Errorf("PRODUCTION_VERSION_SITE_CONTEXT_INVALID")
+	}
+	if input.ItemRevisionID != "" && input.ItemRevisionID != derivedItemRevisionID {
+		return nil, fmt.Errorf("WORK_ORDER_PRODUCTION_VERSION_CONTEXT_MISMATCH:item_revision_id")
+	}
+	if input.SiteID != "" && input.SiteID != derivedSiteID {
+		return nil, fmt.Errorf("WORK_ORDER_PRODUCTION_VERSION_CONTEXT_MISMATCH:site_id")
+	}
+	if input.UOMID != "" && derivedUOMID != "" && input.UOMID != derivedUOMID {
+		return nil, fmt.Errorf("WORK_ORDER_PRODUCTION_VERSION_CONTEXT_MISMATCH:uom_id")
+	}
+	input.ItemRevisionID, input.SiteID, input.UOMID = derivedItemRevisionID, derivedSiteID, derivedUOMID
+	if input.ItemCode == "" {
+		input.ItemCode = itemCode
+	}
+	if input.ItemName == "" {
+		input.ItemName = localizedNameValue(itemName)
 	}
 
 	var seq int64
@@ -82,11 +151,11 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	var woID, createdBy string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO wo_header (
-			wo_code, production_version_id, item_revision_id, item_code, item_name, quantity, uom_id, site_id,
+			wo_code, production_version_id, production_version_code, production_version_name_i18n, item_revision_id, item_revision_code, item_revision_name_i18n, item_code, item_name, mbom_code, routing_code, planning_snapshot, quantity, uom_id, site_id,
 			planned_start_at, planned_end_at, status, created_by
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Draft', $11)
+		) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, 'Draft', $18)
 		RETURNING wo_id, created_by
-	`, woCode, pvID, input.ItemRevisionID, input.ItemCode, input.ItemName, input.Quantity, input.UOMID, input.SiteID, input.PlannedStartAt, input.PlannedEndAt, input.UserID).Scan(&woID, &createdBy)
+	`, woCode, pvID, pvCode, string(pvName), input.ItemRevisionID, itemRevisionCode, string(itemName), input.ItemCode, input.ItemName, mbomCode, routingCode, fmt.Sprintf(`{"production_version_id":"%s","production_version_code":"%s","mbom_id":"%s","routing_id":"%s"}`, pvID, pvCode, mbomHeaderID, routingHeaderID), input.Quantity, input.UOMID, input.SiteID, input.PlannedStartAt, input.PlannedEndAt, input.UserID).Scan(&woID, &createdBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert wo_header: %w", err)
 	}
@@ -136,27 +205,37 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 
 	// Snapshot Routing Operations
 	opRows, err := tx.Query(ctx, `
-		SELECT master_id, operation_id, operation_code, work_center_id, seq, predecessor_seq
-		FROM rm_routing_operation WHERE routing_header_id = $1 ORDER BY seq
+		SELECT ro.master_id, ro.operation_id, ro.operation_code, ro.work_center_id, ro.seq, ro.predecessor_seq,
+		       ro.resolved_setup_time_min, ro.resolved_cycle_time_sec, ro.resolved_efficiency_factor, ro.resolved_base_quantity, ro.resolved_standard_yield, COALESCE(ro.resolved_required_workers, 1), ro.resolved_source, ro.requires_output_label, ro.workstation_id
+		FROM rm_routing_operation ro
+		WHERE ro.routing_header_id = $1 ORDER BY ro.seq
 	`, routingHeaderID)
 	if err != nil {
-		log.Printf("[CreateWO] Query routing ops error: %v", err)
+		return nil, fmt.Errorf("WO_ROUTING_SNAPSHOT_UNAVAILABLE: failed to load routing operations: %w", err)
 	} else {
 		type opStruct struct {
-			masterID, opID, opCode, wcID *string
-			seq                          int
-			predSeq                      *int
+			masterID, opID, opCode, wcID                  *string
+			seq                                           int
+			predSeq                                       *int
+			setup, cycle, efficiency, base, standardYield *float64
+			workers                                       int
+			planningSource                                *string
+			requiresOutputLabel                           bool
+			workstationID                                 *string
 		}
 		var ops []opStruct
 		for opRows.Next() {
 			var o opStruct
-			if err := opRows.Scan(&o.masterID, &o.opID, &o.opCode, &o.wcID, &o.seq, &o.predSeq); err != nil {
+			if err := opRows.Scan(&o.masterID, &o.opID, &o.opCode, &o.wcID, &o.seq, &o.predSeq, &o.setup, &o.cycle, &o.efficiency, &o.base, &o.standardYield, &o.workers, &o.planningSource, &o.requiresOutputLabel, &o.workstationID); err != nil {
 				log.Printf("[CreateWO] Scan routing op error: %v", err)
 				continue
 			}
 			ops = append(ops, o)
 		}
 		opRows.Close()
+		if len(ops) == 0 {
+			return nil, fmt.Errorf("WO_ROUTING_SNAPSHOT_MISSING: Production Version routing has no executable operations")
+		}
 
 		for _, o := range ops {
 			opCodeStr := fmt.Sprintf("OP-%d", o.seq)
@@ -169,31 +248,37 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 				predStr = &s
 			}
 
-			var setupStr, cycleStr, effStr string
-			var setupTime, cycleTime, eff float64 = 15.0, 45.0, 1.0
-			if err := tx.QueryRow(ctx, `
-				SELECT setup_time_min::text, cycle_time_sec::text, efficiency_factor::text
-				FROM rm_production_standard
-				WHERE item_revision_id = $1 AND operation_id = $2 AND work_center_id = $3
-				LIMIT 1
-			`, input.ItemRevisionID, *o.opID, *o.wcID).Scan(&setupStr, &cycleStr, &effStr); err == nil {
-				if s, e := strconv.ParseFloat(setupStr, 64); e == nil {
-					setupTime = s
-				}
-				if c, e := strconv.ParseFloat(cycleStr, 64); e == nil {
-					cycleTime = c
-				}
-				if ef, e := strconv.ParseFloat(effStr, 64); e == nil && ef > 0 {
-					eff = ef
-				}
+			var setupTime, cycleTime, eff float64 = 0, 60.0, 1.0
+			baseQuantity, standardYield := 1.0, 1.0
+			if o.setup != nil {
+				setupTime = *o.setup
+			}
+			if o.cycle != nil {
+				cycleTime = *o.cycle
+			}
+			if o.efficiency != nil && *o.efficiency > 0 {
+				eff = *o.efficiency
+			}
+			if o.base != nil && *o.base > 0 {
+				baseQuantity = *o.base
+			}
+			if o.standardYield != nil && *o.standardYield > 0 {
+				standardYield = *o.standardYield
+			}
+			if o.workers < 1 {
+				o.workers = 1
 			}
 
+			targetType := "KIOSK_DEMO"
+			if o.requiresOutputLabel {
+				targetType = "PRINT_STATION"
+			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO wo_operation (
 					wo_id, sequence_no, operation_id, routing_operation_id, operation_code, operation_name, work_center_id, predecessor_seq,
-					standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, status
-				) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, 'Pending')
-			`, woID, o.seq, *o.opID, *o.masterID, opCodeStr, localizedOperationName(opCodeStr), *o.wcID, predStr, setupTime, cycleTime, eff); err != nil {
+					standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, base_quantity, standard_yield, required_workers, calculation_version, planning_snapshot, execution_target_type, workstation_id, status
+				) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'Pending')
+			`, woID, o.seq, *o.opID, *o.masterID, opCodeStr, localizedOperationName(opCodeStr), *o.wcID, predStr, setupTime, cycleTime, eff, baseQuantity, standardYield, o.workers, "routing-plan-v1", map[string]interface{}{"planning_source": o.planningSource, "execution_target_type": targetType, "base_quantity": baseQuantity, "setup_time_min": setupTime, "cycle_time_sec": cycleTime, "required_workers": o.workers, "efficiency_factor": eff, "standard_yield": standardYield, "predecessor_seq": predStr}, targetType, o.workstationID); err != nil {
 				return nil, fmt.Errorf("failed to insert wo_operation: %w", err)
 			}
 		}
@@ -201,12 +286,16 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 
 	// Write outbox event
 	payload := map[string]interface{}{
-		"wo_id":            woID,
-		"wo_code":          woCode,
-		"item_revision_id": input.ItemRevisionID,
-		"quantity":         input.Quantity,
-		"site_id":          input.SiteID,
-		"status":           "Draft",
+		"wo_id":                        woID,
+		"wo_code":                      woCode,
+		"production_version_id":        pvID,
+		"production_version_code":      pvCode,
+		"production_version_name_i18n": json.RawMessage(pvName),
+		"item_revision_id":             input.ItemRevisionID,
+		"item_revision_code":           itemRevisionCode,
+		"quantity":                     input.Quantity,
+		"site_id":                      input.SiteID,
+		"status":                       "Draft",
 	}
 	envelope := sharedkernel.CreateEventEnvelope("MES.Execution.WOCreated.v1", "mes-execution-service", input.TraceID, payload)
 	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.WOCreated.v1", envelope); err != nil {
@@ -218,18 +307,21 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	}
 
 	return map[string]interface{}{
-		"wo_id":                 woID,
-		"wo_code":               woCode,
-		"production_version_id": pvID,
-		"item_revision_id":      input.ItemRevisionID,
-		"item_code":             input.ItemCode,
-		"item_name":             input.ItemName,
-		"quantity":              input.Quantity,
-		"uom_id":                input.UOMID,
-		"site_id":               input.SiteID,
-		"planned_start_at":      input.PlannedStartAt,
-		"planned_end_at":        input.PlannedEndAt,
-		"status":                "Draft",
-		"created_by":            createdBy,
+		"wo_id":                        woID,
+		"wo_code":                      woCode,
+		"production_version_id":        pvID,
+		"production_version_code":      pvCode,
+		"production_version_name_i18n": json.RawMessage(pvName),
+		"item_revision_id":             input.ItemRevisionID,
+		"item_revision_code":           itemRevisionCode,
+		"item_code":                    input.ItemCode,
+		"item_name":                    input.ItemName,
+		"quantity":                     input.Quantity,
+		"uom_id":                       input.UOMID,
+		"site_id":                      input.SiteID,
+		"planned_start_at":             input.PlannedStartAt,
+		"planned_end_at":               input.PlannedEndAt,
+		"status":                       "Draft",
+		"created_by":                   createdBy,
 	}, nil
 }

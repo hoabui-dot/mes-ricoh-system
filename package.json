@@ -37,7 +37,21 @@
     "infra:logs": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml logs -f",
     "infra:ps": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml ps",
     "rebuild:mes": "bash scripts/rebuild-mes.sh",
-    "cloudflare:urls": "bash scripts/show-cloudflare-urls.sh"
+    "rebuild:print-station": "bash scripts/rebuild-print-station.sh",
+    "restart:print-station": "bash scripts/restart-print-station.sh",
+    "verify:print-station": "node scripts/verify-print-station-realtime-flow.mjs",
+    "logs:print-station": "bash scripts/logs-print-station.sh",
+  "cloudflare:urls": "bash scripts/show-cloudflare-urls.sh",
+  "verify:mes:wo-physical-print": "node scripts/verify-mes-wo-to-physical-print-flow.mjs",
+  "cleanup:mes:work-orders": "node scripts/cleanup-mes-work-order-test-data.mjs",
+  "reset:mes:wo:dry-run": "MES_ENV=development node scripts/reset-mes-wo-test-data.mjs --dry-run",
+  "reset:mes:wo": "node scripts/reset-mes-wo-test-data.mjs --reset",
+  "seed:mes:wo:dry-run": "MES_ENV=development node scripts/seed-mes-wo-complete-dataset.mjs --dry-run",
+  "seed:mes:wo": "node scripts/seed-mes-wo-complete-dataset.mjs --seed",
+  "reset:seed:mes:wo": "MES_ENV=development CONFIRM_MASTER_DATA_RESET=YES_RESET_E2E_MASTER_DATA node scripts/seed-mes-wo-complete-dataset.mjs --seed",
+    "seed:mes:physical-printer-pv": "node scripts/seed-mes-physical-printer-pv.mjs",
+    "ensure:mes:print-kafka-topics": "bash scripts/ensure-mes-print-kafka-topics.sh",
+    "e2e:mes:physical-print": "npm run ensure:mes:print-kafka-topics && node scripts/run-mes-physical-print-e2e.mjs"
   },
   "devDependencies": {
     "typescript-eslint": "^8.0.0",

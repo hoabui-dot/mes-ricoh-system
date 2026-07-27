@@ -7,6 +7,7 @@ import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { Button, ComboboxBase } from '../../components/ui';
 import { generateRequestId } from '../../lib/codePreview';
 import { gatewayBaseUrl } from '../../lib/masterDataApi';
+import { translateWorkOrderError } from '../../lib/errorMessages';
 
 type ReadyProduct = {
   item_id: string;
@@ -19,6 +20,11 @@ type ReadyProduct = {
   base_uom_code: string;
   production_version_id: string;
   production_version_code: string;
+  production_version_name?: Record<string, string> | string;
+  min_lot_size?: number | string | null;
+  max_lot_size?: number | string | null;
+  valid_from?: string;
+  valid_to?: string | null;
   mbom_header_id: string;
   mbom_name?: Record<string, string> | string;
   mbom_code: string;
@@ -71,6 +77,7 @@ export const WOCreateScreen: React.FC = () => {
   const [events, setEvents] = useState<WorkflowEvent[]>([]);
   const [workflowResult, setWorkflowResult] = useState<{ work_order_id?: string; work_order_code?: string; operationCount?: number; materialCount?: number } | null>(null);
   const [workflowError, setWorkflowError] = useState<{ code?: string; detail?: string; technical_reference?: string } | null>(null);
+  const [requestFailure, setRequestFailure] = useState<{ detail: string; reference: string } | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<number | null>(null);
   const lastSequenceRef = useRef(0);
@@ -80,7 +87,7 @@ export const WOCreateScreen: React.FC = () => {
       setProductsError('');
       try {
         const host = window.location.hostname;
-        const response = await fetch(`${gatewayBaseUrl()}/api/mes/master-data/production-ready-item-revisions?search=${encodeURIComponent(productSearch)}&planned_date=${targetDate}&limit=50`, { headers: { 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER' } });
+        const response = await fetch(`${gatewayBaseUrl()}/api/mes/master-data/production-ready-versions?search=${encodeURIComponent(productSearch)}&planned_date=${targetDate}&limit=50`, { headers: { 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER' } });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || t('workOrders.create.productSelector.loadError'));
         const nextProducts = (data.data || []) as ReadyProduct[];
@@ -187,25 +194,28 @@ export const WOCreateScreen: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const idempotencyKey = generateRequestId();
     setSubmitting(true);
     setWorkflowError(null);
+    setRequestFailure(null);
     setEvents([]);
     lastSequenceRef.current = 0;
     try {
       const host = window.location.hostname;
-      const idempotencyKey = generateRequestId();
         const resp = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-order-creation-workflows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey, 'X-User-ID': user?.userId || 'admin', 'X-Role-Code': user?.roles[0] || 'PLANT_MANAGER' },
-          body: JSON.stringify({ item_id: selectedProduct?.item_id, item_code: selectedProduct?.display_code, item_name: selectedProduct?.item_name, item_revision_id: selectedProduct?.item_revision_id, production_version_id: selectedProduct?.production_version_id, quantity: Number(quantity), uom_id: selectedProduct?.base_uom_id, site_id: selectedProduct?.site_id, target_date: targetDate }),
+          body: JSON.stringify({ production_version_id: selectedProduct?.production_version_id, quantity: Number(quantity), target_date: targetDate }),
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || t('woCreate.createFailed'));
+      if (!resp.ok) throw new Error(translateWorkOrderError(data.error || data.message, t) || t('woCreate.createFailed'));
       setWorkflowId(data.workflow_id);
       setWorkflowStatus(data.status || 'accepted');
     } catch (err: any) {
-      setWorkflowError({ code: 'ERR-WO-REQUEST-001', detail: err.message });
-      toast.error(err.message);
+      const message = translateWorkOrderError(err.message, t);
+      setWorkflowError({ code: 'ERR-WO-REQUEST-001', detail: message });
+      setRequestFailure({ detail: message, reference: idempotencyKey });
+      toast.error(message);
     } finally { setSubmitting(false); }
   };
 
@@ -220,8 +230,8 @@ export const WOCreateScreen: React.FC = () => {
         <div className="border-b border-slate-800 pb-4"><h1 className="text-xl font-bold text-slate-100">{t('woCreate.title')}</h1><p className="text-xs text-slate-400">{t('woCreate.subtitle')}</p></div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('workOrders.create.fields.workOrderCode')}</label><input readOnly value={expectedCode} placeholder={t('workOrders.create.fields.workOrderCodePreview')} className="w-full cursor-text rounded-md border border-slate-700 bg-slate-950/60 p-3.5 font-mono text-sm text-slate-200 outline-none focus:border-action" /><p className="mt-1.5 text-xs text-slate-400">{t('workOrders.create.fields.workOrderCodeHelp')}</p></div>
-          <div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('workOrders.create.fields.productRevision')} *</label><ComboboxBase value={selectedProductId} options={products.map((product) => ({ value: product.production_version_id, label: localizedProductName(product.item_name) || product.display_code, description: `${product.display_code} · ${product.revision_code} · ${product.production_version_code} · ${product.base_uom_code} · ${product.site_code}` }))} onValueChange={(value) => { const product = products.find((item) => item.production_version_id === value); if (!product) return; setSelectedProductId(product.production_version_id); setSelectedProduct(product); setItemCode(product.display_code); }} onSearchChange={setProductSearch} placeholder={t('workOrders.create.productSelector.placeholder')} emptyMessage={t('workOrders.create.productSelector.empty')} loading={productsLoading} error={productsError || undefined} aria-label={t('workOrders.create.fields.productRevision')} />{!productsError && !productsLoading && products.length === 0 && <p className="mt-1.5 text-xs text-amber-300">{t('workOrders.create.productSelector.emptyHint')}</p>}</div>
-          {selectedProduct && <div className="rounded-md border border-action/30 bg-action/10 p-4"><div className="mb-2 text-xs font-bold uppercase tracking-wide text-action">{t('workOrders.create.selectedConfiguration')}</div><div className="grid gap-2 text-sm sm:grid-cols-2"><SummaryRow label={t('workOrders.create.fields.productName')} value={localizedProductName(selectedProduct.item_name)} /><SummaryRow label={t('workOrders.create.fields.revision')} value={selectedProduct.revision_code} mono /><SummaryRow label={t('workOrders.create.fields.productionVersion')} value={selectedProduct.production_version_code} mono /><SummaryRow label={t('workOrders.create.fields.uom')} value={selectedProduct.base_uom_code} /><SummaryRow label={t('workOrders.create.fields.site')} value={selectedProduct.site_code} mono /><SummaryRow label={t('workOrders.create.fields.readiness')} value={t('workOrders.create.readiness.ready')} /></div></div>}
+          <div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('workOrders.create.fields.productionVersion')} *</label><ComboboxBase value={selectedProductId} options={products.map((product) => ({ value: product.production_version_id, label: localizedProductionVersionName(product.production_version_name) || product.production_version_code, description: `${product.production_version_code} · ${product.display_code} · ${product.mbom_code} · ${product.routing_code} · ${product.base_uom_code} · ${product.site_code}` }))} onValueChange={(value) => { const product = products.find((item) => item.production_version_id === value); if (!product) return; setSelectedProductId(product.production_version_id); setSelectedProduct(product); setItemCode(product.item_code || product.display_code); }} onSearchChange={setProductSearch} placeholder={t('workOrders.create.productionVersionSelector.placeholder')} emptyMessage={t('workOrders.create.productSelector.empty')} loading={productsLoading} error={productsError || undefined} aria-label={t('workOrders.create.fields.productionVersion')} />{!productsError && !productsLoading && products.length === 0 && <p className="mt-1.5 text-xs text-amber-300">{t('workOrders.create.productSelector.emptyHint')}</p>}</div>
+          {selectedProduct && <div className="rounded-md border border-action/30 bg-action/10 p-4"><div className="mb-2 text-xs font-bold uppercase tracking-wide text-action">{t('workOrders.create.selectedConfiguration')}</div><div className="grid gap-2 text-sm sm:grid-cols-2"><SummaryRow label={t('workOrders.create.fields.productionVersion')} value={localizedProductionVersionName(selectedProduct.production_version_name)} /><SummaryRow label={t('workOrders.create.fields.revision')} value={`${localizedProductName(selectedProduct.item_name)} · ${selectedProduct.revision_code}`} /><SummaryRow label={t('workOrders.create.fields.mbom')} value={`${localizedBusinessName(selectedProduct.mbom_name, selectedProduct.mbom_code)} · ${selectedProduct.mbom_code}`} /><SummaryRow label={t('workOrders.create.fields.routing')} value={`${localizedBusinessName(selectedProduct.routing_name, selectedProduct.routing_code)} · ${selectedProduct.routing_code}`} /><SummaryRow label={t('workOrders.create.fields.uom')} value={selectedProduct.base_uom_code} /><SummaryRow label={t('workOrders.create.fields.site')} value={selectedProduct.site_code} mono /><SummaryRow label={t('workOrders.create.fields.readiness')} value={t('workOrders.create.readiness.ready')} /></div></div>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('woCreate.quantity')} *</label><div className="flex items-center gap-2"><input required min={1} type="number" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-md p-3.5 font-mono text-sm text-slate-100 focus:outline-none focus:border-action" /><span className="font-mono text-xs text-slate-400">{selectedProduct?.base_uom_code || 'UOM'}</span></div></div><div><label className="block text-xs font-semibold text-slate-300 uppercase mb-2">{t('woCreate.targetDate')} *</label><input required type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-md p-3.5 font-mono text-sm text-slate-100 focus:outline-none focus:border-action" /></div></div>
           <div className="rounded-md border border-slate-700 bg-slate-950/40 p-4"><div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{t('workOrders.create.readiness.title')}</div><div className="grid gap-2 text-sm sm:grid-cols-2">{[
             [t('workOrders.create.fields.revision'), selectedProduct?.revision_code],
@@ -229,15 +239,22 @@ export const WOCreateScreen: React.FC = () => {
             [t('workOrders.create.fields.mbom'), selectedProduct ? `${localizedBusinessName(selectedProduct.mbom_name, selectedProduct.mbom_code)} · ${selectedProduct.mbom_code}` : undefined],
             [t('workOrders.create.fields.routing'), selectedProduct ? `${localizedBusinessName(selectedProduct.routing_name, selectedProduct.routing_code)} · ${selectedProduct.routing_code}` : undefined],
           ].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 border-b border-slate-800 py-1.5"><span className="text-slate-300">{label}</span><span className={`text-right text-xs ${selectedProduct ? 'text-emerald-300' : 'text-slate-500'}`}>{selectedProduct ? value : t('workOrders.create.readiness.waiting')}</span></div>)}</div></div>
-          <div className="pt-4 flex justify-end"><Button type="submit" disabled={submitting || !selectedProduct}><CheckCircle className="h-4 w-4" />{t('woCreate.submit')}</Button></div>
+          <div className="pt-4 flex justify-end"><Button type="submit" disabled={submitting || !selectedProduct || !Number.isFinite(quantity) || quantity <= 0 || (selectedProduct?.min_lot_size != null && quantity < Number(selectedProduct.min_lot_size)) || (selectedProduct?.max_lot_size != null && quantity > Number(selectedProduct.max_lot_size))}><CheckCircle className="h-4 w-4" />{t('woCreate.submit')}</Button></div>
         </form>
       </div>
+
+      {requestFailure && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-labelledby="wo-request-failure-title">
+        <div className="w-full max-w-lg rounded-lg border border-rose-700 bg-slate-900 p-5 shadow-2xl">
+          <div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-300" /><div><h2 id="wo-request-failure-title" className="font-semibold text-rose-200">{t('workOrders.creation.failed')}</h2><p className="mt-2 text-sm text-slate-100">{requestFailure.detail}</p><p className="mt-3 text-xs text-rose-300">{t('workOrders.creation.reference')}: <span className="font-mono">{requestFailure.reference}</span></p></div></div>
+          <div className="mt-5 flex justify-end"><Button variant="secondary" onClick={() => setRequestFailure(null)}>{t('common.close')}</Button></div>
+        </div>
+      </div>}
 
       {workflowId && <div className="fixed inset-0 z-50 bg-slate-950/80 p-4 sm:p-8 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="wo-progress-title">
         <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-2xl flex flex-col">
           <header className="border-b border-slate-700 px-5 py-4 flex flex-wrap justify-between gap-3"><div><h2 id="wo-progress-title" className="text-lg font-bold text-slate-100">{t('workOrders.creation.title')}</h2><p className="text-sm text-slate-100">{localizedProductName(selectedProduct?.item_name || '') || itemCode}</p><p className="text-xs text-slate-400">{itemCode} · {quantity} PCS · {targetDate}</p></div><div className="flex items-center gap-3 text-xs"><span className="flex items-center gap-1.5 text-slate-300"><Radio className={`h-3.5 w-3.5 ${connectionStatus === 'connected' ? 'text-emerald-400' : 'text-amber-400'}`} />{connectionText}</span><span className="rounded-full border border-slate-600 px-2.5 py-1 text-slate-200">{workflowStatus}</span></div></header>
           <div className="overflow-y-auto p-5 grid lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,1fr)] gap-6">
-            <section aria-live="polite"><div className="mb-4 flex items-center justify-between"><h3 className="font-semibold text-slate-100">{t('workOrders.creation.timeline')}</h3><span className="text-xs text-slate-400">{steps.filter((step) => ['succeeded', 'event_queued'].includes(step.status)).length} / {steps.length} {t('workOrders.creation.completed')}</span></div><div className="space-y-3">{steps.map((step) => <WorkflowStepRow key={step.id} step={step} t={t} />)}</div>{workflowError && workflowStatus === 'failed' && <div className="mt-4 rounded-md border border-rose-700 bg-rose-950/30 p-4" aria-live="assertive"><p className="font-semibold text-rose-200">{t('workOrders.creation.failed')}</p><p className="mt-1 text-sm text-rose-100">{workflowError.detail || workflowError.code}</p><p className="mt-2 text-xs text-rose-300">{t('workOrders.creation.reference')}: {workflowError.technical_reference || workflowId}</p></div>}</section>
+            <section aria-live="polite"><div className="mb-4 flex items-center justify-between"><h3 className="font-semibold text-slate-100">{t('workOrders.creation.timeline')}</h3><span className="text-xs text-slate-400">{steps.filter((step) => ['succeeded', 'event_queued'].includes(step.status)).length} / {steps.length} {t('workOrders.creation.completed')}</span></div><div className="space-y-3">{steps.map((step) => <WorkflowStepRow key={step.id} step={step} t={t} />)}</div>{workflowError && workflowStatus === 'failed' && <div className="mt-4 rounded-md border border-rose-700 bg-rose-950/30 p-4" aria-live="assertive"><p className="font-semibold text-rose-200">{t('workOrders.creation.failed')}</p><p className="mt-1 text-sm text-rose-100">{translateWorkOrderError(workflowError.detail || workflowError.code, t)}</p><p className="mt-2 text-xs text-rose-300">{t('workOrders.creation.reference')}: {workflowError.technical_reference || workflowId}</p></div>}</section>
             <aside className="rounded-md border border-slate-700 bg-slate-950/50 p-4 space-y-4"><h3 className="font-semibold text-slate-100">{t('workOrders.creation.summary')}</h3><SummaryRow label={t('workOrders.create.fields.productName')} value={localizedProductName(selectedProduct?.item_name || '') || itemCode} /><SummaryRow label={t('woCreate.itemCode')} value={itemCode} mono /><SummaryRow label={t('woCreate.quantity')} value={`${quantity} PCS`} /><SummaryRow label={t('woCreate.targetDate')} value={targetDate} /><div className="border-t border-slate-800 pt-3"><SummaryRow label={t('workOrders.creation.reference')} value={workflowId} mono /><button onClick={copyReference} className="mt-2 inline-flex items-center gap-1.5 text-xs text-cyan-300 hover:text-cyan-200"><ClipboardCopy className="h-3.5 w-3.5" />{t('workOrders.creation.copyReference')}</button></div>{workflowResult && <div className="border-t border-slate-800 pt-3 space-y-2"><SummaryRow label={t('workOrders.creation.workOrder')} value={workflowResult.work_order_code || workflowResult.work_order_id || '-'} mono /><SummaryRow label={t('workOrders.creation.operations')} value={workflowResult.operationCount ?? '-'} /><SummaryRow label={t('workOrders.creation.materials')} value={workflowResult.materialCount ?? '-'} /></div>}</aside>
           </div>
           <footer className="border-t border-slate-700 px-5 py-4 flex justify-end gap-3"><Button variant="secondary" onClick={() => setWorkflowId(null)} disabled={workflowStatus === 'running' || workflowStatus === 'accepted'}>{t('common.close')}</Button>{workflowStatus === 'succeeded' && <Button onClick={closeWorkflow}>{t('workOrders.creation.openWorkOrder')}</Button>}</footer>
@@ -254,6 +271,11 @@ function localizedProductName(value: Record<string, string> | string) {
   return value.vi || value.en || value.ja || value.ko || '';
 }
 
+function localizedProductionVersionName(value: Record<string, string> | string | undefined) {
+  if (!value) return '';
+  return typeof value === 'string' ? value : value.vi || value.en || value.ja || value.ko || '';
+}
+
 function localizedBusinessName(value: Record<string, string> | string | undefined, fallback: string) {
   if (!value) return fallback;
   return typeof value === 'string' ? value : value.vi || value.en || value.ja || value.ko || fallback;
@@ -263,5 +285,6 @@ function WorkflowStepRow({ step, t }: { step: WorkflowStep & { titleKey: string 
   const tone = { running: 'border-action bg-action/10 text-action', succeeded: 'border-emerald-700 bg-emerald-950/30 text-emerald-300', event_queued: 'border-cyan-700 bg-cyan-950/30 text-cyan-300', failed: 'border-rose-700 bg-rose-950/30 text-rose-300', warning: 'border-amber-700 bg-amber-950/30 text-amber-300', timed_out: 'border-rose-700 bg-rose-950/30 text-rose-300', pending: 'border-slate-700 bg-slate-950/30 text-slate-500', skipped: 'border-slate-700 bg-slate-950/30 text-slate-500', cancelled: 'border-slate-700 bg-slate-950/30 text-slate-500' }[step.status];
   const message = step.message_key ? t(step.message_key, step.message_params) : t(`workOrders.creation.status.${step.status}`);
   const businessResults = step.result && Object.entries(step.result).filter(([key]) => !/(^|_)(id|uuid)$/i.test(key) && !/Id$/.test(key));
-  return <div className={`rounded-md border p-3 ${tone}`}><div className="flex items-start gap-3"><span className="mt-0.5">{statusIcon(step.status)}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="font-semibold text-sm text-slate-100">{t(step.titleKey)}</p><span className="text-xs uppercase tracking-wide">{t(`workOrders.creation.status.${step.status}`)}</span></div><p className="mt-1 text-sm text-slate-300">{message}</p>{businessResults && businessResults.length > 0 && <p className="mt-2 text-xs text-slate-400">{businessResults.map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{step.error && <div className="mt-2 rounded border border-rose-800/80 bg-rose-950/40 p-2 text-xs text-rose-100"><p>{step.error.detail || step.error.code}</p>{step.error.technical_reference && <p className="mt-1 font-mono text-rose-300">{step.error.technical_reference}</p>}</div>}</div></div></div>;
+  const errorMessage = step.error ? translateWorkOrderError(step.error.detail || step.error.code, t) : '';
+  return <div className={`rounded-md border p-3 ${tone}`}><div className="flex items-start gap-3"><span className="mt-0.5">{statusIcon(step.status)}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="font-semibold text-sm text-slate-100">{t(step.titleKey)}</p><span className="text-xs uppercase tracking-wide">{t(`workOrders.creation.status.${step.status}`)}</span></div><p className="mt-1 text-sm text-slate-300">{message}</p>{businessResults && businessResults.length > 0 && <p className="mt-2 text-xs text-slate-400">{businessResults.map(([key, value]) => `${key}: ${value}`).join(' · ')}</p>}{step.error && <div className="mt-2 rounded border border-rose-800/80 bg-rose-950/40 p-2 text-xs text-rose-100"><p>{errorMessage}</p>{step.error.technical_reference && <p className="mt-1 font-mono text-rose-300">{step.error.technical_reference}</p>}</div>}</div></div></div>;
 }

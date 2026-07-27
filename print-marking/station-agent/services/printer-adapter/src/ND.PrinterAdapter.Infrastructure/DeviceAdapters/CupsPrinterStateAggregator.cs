@@ -38,14 +38,23 @@ public sealed class CupsPrinterStateAggregator : ICupsPrinterStateAggregator
     private readonly HttpClient _httpClient;
 
     // CUPS endpoint resolution (priority order):
-    //   1. CUPS_SERVER env var  (format: "host:port" e.g. "127.0.0.1:8631" — set by docker-compose)
-    //   2. CUPS_HEALTH_HOST + CUPS_HEALTH_PORT env vars (explicit override)
+    //   1. CUPS_HEALTH_HOST + CUPS_HEALTH_PORT (the explicit remote/host endpoint)
+    //   2. CUPS_SERVER for backwards compatibility with older deployments
     //   3. Default: host.docker.internal:631
     private static readonly string CupsHost;
     private static readonly int    CupsPort;
 
     static CupsPrinterStateAggregator()
     {
+        var explicitHost = Environment.GetEnvironmentVariable("CUPS_HEALTH_HOST");
+        var explicitPort = Environment.GetEnvironmentVariable("CUPS_HEALTH_PORT");
+        if (!string.IsNullOrWhiteSpace(explicitHost))
+        {
+            CupsHost = explicitHost;
+            CupsPort = int.TryParse(explicitPort ?? "631", out var explicitPortValue) ? explicitPortValue : 631;
+            return;
+        }
+
         var server = Environment.GetEnvironmentVariable("CUPS_SERVER");
         if (!string.IsNullOrWhiteSpace(server))
         {

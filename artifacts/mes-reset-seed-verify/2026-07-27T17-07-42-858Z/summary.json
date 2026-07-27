@@ -1,0 +1,86 @@
+{
+  "success": true,
+  "mode": "reset",
+  "artifactDir": "/home/neurosus/mes-system/artifacts/mes-reset-seed-verify/2026-07-27T17-07-42-858Z",
+  "safety": {
+    "passed": true,
+    "mode": "reset",
+    "environment": "development",
+    "reasons": [],
+    "execution": {
+      "host": "localhost",
+      "port": "15435",
+      "database": "mes_execution_db",
+      "user": "mes_execution_user",
+      "password": "[REDACTED]"
+    },
+    "kiosk": {
+      "host": "localhost",
+      "port": "15437",
+      "database": "mes_kiosk_gateway_db",
+      "user": "mes_kiosk_user",
+      "password": "[REDACTED]"
+    },
+    "host": "staging-master",
+    "git": {
+      "branch": "main",
+      "commit": "287cd8d"
+    }
+  },
+  "deleted": {
+    "execution_sessions": 0,
+    "operation_confirmations": 0,
+    "material_consumption": 0,
+    "print_events": 0,
+    "print_attempts": 0,
+    "capacity_reservations": 0,
+    "resource_allocation_audit": 0,
+    "allocation_idempotency": 0,
+    "print_jobs": 0,
+    "resource_allocations": 0,
+    "operation_labor_assignments": 0,
+    "materials": 0,
+    "operations": 0,
+    "approval_logs": 0,
+    "workflow_events": 0,
+    "workflows": 0,
+    "outbox_events": 0,
+    "work_orders": 0,
+    "orphan_execution_sessions": 0,
+    "orphan_confirmations": 0,
+    "orphan_material_consumption": 0,
+    "orphan_print_attempts": 0,
+    "orphan_print_events": 0,
+    "orphan_print_jobs": 0,
+    "orphan_allocations": 0,
+    "orphan_reservations": 0,
+    "orphan_workflow_events": 0,
+    "orphan_workflows": 0,
+    "kiosk_outbound_messages": 0
+  },
+  "orphansBefore": {
+    "operation_without_header": 0,
+    "material_without_header": 0,
+    "session_without_operation": 0,
+    "confirmation_without_operation": 0,
+    "print_job_without_header": 0,
+    "print_attempt_without_job": 0,
+    "print_event_without_job": 0,
+    "allocation_without_operation": 0,
+    "reservation_without_allocation": 0,
+    "workflow_without_work_order": 0
+  },
+  "orphansAfter": {
+    "operation_without_header": 0,
+    "material_without_header": 0,
+    "session_without_operation": 0,
+    "confirmation_without_operation": 0,
+    "print_job_without_header": 0,
+    "print_attempt_without_job": 0,
+    "print_event_without_job": 0,
+    "allocation_without_operation": 0,
+    "reservation_without_allocation": 0,
+    "workflow_without_work_order": 0
+  },
+  "remainingWorkOrders": 0
+}

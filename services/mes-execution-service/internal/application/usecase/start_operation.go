@@ -58,6 +58,9 @@ func StartOperation(ctx context.Context, pool *pgxpool.Pool, input StartOperatio
 		return nil, fmt.Errorf("operation %s not found for WO %s: %w", input.WOOperationID, input.WOID, err)
 	}
 
+	if opStatus == "Finished" || opStatus == "ExecutionError" || opStatus == "InProgress" {
+		return nil, fmt.Errorf("operation %s is already in status %s", input.WOOperationID, opStatus)
+	}
 	if predSeq != nil && *predSeq != "" {
 		// Check predecessor operation is Finished
 		var predStatus string

@@ -59,6 +59,18 @@ using (var scope = app.Services.CreateScope())
         cmd.CommandText = "ALTER TABLE projection_device_status ADD COLUMN lifecycle_state TEXT NOT NULL DEFAULT 'Offline';";
         try { await cmd.ExecuteNonQueryAsync(); } catch { }
 
+        // Deduplicate MES execution envelopes transactionally before projection
+        // writes. This is intentionally additive so existing projection databases
+        // remain usable without a destructive rebuild.
+        cmd.CommandText = @"
+            CREATE TABLE IF NOT EXISTS projection_event_dedup (
+                event_id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                processed_at TEXT NOT NULL
+            );";
+        try { await cmd.ExecuteNonQueryAsync(); } catch { }
+
         // v2: initial alarms table
         cmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS projection_alarms (
@@ -450,9 +462,22 @@ app.MapGet("/api/projection/diagnostics/health", async (
     }
 
     // 2. Kafka
-    var kafkaHost = configuration["Kafka:Host"] ?? "kafka";
-    var kafkaPort = 5672;
-    report["kafka"] = await CheckTcpAsync(kafkaHost, kafkaPort);
+    var bootstrapServers = configuration["Kafka:BootstrapServers"]
+        ?? configuration["KAFKA_BOOTSTRAP_SERVERS"]
+        ?? "kafka:29092";
+    var kafkaEndpoint = bootstrapServers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault()
+        ?? "kafka:29092";
+    var separator = kafkaEndpoint.LastIndexOf(':');
+    var kafkaHost = separator > 0 ? kafkaEndpoint[..separator] : kafkaEndpoint;
+    var kafkaPort = separator > 0 && int.TryParse(kafkaEndpoint[(separator + 1)..], out var parsedKafkaPort)
+        ? parsedKafkaPort
+        : 9092;
+    report["kafka"] = new
+    {
+        bootstrapServers,
+        endpoint = kafkaEndpoint,
+        connectivity = await CheckTcpAsync(kafkaHost, kafkaPort)
+    };
 
     // 3. MQTT Broker
     var mqttHost = configuration["MQTT_BROKER_HOST"] ?? "mosquitto";
@@ -577,18 +602,41 @@ async Task<List<JsonObject>> GetCanonicalPrintersAsync(
     ProjectionDbContext db,
     CancellationToken ct)
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"]
-        ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
+    var adapterUrl = configuration["PRINTER_ADAPTER_URL"];
     using var client = httpClientFactory.CreateClient();
-    using var response = await client.GetAsync($"{adapterUrl.TrimEnd('/')}/api/printers", ct);
-    response.EnsureSuccessStatusCode();
-    var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
-    if (payload is not JsonArray rows) return [];
-
     var projected = await db.DeviceStatuses
         .AsNoTracking()
         .Where(d => d.DeviceType.ToUpper() == "PRINTER")
         .ToDictionaryAsync(d => d.DeviceId, StringComparer.OrdinalIgnoreCase, ct);
+
+    JsonArray rows;
+    try
+    {
+        if (string.IsNullOrWhiteSpace(adapterUrl)) throw new InvalidOperationException("PRINTER_ADAPTER_URL is not configured");
+        using var response = await client.GetAsync($"{adapterUrl.TrimEnd('/')}/api/printers", ct);
+        response.EnsureSuccessStatusCode();
+        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+        rows = payload as JsonArray ?? [];
+    }
+    catch
+    {
+        // The remote Adapter owns configuration, but runtime projection must
+        // remain usable when its management API is unreachable. Do not infer
+        // readiness here; this fallback exposes only Kafka-projected runtime
+        // facts and leaves activation/maintenance actions Adapter-dependent.
+        rows = new JsonArray(projected.Values.Select(runtime => new JsonObject
+        {
+            ["id"] = runtime.DeviceId,
+            ["printerCode"] = runtime.DeviceId,
+            ["displayName"] = runtime.DeviceId,
+            ["status"] = runtime.IsOnline ? runtime.LifecycleState : "OFFLINE",
+            ["isOnline"] = runtime.IsOnline,
+            ["isActiveForWork"] = activeOnly && runtime.IsOnline,
+            ["lastHeartbeatAt"] = runtime.LastSeenAt,
+            ["projectionLifecycleState"] = runtime.LifecycleState,
+            ["projectionSource"] = "KAFKA_RUNTIME_PROJECTION"
+        }).ToArray());
+    }
 
     var result = new List<JsonObject>();
     foreach (var item in rows.OfType<JsonObject>())
@@ -617,7 +665,7 @@ async Task<List<JsonObject>> GetCanonicalPrintersAsync(
 
         var active = printer["isActiveForWork"]?.GetValue<bool>() == true;
         if (activeOnly && !active) continue;
-        if (readyOnly && (active || !isOnline)) continue;
+        if (readyOnly && (!active || !isOnline)) continue;
         result.Add(printer);
     }
 

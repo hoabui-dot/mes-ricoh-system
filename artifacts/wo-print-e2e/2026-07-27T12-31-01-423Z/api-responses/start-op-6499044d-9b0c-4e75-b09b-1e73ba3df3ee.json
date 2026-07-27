@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "predecessor operation (seq 10) is in status DispatchQueued, must be Finished before starting seq 20"
+  }
+}

@@ -24,6 +24,7 @@ public sealed class DeviceStatusPoller : BackgroundService
     private readonly IHubContext<ProductionHub> _hubContext;
     private readonly ILogger<DeviceStatusPoller> _logger;
     private readonly string _stationId;
+    private readonly int _staleHeartbeatSeconds;
 
     public DeviceStatusPoller(
         IServiceScopeFactory scopeFactory,
@@ -35,11 +36,14 @@ public sealed class DeviceStatusPoller : BackgroundService
         _hubContext = hubContext;
         _logger = logger;
         _stationId = configuration["STATION_ID"] ?? string.Empty;
+        _staleHeartbeatSeconds = int.TryParse(configuration["DEVICE_HEARTBEAT_STALE_SECONDS"], out var configuredTimeout)
+            ? Math.Max(configuredTimeout, 2)
+            : 45;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("DeviceStatusPoller starting. StationId={StationId}, interval=3s.", _stationId);
+        _logger.LogInformation("DeviceStatusPoller starting. StationId={StationId}, interval=3s, staleAfter={StaleAfterSeconds}s.", _stationId, _staleHeartbeatSeconds);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -80,12 +84,12 @@ public sealed class DeviceStatusPoller : BackgroundService
         {
             if (!device.IsOnline) continue;
             if (!DateTime.TryParse(device.LastSeenAt, out var lastSeen)) continue;
-            if ((now - lastSeen).TotalSeconds <= 10) continue;
+            if ((now - lastSeen).TotalSeconds <= _staleHeartbeatSeconds) continue;
 
             // Device timed out — mark offline
             _logger.LogWarning(
-                "Device {DeviceId} heartbeat timeout (>10s). Marking Offline. ProductionActive={ProductionActive}",
-                device.DeviceId, productionActive);
+                "Device {DeviceId} heartbeat timeout (>{StaleAfterSeconds}s). Marking Offline. ProductionActive={ProductionActive}",
+                device.DeviceId, _staleHeartbeatSeconds, productionActive);
 
             device.UpdateStatus(false, device.LastSeenAt, "Offline");
             await repo.UpdateAsync(device, ct);

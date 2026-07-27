@@ -1627,7 +1627,7 @@ export default function DashboardPage() {
                           <Cpu className="h-4 w-4 text-brand" />
                           Mạng lưới thiết bị đầu cuối
                         </CardTitle>
-                        <CardDescription className="text-sm">Theo dõi thời gian thực — cập nhật qua SignalR mỗi 3 giây</CardDescription>
+                        <CardDescription className="text-sm">Theo dõi thời gian thực — cập nhật qua sự kiện SignalR</CardDescription>
                       </CardHeader>
                       <CardContent className="p-6">
                         {realDevices.length === 0 ? (

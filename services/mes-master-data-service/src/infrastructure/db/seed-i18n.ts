@@ -14,6 +14,7 @@ export const LOCALIZED_COLUMNS_BY_TABLE = new Map<string, string[]>([
   ['md_operation', ['name']],
   ['md_mbom_header', ['name', 'description', 'change_reason', 'engineering_note']],
   ['md_routing_header', ['name', 'description', 'production_purpose', 'change_reason', 'engineering_note']],
+  ['md_production_version', ['name_i18n']],
   ['md_work_instruction', ['instruction_text']],
 ]);
 
@@ -152,6 +153,11 @@ export const SEED_LOCALIZED_TEXT: Record<string, Record<string, Record<string, L
         '確定前に加硫温度を 150°C - 180°C の範囲で維持してください。',
         '확정 전 가황 온도를 150°C - 180°C 범위로 유지하세요.',
       ),
+    },
+  },
+  md_production_version: {
+    'PV-FG-WS-CM01-R1': {
+      name_i18n: localized('Phiên bản sản xuất FG-WS-CM01 R1', 'Production Version FG-WS-CM01 R1', 'FG-WS-CM01 R1 生産バージョン', 'FG-WS-CM01 R1 생산 버전'),
     },
   },
 };

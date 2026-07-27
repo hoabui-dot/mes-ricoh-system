@@ -1964,6 +1964,146 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
       $fn$ LANGUAGE plpgsql;
     `,
   },
+  {
+    name: '0041_harmonize_operation_routing_standard_ownership',
+    sql: `
+      ALTER TABLE md_operation
+        ADD COLUMN IF NOT EXISTS default_cycle_time_sec NUMERIC(12,3) NOT NULL DEFAULT 60,
+        ADD COLUMN IF NOT EXISTS default_setup_time_min NUMERIC(12,3) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS default_base_quantity NUMERIC(18,6) NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS default_required_persons INTEGER NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS default_efficiency_factor NUMERIC(8,4) NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS default_yield NUMERIC(8,4) NOT NULL DEFAULT 1;
+
+      ALTER TABLE md_operation
+        DROP CONSTRAINT IF EXISTS ck_md_operation_default_cycle_time,
+        DROP CONSTRAINT IF EXISTS ck_md_operation_default_setup_time,
+        DROP CONSTRAINT IF EXISTS ck_md_operation_default_base_quantity,
+        DROP CONSTRAINT IF EXISTS ck_md_operation_default_required_persons,
+        DROP CONSTRAINT IF EXISTS ck_md_operation_default_efficiency,
+        DROP CONSTRAINT IF EXISTS ck_md_operation_default_yield,
+        ADD CONSTRAINT ck_md_operation_default_cycle_time CHECK (default_cycle_time_sec > 0),
+        ADD CONSTRAINT ck_md_operation_default_setup_time CHECK (default_setup_time_min >= 0),
+        ADD CONSTRAINT ck_md_operation_default_base_quantity CHECK (default_base_quantity > 0),
+        ADD CONSTRAINT ck_md_operation_default_required_persons CHECK (default_required_persons > 0),
+        ADD CONSTRAINT ck_md_operation_default_efficiency CHECK (default_efficiency_factor > 0),
+        ADD CONSTRAINT ck_md_operation_default_yield CHECK (default_yield > 0);
+
+      -- Existing standards are the best available engineering baseline. Do not
+      -- rewrite Routing/Production Standard ownership; only initialize defaults
+      -- for Operations that have not been maintained yet.
+      UPDATE md_operation op
+      SET default_cycle_time_sec = source.cycle_time_sec,
+          default_setup_time_min = source.setup_time_min,
+          default_efficiency_factor = source.efficiency_factor,
+          default_base_quantity = source.base_quantity,
+          default_yield = source.standard_yield,
+          default_required_persons = source.labor_count
+      FROM (
+        SELECT DISTINCT ON (operation_id)
+          operation_id, cycle_time_sec, setup_time_min, efficiency_factor,
+          base_quantity, standard_yield, labor_count
+        FROM md_production_standard
+        WHERE cycle_time_sec IS NOT NULL
+        ORDER BY operation_id, valid_from DESC NULLS LAST, effective_from DESC
+      ) source
+      WHERE source.operation_id = op.master_id;
+
+      ALTER TABLE md_production_standard
+        ALTER COLUMN item_revision_id DROP NOT NULL;
+      CREATE INDEX IF NOT EXISTS ix_md_production_standard_routing_active
+        ON md_production_standard(routing_operation_id, equipment_id, valid_from, valid_to)
+        WHERE lifecycle_status NOT IN ('Inactive','Obsolete');
+    `,
+  },
+  {
+    name: '0042_explicit_routing_planning_inheritance',
+    sql: `
+      ALTER TABLE md_routing_operation
+        ADD COLUMN IF NOT EXISTS planning_mode VARCHAR(30) NOT NULL DEFAULT 'INHERITED';
+      ALTER TABLE md_routing_operation
+        DROP CONSTRAINT IF EXISTS ck_md_routing_operation_planning_mode;
+      ALTER TABLE md_routing_operation
+        ADD CONSTRAINT ck_md_routing_operation_planning_mode
+        CHECK (planning_mode IN ('INHERITED', 'ROUTING_OVERRIDE'));
+
+      -- Standards copied by the previous harmonization are redundant when
+      -- every value equals the Operation engineering default. End only those
+      -- rows; preserve differing values as intentional Routing overrides.
+      UPDATE md_routing_operation ro
+      SET planning_mode = CASE WHEN EXISTS (
+        SELECT 1
+        FROM md_production_standard ps
+        JOIN md_operation op ON op.master_id = ro.operation_id
+        WHERE ps.routing_operation_id = ro.master_id
+          AND ps.item_revision_id IS NULL
+          AND ps.effective_to IS NULL
+          AND ps.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND (
+            ps.base_quantity IS DISTINCT FROM op.default_base_quantity OR
+            ps.setup_time_min IS DISTINCT FROM op.default_setup_time_min OR
+            ps.cycle_time_sec IS DISTINCT FROM op.default_cycle_time_sec OR
+            ps.labor_count IS DISTINCT FROM op.default_required_persons OR
+            ps.efficiency_factor IS DISTINCT FROM op.default_efficiency_factor OR
+            ps.standard_yield IS DISTINCT FROM op.default_yield
+          )
+      ) THEN 'ROUTING_OVERRIDE' ELSE 'INHERITED' END;
+
+      UPDATE md_production_standard ps
+      SET lifecycle_status = 'Inactive', effective_to = NOW(), valid_to = NOW(), updated_at = NOW()
+      FROM md_routing_operation ro
+      JOIN md_operation op ON op.master_id = ro.operation_id
+      WHERE ps.routing_operation_id = ro.master_id
+        AND ps.item_revision_id IS NULL
+        AND ps.effective_to IS NULL
+        AND ps.lifecycle_status NOT IN ('Inactive','Obsolete')
+        AND ps.base_quantity = op.default_base_quantity
+        AND ps.setup_time_min = op.default_setup_time_min
+        AND ps.cycle_time_sec = op.default_cycle_time_sec
+        AND ps.labor_count = op.default_required_persons
+        AND ps.efficiency_factor = op.default_efficiency_factor
+        AND ps.standard_yield = op.default_yield;
+
+      CREATE INDEX IF NOT EXISTS ix_md_routing_operation_planning_mode
+        ON md_routing_operation(routing_header_id, planning_mode, effective_to);
+    `,
+  },
+  {
+    name: '0043_production_version_localized_identity',
+    sql: `
+      ALTER TABLE md_production_version
+        ADD COLUMN IF NOT EXISTS name_i18n JSONB,
+        ADD COLUMN IF NOT EXISTS min_lot_size NUMERIC(18,6),
+        ADD COLUMN IF NOT EXISTS max_lot_size NUMERIC(18,6);
+      UPDATE md_production_version pv
+      SET name_i18n = jsonb_build_object(
+        'vi', 'Phiên bản sản xuất ' || COALESCE(i.code, pv.code),
+        'en', 'Production Version ' || pv.code || ' for ' || COALESCE(i.code, pv.code),
+        'ja', COALESCE(i.code, pv.code) || ' 生産バージョン ' || pv.code,
+        'ko', COALESCE(i.code, pv.code) || ' 생산 버전 ' || pv.code
+      )
+      FROM md_item_revision r
+      LEFT JOIN md_item i ON i.master_id = r.item_id
+      WHERE r.master_id = pv.item_revision_id
+        AND (pv.name_i18n IS NULL OR jsonb_typeof(pv.name_i18n) <> 'object');
+      UPDATE md_production_version
+      SET name_i18n = jsonb_build_object(
+        'vi', 'Phiên bản sản xuất ' || code,
+        'en', 'Production Version ' || code,
+        'ja', code || ' 生産バージョン',
+        'ko', code || ' 생산 버전'
+      )
+      WHERE name_i18n IS NULL;
+      ALTER TABLE md_production_version ALTER COLUMN name_i18n SET NOT NULL;
+      ALTER TABLE md_production_version
+        DROP CONSTRAINT IF EXISTS ck_md_production_version_lot_size,
+        ADD CONSTRAINT ck_md_production_version_lot_size
+        CHECK (min_lot_size IS NULL OR min_lot_size > 0)
+        NOT VALID;
+      CREATE INDEX IF NOT EXISTS ix_md_production_version_name_i18n
+        ON md_production_version USING GIN (name_i18n);
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

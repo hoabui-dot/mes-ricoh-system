@@ -1,0 +1,141 @@
+{
+  "status": 200,
+  "body": {
+    "approval_logs": [
+      {
+        "action": "Approved",
+        "actor_role_code": "PLANT_MANAGER",
+        "actor_user_id": "00000000-0000-0000-0000-000000000001",
+        "comment": "E2E demo-bypass",
+        "log_id": "b689dcac-9d33-4b0f-826b-b481522e9d53",
+        "occurred_at": "2026-07-27T13:12:31.409241Z"
+      }
+    ],
+    "header": {
+      "created_at": "2026-07-27T13:12:19.979685Z",
+      "created_by": "00000000-0000-0000-0000-0000000000ad",
+      "item_code": "FG-WS-CM01-R1",
+      "item_name": "FG-WS-CM01 E2E Single Print",
+      "item_revision_id": "16e323c4-0cb8-41e6-ad57-3f2c4810a1bf",
+      "production_version_id": "4314a2bc-6ab4-4391-bcb9-4a8865bf6c27",
+      "quantity": 1,
+      "row_version": 3,
+      "shift_id": null,
+      "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+      "status": "InProgress",
+      "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+      "wo_code": "WO-20260727-0011",
+      "wo_id": "3c8dc68b-0ada-44dc-9a63-3bd0c6dc8501"
+    },
+    "material_requirements": [
+      {
+        "backflush_flag": true,
+        "component_item_code": "COMP",
+        "component_item_revision_id": "24448e3d-37f6-4ad9-a7b4-25b27a28305c",
+        "item_name": {
+          "vi": ""
+        },
+        "phantom_flag": false,
+        "required_qty": 1.01,
+        "requirement_id": "c65d9c1d-a82e-404b-9020-56edce66bc88",
+        "stock_check_detail": null,
+        "stock_check_status": "NotChecked",
+        "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
+      },
+      {
+        "backflush_flag": true,
+        "component_item_code": "COMP",
+        "component_item_revision_id": "9ea40d00-7ff6-46d6-81f4-b40eed6c7376",
+        "item_name": {
+          "vi": ""
+        },
+        "phantom_flag": false,
+        "required_qty": 1.0404,
+        "requirement_id": "e2bedddd-a5d6-48b5-9ec1-472aeee12cb7",
+        "stock_check_detail": null,
+        "stock_check_status": "NotChecked",
+        "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
+      },
+      {
+        "backflush_flag": true,
+        "component_item_code": "COMP",
+        "component_item_revision_id": "44c9c7ea-65d6-4f3f-a02f-63aa13f0f97c",
+        "item_name": {
+          "vi": ""
+        },
+        "phantom_flag": true,
+        "required_qty": 0.15965,
+        "requirement_id": "6278c74f-90ac-4c68-816e-66e63a2c604e",
+        "stock_check_detail": null,
+        "stock_check_status": "NotChecked",
+        "uom_id": "33347b97-cfe0-4f00-8131-de71e18ad258"
+      },
+      {
+        "backflush_flag": false,
+        "component_item_code": "COMP",
+        "component_item_revision_id": "be7fd508-7890-4e69-b8e6-519b78155542",
+        "item_name": {
+          "vi": ""
+        },
+        "phantom_flag": false,
+        "required_qty": 1.01505,
+        "requirement_id": "1cda1324-c04c-4d74-a8a8-9c68094cdc98",
+        "stock_check_detail": null,
+        "stock_check_status": "NotChecked",
+        "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
+      },
+      {
+        "backflush_flag": true,
+        "component_item_code": "COMP",
+        "component_item_revision_id": "c840f0f8-b665-425f-8349-d5bb1805ae5d",
+        "item_name": {
+          "vi": ""
+        },
+        "phantom_flag": false,
+        "required_qty": 0.01575,
+        "requirement_id": "d3d8fd59-fdf1-4650-a979-7a8dfd454d0f",
+        "stock_check_detail": null,
+        "stock_check_status": "NotChecked",
+        "uom_id": "7e5e0575-4811-4bdd-9b08-bbfaa13c1be9"
+      }
+    ],
+    "operations": [
+      {
+        "adapter_id": "PRINT-ADAPTER-01",
+        "dispatch_event_id": "68546bea-ce34-41e8-98ab-13d483f010fe",
+        "execution_target_type": "PRINT_STATION",
+        "operation_code": "OP-MIX",
+        "operation_name": {
+          "en": "Rubber Mixing",
+          "ja": "ゴム混練",
+          "ko": "고무 혼련",
+          "vi": "Luyện cán cao su"
+        },
+        "print_station_id": "6f56f652-bc6a-456e-a6b3-6284ab023f2d",
+        "resource_allocation": {
+          "allocation_id": null,
+          "planned_end_at": null,
+          "planned_equipment_id": null,
+          "planned_shift_id": null,
+          "planned_start_at": null,
+          "planned_workstation_id": null,
+          "status": null,
+          "validation_status": null,
+          "warning_codes": null
+        },
+        "sequence_no": 10,
+        "status": "DispatchQueued",
+        "wo_operation_id": "b66e2956-9909-4dcc-bd55-defa396259e5",
+        "work_center_code": "WC-CUTTING",
+        "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+        "work_center_name": {
+          "en": "Rubber Cutting Work Center",
+          "ja": "ゴム切断ワークセンター",
+          "ko": "고무 절단 워크센터",
+          "vi": "Trạm cắt cao su"
+        },
+        "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1"
+      }
+    ]
+  }
+}

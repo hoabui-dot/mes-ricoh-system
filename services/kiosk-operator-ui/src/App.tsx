@@ -18,11 +18,11 @@ export const App: React.FC = () => {
             <OfflineBanner />
             <div className="flex-1">
               <Routes>
-                <Route path="/" element={<Navigate to="/kiosk/KIOSK-MOLD-01/login" replace />} />
+                <Route path="/" element={<Navigate to="/kiosk/KIOSK-DEMO-01/login" replace />} />
                 <Route path="/kiosk/:terminalId/login" element={<LoginScreen />} />
                 <Route path="/kiosk/:terminalId/wo-list" element={<WOListScreen />} />
                 <Route path="/kiosk/:terminalId/wo/:woId" element={<OperationScreen />} />
-                <Route path="*" element={<Navigate to="/kiosk/KIOSK-MOLD-01/login" replace />} />
+                <Route path="*" element={<Navigate to="/kiosk/KIOSK-DEMO-01/login" replace />} />
               </Routes>
             </div>
             <Toaster position="top-right" theme="dark" richColors />

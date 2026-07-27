@@ -19,7 +19,7 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 	}
 
 	rows, err := pool.Query(ctx, `
-		SELECT sequence_no, operation_id, operation_code, work_center_id, standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor
+		SELECT sequence_no, operation_id, operation_code, work_center_id, standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, base_quantity, standard_yield, queue_time_min, move_time_min
 		FROM wo_operation WHERE wo_id = $1 ORDER BY sequence_no
 	`, woID)
 	if err != nil {
@@ -35,12 +35,16 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 		setup       float64
 		cycle       float64
 		eff         float64
+		base        float64
+		yield       float64
+		queue       float64
+		move        float64
 	}
 	var ops []opInfo
 	for rows.Next() {
 		var o opInfo
-		var setup, cycle, eff *float64
-		_ = rows.Scan(&o.seq, &o.operationID, &o.code, &o.wcID, &setup, &cycle, &eff)
+		var setup, cycle, eff, base, yield, queue, move *float64
+		_ = rows.Scan(&o.seq, &o.operationID, &o.code, &o.wcID, &setup, &cycle, &eff, &base, &yield, &queue, &move)
 		o.setup = 15.0
 		if setup != nil {
 			o.setup = *setup
@@ -52,6 +56,20 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 		o.eff = 1.0
 		if eff != nil && *eff > 0 {
 			o.eff = *eff
+		}
+		o.base = 1.0
+		if base != nil && *base > 0 {
+			o.base = *base
+		}
+		o.yield = 1.0
+		if yield != nil && *yield > 0 {
+			o.yield = *yield
+		}
+		if queue != nil && *queue >= 0 {
+			o.queue = *queue
+		}
+		if move != nil && *move >= 0 {
+			o.move = *move
 		}
 		ops = append(ops, o)
 	}
@@ -71,8 +89,8 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 	}
 
 	for _, o := range ops {
-		runTimeMinutes := (o.cycle / 60.0) * (quantity / o.eff)
-		durationMinutes := int(math.Ceil(o.setup + runTimeMinutes))
+		runTimeMinutes := (o.cycle / 60.0) * ((quantity / o.base) / o.yield / o.eff)
+		durationMinutes := int(math.Ceil(o.setup + runTimeMinutes + o.queue + o.move))
 
 		opStart := currentTime.UTC().Format(time.RFC3339)
 		currentTime = currentTime.Add(time.Duration(durationMinutes) * time.Minute)

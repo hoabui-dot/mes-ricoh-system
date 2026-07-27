@@ -93,8 +93,8 @@ export async function validateProductionVersion(
     failures.push(fail('2', 'MBOM.CYCLE'));
   }
 
-  const { rows: routingOps } = await db.query<{ master_id: string; operation_id: string; work_center_id: string; seq: number; predecessor_seq: number | null }>(
-    `SELECT master_id, operation_id, work_center_id, seq, predecessor_seq
+  const { rows: routingOps } = await db.query<{ master_id: string; operation_id: string; work_center_id: string; seq: number; predecessor_seq: number | null; lifecycle_status: string }>(
+    `SELECT master_id, operation_id, work_center_id, seq, predecessor_seq, lifecycle_status
      FROM md_routing_operation WHERE routing_header_id = $1`,
     [pv.routing_header_id],
   );
@@ -106,6 +106,7 @@ export async function validateProductionVersion(
   const factoryIds = new Set<string>();
   const seqs = new Set<number>();
   for (const op of routingOps) {
+    if (op.lifecycle_status !== 'Released') failures.push(fail('4', 'ROUTING_OPERATION_NOT_RELEASED', { routingOperationId: op.master_id }));
     if (seqs.has(op.seq)) failures.push(fail('4', 'ROUTING.SEQ_DUPLICATE', { seq: op.seq }));
     seqs.add(op.seq);
     if (op.predecessor_seq !== null && !routingOps.some((candidate) => candidate.seq === op.predecessor_seq)) {
@@ -114,7 +115,7 @@ export async function validateProductionVersion(
     const workCenter = await db.query<{ site_id: string }>(`SELECT site_id FROM md_work_center WHERE master_id = $1 AND active_flag = TRUE AND lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.work_center_id]);
     if (!workCenter.rows[0]) failures.push(fail('5', 'ROUTING_WORKCENTER_INVALID', { routingOperationId: op.master_id }));
     else factoryIds.add(workCenter.rows[0].site_id);
-    if (!(await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.operation_id]))) failures.push(fail('5', 'ROUTING_OPERATION_INACTIVE', { routingOperationId: op.master_id }));
+    if (!(await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND lifecycle_status = 'Released'`, [op.operation_id]))) failures.push(fail('5', 'ROUTING_OPERATION_INACTIVE', { routingOperationId: op.master_id }));
     if (!(await exists(db, `
       SELECT 1 FROM md_work_center wc
       JOIN md_work_center_composition c ON c.work_center_id = wc.master_id AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())
@@ -122,7 +123,15 @@ export async function validateProductionVersion(
       JOIN md_workstation_operation_capability capability ON capability.workstation_id = ws.master_id AND capability.operation_id = $2 AND capability.active_flag = TRUE AND (capability.effective_to IS NULL OR capability.effective_to > NOW())
       WHERE wc.master_id = $1 AND wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.work_center_id, op.operation_id]))) failures.push(fail('6', 'WORKCENTER_OPERATION_NOT_SUPPORTED', { routingOperationId: op.master_id }));
     const schedulable = await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND is_schedulable = TRUE`, [op.operation_id]);
-    if (schedulable && !(await exists(db, `SELECT 1 FROM md_production_standard WHERE item_revision_id = $1 AND operation_id = $2 AND work_center_id = $3 AND setup_time_min IS NOT NULL AND cycle_time_sec IS NOT NULL AND lifecycle_status = 'Released'`, [pv.item_revision_id, op.operation_id, op.work_center_id]))) {
+    if (schedulable && !(await exists(db, `
+      SELECT 1 FROM md_operation operation
+      JOIN md_work_center wc ON wc.master_id = $4
+      WHERE operation.master_id = $3
+        AND (
+          (operation.default_cycle_time_sec > 0 AND operation.default_base_quantity > 0 AND operation.default_required_persons > 0 AND operation.default_efficiency_factor > 0 AND operation.default_yield > 0)
+          OR EXISTS (SELECT 1 FROM md_production_standard ps WHERE (ps.item_revision_id = $1 OR ps.item_revision_id IS NULL) AND (ps.routing_operation_id = $2 OR (ps.routing_operation_id IS NULL AND ps.operation_id = $3 AND ps.work_center_id = $4)) AND ps.setup_time_min IS NOT NULL AND ps.cycle_time_sec IS NOT NULL AND ps.lifecycle_status = 'Released')
+          OR EXISTS (SELECT 1 FROM md_production_standard ps WHERE ps.item_revision_id IS NULL AND ps.routing_operation_id IS NULL AND ps.operation_id = $3 AND ps.work_center_id = $4 AND ps.site_id = wc.site_id AND ps.source_method = 'WorkCenter' AND ps.setup_time_min IS NOT NULL AND ps.cycle_time_sec IS NOT NULL AND ps.lifecycle_status = 'Released')
+        )`, [pv.item_revision_id, op.master_id, op.operation_id, op.work_center_id]))) {
       failures.push(fail('7', 'PRODUCTION_STANDARD.MISSING_TIME', { routingOperationId: op.master_id }));
     }
   }

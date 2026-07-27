@@ -23,10 +23,10 @@ DECLARE
   skill_mix UUID;
   skill_vulcan UUID;
   skill_qc UUID;
-  employee_id UUID;
+  v_employee_id UUID;
   employee_code TEXT;
   employee_wc UUID;
-  employee_skill UUID;
+  v_employee_skill UUID;
   employee_level TEXT;
   employee_index INTEGER;
   schedule_shift UUID;
@@ -69,19 +69,20 @@ BEGIN
     VALUES (employee_code, format('Demo Employee %s', lpad(employee_index::TEXT, 2, '0')), 1, 'Released', site_id, employee_wc, 'Active', CURRENT_DATE - (employee_index * 120), v_system_user)
     ON CONFLICT (code, version_no) DO UPDATE SET site_id = EXCLUDED.site_id, default_work_center_id = EXCLUDED.default_work_center_id,
       employee_status = 'Active', lifecycle_status = 'Released';
-    SELECT master_id INTO employee_id FROM md_employee WHERE code = employee_code AND version_no = 1;
+    SELECT master_id INTO v_employee_id FROM md_employee WHERE code = employee_code AND version_no = 1;
 
-    employee_skill := CASE WHEN employee_index IN (1, 2) THEN skill_mix WHEN employee_index IN (7, 8) THEN skill_qc ELSE skill_vulcan END;
+    v_employee_skill := CASE WHEN employee_index IN (1, 2) THEN skill_mix WHEN employee_index IN (7, 8) THEN skill_qc ELSE skill_vulcan END;
     employee_level := CASE WHEN employee_index IN (1, 5, 7) THEN 'L3' WHEN employee_index IN (2, 6, 8) THEN 'L2' ELSE 'L1' END;
     INSERT INTO md_employee_skill (employee_id, skill_id, level, created_by)
-    VALUES (employee_id, employee_skill, employee_level, v_system_user)
-    ON CONFLICT ON CONSTRAINT md_employee_skill_pkey DO UPDATE SET level = EXCLUDED.level, updated_by = v_system_user, updated_at = NOW();
+    VALUES (v_employee_id, v_employee_skill, employee_level, v_system_user)
+    ON CONFLICT (employee_id, skill_id) WHERE active_flag = TRUE AND effective_to IS NULL
+    DO UPDATE SET level = EXCLUDED.level, updated_by = v_system_user, updated_at = NOW();
 
     schedule_shift := CASE WHEN employee_index IN (1, 3, 5, 7) THEN shift_a WHEN employee_index IN (2, 4, 6) THEN shift_b ELSE shift_c END;
     FOR schedule_date IN SELECT day::DATE FROM generate_series(CURRENT_DATE - 90, CURRENT_DATE + 90, INTERVAL '1 day') AS day WHERE EXTRACT(ISODOW FROM day) BETWEEN 1 AND 5 LOOP
       schedule_status := CASE WHEN employee_index = 8 AND schedule_date = CURRENT_DATE + 1 THEN 'OnLeave' ELSE 'Scheduled' END;
-      INSERT INTO md_employee_shift_schedule (employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
-      VALUES (employee_id, schedule_shift, employee_wc, schedule_date, schedule_status, v_system_user)
+    INSERT INTO md_employee_shift_schedule (employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
+      VALUES (v_employee_id, schedule_shift, employee_wc, schedule_date, schedule_status, v_system_user)
       ON CONFLICT ON CONSTRAINT md_employee_shift_schedule_employee_id_schedule_date_key DO UPDATE SET shift_id = EXCLUDED.shift_id, work_center_id = EXCLUDED.work_center_id,
         schedule_status = EXCLUDED.schedule_status, updated_by = v_system_user, updated_at = NOW();
     END LOOP;

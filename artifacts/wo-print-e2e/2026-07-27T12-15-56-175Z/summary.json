@@ -1,0 +1,146 @@
+{
+  "woId": "8600346d-2e4c-4566-a47b-108ed6d9469f",
+  "startedAt": "2026-07-27T12:15:56.177Z",
+  "failedAt": "2026-07-27T12:15:56.611Z",
+  "error": "approve-demo failed with HTTP 409: {\"details\":{\"committed_allocation_count\":0,\"error_code\":\"WO_OPERATION_ALLOCATION_MISSING\",\"operation_count\":6,\"valid\":false,\"wo_id\":\"8600346d-2e4c-4566-a47b-108ed6d9469f\"},\"error\":\"WO_RESOURCE_ALLOCATION_INVALID\",\"message\":\"Every Work Order operation needs a current valid committed resource allocation before release.\"}\n",
+  "responses": {
+    "remote-adapter-health": {
+      "status": 200,
+      "body": {
+        "status": "Healthy",
+        "service": "printer-adapter",
+        "kafka": {
+          "status": "Connected",
+          "bootstrapServers": "100.68.50.41:19092",
+          "clientId": "PRINT-ADAPTER-01",
+          "consumerGroup": "printer-adapter"
+        },
+        "cups": {
+          "status": "Connected",
+          "queue": "Zebra_Technologies_ZTC_GK420t",
+          "printerCode": "Zebra-GK420t-CUPS",
+          "driverStatus": "Online"
+        },
+        "redis": {
+          "status": "NotConfigured",
+          "reason": "Printer Adapter does not cache production commands in Redis."
+        },
+        "printers": {
+          "online": 1,
+          "offline": 0,
+          "error": 0,
+          "total": 1
+        },
+        "version": "1.0.0.0",
+        "printerCount": 1,
+        "uptimeSeconds": 315,
+        "started": true
+      },
+      "url": "http://100.108.194.102:5003/api/health"
+    },
+    "remote-adapter-active-printers": {
+      "status": 200,
+      "body": [],
+      "url": "http://100.108.194.102:5003/api/printers/active"
+    },
+    "master-data-health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "service": "mes-master-data-service",
+        "uptime": 4317.30923149,
+        "kafka": {
+          "status": "Connected"
+        },
+        "printStationRuntime": {
+          "status": "Connected"
+        }
+      },
+      "url": "http://localhost:13020/health"
+    },
+    "compute-check": {
+      "status": 200,
+      "body": {
+        "wo_id": "8600346d-2e4c-4566-a47b-108ed6d9469f",
+        "total_duration_minutes": 2340,
+        "planned_start_at": "2026-07-27T09:27:07Z",
+        "planned_end_at": "2026-07-29T00:27:07Z",
+        "operations": [
+          {
+            "sequence_no": 10,
+            "operation_code": "OP-MIX",
+            "work_center_id": "de112ef0-471d-44ef-acf5-d2358636514c",
+            "duration_minutes": 390,
+            "planned_start_at": "2026-07-27T09:27:07Z",
+            "planned_end_at": "2026-07-27T15:57:07Z"
+          },
+          {
+            "sequence_no": 20,
+            "operation_code": "OP-PREP",
+            "work_center_id": "61c43e8c-3050-49a4-bdfe-eeb25c224a69",
+            "duration_minutes": 390,
+            "planned_start_at": "2026-07-27T15:57:07Z",
+            "planned_end_at": "2026-07-27T22:27:07Z"
+          },
+          {
+            "sequence_no": 30,
+            "operation_code": "OP-CUT",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "duration_minutes": 390,
+            "planned_start_at": "2026-07-27T22:27:07Z",
+            "planned_end_at": "2026-07-28T04:57:07Z"
+          },
+          {
+            "sequence_no": 40,
+            "operation_code": "OP-MOLD",
+            "work_center_id": "61c43e8c-3050-49a4-bdfe-eeb25c224a69",
+            "duration_minutes": 390,
+            "planned_start_at": "2026-07-28T04:57:07Z",
+            "planned_end_at": "2026-07-28T11:27:07Z"
+          },
+          {
+            "sequence_no": 50,
+            "operation_code": "OP-TRIM",
+            "work_center_id": "61c43e8c-3050-49a4-bdfe-eeb25c224a69",
+            "duration_minutes": 390,
+            "planned_start_at": "2026-07-28T11:27:07Z",
+            "planned_end_at": "2026-07-28T17:57:07Z"
+          },
+          {
+            "sequence_no": 60,
+            "operation_code": "OP-QC",
+            "work_center_id": "bee6283c-0deb-4306-8f44-e07e1c92341e",
+            "duration_minutes": 390,
+            "planned_start_at": "2026-07-28T17:57:07Z",
+            "planned_end_at": "2026-07-29T00:27:07Z"
+          }
+        ],
+        "capacity_warnings": [
+          "Operation OP-MIX (Seq 10): Work Center calendar has no pre-scheduled availability window for 2026-07-27T09:27:07Z to 2026-07-27T15:57:07Z",
+          "Operation OP-PREP (Seq 20): Work Center calendar has no pre-scheduled availability window for 2026-07-27T15:57:07Z to 2026-07-27T22:27:07Z",
+          "Operation OP-CUT (Seq 30): Work Center calendar has no pre-scheduled availability window for 2026-07-27T22:27:07Z to 2026-07-28T04:57:07Z",
+          "Operation OP-MOLD (Seq 40): Work Center calendar has no pre-scheduled availability window for 2026-07-28T04:57:07Z to 2026-07-28T11:27:07Z",
+          "Operation OP-TRIM (Seq 50): Work Center calendar has no pre-scheduled availability window for 2026-07-28T11:27:07Z to 2026-07-28T17:57:07Z",
+          "Operation OP-QC (Seq 60): Work Center calendar has no pre-scheduled availability window for 2026-07-28T17:57:07Z to 2026-07-29T00:27:07Z"
+        ],
+        "labor_warnings": [],
+        "labor_shortages": [],
+        "labor_assignments": []
+      }
+    },
+    "approve-demo": {
+      "status": 409,
+      "body": {
+        "details": {
+          "committed_allocation_count": 0,
+          "error_code": "WO_OPERATION_ALLOCATION_MISSING",
+          "operation_count": 6,
+          "valid": false,
+          "wo_id": "8600346d-2e4c-4566-a47b-108ed6d9469f"
+        },
+        "error": "WO_RESOURCE_ALLOCATION_INVALID",
+        "message": "Every Work Order operation needs a current valid committed resource allocation before release."
+      }
+    }
+  }
+}

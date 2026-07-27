@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "id": "a6ba14ac-9f77-4be2-a3aa-10cf08f7fd27",
+      "printerCode": "Zebra-GK420t-CUPS",
+      "displayName": "Zebra GK420t (Physical)",
+      "ipAddress": "host.docker.internal",
+      "port": 631,
+      "protocol": "ZPL",
+      "vendor": "ZEBRA",
+      "status": "ONLINE",
+      "driverType": "cups",
+      "cupsQueueName": "Zebra_Technologies_ZTC_GK420t",
+      "lastHeartbeatAt": "2026-07-27T12:51:02.8913818Z",
+      "isActiveForWork": true,
+      "activeTemplateId": "ec4d21ca-f60b-49c2-bc9c-1526de50bda8",
+      "activeTemplateName": "Vị trí kho / kệ / ô chứa",
+      "activatedAt": "2026-07-27T12:16:12.1411533Z",
+      "activatedBy": "full-flow-verification"
+    }
+  ],
+  "url": "http://100.108.194.102:5003/api/printers/active"
+}

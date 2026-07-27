@@ -1,0 +1,7 @@
+{
+  "status": 409,
+  "body": {
+    "error": "PRINT_STATION_BINDING_REQUIRED",
+    "message": "PRINT_STATION_BINDING_REQUIRED"
+  }
+}

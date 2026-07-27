@@ -1,0 +1,7 @@
+{
+  "status": 502,
+  "body": {
+    "message": "An invalid response was received from the upstream server",
+    "request_id": "0149522789f653669095070396804e22"
+  }
+}

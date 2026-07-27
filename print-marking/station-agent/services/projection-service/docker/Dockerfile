@@ -24,10 +24,11 @@ RUN dotnet publish services/projection-service/src/ND.ProjectionService.Api/ND.P
 # Stage 2 — runtime: uses the TARGET platform image (amd64 or arm64)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-USER app
 COPY --chown=app:app --from=build /app/publish .
+COPY services/projection-service/docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && mkdir -p /data /logs
 VOLUME ["/data", "/logs"]
 EXPOSE 5009
 ENV DOTNET_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:5009
-ENTRYPOINT ["dotnet", "ND.ProjectionService.Api.dll"]
+ENTRYPOINT ["/entrypoint.sh"]

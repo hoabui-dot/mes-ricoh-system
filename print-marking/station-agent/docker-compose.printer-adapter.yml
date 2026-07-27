@@ -4,7 +4,7 @@ name: station-printer-adapter
 # adapter connects to the protected Station Agent broker over TCP/IP.
 services:
   printer-adapter:
-    image: vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260727
+    image: vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260727-cups-remote-fix
     container_name: station-printer-adapter
     restart: unless-stopped
     ports:
@@ -13,8 +13,14 @@ services:
       ASPNETCORE_URLS: http://+:5003
       ASPNETCORE_ENVIRONMENT: Production
       SQLITE_PRINTER_PATH: /data/printer.db
-      CUPS_HEALTH_HOST: host.docker.internal
+      # Docker Desktop for macOS does not map host.docker.internal to the
+      # macOS network stack. Use the Mac LAN address that exposes CUPS.
+      CUPS_HEALTH_HOST: 192.168.2.31
       CUPS_HEALTH_PORT: "631"
+      # lpr and IPP health checks must use the same macOS CUPS endpoint.
+      CUPS_SERVER: 192.168.2.31:631
+      # macOS CUPS authorizes remote jobs against this local macOS account.
+      CUPS_USER: hoabui
       CUPS_QUEUE: Zebra_Technologies_ZTC_GK420t
       KAFKA_BOOTSTRAP_SERVERS: 100.68.50.41:19092
       KAFKA_CLIENT_ID: PRINT-ADAPTER-01
@@ -25,8 +31,6 @@ services:
       PrinterAdapter__HeartbeatIntervalSeconds: "15"
     volumes:
       - printer-adapter-data:/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     healthcheck:
       test:
         - CMD-SHELL

@@ -1,0 +1,70 @@
+{
+  "status": 200,
+  "body": {
+    "wo_id": "8600346d-2e4c-4566-a47b-108ed6d9469f",
+    "total_duration_minutes": 2340,
+    "planned_start_at": "2026-07-27T09:27:07Z",
+    "planned_end_at": "2026-07-29T00:27:07Z",
+    "operations": [
+      {
+        "sequence_no": 10,
+        "operation_code": "OP-MIX",
+        "work_center_id": "de112ef0-471d-44ef-acf5-d2358636514c",
+        "duration_minutes": 390,
+        "planned_start_at": "2026-07-27T09:27:07Z",
+        "planned_end_at": "2026-07-27T15:57:07Z"
+      },
+      {
+        "sequence_no": 20,
+        "operation_code": "OP-PREP",
+        "work_center_id": "61c43e8c-3050-49a4-bdfe-eeb25c224a69",
+        "duration_minutes": 390,
+        "planned_start_at": "2026-07-27T15:57:07Z",
+        "planned_end_at": "2026-07-27T22:27:07Z"
+      },
+      {
+        "sequence_no": 30,
+        "operation_code": "OP-CUT",
+        "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+        "duration_minutes": 390,
+        "planned_start_at": "2026-07-27T22:27:07Z",
+        "planned_end_at": "2026-07-28T04:57:07Z"
+      },
+      {
+        "sequence_no": 40,
+        "operation_code": "OP-MOLD",
+        "work_center_id": "61c43e8c-3050-49a4-bdfe-eeb25c224a69",
+        "duration_minutes": 390,
+        "planned_start_at": "2026-07-28T04:57:07Z",
+        "planned_end_at": "2026-07-28T11:27:07Z"
+      },
+      {
+        "sequence_no": 50,
+        "operation_code": "OP-TRIM",
+        "work_center_id": "61c43e8c-3050-49a4-bdfe-eeb25c224a69",
+        "duration_minutes": 390,
+        "planned_start_at": "2026-07-28T11:27:07Z",
+        "planned_end_at": "2026-07-28T17:57:07Z"
+      },
+      {
+        "sequence_no": 60,
+        "operation_code": "OP-QC",
+        "work_center_id": "bee6283c-0deb-4306-8f44-e07e1c92341e",
+        "duration_minutes": 390,
+        "planned_start_at": "2026-07-28T17:57:07Z",
+        "planned_end_at": "2026-07-29T00:27:07Z"
+      }
+    ],
+    "capacity_warnings": [
+      "Operation OP-MIX (Seq 10): Work Center calendar has no pre-scheduled availability window for 2026-07-27T09:27:07Z to 2026-07-27T15:57:07Z",
+      "Operation OP-PREP (Seq 20): Work Center calendar has no pre-scheduled availability window for 2026-07-27T15:57:07Z to 2026-07-27T22:27:07Z",
+      "Operation OP-CUT (Seq 30): Work Center calendar has no pre-scheduled availability window for 2026-07-27T22:27:07Z to 2026-07-28T04:57:07Z",
+      "Operation OP-MOLD (Seq 40): Work Center calendar has no pre-scheduled availability window for 2026-07-28T04:57:07Z to 2026-07-28T11:27:07Z",
+      "Operation OP-TRIM (Seq 50): Work Center calendar has no pre-scheduled availability window for 2026-07-28T11:27:07Z to 2026-07-28T17:57:07Z",
+      "Operation OP-QC (Seq 60): Work Center calendar has no pre-scheduled availability window for 2026-07-28T17:57:07Z to 2026-07-29T00:27:07Z"
+    ],
+    "labor_warnings": [],
+    "labor_shortages": [],
+    "labor_assignments": []
+  }
+}

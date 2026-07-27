@@ -60,6 +60,13 @@ type RoutingOperationInput = {
   overlap_allowed: boolean;
   transfer_batch_qty: number | null;
   milestone_flag: boolean;
+  planning_mode: 'INHERITED' | 'ROUTING_OVERRIDE';
+  base_quantity: number;
+  setup_time_min: number;
+  cycle_time_sec: number;
+  required_workers: number;
+  efficiency_factor: number;
+  standard_yield: number;
 };
 
 function routingError(code: string, message: string, statusCode = 422): Error & { statusCode: number; code: string } {
@@ -80,6 +87,13 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
     overlap_allowed: row['overlap_allowed'] === true,
     transfer_batch_qty: row['transfer_batch_qty'] === null || row['transfer_batch_qty'] === undefined || row['transfer_batch_qty'] === '' ? null : Number(row['transfer_batch_qty']),
     milestone_flag: row['milestone_flag'] === true,
+    planning_mode: String(row['planning_mode'] || 'INHERITED').toUpperCase() as 'INHERITED' | 'ROUTING_OVERRIDE',
+    base_quantity: row['base_quantity'] === undefined || row['base_quantity'] === null || row['base_quantity'] === '' ? Number.NaN : Number(row['base_quantity']),
+    setup_time_min: row['setup_time_min'] === undefined || row['setup_time_min'] === null || row['setup_time_min'] === '' ? Number.NaN : Number(row['setup_time_min']),
+    cycle_time_sec: row['cycle_time_sec'] === undefined || row['cycle_time_sec'] === null || row['cycle_time_sec'] === '' ? Number.NaN : Number(row['cycle_time_sec']),
+    required_workers: row['required_workers'] === undefined || row['required_workers'] === null || row['required_workers'] === '' ? Number.NaN : Number(row['required_workers']),
+    efficiency_factor: row['efficiency_factor'] === undefined || row['efficiency_factor'] === null || row['efficiency_factor'] === '' ? Number.NaN : Number(row['efficiency_factor']),
+    standard_yield: row['standard_yield'] === undefined || row['standard_yield'] === null || row['standard_yield'] === '' ? Number.NaN : Number(row['standard_yield']),
   }));
   const sequences = new Set<number>();
   const operationIds = new Set<string>();
@@ -89,6 +103,7 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
     if (operationIds.has(row.operation_id)) throw routingError('ROUTING_OPERATION_DUPLICATE', 'An Operation may appear only once in a Routing.');
     if (row.predecessor_seq !== null && (!Number.isInteger(row.predecessor_seq) || row.predecessor_seq === row.seq)) throw routingError('ROUTING_PREDECESSOR_INVALID', 'A predecessor must reference another operation sequence.');
     if (!Number.isFinite(row.queue_time_min) || row.queue_time_min < 0 || !Number.isFinite(row.move_time_min) || row.move_time_min < 0 || (row.transfer_batch_qty !== null && (!Number.isFinite(row.transfer_batch_qty) || row.transfer_batch_qty <= 0))) throw routingError('ROUTING_TIMING_INVALID', 'Queue, move, and transfer-batch values are invalid.');
+    if (!['INHERITED', 'ROUTING_OVERRIDE'].includes(row.planning_mode)) throw routingError('ROUTING_PLANNING_MODE_INVALID', 'Planning mode must be INHERITED or ROUTING_OVERRIDE.');
     sequences.add(row.seq); operationIds.add(row.operation_id);
   }
   validateRoutingOperationGraph(normalized);
@@ -98,8 +113,16 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
   if (!routing.rows[0]) throw Object.assign(new Error('ROUTING_NOT_FOUND'), { statusCode: 404 });
   if (routing.rows[0].lifecycle_status === 'Released') throw routingError('ROUTING_RELEASED_IMMUTABLE', 'Released Routings cannot be edited. Create a new Routing version.', 409);
   if (!normalized.length) return normalized;
-  const operations = await client.query(`SELECT master_id FROM md_operation WHERE master_id = ANY($1::uuid[]) AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [[...operationIds]]);
+  const operations = await client.query(`SELECT master_id, default_cycle_time_sec, default_setup_time_min, default_base_quantity, default_required_persons, default_efficiency_factor, default_yield FROM md_operation WHERE master_id = ANY($1::uuid[]) AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [[...operationIds]]);
   if (operations.rowCount !== operationIds.size) throw routingError('ROUTING_OPERATION_INACTIVE', 'All selected Operations must be active.');
+  const defaults = new Map(operations.rows.map((operation) => [String(operation.master_id), operation]));
+  for (const row of normalized) {
+    const operation = defaults.get(row.operation_id);
+    if (!operation) continue;
+    if (row.planning_mode === 'ROUTING_OVERRIDE' && (!Number.isFinite(row.cycle_time_sec) || row.cycle_time_sec <= 0 || !Number.isFinite(row.setup_time_min) || row.setup_time_min < 0 || !Number.isFinite(row.base_quantity) || row.base_quantity <= 0 || !Number.isInteger(row.required_workers) || row.required_workers < 1 || !Number.isFinite(row.efficiency_factor) || row.efficiency_factor <= 0 || !Number.isFinite(row.standard_yield) || row.standard_yield <= 0)) {
+      throw routingError('ROUTING_PLANNING_VALUES_INVALID', 'Routing planning values must be positive and valid.');
+    }
+  }
   const workCenters = await client.query(`SELECT master_id, site_id FROM md_work_center WHERE master_id = ANY($1::uuid[]) AND active_flag = TRUE AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [[...new Set(normalized.map((row) => row.work_center_id))]]);
   if (workCenters.rowCount !== new Set(normalized.map((row) => row.work_center_id)).size) throw routingError('ROUTING_WORK_CENTER_INVALID', 'All selected Work Centers must be active.');
   const sites = new Set(workCenters.rows.map((row) => String(row.site_id)));
@@ -396,6 +419,23 @@ function validateEngineeringMetadata(table: TableDefinition, body: Record<string
   if (table.tableName === 'md_routing_header' && body['routing_type'] !== undefined && !['Standard', 'Alternate', 'Rework'].includes(String(body['routing_type']))) throw Object.assign(new Error('routing_type must be Standard, Alternate, or Rework'), { statusCode: 400 });
 }
 
+function isProductionVersionNameValid(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const name = value as Record<string, unknown>;
+  return typeof name.vi === 'string' && name.vi.trim().length > 0 && typeof name.en === 'string' && name.en.trim().length > 0;
+}
+
+async function defaultProductionVersionName(client: PoolClient, itemRevisionID: string, code: string): Promise<Record<string, string>> {
+  const result = await client.query(`SELECT COALESCE(i.code, r.revision_code, $2) AS item_code FROM md_item_revision r LEFT JOIN md_item i ON i.master_id = r.item_id WHERE r.master_id = $1`, [itemRevisionID, code]);
+  const itemCode = String(result.rows[0]?.item_code || code);
+  return {
+    vi: `Phiên bản sản xuất ${itemCode}`,
+    en: `Production Version ${code} for ${itemCode}`,
+    ja: `${itemCode} 生産バージョン ${code}`,
+    ko: `${itemCode} 생산 버전 ${code}`,
+  };
+}
+
   function eventPayloadFor(table: TableDefinition, row: Record<string, unknown>): Record<string, unknown> {
   const base = {
     master_id: row['master_id'],
@@ -411,7 +451,7 @@ function validateEngineeringMetadata(table: TableDefinition, body: Record<string
     return { ...base, description: row['description'], business_version: row['business_version'], routing_type: row['routing_type'], production_purpose: row['production_purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
   }
   if (table.tableName === 'md_production_version') {
-    return { ...base, item_revision_id: row['item_revision_id'], mbom_header_id: row['mbom_header_id'], routing_header_id: row['routing_header_id'], site_id: row['site_id'] };
+    return { ...base, name_i18n: row['name_i18n'], item_revision_id: row['item_revision_id'], mbom_header_id: row['mbom_header_id'], routing_header_id: row['routing_header_id'], site_id: row['site_id'], min_lot_size: row['min_lot_size'], max_lot_size: row['max_lot_size'] };
   }
   if (table.tableName === 'md_employee') {
     return { ...base, site_id: row['site_id'], default_work_center_id: row['default_work_center_id'], employee_status: row['employee_status'], preferred_locale: row['preferred_locale'] };
@@ -610,7 +650,7 @@ export function masterDataRouter(pool: Pool): Router {
   router.put('/ebom-lines/:id', (_req, res) => res.status(409).json({ error: 'EBOM_TREE_REPLACEMENT_REQUIRED' }));
   router.delete('/ebom-lines/:id', (_req, res) => res.status(409).json({ error: 'EBOM_TREE_REPLACEMENT_REQUIRED' }));
 
-  router.get('/production-ready-item-revisions', async (req, res, next) => {
+  router.get(['/production-ready-versions', '/production-ready-item-revisions'], async (req, res, next) => {
     try {
       const search = typeof req.query['search'] === 'string' ? req.query['search'].trim() : '';
       const siteId = typeof req.query['site_id'] === 'string' ? req.query['site_id'] : '';
@@ -635,7 +675,8 @@ export function masterDataRouter(pool: Pool): Router {
         filters.push(`(i.code ILIKE $${values.length} OR r.name::text ILIKE $${values.length} OR r.revision_code ILIKE $${values.length} OR pv.code ILIKE $${values.length})`);
       }
       const candidates = await pool.query(
-        `SELECT i.master_id AS item_id, i.code AS item_code, r.name AS item_name,
+        `SELECT pv.name_i18n AS production_version_name, pv.min_lot_size, pv.max_lot_size,
+                i.master_id AS item_id, i.code AS item_code, r.name AS item_name,
                 r.master_id AS item_revision_id, r.revision_code, r.lifecycle_status AS revision_status,
                 r.effective_from AS revision_effective_from, r.effective_to AS revision_effective_to,
                 u.code AS base_uom_code, u.master_id AS base_uom_id,
@@ -659,7 +700,17 @@ export function masterDataRouter(pool: Pool): Router {
       for (const candidate of candidates.rows) {
         const validation = await validateProductionVersion(pool, candidate['production_version_id'] as string);
         if (!validation.valid) continue;
-        ready.push({ ...candidate, display_code: `${candidate['item_code']}-${candidate['revision_code']}`, readiness_status: 'Ready' });
+        ready.push({ ...candidate,
+          production_version_id: candidate['production_version_id'],
+          production_version_code: candidate['production_version_code'],
+          production_version_name: candidate['production_version_name'],
+          item_revision: { id: candidate['item_revision_id'], code: candidate['revision_code'], name: candidate['item_name'] },
+          mbom: { id: candidate['mbom_header_id'], code: candidate['mbom_code'], name: candidate['mbom_name'] },
+          routing: { id: candidate['routing_header_id'], code: candidate['routing_code'], name: candidate['routing_name'] },
+          site: { id: candidate['site_id'], code: candidate['site_code'] },
+          base_uom: { id: candidate['base_uom_id'], code: candidate['base_uom_code'] },
+          valid_from: candidate['revision_effective_from'], valid_to: candidate['revision_effective_to'],
+          ready: true, warnings: [], display_code: `${candidate['item_code']}-${candidate['revision_code']}`, readiness_status: 'Ready' });
       }
       return res.json({ data: ready, meta: { planned_date: plannedDate, limit, returned: ready.length } });
     } catch (err) {
@@ -2358,13 +2409,33 @@ export function masterDataRouter(pool: Pool): Router {
       await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
       const operations = await validateRoutingOperationReplacement(client, req.params['id'], normalizeBody(req.body).operations ?? req.body);
       const routing = await client.query(`SELECT code FROM md_routing_header WHERE master_id = $1`, [req.params['id']]);
+      await client.query(`UPDATE md_production_standard SET lifecycle_status = 'Inactive', effective_to = NOW(), valid_to = NOW(), updated_by = $1, updated_at = NOW() WHERE routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id = $2 AND effective_to IS NULL) AND item_revision_id IS NULL AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
       await client.query(`UPDATE md_routing_operation SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $1, updated_at = NOW() WHERE routing_header_id = $2 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
       for (const row of operations) {
         const operation = await client.query(`SELECT code, name FROM md_operation WHERE master_id = $1`, [row.operation_id]);
         const code = `${routing.rows[0].code}-${String(row.seq).padStart(3, '0')}`;
-        await client.query(`INSERT INTO md_routing_operation (code, name, version_no, lifecycle_status, effective_from, created_by, routing_header_id, operation_id, work_center_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag) VALUES ($1,$2,1,'Draft',NOW(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, [code, operation.rows[0].name || operation.rows[0].code, context.userId, req.params['id'], row.operation_id, row.work_center_id, row.seq, row.predecessor_seq, row.scheduling_mode, row.queue_time_min, row.move_time_min, row.overlap_allowed, row.transfer_batch_qty, row.milestone_flag]);
+        const inserted = await client.query(`INSERT INTO md_routing_operation (code, name, version_no, lifecycle_status, effective_from, created_by, routing_header_id, operation_id, work_center_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag, planning_mode) VALUES ($1,$2,1,'Draft',NOW(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING master_id`, [code, operation.rows[0].name || operation.rows[0].code, context.userId, req.params['id'], row.operation_id, row.work_center_id, row.seq, row.predecessor_seq, row.scheduling_mode, row.queue_time_min, row.move_time_min, row.overlap_allowed, row.transfer_batch_qty, row.milestone_flag, row.planning_mode]);
+        const routingSite = await client.query(`SELECT site_id FROM md_work_center WHERE master_id = $1`, [row.work_center_id]);
+        if (row.planning_mode === 'ROUTING_OVERRIDE') {
+          await client.query(`INSERT INTO md_production_standard (code, name, version_no, lifecycle_status, effective_from, created_by, item_revision_id, operation_id, work_center_id, site_id, routing_operation_id, labor_count, setup_time_min, cycle_time_sec, efficiency_factor, base_quantity, standard_yield, source_method, valid_from) VALUES ($1,$2,1,'Draft',NOW(),$3,NULL,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'Routing',NOW())`, [`${code}-STD`, operation.rows[0].name || operation.rows[0].code, context.userId, row.operation_id, row.work_center_id, routingSite.rows[0]?.site_id, inserted.rows[0].master_id, row.required_workers, row.setup_time_min, row.cycle_time_sec, row.efficiency_factor, row.base_quantity, row.standard_yield]);
+        }
       }
-      const result = await client.query(`SELECT ro.*, op.code AS operation_code, op.name AS operation_name, wc.code AS work_center_code, wc.name AS work_center_name FROM md_routing_operation ro JOIN md_operation op ON op.master_id = ro.operation_id JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.routing_header_id = $1 AND ro.effective_to IS NULL AND ro.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY ro.seq`, [req.params['id']]);
+      const result = await client.query(`SELECT ro.*, op.code AS operation_code, op.name AS operation_name, op.confirmation_mode, op.quantity_reporting, op.requires_material_scan, op.requires_output_label, op.allow_partial_completion, op.is_schedulable, op.default_cycle_time_sec, op.default_setup_time_min, op.default_base_quantity, op.default_required_persons, op.default_efficiency_factor, op.default_yield, wc.code AS work_center_code, wc.name AS work_center_name,
+        CASE WHEN ro.planning_mode = 'ROUTING_OVERRIDE' AND rps.master_id IS NOT NULL THEN 'ROUTING_OVERRIDE' WHEN wps.master_id IS NOT NULL THEN 'WORK_CENTER_STANDARD' WHEN op.default_cycle_time_sec IS NOT NULL THEN 'OPERATION_DEFAULT' ELSE 'UNRESOLVED' END AS resolved_source,
+        COALESCE(rps.base_quantity, wps.base_quantity, op.default_base_quantity) AS resolved_base_quantity,
+        COALESCE(rps.setup_time_min, wps.setup_time_min, op.default_setup_time_min) AS resolved_setup_time_min,
+        COALESCE(rps.cycle_time_sec, wps.cycle_time_sec, op.default_cycle_time_sec) AS resolved_cycle_time_sec,
+        COALESCE(rps.labor_count, wps.labor_count, op.default_required_persons) AS resolved_required_workers,
+        COALESCE(rps.efficiency_factor, wps.efficiency_factor, op.default_efficiency_factor) AS resolved_efficiency_factor,
+        COALESCE(rps.standard_yield, wps.standard_yield, op.default_yield) AS resolved_standard_yield,
+        COALESCE(rps.master_id, NULL) AS routing_standard_id,
+        COALESCE(cap.supported_workstation_count, 0) AS supported_workstation_count,
+        cap.minimum_cycle_time_sec, cap.maximum_cycle_time_sec
+        FROM md_routing_operation ro JOIN md_operation op ON op.master_id = ro.operation_id JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+        LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id = ro.master_id AND ps0.item_revision_id IS NULL AND ps0.effective_to IS NULL AND ps0.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) rps ON TRUE
+        LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id IS NULL AND ps0.item_revision_id IS NULL AND ps0.operation_id = ro.operation_id AND ps0.work_center_id = ro.work_center_id AND ps0.site_id = wc.site_id AND ps0.source_method = 'WorkCenter' AND ps0.lifecycle_status = 'Released' AND ps0.effective_to IS NULL ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) wps ON TRUE
+        LEFT JOIN LATERAL (SELECT COUNT(DISTINCT ws.master_id)::INT AS supported_workstation_count, MIN(c.cycle_time_sec) AS minimum_cycle_time_sec, MAX(c.cycle_time_sec) AS maximum_cycle_time_sec FROM md_workstation_operation_capability c JOIN md_workstation ws ON ws.master_id = c.workstation_id WHERE c.operation_id = ro.operation_id AND ws.work_center_id = ro.work_center_id AND c.active_flag = TRUE AND c.effective_to IS NULL AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive','Obsolete')) cap ON TRUE
+        WHERE ro.routing_header_id = $1 AND ro.effective_to IS NULL AND ro.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY ro.seq`, [req.params['id']]);
       await client.query('COMMIT');
       return res.json({ data: result.rows });
     } catch (err) {
@@ -2476,8 +2547,19 @@ export function masterDataRouter(pool: Pool): Router {
         body['area_id'] = parent.rows[0].area_id;
       }
       if (table.tableName === 'md_production_version') {
+        // Production Version codes are backend-owned, just like Routing and
+        // Work Order numbers. The form intentionally does not accept an
+        // authoritative code, so allocate one atomically before insertion.
+        body['code'] = await allocateResourceCode(client, 'PV');
+        const nameI18n = body['name_i18n'] || body['name'];
+        if (nameI18n !== undefined && !isProductionVersionNameValid(nameI18n)) throw Object.assign(new Error('PRODUCTION_VERSION_NAME_INVALID'), { statusCode: 422 });
+        body['name_i18n'] = nameI18n || await defaultProductionVersionName(client, String(body['item_revision_id'] || ''), String(body['code']));
+        body['name'] = String((body['name_i18n'] as Record<string, unknown>).en || (body['name_i18n'] as Record<string, unknown>).vi || body['code']);
+        if (body['min_lot_size'] !== undefined && Number(body['min_lot_size']) <= 0) throw Object.assign(new Error('PRODUCTION_VERSION_LOT_SIZE_INVALID'), { statusCode: 422 });
+        if (body['max_lot_size'] !== undefined && body['max_lot_size'] !== null && Number(body['max_lot_size']) < Number(body['min_lot_size'] || 0)) throw Object.assign(new Error('PRODUCTION_VERSION_LOT_SIZE_INVALID'), { statusCode: 422 });
         body['site_id'] = await resolveProductionVersionSite(client, String(body['item_revision_id'] || ''), String(body['mbom_header_id'] || ''), String(body['routing_header_id'] || ''));
       }
+
       if (table.tableName === 'md_equipment') {
         body['code'] = await consumeBusinessCode(client, body['code_reservation_id'], 'Machine', context);
         if (!body['site_id']) throw Object.assign(new Error('MACHINE_SITE_REQUIRED'), { statusCode: 422 });
@@ -2530,11 +2612,12 @@ export function masterDataRouter(pool: Pool): Router {
         body['equipment_id'] = body['resource_type'] === 'Equipment' ? body['resource_id'] : null;
       }
       if (table.tableName === 'md_production_standard') {
-        if (!body['site_id'] || !body['item_revision_id'] || !body['routing_operation_id'] || !body['work_center_id']) throw Object.assign(new Error('PRODUCTION_STANDARD_REQUIRED_FIELDS'), { statusCode: 422 });
+        if (!body['routing_operation_id'] || !body['work_center_id']) throw Object.assign(new Error('PRODUCTION_STANDARD_REQUIRED_FIELDS'), { statusCode: 422 });
         if (Number(body['base_quantity'] || 1) <= 0 || Number(body['setup_time_min'] || 0) < 0 || Number(body['cycle_time_sec']) <= 0 || Number(body['labor_count'] || 1) <= 0 || Number(body['standard_yield'] || 1) <= 0 || Number(body['efficiency_factor'] || 1) <= 0) throw Object.assign(new Error('PRODUCTION_STANDARD_NUMERIC_RULE_INVALID'), { statusCode: 422 });
         const operation = await client.query(`SELECT ro.operation_id, ro.work_center_id, wc.site_id FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.master_id = $1`, [body['routing_operation_id']]);
-        if (!operation.rows[0] || operation.rows[0].work_center_id !== body['work_center_id'] || operation.rows[0].site_id !== body['site_id']) throw Object.assign(new Error('PRODUCTION_STANDARD_ROUTING_CONTEXT_INVALID'), { statusCode: 422 });
+        if (!operation.rows[0] || operation.rows[0].work_center_id !== body['work_center_id'] || (body['site_id'] && operation.rows[0].site_id !== body['site_id'])) throw Object.assign(new Error('PRODUCTION_STANDARD_ROUTING_CONTEXT_INVALID'), { statusCode: 422 });
         body['operation_id'] = body['operation_id'] || operation.rows[0].operation_id;
+        body['site_id'] = body['site_id'] || operation.rows[0].site_id;
         if (body['equipment_id']) {
           const equipmentEligibility = await client.query(`
             SELECT 1 FROM md_resource_assignment ra JOIN md_equipment eq ON eq.master_id = ra.equipment_id
@@ -2542,8 +2625,10 @@ export function masterDataRouter(pool: Pool): Router {
               AND eq.active_flag = TRUE AND eq.execution_status = 'Available'
               AND tstzrange(ra.effective_from, COALESCE(ra.effective_to, 'infinity'::timestamptz), '[)') && tstzrange($3::timestamptz, COALESCE($4::timestamptz, 'infinity'::timestamptz), '[)')`, [body['work_center_id'], body['equipment_id'], body['valid_from'] || body['effective_from'] || new Date().toISOString(), body['valid_to'] || null]);
           if (!equipmentEligibility.rows[0]) throw Object.assign(new Error('PRODUCTION_STANDARD_EQUIPMENT_ASSIGNMENT_INVALID'), { statusCode: 422 });
-          const capability = await client.query(`SELECT 1 FROM md_resource_capability WHERE site_id = $1 AND operation_id = $2 AND work_center_id = $3 AND (equipment_id = $4 OR equipment_id IS NULL) AND product_revision_id = $5 AND eligibility = TRUE AND active_flag = TRUE`, [body['site_id'], body['operation_id'], body['work_center_id'], body['equipment_id'], body['item_revision_id']]);
-          if (!capability.rows[0]) throw Object.assign(new Error('PRODUCTION_STANDARD_EQUIPMENT_CAPABILITY_REQUIRED'), { statusCode: 422 });
+          if (body['item_revision_id']) {
+            const capability = await client.query(`SELECT 1 FROM md_resource_capability WHERE site_id = $1 AND operation_id = $2 AND work_center_id = $3 AND (equipment_id = $4 OR equipment_id IS NULL) AND product_revision_id = $5 AND eligibility = TRUE AND active_flag = TRUE`, [body['site_id'], body['operation_id'], body['work_center_id'], body['equipment_id'], body['item_revision_id']]);
+            if (!capability.rows[0]) throw Object.assign(new Error('PRODUCTION_STANDARD_EQUIPMENT_CAPABILITY_REQUIRED'), { statusCode: 422 });
+          }
         }
         body['valid_from'] = body['valid_from'] || body['effective_from'] || new Date().toISOString();
       }
@@ -2635,6 +2720,10 @@ export function masterDataRouter(pool: Pool): Router {
     const context = getContext(req);
     const body = normalizeLocalizedFields(table, normalizeBody(req.body));
     if (table.tableName === 'md_production_version') {
+      if (body['name_i18n'] !== undefined && !isProductionVersionNameValid(body['name_i18n'])) return res.status(422).json({ error: 'PRODUCTION_VERSION_NAME_INVALID' });
+      delete body['code'];
+      if (body['min_lot_size'] !== undefined && Number(body['min_lot_size']) <= 0) return res.status(422).json({ error: 'PRODUCTION_VERSION_LOT_SIZE_INVALID' });
+      if (body['max_lot_size'] !== undefined && body['max_lot_size'] !== null && Number(body['max_lot_size']) < Number(body['min_lot_size'] || 0)) return res.status(422).json({ error: 'PRODUCTION_VERSION_LOT_SIZE_INVALID' });
       const current = await pool.query(`SELECT item_revision_id, mbom_header_id, routing_header_id FROM md_production_version WHERE master_id = $1`, [req.params['id']]);
       if (!current.rows[0]) return res.status(404).json({ error: 'Not Found' });
       const itemRevisionId = body['item_revision_id'] || current.rows[0].item_revision_id;
@@ -2828,6 +2917,49 @@ export function masterDataRouter(pool: Pool): Router {
         }
       }
 
+      if (table.tableName === 'md_routing_header') {
+        const current = await client.query(`SELECT master_id FROM md_routing_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+        if (!current.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'ROUTING_NOT_FOUND' }); }
+        const readiness = await client.query(`
+          SELECT ro.master_id, op.is_schedulable, ro.lifecycle_status AS routing_operation_status, op.lifecycle_status AS operation_status,
+            CASE WHEN ro.planning_mode = 'ROUTING_OVERRIDE' AND rps.master_id IS NOT NULL THEN 'ROUTING_OVERRIDE'
+              WHEN wps.master_id IS NOT NULL THEN 'WORK_CENTER_STANDARD'
+              WHEN op.default_cycle_time_sec IS NOT NULL THEN 'OPERATION_DEFAULT' ELSE 'UNRESOLVED' END AS resolved_source,
+            COALESCE(rps.base_quantity, wps.base_quantity, op.default_base_quantity) AS resolved_base_quantity,
+            COALESCE(rps.setup_time_min, wps.setup_time_min, op.default_setup_time_min) AS resolved_setup_time_min,
+            COALESCE(rps.cycle_time_sec, wps.cycle_time_sec, op.default_cycle_time_sec) AS resolved_cycle_time_sec,
+            COALESCE(rps.labor_count, wps.labor_count, op.default_required_persons) AS resolved_required_workers,
+            COALESCE(rps.efficiency_factor, wps.efficiency_factor, op.default_efficiency_factor) AS resolved_efficiency_factor,
+            COALESCE(rps.standard_yield, wps.standard_yield, op.default_yield) AS resolved_standard_yield
+          FROM md_routing_operation ro JOIN md_operation op ON op.master_id = ro.operation_id
+          JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+          LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0
+            WHERE ps0.routing_operation_id = ro.master_id AND ps0.item_revision_id IS NULL
+              AND ps0.lifecycle_status NOT IN ('Inactive','Obsolete') AND ps0.effective_to IS NULL
+            ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) rps ON TRUE
+          LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0
+            WHERE ps0.routing_operation_id IS NULL AND ps0.item_revision_id IS NULL
+              AND ps0.operation_id = ro.operation_id AND ps0.work_center_id = ro.work_center_id
+              AND ps0.site_id = wc.site_id AND ps0.source_method = 'WorkCenter'
+              AND ps0.lifecycle_status = 'Released' AND ps0.effective_to IS NULL
+            ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) wps ON TRUE
+          WHERE ro.routing_header_id = $1 AND ro.effective_to IS NULL AND ro.lifecycle_status NOT IN ('Inactive','Obsolete')
+        `, [req.params['id']]);
+        if (!readiness.rows.length) { await client.query('ROLLBACK'); return res.status(422).json({ error: 'ROUTING_RELEASE_REQUIRES_OPERATIONS' }); }
+        const inactiveOperations = readiness.rows.filter((row) => row.routing_operation_status !== 'Released' || row.operation_status !== 'Released');
+        if (inactiveOperations.length) {
+          await client.query('ROLLBACK');
+          return res.status(422).json({ error: 'ROUTING_OPERATION_NOT_RELEASED', failures: inactiveOperations.map((row) => ({ routing_operation_id: row.master_id, routing_operation_status: row.routing_operation_status, operation_status: row.operation_status })) });
+        }
+        const unresolved = readiness.rows.filter((row) => row.is_schedulable && (row.resolved_source === 'UNRESOLVED' || Number(row.resolved_cycle_time_sec) <= 0 || Number(row.resolved_base_quantity) <= 0 || Number(row.resolved_required_workers) < 1 || Number(row.resolved_efficiency_factor) <= 0 || Number(row.resolved_standard_yield) <= 0));
+        if (unresolved.length) {
+          await client.query('ROLLBACK');
+          return res.status(422).json({ error: 'ROUTING_PLANNING_VALUES_UNRESOLVED', failures: unresolved.map((row) => ({ routing_operation_id: row.master_id, source: row.resolved_source })) });
+        }
+        await client.query(`UPDATE md_routing_operation SET lifecycle_status = 'Released', updated_by = $1, updated_at = NOW() WHERE routing_header_id = $2 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
+        await client.query(`UPDATE md_production_standard SET lifecycle_status = 'Released', updated_by = $1, updated_at = NOW() WHERE routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id = $2 AND effective_to IS NULL) AND item_revision_id IS NULL AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
+      }
+
       if (table.tableName === 'md_ebom_header') {
         const current = await client.query(`SELECT * FROM md_ebom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
         if (!current.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'EBOM_NOT_FOUND' }); }
@@ -2876,6 +3008,33 @@ export function masterDataRouter(pool: Pool): Router {
       }
 
       if (table.eventType) {
+        if (table.tableName === 'md_routing_header') {
+          const operations = await client.query(`
+			SELECT ro.master_id, ro.operation_id, op.code AS operation_code, ro.work_center_id, ro.seq, ro.predecessor_seq,
+              ws.master_id AS workstation_id, op.requires_output_label,
+              ro.planning_mode,
+              CASE WHEN ro.planning_mode = 'ROUTING_OVERRIDE' AND rps.master_id IS NOT NULL THEN 'ROUTING_OVERRIDE'
+                WHEN wps.master_id IS NOT NULL THEN 'WORK_CENTER_STANDARD' ELSE 'OPERATION_DEFAULT' END AS resolved_source,
+              COALESCE(rps.base_quantity, wps.base_quantity, op.default_base_quantity) AS resolved_base_quantity,
+              COALESCE(rps.setup_time_min, wps.setup_time_min, op.default_setup_time_min) AS resolved_setup_time_min,
+              COALESCE(rps.cycle_time_sec, wps.cycle_time_sec, op.default_cycle_time_sec) AS resolved_cycle_time_sec,
+              COALESCE(rps.labor_count, wps.labor_count, op.default_required_persons) AS resolved_required_workers,
+              COALESCE(rps.efficiency_factor, wps.efficiency_factor, op.default_efficiency_factor) AS resolved_efficiency_factor,
+              COALESCE(rps.standard_yield, wps.standard_yield, op.default_yield) AS resolved_standard_yield
+            FROM md_routing_operation ro JOIN md_operation op ON op.master_id = ro.operation_id
+            JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+            LEFT JOIN LATERAL (SELECT ws0.master_id FROM md_work_center_composition c0 JOIN md_workstation ws0 ON ws0.master_id = c0.workstation_id WHERE c0.work_center_id = ro.work_center_id AND c0.active_flag = TRUE AND c0.effective_to IS NULL AND ws0.active_flag = TRUE AND ws0.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY c0.effective_from DESC LIMIT 1) ws ON TRUE
+            LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id = ro.master_id AND ps0.item_revision_id IS NULL AND ps0.lifecycle_status = 'Released' AND ps0.effective_to IS NULL ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) rps ON TRUE
+            LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id IS NULL AND ps0.item_revision_id IS NULL AND ps0.operation_id = ro.operation_id AND ps0.work_center_id = ro.work_center_id AND ps0.site_id = wc.site_id AND ps0.source_method = 'WorkCenter' AND ps0.lifecycle_status = 'Released' AND ps0.effective_to IS NULL ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) wps ON TRUE
+            WHERE ro.routing_header_id = $1 AND ro.lifecycle_status = 'Released' AND ro.effective_to IS NULL ORDER BY ro.seq
+          `, [req.params['id']]);
+          const payload = eventPayloadFor(table, row);
+          payload['operations'] = operations.rows;
+          const envelope = createEventEnvelope({ event_type: table.eventType, source_service: SERVICE_NAME, trace_id: context.traceId, payload });
+          await writeToOutbox(client, { topic: table.eventType, envelope });
+          await client.query('COMMIT');
+          return res.json({ data: row, event_published: true, event_type: table.eventType });
+        }
         const envelope = createEventEnvelope({
           event_type: table.eventType,
           source_service: SERVICE_NAME,

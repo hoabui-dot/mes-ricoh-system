@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info } from 'lucide-react';
+import { CircleAlert } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { cn } from '../../lib/utils';
@@ -16,7 +16,7 @@ export function FieldHelpPopover({ label, title, content }: { label: string; tit
   return <Popover open={open} onOpenChange={(next) => { cancelClose(); setOpen(next); }}>
     <PopoverTrigger asChild>
       <button type="button" aria-label={label} className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-action focus-visible:ring-2 focus-visible:ring-action" onPointerEnter={() => { cancelClose(); setOpen(true); }} onPointerLeave={scheduleClose} onFocus={() => setOpen(true)}>
-        <Info className="h-4 w-4" />
+        <CircleAlert className="h-4 w-4" />
       </button>
     </PopoverTrigger>
     <PopoverContent side="top" align="start" className="z-[210] w-[min(26rem,calc(100vw-2rem))] whitespace-pre-line bg-surface-elevated p-4 text-sm leading-5 text-foreground opacity-100" onPointerEnter={cancelClose} onPointerLeave={scheduleClose}>
@@ -34,7 +34,7 @@ export function FieldHelpTooltip({ label, title, summary, sections = [], example
     <Tooltip>
       <TooltipTrigger asChild>
         <button type="button" aria-label={label} className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-action focus-visible:ring-2 focus-visible:ring-action', className)}>
-          <Info className="h-4 w-4" />
+          <CircleAlert className="h-4 w-4" />
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" align="start" className="w-[min(24rem,calc(100vw-2rem))] whitespace-normal bg-surface-elevated p-4 text-left text-foreground opacity-100">

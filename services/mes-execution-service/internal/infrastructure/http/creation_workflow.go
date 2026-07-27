@@ -115,7 +115,7 @@ func (m *creationWorkflowManager) run(request creationWorkflowRequest, workflowI
 	_ = m.publish(ctx, workflowID, correlationID, "step.succeeded", stepPayload("request_validation", 1, "succeeded", "workOrders.creation.steps.request.success", nil, map[string]interface{}{"quantity": request.Input.Quantity}), workflowStatusRunning, "request_validation", nil)
 
 	_ = m.publish(ctx, workflowID, correlationID, "step.started", stepPayload("master_data_readiness", 2, "running", "workOrders.creation.steps.readiness.running", nil, nil), workflowStatusRunning, "master_data_readiness", nil)
-	readiness, err := usecase.CheckMasterDataReadiness(ctx, m.pool, request.Input.ItemRevisionID, request.Input.SiteID)
+	readiness, err := usecase.CheckMasterDataReadiness(ctx, m.pool, request.Input.ItemRevisionID, request.Input.SiteID, request.Input.ProductionVersionID)
 	if err != nil || !readiness.Ready {
 		detail := readiness.MissingPrerequisites
 		if err != nil {
@@ -124,9 +124,16 @@ func (m *creationWorkflowManager) run(request creationWorkflowRequest, workflowI
 		m.fail(ctx, workflowID, correlationID, "master_data_readiness", "ERR-WO-READINESS-001", fmt.Sprintf("%v", detail), true)
 		return
 	}
-	if request.Input.ProductionVersionID == "" {
-		request.Input.ProductionVersionID = readiness.ProductionVersionID
+	if request.Input.UOMID != "" && readiness.UOMID != "" && request.Input.UOMID != readiness.UOMID {
+		m.fail(ctx, workflowID, correlationID, "master_data_readiness", "ERR-WO-READINESS-001", "[WORK_ORDER_PRODUCTION_VERSION_CONTEXT_MISMATCH:uom_id]", false)
+		return
 	}
+	// Production Version is authoritative. Replace all derived request fields
+	// with the values resolved by the readiness query before creating the WO.
+	request.Input.ProductionVersionID = readiness.ProductionVersionID
+	request.Input.ItemRevisionID = readiness.ItemRevisionID
+	request.Input.SiteID = readiness.SiteID
+	request.Input.UOMID = readiness.UOMID
 	_ = m.publish(ctx, workflowID, correlationID, "step.succeeded", stepPayload("master_data_readiness", 2, "succeeded", "workOrders.creation.steps.readiness.success", nil, map[string]interface{}{"productionVersionId": readiness.ProductionVersionID, "mbomId": readiness.MBOMHeaderID, "routingId": readiness.RoutingHeaderID}), workflowStatusRunning, "master_data_readiness", nil)
 
 	_ = m.publish(ctx, workflowID, correlationID, "step.started", stepPayload("create_transaction", 3, "running", "workOrders.creation.steps.transaction.running", nil, nil), workflowStatusRunning, "create_transaction", nil)
@@ -149,8 +156,8 @@ func (m *creationWorkflowManager) run(request creationWorkflowRequest, workflowI
 }
 
 func validateCreationRequest(input usecase.CreateWOInput) error {
-	if input.ItemRevisionID == "" || input.SiteID == "" || input.UOMID == "" {
-		return fmt.Errorf("missing required product, site, revision, or UOM")
+	if input.ProductionVersionID == "" {
+		return fmt.Errorf("production_version_id is required")
 	}
 	if input.Quantity <= 0 {
 		return fmt.Errorf("quantity must be greater than zero")
@@ -385,18 +392,8 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 		}
 	}
 	quantity, _ := body["quantity"].(float64)
-	if itemCode == "" || quantity <= 0 {
+	if quantity <= 0 || productionVersionID == "" {
 		return creationWorkflowRequest{}, fmt.Errorf("INVALID_REQUEST")
-	}
-	if itemRevisionID == "" {
-		if err := pool.QueryRow(ctx, `SELECT master_id::text, COALESCE(name->>'vi',code) FROM rm_item_revision WHERE code=$1 AND lifecycle_status='Released' LIMIT 1`, itemCode).Scan(&itemRevisionID, &itemName); err != nil {
-			return creationWorkflowRequest{}, fmt.Errorf("ITEM_REVISION_NOT_FOUND")
-		}
-	}
-	if siteID == "" {
-		if err := pool.QueryRow(ctx, `SELECT site_id::text FROM rm_production_version WHERE item_revision_id=$1 AND lifecycle_status='Released' ORDER BY is_default DESC LIMIT 1`, itemRevisionID).Scan(&siteID); err != nil {
-			return creationWorkflowRequest{}, fmt.Errorf("SITE_NOT_FOUND")
-		}
 	}
 	start := time.Now().UTC().Truncate(time.Second)
 	if raw, ok := body["planned_start_at"].(string); ok && raw != "" {
@@ -415,9 +412,6 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 		}
 	}
 	uomID, _ := body["uom_id"].(string)
-	if uomID == "" {
-		uomID = "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
-	}
 	payload := map[string]interface{}{"item_code": itemCode, "item_revision_id": itemRevisionID, "item_name": itemName, "quantity": quantity, "uom_id": uomID, "site_id": siteID, "planned_start_at": start.Format(time.RFC3339), "planned_end_at": end.Format(time.RFC3339)}
 	payload["production_version_id"] = productionVersionID
 	return creationWorkflowRequest{Input: usecase.CreateWOInput{ProductionVersionID: productionVersionID, ItemRevisionID: itemRevisionID, ItemCode: itemCode, ItemName: itemName, Quantity: quantity, UOMID: uomID, SiteID: siteID, PlannedStartAt: start.Format(time.RFC3339), PlannedEndAt: end.Format(time.RFC3339), UserID: userID, TraceID: getHeader(r, "X-Trace-ID", uuid.NewString())}, Payload: payload, UserID: userID, Idempotency: idempotency, RequestHash: requestHash(payload)}, nil

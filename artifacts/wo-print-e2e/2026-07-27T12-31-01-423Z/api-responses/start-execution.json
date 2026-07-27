@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "queued_operations": 1,
+    "status": "InProgress",
+    "wo_id": "8600346d-2e4c-4566-a47b-108ed6d9469f"
+  }
+}

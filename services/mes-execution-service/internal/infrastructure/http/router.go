@@ -54,6 +54,8 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Post("/work-orders", handleCreateWorkOrder(pool))
 		r.Post("/work-orders/{id}/compute-check", handleComputeCheck(pool))
 		r.Post("/work-orders/{id}/approve", handleApproveWO(pool, allocationService))
+		r.Post("/work-orders/{id}/start-execution", handleStartExecution(pool))
+		r.Post("/work-orders/{id}/operations/{opId}/print-retry", handlePrintRetry(pool))
 		r.Post("/work-orders/{id}/stage-materials", handleStageMaterials(pool, wmsOutboundClient))
 		r.Post("/work-orders/{id}/reject", handleRejectWO(pool))
 		r.Get("/work-orders/{id}", handleGetWOByID(pool))
@@ -120,13 +122,19 @@ func handleResourceCandidates(service *usecase.AllocationService) http.HandlerFu
 
 func decodeAllocationInput(r *http.Request) (usecase.AllocationInput, error) {
 	var input usecase.AllocationInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil { return input, fmt.Errorf("invalid allocation request") }
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		return input, fmt.Errorf("invalid allocation request")
+	}
 	return input, nil
 }
 
 func handleCreateResourceAllocation(service *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		input, err := decodeAllocationInput(r); if err != nil { writeAllocationResponse(w, nil, err); return }
+		input, err := decodeAllocationInput(r)
+		if err != nil {
+			writeAllocationResponse(w, nil, err)
+			return
+		}
 		result, err := service.Allocate(r.Context(), chi.URLParam(r, "id"), chi.URLParam(r, "opId"), input, getHeader(r, "X-User-ID", systemUserID), getHeader(r, "X-Trace-ID", "missing-trace"), r.Header.Get("Idempotency-Key"), false)
 		writeAllocationResponse(w, result, err)
 	}
@@ -134,7 +142,11 @@ func handleCreateResourceAllocation(service *usecase.AllocationService) http.Han
 
 func handleReallocateResource(service *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		input, err := decodeAllocationInput(r); if err != nil { writeAllocationResponse(w, nil, err); return }
+		input, err := decodeAllocationInput(r)
+		if err != nil {
+			writeAllocationResponse(w, nil, err)
+			return
+		}
 		result, err := service.Allocate(r.Context(), chi.URLParam(r, "id"), chi.URLParam(r, "opId"), input, getHeader(r, "X-User-ID", systemUserID), getHeader(r, "X-Trace-ID", "missing-trace"), r.Header.Get("Idempotency-Key"), true)
 		writeAllocationResponse(w, result, err)
 	}
@@ -143,25 +155,55 @@ func handleReallocateResource(service *usecase.AllocationService) http.HandlerFu
 func handleDeleteResourceAllocation(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		woID, opID := chi.URLParam(r, "id"), chi.URLParam(r, "opId")
-		var status string; err := pool.QueryRow(r.Context(), `SELECT h.status::text FROM wo_header h WHERE h.wo_id=$1`, woID).Scan(&status)
-		if err != nil { writeAllocationResponse(w, nil, fmt.Errorf("work order not found")); return }
-		if status != "Draft" && status != "PendingApproval" { writeAllocationResponse(w, nil, fmt.Errorf("ALLOCATION_LIFECYCLE_LOCKED")); return }
-		tx, err := pool.Begin(r.Context()); if err != nil { writeAllocationResponse(w,nil,err); return }; defer tx.Rollback(r.Context())
-		_, _ = tx.Exec(r.Context(), `UPDATE wo_resource_allocation SET status='Cancelled', validation_status='Invalid', row_version=row_version+1 WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Draft','Validated')`,woID,opID)
-		_, _ = tx.Exec(r.Context(), `UPDATE wo_capacity_reservation SET status='Cancelled',updated_at=now() WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Tentative','Committed')`,woID,opID)
-		if err:=tx.Commit(r.Context());err!=nil{writeAllocationResponse(w,nil,err);return}; writeAllocationResponse(w,map[string]interface{}{"wo_id":woID,"wo_operation_id":opID,"status":"Cancelled"},nil)
+		var status string
+		err := pool.QueryRow(r.Context(), `SELECT h.status::text FROM wo_header h WHERE h.wo_id=$1`, woID).Scan(&status)
+		if err != nil {
+			writeAllocationResponse(w, nil, fmt.Errorf("work order not found"))
+			return
+		}
+		if status != "Draft" && status != "PendingApproval" {
+			writeAllocationResponse(w, nil, fmt.Errorf("ALLOCATION_LIFECYCLE_LOCKED"))
+			return
+		}
+		tx, err := pool.Begin(r.Context())
+		if err != nil {
+			writeAllocationResponse(w, nil, err)
+			return
+		}
+		defer tx.Rollback(r.Context())
+		_, _ = tx.Exec(r.Context(), `UPDATE wo_resource_allocation SET status='Cancelled', validation_status='Invalid', row_version=row_version+1 WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Draft','Validated')`, woID, opID)
+		_, _ = tx.Exec(r.Context(), `UPDATE wo_capacity_reservation SET status='Cancelled',updated_at=now() WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Tentative','Committed')`, woID, opID)
+		if err := tx.Commit(r.Context()); err != nil {
+			writeAllocationResponse(w, nil, err)
+			return
+		}
+		writeAllocationResponse(w, map[string]interface{}{"wo_id": woID, "wo_operation_id": opID, "status": "Cancelled"}, nil)
 	}
 }
 
 func handleRevalidateResourceAllocations(service *usecase.AllocationService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) { result,err:=service.Revalidate(r.Context(),chi.URLParam(r,"id"),getHeader(r,"X-User-ID",systemUserID),getHeader(r,"X-Trace-ID","missing-trace")); writeAllocationResponse(w,result,err) }
+	return func(w http.ResponseWriter, r *http.Request) {
+		result, err := service.Revalidate(r.Context(), chi.URLParam(r, "id"), getHeader(r, "X-User-ID", systemUserID), getHeader(r, "X-Trace-ID", "missing-trace"))
+		writeAllocationResponse(w, result, err)
+	}
 }
 
 func writeAllocationResponse(w http.ResponseWriter, result map[string]interface{}, err error) {
 	w.Header().Set("Content-Type", "application/json")
-	if err == nil { json.NewEncoder(w).Encode(result); return }
-	status := http.StatusConflict; code := err.Error(); if strings.Contains(code,"not found") { status=http.StatusNotFound }; if strings.Contains(code,"DEPENDENCY") || strings.Contains(code,"circuit") { status=http.StatusServiceUnavailable }
-	w.WriteHeader(status); json.NewEncoder(w).Encode(map[string]string{"error":code,"message":code})
+	if err == nil {
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	status := http.StatusConflict
+	code := err.Error()
+	if strings.Contains(code, "not found") {
+		status = http.StatusNotFound
+	}
+	if strings.Contains(code, "DEPENDENCY") || strings.Contains(code, "circuit") {
+		status = http.StatusServiceUnavailable
+	}
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": code, "message": code})
 }
 
 func getHeader(r *http.Request, key, fallback string) string {
@@ -278,8 +320,60 @@ func handleConfirmOperation(pool *pgxpool.Pool, traceabilityClient *client.Trace
 			return
 		}
 
+		_, _ = usecase.DispatchReadyOperations(r.Context(), pool, woID, userID, getHeader(r, "X-Trace-ID", "missing-trace"))
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(confirmation)
+	}
+}
+
+func handleStartExecution(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		result, err := usecase.StartExecution(r.Context(), pool, usecase.StartExecutionInput{WOID: chi.URLParam(r, "id"), UserID: getHeader(r, "X-User-ID", systemUserID), TraceID: getHeader(r, "X-Trace-ID", "missing-trace")})
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error(), "message": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(result)
+	}
+}
+
+func handlePrintRetry(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		woID, opID := chi.URLParam(r, "id"), chi.URLParam(r, "opId")
+		userID := getHeader(r, "X-User-ID", systemUserID)
+		tx, err := pool.Begin(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback(r.Context())
+		var jobID string
+		if err := tx.QueryRow(r.Context(), `SELECT print_job_id FROM wo_print_job WHERE wo_id=$1 AND wo_operation_id=$2 AND status='Failed' FOR UPDATE`, woID, opID).Scan(&jobID); err != nil {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{"error": "PRINT_JOB_RETRY_NOT_ALLOWED"})
+			return
+		}
+		if _, err := tx.Exec(r.Context(), `UPDATE wo_print_job SET status='RetryPending', last_error_code=NULL, last_error_message=NULL WHERE print_job_id=$1`, jobID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if _, err := tx.Exec(r.Context(), `UPDATE wo_operation SET status='Ready', updated_at=NOW(), row_version=row_version+1 WHERE wo_operation_id=$1 AND status='ExecutionError'`, opID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := tx.Commit(r.Context()); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		queued, err := usecase.DispatchReadyOperations(r.Context(), pool, woID, userID, getHeader(r, "X-Trace-ID", jobID))
+		if err != nil {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{"print_job_id": jobID, "queued_operations": queued})
 	}
 }
 
@@ -354,6 +448,10 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			body = make(map[string]interface{})
 		}
+		productionVersionID, _ := body["production_version_id"].(string)
+		if productionVersionID == "" {
+			productionVersionID, _ = body["productionVersionId"].(string)
+		}
 
 		itemRevID, _ := body["item_revision_id"].(string)
 		if itemRevID == "" {
@@ -379,6 +477,21 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 		if siteID == "" {
 			siteID = "9f785cbd-98aa-4b2c-98ef-287a189e760c"
 		}
+		// Production Version is authoritative. Resolve the legacy readiness
+		// inputs from it so direct API callers cannot accidentally fall back to
+		// an unrelated Item Revision/Site pair.
+		if productionVersionID != "" {
+			var resolvedItemRevisionID, resolvedSiteID string
+			if err := pool.QueryRow(r.Context(), `
+				SELECT item_revision_id, site_id
+				FROM rm_production_version
+				WHERE master_id = $1 AND lifecycle_status = 'Released'
+			`, productionVersionID).Scan(&resolvedItemRevisionID, &resolvedSiteID); err != nil {
+				http.Error(w, "PRODUCTION_VERSION_NOT_FOUND", http.StatusUnprocessableEntity)
+				return
+			}
+			itemRevID, siteID = resolvedItemRevisionID, resolvedSiteID
+		}
 		pStart, _ := body["planned_start_at"].(string)
 		if pStart == "" {
 			pStart = time.Now().UTC().Format(time.RFC3339)
@@ -401,7 +514,7 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 
 		// 2. Readiness check
-		readiness, err := usecase.CheckMasterDataReadiness(r.Context(), pool, itemRevID, siteID)
+		readiness, err := usecase.CheckMasterDataReadiness(r.Context(), pool, itemRevID, siteID, productionVersionID)
 		if err != nil || !readiness.Ready {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnprocessableEntity)
@@ -414,16 +527,17 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 
 		// 3. Create WO
 		wo, err := usecase.CreateWorkOrder(r.Context(), pool, usecase.CreateWOInput{
-			ItemRevisionID: itemRevID,
-			ItemCode:       itemCode,
-			ItemName:       itemName,
-			Quantity:       quantity,
-			UOMID:          uomID,
-			SiteID:         siteID,
-			PlannedStartAt: pStart,
-			PlannedEndAt:   pEnd,
-			UserID:         userID,
-			TraceID:        traceID,
+			ProductionVersionID: productionVersionID,
+			ItemRevisionID:      itemRevID,
+			ItemCode:            itemCode,
+			ItemName:            itemName,
+			Quantity:            quantity,
+			UOMID:               uomID,
+			SiteID:              siteID,
+			PlannedStartAt:      pStart,
+			PlannedEndAt:        pEnd,
+			UserID:              userID,
+			TraceID:             traceID,
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -470,7 +584,7 @@ func handleApproveWO(pool *pgxpool.Pool, allocationService *usecase.AllocationSe
 		if valid, ok := allocationCheck["valid"].(bool); !ok || !valid {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error":"WO_RESOURCE_ALLOCATION_INVALID","message":"Every Work Order operation needs a current valid committed resource allocation before release.","details":allocationCheck})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "WO_RESOURCE_ALLOCATION_INVALID", "message": "Every Work Order operation needs a current valid committed resource allocation before release.", "details": allocationCheck})
 			return
 		}
 
@@ -531,49 +645,66 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		woID := chi.URLParam(r, "id")
 
 		var header map[string]interface{}
-		rows, err := pool.Query(r.Context(), `SELECT wo_id, wo_code, production_version_id, item_revision_id, item_code, item_name, quantity, uom_id, site_id, shift_id, status, created_by, created_at, row_version FROM wo_header WHERE wo_id = $1`, woID)
+		rows, err := pool.Query(r.Context(), `SELECT wo_id, wo_code, production_version_id, COALESCE(production_version_code, ''), COALESCE(production_version_name_i18n, '{}'::jsonb), item_revision_id, COALESCE(item_revision_code, ''), COALESCE(item_revision_name_i18n, '{}'::jsonb), item_code, item_name, COALESCE(mbom_code, ''), COALESCE(routing_code, ''), COALESCE(planning_snapshot, '{}'::jsonb), quantity, uom_id, site_id, shift_id, status, created_by, created_at, row_version FROM wo_header WHERE wo_id = $1`, woID)
 		if err != nil || !rows.Next() {
 			http.Error(w, "Work Order not found", http.StatusNotFound)
 			return
 		}
-		var id, code, pvID, itemRevID, itemCode, itemName, uomID, siteID, status, createdBy string; var shiftID *string; var rowVersion int
+		var id, code, pvID, pvCode, itemRevID, itemRevCode, itemCode, itemName, mbomCode, routingCode, uomID, siteID, status, createdBy string
+		var pvNameI18n, itemRevNameI18n, planningSnapshot []byte
+		var shiftID *string
+		var rowVersion int
 		var qty float64
 		var createdAt time.Time
-		_ = rows.Scan(&id, &code, &pvID, &itemRevID, &itemCode, &itemName, &qty, &uomID, &siteID, &shiftID, &status, &createdBy, &createdAt, &rowVersion)
+		_ = rows.Scan(&id, &code, &pvID, &pvCode, &pvNameI18n, &itemRevID, &itemRevCode, &itemRevNameI18n, &itemCode, &itemName, &mbomCode, &routingCode, &planningSnapshot, &qty, &uomID, &siteID, &shiftID, &status, &createdBy, &createdAt, &rowVersion)
 		rows.Close()
 
 		header = map[string]interface{}{
-			"wo_id":                 id,
-			"wo_code":               code,
-			"production_version_id": pvID,
-			"item_revision_id":      itemRevID,
-			"item_code":             itemCode,
-			"item_name":             itemName,
-			"quantity":              qty,
-			"uom_id":                uomID,
-			"site_id":               siteID,
-			"shift_id":              shiftID,
-			"status":                status,
-			"row_version":           rowVersion,
-			"created_by":            createdBy,
-			"created_at":            createdAt,
+			"wo_id":                        id,
+			"wo_code":                      code,
+			"production_version_id":        pvID,
+			"production_version_code":      pvCode,
+			"production_version_name_i18n": json.RawMessage(pvNameI18n),
+			"item_revision_id":             itemRevID,
+			"item_revision_code":           itemRevCode,
+			"item_revision_name_i18n":      json.RawMessage(itemRevNameI18n),
+			"item_code":                    itemCode,
+			"item_name":                    itemName,
+			"mbom_code":                    mbomCode,
+			"routing_code":                 routingCode,
+			"planning_snapshot":            json.RawMessage(planningSnapshot),
+			"quantity":                     qty,
+			"uom_id":                       uomID,
+			"site_id":                      siteID,
+			"shift_id":                     shiftID,
+			"status":                       status,
+			"row_version":                  rowVersion,
+			"created_by":                   createdBy,
+			"created_at":                   createdAt,
 		}
 
-		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id, o.status, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), a.allocation_id, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id, a.planned_workstation_id, a.planned_equipment_id, a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
+		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id, o.status, o.execution_target_type, o.workstation_id, o.print_station_id, o.adapter_id, o.dispatch_event_id, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), a.allocation_id, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id, a.planned_workstation_id, a.planned_equipment_id, a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
 		var ops []map[string]interface{}
 		for opRows != nil && opRows.Next() {
-			var opID, opCode, wcID, opStatus, wcCode string
+			var opID, opCode, wcID, opStatus, wcCode, executionTarget string
 			var opNameJSON, wcNameJSON []byte
-			var seq int; var allocationID, allocationStatus, validationStatus, shiftID, workstationID, equipmentID *string; var plannedStart, plannedEnd *time.Time; var warningCodes []byte
-			_ = opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &wcCode, &wcNameJSON, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &warningCodes)
+			var seq int
+			var snapshotWorkstationID, printStationID, adapterID, dispatchEventID *string
+			var allocationID, allocationStatus, validationStatus, shiftID, workstationID, equipmentID *string
+			var plannedStart, plannedEnd *time.Time
+			var warningCodes []byte
+			_ = opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &executionTarget, &snapshotWorkstationID, &printStationID, &adapterID, &dispatchEventID, &wcCode, &wcNameJSON, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &warningCodes)
 			var opName map[string]string
 			if err := json.Unmarshal(opNameJSON, &opName); err != nil {
 				opName = map[string]string{"vi": opCode, "en": opCode, "ja": opCode, "ko": opCode}
 			}
 			var wcName map[string]string
 			_ = json.Unmarshal(wcNameJSON, &wcName)
-			var warnings interface{}; if len(warningCodes)>0 { _ = json.Unmarshal(warningCodes,&warnings) }
-			ops = append(ops, map[string]interface{}{"wo_operation_id": opID, "sequence_no": seq, "operation_code": opCode, "operation_name": opName, "work_center_id": wcID, "work_center_code": wcCode, "work_center_name": wcName, "status": opStatus, "resource_allocation": map[string]interface{}{"allocation_id":allocationID,"status":allocationStatus,"validation_status":validationStatus,"planned_start_at":plannedStart,"planned_end_at":plannedEnd,"planned_shift_id":shiftID,"planned_workstation_id":workstationID,"planned_equipment_id":equipmentID,"warning_codes":warnings}})
+			var warnings interface{}
+			if len(warningCodes) > 0 {
+				_ = json.Unmarshal(warningCodes, &warnings)
+			}
+			ops = append(ops, map[string]interface{}{"wo_operation_id": opID, "sequence_no": seq, "operation_code": opCode, "operation_name": opName, "work_center_id": wcID, "work_center_code": wcCode, "work_center_name": wcName, "status": opStatus, "execution_target_type": executionTarget, "workstation_id": snapshotWorkstationID, "print_station_id": printStationID, "adapter_id": adapterID, "dispatch_event_id": dispatchEventID, "resource_allocation": map[string]interface{}{"allocation_id": allocationID, "status": allocationStatus, "validation_status": validationStatus, "planned_start_at": plannedStart, "planned_end_at": plannedEnd, "planned_shift_id": shiftID, "planned_workstation_id": workstationID, "planned_equipment_id": equipmentID, "warning_codes": warnings}})
 		}
 		if opRows != nil {
 			opRows.Close()
@@ -630,12 +761,40 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			logRows.Close()
 		}
 
+		printRows, _ := pool.Query(r.Context(), `
+			SELECT print_job_id, job_code, wo_operation_id, status, attempt_count,
+			       command_event_id, idempotency_key, selected_printer_code,
+			       dispatched_at, completed_at, last_error_code, last_error_message
+			FROM wo_print_job
+			WHERE wo_id = $1
+			ORDER BY created_at
+		`, woID)
+		var printJobs []map[string]interface{}
+		for printRows != nil && printRows.Next() {
+			var jobID, jobCode, operationID, status, idempotency string
+			var attemptCount int
+			var commandEventID, printerCode, errorCode, errorMessage *string
+			var dispatchedAt, completedAt *time.Time
+			_ = printRows.Scan(&jobID, &jobCode, &operationID, &status, &attemptCount, &commandEventID, &idempotency, &printerCode, &dispatchedAt, &completedAt, &errorCode, &errorMessage)
+			printJobs = append(printJobs, map[string]interface{}{
+				"print_job_id": jobID, "job_code": jobCode, "wo_operation_id": operationID,
+				"status": status, "attempt_count": attemptCount, "command_event_id": commandEventID,
+				"idempotency_key": idempotency, "selected_printer_code": printerCode,
+				"dispatched_at": dispatchedAt, "completed_at": completedAt,
+				"last_error_code": errorCode, "last_error_message": errorMessage,
+			})
+		}
+		if printRows != nil {
+			printRows.Close()
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"header":                header,
 			"operations":            ops,
 			"material_requirements": reqs,
 			"approval_logs":         logs,
+			"print_jobs":            printJobs,
 		})
 	}
 }

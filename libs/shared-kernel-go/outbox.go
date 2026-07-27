@@ -94,6 +94,18 @@ type OutboxRow struct {
 	RetryCount int
 }
 
+// Logical event names are kept in domain outboxes, while station-agent Kafka
+// uses stable physical topics. Keep the mapping in the shared relay so every
+// MES service publishes printer commands to the same remote edge topic.
+func kafkaTopic(logicalTopic string) string {
+	switch logicalTopic {
+	case "command.printer.print", "command.printer.print.batch":
+		return "station.commands.printer"
+	default:
+		return logicalTopic
+	}
+}
+
 func (w *OutboxRelayWorker) pollAndPublish(ctx context.Context) error {
 	tx, err := w.cfg.Pool.Begin(ctx)
 	if err != nil {
@@ -130,9 +142,14 @@ func (w *OutboxRelayWorker) pollAndPublish(ctx context.Context) error {
 
 	for _, evt := range events {
 		msg := kafka.Message{
-			Topic: evt.Topic,
+			Topic: kafkaTopic(evt.Topic),
 			Key:   []byte(evt.ID),
 			Value: evt.Payload,
+			Headers: []kafka.Header{{
+				// Station Agent consumers route logical printer commands from
+				// this header while the physical Kafka topic is shared.
+				Key: "event-type", Value: []byte(evt.Topic),
+			}},
 		}
 		if err := w.writer.WriteMessages(ctx, msg); err != nil {
 			newRetry := evt.RetryCount + 1

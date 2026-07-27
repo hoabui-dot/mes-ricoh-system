@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": {
+    "status": "ok",
+    "service": "mes-master-data-service",
+    "uptime": 1425.783159764,
+    "kafka": {
+      "status": "Connected"
+    },
+    "printStationRuntime": {
+      "status": "Connected"
+    }
+  },
+  "url": "http://localhost:13020/health"
+}

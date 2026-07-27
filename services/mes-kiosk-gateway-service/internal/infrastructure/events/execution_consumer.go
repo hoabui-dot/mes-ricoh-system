@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -36,18 +37,19 @@ func (c *ExecutionConsumer) Start() {
 
 	topics := []string{
 		"MES.Execution.OperationStarted.v1",
+		"MES.Execution.OperationDispatchQueued.v1",
 		"MES.Execution.OperationFinished.v1",
 		"MES.Execution.WOCompleted.v1",
 	}
 
 	for _, topic := range topics {
 		reader := kafka.NewReader(kafka.ReaderConfig{
-			Brokers:   c.brokers,
-			Topic:     topic,
-			GroupID:   "mes-kiosk-gateway-service-group",
-			MinBytes:  10,
-			MaxBytes:  10 * 1024 * 1024,
-			MaxWait:   1 * time.Second,
+			Brokers:     c.brokers,
+			Topic:       topic,
+			GroupID:     "mes-kiosk-gateway-service-group",
+			MinBytes:    10,
+			MaxBytes:    10 * 1024 * 1024,
+			MaxWait:     1 * time.Second,
 			StartOffset: kafka.LastOffset,
 		})
 		c.readers = append(c.readers, reader)
@@ -100,7 +102,10 @@ func (c *ExecutionConsumer) processEvent(ctx context.Context, env sharedkernel.E
 	woID, _ := payload["wo_id"].(string)
 
 	var workCenterID string
-	if opID != "" {
+	if value, ok := payload["work_center_id"].(string); ok {
+		workCenterID = value
+	}
+	if opID != "" && workCenterID == "" {
 		// Resolve work_center_id from operation
 		_ = c.pool.QueryRow(ctx, `
 			SELECT work_center_id FROM terminal WHERE work_center_id IS NOT NULL LIMIT 1
@@ -119,6 +124,16 @@ func (c *ExecutionConsumer) processEvent(ctx context.Context, env sharedkernel.E
 		"payload":    payload,
 	}
 
+	if mode, _ := payload["dispatch_mode"].(string); mode == "DEMO_SHARED_KIOSK" {
+		terminalCode := os.Getenv("DEMO_KIOSK_TERMINAL_CODE")
+		if terminalCode == "" {
+			terminalCode = "KIOSK-DEMO-01"
+		}
+		if err := c.hub.BroadcastToTerminalCode(ctx, terminalCode, env.EventType, eventData); err != nil {
+			log.Printf("[ExecutionConsumer] Demo kiosk broadcast error: %v", err)
+		}
+		return
+	}
 	if err := c.hub.BroadcastToWorkCenter(ctx, workCenterID, env.EventType, eventData); err != nil {
 		log.Printf("[ExecutionConsumer] Broadcast error for event %s: %v", env.EventType, err)
 	} else {

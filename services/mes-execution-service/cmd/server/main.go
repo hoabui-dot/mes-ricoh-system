@@ -59,6 +59,9 @@ func main() {
 	consumer := events.NewMasterDataConsumer(brokers, pool)
 	consumer.Start()
 	defer consumer.Stop()
+	printerResults := events.NewPrinterResultConsumer(brokers, pool)
+	printerResults.Start()
+	defer printerResults.Stop()
 
 	relay := sharedkernel.NewOutboxRelayWorker(sharedkernel.OutboxRelayConfig{
 		Pool:           pool,
@@ -148,6 +151,13 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000010_resource_allocations.up.sql",
 		"migrations/000011_machine_group_allocations.up.sql",
 		"migrations/000012_decouple_mbom_read_model.up.sql",
+		"migrations/000013_harmonize_work_order_planning_snapshot.up.sql",
+		"migrations/000014_routing_planning_resolution.up.sql",
+		"migrations/000015_demo_execution_dispatch_print_jobs.up.sql",
+		"migrations/000016_decouple_routing_read_model_context.up.sql",
+		"migrations/000017_production_version_authoritative_snapshot.up.sql",
+		"migrations/000018_normalize_production_version_read_model_context.up.sql",
+		"migrations/000019_resource_allocation_advisory_approval.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

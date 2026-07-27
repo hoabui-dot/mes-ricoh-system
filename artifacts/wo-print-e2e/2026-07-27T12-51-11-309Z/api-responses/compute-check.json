@@ -1,0 +1,34 @@
+{
+  "status": 200,
+  "body": {
+    "wo_id": "4f492c12-3312-46f1-a488-89bf36d1eb68",
+    "total_duration_minutes": 0,
+    "planned_start_at": "2026-07-27T12:52:00Z",
+    "planned_end_at": "2026-07-27T12:52:00Z",
+    "operations": [
+      {
+        "sequence_no": 10,
+        "operation_code": "RT-20260727-0002-010",
+        "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+        "duration_minutes": 0,
+        "planned_start_at": "2026-07-27T12:52:00Z",
+        "planned_end_at": "2026-07-27T12:52:00Z"
+      },
+      {
+        "sequence_no": 20,
+        "operation_code": "RT-20260727-0002-020",
+        "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+        "duration_minutes": 0,
+        "planned_start_at": "2026-07-27T12:52:00Z",
+        "planned_end_at": "2026-07-27T12:52:00Z"
+      }
+    ],
+    "capacity_warnings": [
+      "Operation RT-20260727-0002-010 (Seq 10): Work Center calendar has no pre-scheduled availability window for 2026-07-27T12:52:00Z to 2026-07-27T12:52:00Z",
+      "Operation RT-20260727-0002-020 (Seq 20): Work Center calendar has no pre-scheduled availability window for 2026-07-27T12:52:00Z to 2026-07-27T12:52:00Z"
+    ],
+    "labor_warnings": [],
+    "labor_shortages": [],
+    "labor_assignments": []
+  }
+}

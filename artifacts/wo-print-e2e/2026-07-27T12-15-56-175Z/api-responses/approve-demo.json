@@ -1,0 +1,14 @@
+{
+  "status": 409,
+  "body": {
+    "details": {
+      "committed_allocation_count": 0,
+      "error_code": "WO_OPERATION_ALLOCATION_MISSING",
+      "operation_count": 6,
+      "valid": false,
+      "wo_id": "8600346d-2e4c-4566-a47b-108ed6d9469f"
+    },
+    "error": "WO_RESOURCE_ALLOCATION_INVALID",
+    "message": "Every Work Order operation needs a current valid committed resource allocation before release."
+  }
+}

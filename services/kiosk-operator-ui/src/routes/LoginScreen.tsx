@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 
 export const LoginScreen: React.FC = () => {
-  const { terminalId = 'KIOSK-MOLD-01' } = useParams();
+  const { terminalId = 'KIOSK-DEMO-01' } = useParams();
   const navigate = useNavigate();
   const { connectSocket } = useKioskSocket();
   const { locale, setLocale, t } = useI18n();

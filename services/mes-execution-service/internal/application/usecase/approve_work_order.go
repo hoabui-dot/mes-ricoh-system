@@ -128,6 +128,10 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	defer tx.Rollback(ctx)
 
 	_, _ = tx.Exec(ctx, `SELECT set_config('app.current_user_id', $1, true)`, input.UserID)
+	var operationCount int
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM wo_operation WHERE wo_id = $1`, input.WOID).Scan(&operationCount); err != nil || operationCount == 0 {
+		return nil, fmt.Errorf("WO_ROUTING_SNAPSHOT_MISSING")
+	}
 
 	var woCode, itemRevID, pStart, pEnd string
 	var quantity float64
@@ -145,7 +149,9 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	if input.Comment != "" {
 		comment = input.Comment
 	}
-	_, _ = tx.Exec(ctx, `INSERT INTO wo_approval_log (wo_id, action, actor_user_id, actor_role_code, comment) VALUES ($1, 'Approved', $2, $3, $4)`, input.WOID, input.UserID, input.RoleCode, comment)
+	if _, err := tx.Exec(ctx, `INSERT INTO wo_approval_log (wo_id, action, actor_user_id, actor_role_code, comment, approval_mode, resource_allocation_bypassed, resource_allocation_status, approval_policy, resource_allocation_warning_codes) VALUES ($1, 'Approved', $2, $3, $4, 'STANDARD', false, 'Valid', 'Strict', '[]'::jsonb)`, input.WOID, input.UserID, input.RoleCode, comment); err != nil {
+		return nil, fmt.Errorf("failed to write approval audit: %w", err)
+	}
 
 	reqRows, err := tx.Query(ctx, `SELECT component_item_revision_id, required_qty, uom_id FROM wo_material_requirement WHERE wo_id = $1`, input.WOID)
 	type reqStruct struct {
@@ -185,8 +191,10 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 		"wo_id":           input.WOID,
 		"wo_code":         woCode,
 		"status":          "Released",
+		"approval_mode":   "STANDARD",
 		"approved_by":     input.UserID,
 		"event_published": true,
 		"event_type":      "MES.Execution.WOApproved.v1",
+		"approval_policy": "Strict",
 	}, nil
 }

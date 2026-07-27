@@ -8,6 +8,7 @@ import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum } from '../../lib/i18nLabels';
 import { normalizeWorkOrderDetail, localizedText } from './workOrderDetail';
 import { gatewayBaseUrl } from '../../lib/masterDataApi';
+import { translateWorkOrderError } from '../../lib/errorMessages';
 
 export const WODetailScreen: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -70,7 +71,7 @@ export const WODetailScreen: React.FC = () => {
         },
       });
       const body = await resp.json().catch(() => ({}));
-      if (!resp.ok && resp.status !== 409) throw new Error(body.message || body.error || t('woDetail.stageFailed'));
+      if (!resp.ok && resp.status !== 409) throw new Error(translateWorkOrderError(body.message || body.error, t) || t('woDetail.stageFailed'));
       setStageResults(Array.isArray(body.results) ? body.results : []);
       toast[resp.status === 409 ? 'warning' : 'success'](resp.status === 409 ? t('woDetail.stageShortage') : t('woDetail.staged'));
       await fetchWODetail();
@@ -96,7 +97,7 @@ export const WODetailScreen: React.FC = () => {
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || t('woDetail.computeFailed'));
+        throw new Error(translateWorkOrderError(errJson.message || errJson.error, t) || t('woDetail.computeFailed'));
       }
       const resData = await resp.json();
       setComputeResult(resData.data || resData);
@@ -116,7 +117,7 @@ export const WODetailScreen: React.FC = () => {
       const params = new URLSearchParams({ planned_start_at: operation.resource_allocation?.planned_start_at || wo.planned_start_at || new Date().toISOString(), ...(operation.resource_allocation?.planned_shift_id ? { shift_id: operation.resource_allocation.planned_shift_id } : {}) });
         const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/operations/${operation.wo_operation_id}/resource-candidates?${params}`, { headers: { 'X-User-ID': user?.userId || 'admin', 'X-Trace-ID': `mes-console-${Date.now()}` } });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || body.error || t('woDetail.resourcePlanningLoadFailed'));
+      if (!response.ok) throw new Error(translateWorkOrderError(body.message || body.error, t) || t('woDetail.resourcePlanningLoadFailed'));
       setCandidates(Array.isArray(body.candidates) ? body.candidates : []);
     } catch (err: any) { toast.error(err.message || t('woDetail.resourcePlanningLoadFailed')); }
     finally { setLoadingCandidates(false); }
@@ -127,7 +128,7 @@ export const WODetailScreen: React.FC = () => {
     try {
       const host = window.location.hostname; const start = selectedOperation.resource_allocation?.planned_start_at || wo.planned_start_at || new Date().toISOString();
       const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/operations/${selectedOperation.wo_operation_id}/resource-allocation`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-User-ID': user?.userId || 'admin', 'X-Trace-ID': `mes-console-${Date.now()}`, 'Idempotency-Key': `allocation-${id}-${selectedOperation.wo_operation_id}-${candidate.machine_group?.id || candidate.equipment?.id || candidate.workstation?.id}-${start}` }, body: JSON.stringify({ workstation_id: candidate.workstation?.id, equipment_id: candidate.primary_machine?.id || candidate.equipment?.id, machine_group_id: candidate.machine_group?.id, shift_id: selectedOperation.resource_allocation?.planned_shift_id || wo.shift_id, planned_start_at: start, candidate_reference: `${candidate.assignment?.id || ''}:${candidate.machine_group?.id || ''}:${candidate.capability?.id || ''}`, row_version: wo.row_version }) });
-      const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.message || body.error || t('woDetail.resourceAllocationFailed'));
+      const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(translateWorkOrderError(body.message || body.error, t) || t('woDetail.resourceAllocationFailed'));
       toast.success(t('woDetail.resourceAllocated')); setSelectedOperation(null); await fetchWODetail();
     } catch (err: any) { toast.error(err.message || t('woDetail.resourceAllocationFailed')); } finally { setAllocating(false); }
   };
@@ -149,15 +150,17 @@ export const WODetailScreen: React.FC = () => {
       if (!resp.ok) {
         if (resp.status === 503) throw { status: 503, message: 'Circuit breaker open' };
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || t('woDetail.approveFailed'));
+        throw new Error(translateWorkOrderError(errJson.message || errJson.error, t) || t('woDetail.approveFailed'));
       }
+      const approval = await resp.json().catch(() => ({}));
       toast.success(t('woDetail.approved', { code: wo?.wo_code || '' }));
+      if (Array.isArray(approval.warnings) && approval.warnings.length > 0) toast.warning(t('woDetail.approvedWithoutResources'));
       await fetchWODetail();
     } catch (err: any) {
       if (err.status === 503) {
         setError(err);
       } else {
-        toast.error(t('woDetail.approveError', { message: err.message }));
+        toast.error(t('woDetail.approveError', { message: translateWorkOrderError(err.message, t) }));
       }
     } finally {
       setSubmittingAction(false);
@@ -184,13 +187,13 @@ export const WODetailScreen: React.FC = () => {
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || errJson.error || t('woDetail.rejectFailed'));
+        throw new Error(translateWorkOrderError(errJson.message || errJson.error, t) || t('woDetail.rejectFailed'));
       }
       toast.success(t('woDetail.rejected'));
       setShowRejectModal(false);
       await fetchWODetail();
     } catch (err: any) {
-      toast.error(t('woDetail.rejectError', { message: err.message }));
+      toast.error(t('woDetail.rejectError', { message: translateWorkOrderError(err.message, t) }));
     } finally {
       setSubmittingAction(false);
     }

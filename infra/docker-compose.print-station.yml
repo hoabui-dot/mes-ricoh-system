@@ -1,0 +1,100 @@
+name: mom-platform
+
+# Canonical Print Station control-plane deployment.
+#
+# Kafka is provided by docker-compose.platform.yml on the shared platform-net.
+# The physical Printer Adapter is intentionally not included here: it runs on
+# the printer/Mac host and connects back to Kafka over the protected network.
+# Configure PRINT_STATION_PRINTER_ADAPTER_URL for that remote host.
+# The Adapter URL must be reachable from this Docker host; it is not a local
+# simulator or a fallback container in this Compose file.
+services:
+  print-station-redis:
+    image: redis:7.4-alpine
+    container_name: print-station-redis
+    restart: unless-stopped
+    networks: [platform-net]
+    command: redis-server --appendonly yes --requirepass print_station_redis_dev
+    volumes:
+      - print-station-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "print_station_redis_dev", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  station-projection-service:
+    build:
+      context: ../print-marking/station-agent
+      dockerfile: services/projection-service/docker/Dockerfile
+    container_name: station-projection-service
+    restart: unless-stopped
+    networks: [platform-net]
+    ports:
+      - "5009:5009"
+    environment:
+      ASPNETCORE_URLS: http://+:5009
+      ASPNETCORE_ENVIRONMENT: Production
+      STATION_ID: PRINT-STATION-01
+      SQLITE_PROJECTION_PATH: /data/projection.db
+      DEVICE_HEARTBEAT_STALE_SECONDS: "45"
+      Kafka__BootstrapServers: kafka:29092
+      Kafka__ClientId: PRINT-STATION-01-projection
+      Kafka__GroupId: projection-service-mes
+      Kafka__EnableIdempotence: "true"
+      PRINTER_ADAPTER_URL: ${PRINT_STATION_PRINTER_ADAPTER_URL:-http://100.68.50.41:5003}
+      OTEL_SERVICE_NAME: print-station-projection-service
+    volumes:
+      - print-station-projection-data:/data
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5009 && printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q 'healthy' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  station-kiosk-ui:
+    build:
+      context: ../print-marking/station-agent
+      dockerfile: services/kiosk-ui/docker/Dockerfile
+    container_name: station-kiosk-ui
+    restart: unless-stopped
+    networks: [platform-net]
+    ports:
+      - "5007:5007"
+    depends_on:
+      print-station-redis:
+        condition: service_healthy
+      station-projection-service:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:5007
+      ASPNETCORE_ENVIRONMENT: Production
+      STATION_ID: PRINT-STATION-01
+      SQLITE_KIOSK_PATH: /data/kiosk.db
+      REDIS_CONNECTION_STRING: print-station-redis:6379,password=print_station_redis_dev
+      PROJECTION_SERVICE_URL: http://station-projection-service:5009
+      PRINTER_ADAPTER_URL: ${PRINT_STATION_PRINTER_ADAPTER_URL:-http://100.68.50.41:5003}
+      Kafka__BootstrapServers: kafka:29092
+      Kafka__ClientId: PRINT-STATION-01-kiosk
+      Kafka__GroupId: kiosk-ui
+      Kafka__EnableIdempotence: "true"
+      CORS_ORIGINS: http://localhost:5007,http://100.68.50.41:5007
+    volumes:
+      - print-station-kiosk-data:/data
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5007 && printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q 'healthy' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  print-station-redis-data:
+  print-station-projection-data:
+  print-station-kiosk-data:
+
+networks:
+  platform-net:
+    external: true
+    name: platform-net

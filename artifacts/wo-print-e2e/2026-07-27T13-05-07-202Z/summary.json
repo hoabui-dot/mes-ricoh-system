@@ -1,0 +1,173 @@
+{
+  "success": false,
+  "testMode": "demo-bypass",
+  "woId": "3b134cfe-9a64-4178-a8a0-f216868ec62f",
+  "startedAt": "2026-07-27T13:05:07.204Z",
+  "failedAt": "2026-07-27T13:06:31.996Z",
+  "failedStage": "start execution",
+  "failureCategory": "WO_EXECUTION_DISPATCH",
+  "rootCause": "work-order-latest failed with HTTP 502: {\n  \"message\":\"An invalid response was received from the upstream server\",\n  \"request_id\":\"0149522789f653669095070396804e22\"\n}",
+  "recommendedFix": "Inspect the captured API responses and remote service diagnostics.",
+  "error": "work-order-latest failed with HTTP 502: {\n  \"message\":\"An invalid response was received from the upstream server\",\n  \"request_id\":\"0149522789f653669095070396804e22\"\n}",
+  "responses": {
+    "remote-adapter-health": {
+      "status": 200,
+      "body": {
+        "status": "Healthy",
+        "service": "printer-adapter",
+        "kafka": {
+          "status": "Connected",
+          "bootstrapServers": "100.68.50.41:19092",
+          "clientId": "PRINT-ADAPTER-01",
+          "consumerGroup": "printer-adapter"
+        },
+        "cups": {
+          "status": "Connected",
+          "queue": "Zebra_Technologies_ZTC_GK420t",
+          "printerCode": "Zebra-GK420t-CUPS",
+          "driverStatus": "Online"
+        },
+        "redis": {
+          "status": "NotConfigured",
+          "reason": "Printer Adapter does not cache production commands in Redis."
+        },
+        "printers": {
+          "online": 1,
+          "offline": 0,
+          "error": 0,
+          "total": 1
+        },
+        "version": "1.0.0.0",
+        "printerCount": 1,
+        "uptimeSeconds": 3266,
+        "started": true
+      },
+      "url": "http://100.108.194.102:5003/api/health"
+    },
+    "remote-adapter-active-printers": {
+      "status": 200,
+      "body": [
+        {
+          "id": "a6ba14ac-9f77-4be2-a3aa-10cf08f7fd27",
+          "printerCode": "Zebra-GK420t-CUPS",
+          "displayName": "Zebra GK420t (Physical)",
+          "ipAddress": "host.docker.internal",
+          "port": 631,
+          "protocol": "ZPL",
+          "vendor": "ZEBRA",
+          "status": "ONLINE",
+          "driverType": "cups",
+          "cupsQueueName": "Zebra_Technologies_ZTC_GK420t",
+          "lastHeartbeatAt": "2026-07-27T13:04:54.3707679Z",
+          "isActiveForWork": true,
+          "activeTemplateId": "ec4d21ca-f60b-49c2-bc9c-1526de50bda8",
+          "activeTemplateName": "Vị trí kho / kệ / ô chứa",
+          "activatedAt": "2026-07-27T12:16:12.1411533Z",
+          "activatedBy": "full-flow-verification"
+        }
+      ],
+      "url": "http://100.108.194.102:5003/api/printers/active"
+    },
+    "master-data-health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "service": "mes-master-data-service",
+        "uptime": 981.978979216,
+        "kafka": {
+          "status": "Connected"
+        },
+        "printStationRuntime": {
+          "status": "Connected"
+        }
+      },
+      "url": "http://localhost:13020/health"
+    },
+    "compute-check": {
+      "status": 200,
+      "body": {
+        "wo_id": "3b134cfe-9a64-4178-a8a0-f216868ec62f",
+        "total_duration_minutes": 0,
+        "planned_start_at": "2026-07-27T13:10:00Z",
+        "planned_end_at": "2026-07-27T13:10:00Z",
+        "operations": [
+          {
+            "sequence_no": 10,
+            "operation_code": "OP-MIX",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "duration_minutes": 0,
+            "planned_start_at": "2026-07-27T13:10:00Z",
+            "planned_end_at": "2026-07-27T13:10:00Z"
+          },
+          {
+            "sequence_no": 20,
+            "operation_code": "OP-20260727-0001",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "duration_minutes": 0,
+            "planned_start_at": "2026-07-27T13:10:00Z",
+            "planned_end_at": "2026-07-27T13:10:00Z"
+          }
+        ],
+        "capacity_warnings": [
+          "Operation OP-MIX (Seq 10): Work Center calendar has no pre-scheduled availability window for 2026-07-27T13:10:00Z to 2026-07-27T13:10:00Z",
+          "Operation OP-20260727-0001 (Seq 20): Work Center calendar has no pre-scheduled availability window for 2026-07-27T13:10:00Z to 2026-07-27T13:10:00Z"
+        ],
+        "labor_warnings": [],
+        "labor_shortages": [],
+        "labor_assignments": []
+      }
+    },
+    "approve-wo": {
+      "status": 200,
+      "body": {
+        "approval_mode": "DEMO_RESOURCE_BYPASS",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "event_published": true,
+        "event_type": "MES.Execution.WOApproved.v1",
+        "status": "Released",
+        "wo_code": "WO-20260727-0009",
+        "wo_id": "3b134cfe-9a64-4178-a8a0-f216868ec62f"
+      }
+    },
+    "start-execution": {
+      "status": 200,
+      "body": {
+        "queued_operations": 1,
+        "status": "InProgress",
+        "wo_id": "3b134cfe-9a64-4178-a8a0-f216868ec62f"
+      }
+    },
+    "work-order-latest": {
+      "status": 502,
+      "body": {
+        "message": "An invalid response was received from the upstream server",
+        "request_id": "0149522789f653669095070396804e22"
+      }
+    }
+  },
+  "timeline": [
+    {
+      "at": "2026-07-27T13:05:07.207Z",
+      "stage": "test mode",
+      "status": "INFO",
+      "mode": "demo-bypass"
+    },
+    {
+      "at": "2026-07-27T13:05:07.236Z",
+      "stage": "service configuration",
+      "status": "PASS",
+      "mode": "true"
+    },
+    {
+      "at": "2026-07-27T13:05:07.630Z",
+      "stage": "approval",
+      "status": "PASS",
+      "mode": "demo-bypass"
+    },
+    {
+      "at": "2026-07-27T13:05:07.661Z",
+      "stage": "start execution",
+      "status": "PASS"
+    }
+  ]
+}

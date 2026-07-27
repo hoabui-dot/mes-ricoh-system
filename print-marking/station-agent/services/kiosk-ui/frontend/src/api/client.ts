@@ -75,7 +75,7 @@ export const commandsApi = {
 
   dispatchOrder: (data: {
     orderNo: string
-    dispatchTarget: 'simulation' | 'production-printer'
+    dispatchTarget: 'production-printer'
     notes?: string
   }) =>
     client.post<{ success: boolean; orderNo: string; dispatchTarget: string; dispatched: number; total: number }>(

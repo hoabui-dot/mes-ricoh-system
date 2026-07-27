@@ -164,10 +164,13 @@ export const mdComponentSubstitute = pgTable('md_component_substitute', {
 
 export const mdProductionVersion = pgTable('md_production_version', {
   ...commonMasterColumns(),
+  nameI18n: jsonb('name_i18n').$type<Record<string, string>>().notNull(),
   itemRevisionId: uuid('item_revision_id').notNull(),
   mbomHeaderId: uuid('mbom_header_id').notNull(),
   routingHeaderId: uuid('routing_header_id').notNull(),
   siteId: uuid('site_id').notNull(),
+  minLotSize: numeric('min_lot_size', { precision: 18, scale: 6 }),
+  maxLotSize: numeric('max_lot_size', { precision: 18, scale: 6 }),
   isDefault: boolean('is_default').notNull().default(false),
 });
 
@@ -180,6 +183,12 @@ export const mdOperation = pgTable('md_operation', {
   requiresMaterialScan: boolean('requires_material_scan').notNull().default(false),
   requiresOutputLabel: boolean('requires_output_label').notNull().default(false),
   allowPartialCompletion: boolean('allow_partial_completion').notNull().default(false),
+  defaultCycleTimeSec: numeric('default_cycle_time_sec', { precision: 12, scale: 3 }).notNull().default('60'),
+  defaultSetupTimeMin: numeric('default_setup_time_min', { precision: 12, scale: 3 }).notNull().default('0'),
+  defaultBaseQuantity: numeric('default_base_quantity', { precision: 18, scale: 6 }).notNull().default('1'),
+  defaultRequiredPersons: integer('default_required_persons').notNull().default(1),
+  defaultEfficiencyFactor: numeric('default_efficiency_factor', { precision: 8, scale: 4 }).notNull().default('1'),
+  defaultYield: numeric('default_yield', { precision: 8, scale: 4 }).notNull().default('1'),
   operatorInstructionSummary: jsonb('operator_instruction_summary').$type<Record<string, string>>(),
   qualityRequirementSummary: jsonb('quality_requirement_summary').$type<Record<string, string>>(),
   isSchedulable: boolean('is_schedulable').notNull().default(true),
@@ -210,11 +219,12 @@ export const mdRoutingOperation = pgTable('md_routing_operation', {
   overlapAllowed: boolean('overlap_allowed').notNull().default(false),
   transferBatchQty: numeric('transfer_batch_qty', { precision: 18, scale: 6 }),
   milestoneFlag: boolean('milestone_flag').notNull().default(false),
+  planningMode: varchar('planning_mode', { length: 30 }).notNull().default('INHERITED'),
 });
 
 export const mdProductionStandard = pgTable('md_production_standard', {
   ...commonMasterColumns(),
-  itemRevisionId: uuid('item_revision_id').notNull(),
+  itemRevisionId: uuid('item_revision_id'),
   operationId: uuid('operation_id').notNull(),
   workCenterId: uuid('work_center_id').notNull(),
   equipmentId: uuid('equipment_id'),

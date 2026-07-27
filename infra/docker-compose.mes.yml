@@ -39,6 +39,7 @@ services:
       PORT: 3020
       DATABASE_URL: postgresql://mes_master_data_user:mes_master_data_pass@mes-master-data-db:5432/mes_master_data_db
       KAFKA_BROKERS: kafka:29092
+      DEMO_KIOSK_TERMINAL_CODE: KIOSK-DEMO-01
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       SEED_ON_STARTUP: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -87,6 +88,14 @@ services:
       KAFKA_BROKERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       MASTER_DATA_SERVICE_URL: http://mes-master-data-service:3020
+      # Strict policy: every Work Order operation needs a current valid
+      # committed resource allocation before approval.
+      MES_RESOURCE_ALLOCATION_APPROVAL_REQUIRED: "true"
+      DEMO_KIOSK_RECEIVE_ALL_WORKSTATIONS: "true"
+      DEMO_KIOSK_TERMINAL_CODE: KIOSK-DEMO-01
+      MES_DEMO_PRINT_STATION_CODE: PRINT-STATION-01
+      MES_DEMO_PRINT_STATION_ID: 6f56f652-bc6a-456e-a6b3-6284ab023f2d
+      MES_DEMO_PRINT_ADAPTER_ID: PRINT-ADAPTER-01
       WMS_OUTBOUND_SERVICE_URL: http://wms-outbound-service:3090/api/wms/outbound
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_SERVICE_NAME: mes-execution-service
@@ -175,6 +184,7 @@ services:
       PORT: 3050
       DATABASE_URL: postgresql://mes_kiosk_user:mes_kiosk_pass@mes-kiosk-gateway-db:5432/mes_kiosk_gateway_db
       KAFKA_BROKERS: kafka:29092
+      DEMO_KIOSK_TERMINAL_CODE: KIOSK-DEMO-01
       KEYCLOAK_URL: http://platform-keycloak:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_SERVICE_NAME: mes-kiosk-gateway-service

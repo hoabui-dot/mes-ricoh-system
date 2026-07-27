@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -87,7 +88,25 @@ public sealed class KafkaConsumer : IEventConsumer, IAsyncDisposable
         {
             using var doc = JsonDocument.Parse(value);
             if (doc.RootElement.TryGetProperty("payload", out var payload)
-                || doc.RootElement.TryGetProperty("Payload", out payload)) return payload.GetRawText();
+                || doc.RootElement.TryGetProperty("Payload", out payload))
+            {
+                // Keep the established payload shape for existing consumers, but
+                // carry envelope identity into object payloads. This lets newer
+                // projections deduplicate redelivery without changing every
+                // consumer contract or requiring a second Kafka subscription API.
+                if (payload.ValueKind == JsonValueKind.Object)
+                {
+                    var node = JsonNode.Parse(payload.GetRawText())!.AsObject();
+                    if (doc.RootElement.TryGetProperty("event_id", out var eventId))
+                        node["event_id"] ??= JsonNode.Parse(eventId.GetRawText());
+                    if (doc.RootElement.TryGetProperty("event_type", out var eventType))
+                        node["event_type"] ??= JsonNode.Parse(eventType.GetRawText());
+                    if (doc.RootElement.TryGetProperty("occurred_at", out var occurredAt))
+                        node["occurred_at"] ??= JsonNode.Parse(occurredAt.GetRawText());
+                    return node.ToJsonString();
+                }
+                return payload.GetRawText();
+            }
         }
         catch (JsonException) { }
         return value;

@@ -24,12 +24,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	TerminalID   string
-	WorkCenterID string
-	Conn         *websocket.Conn
+	TerminalID    string
+	WorkCenterID  string
+	Conn          *websocket.Conn
 	Authenticated bool
-	LastSeen     time.Time
-	Send         chan []byte
+	LastSeen      time.Time
+	Send          chan []byte
 }
 
 type Hub struct {
@@ -310,6 +310,26 @@ func (h *Hub) BroadcastToWorkCenter(ctx context.Context, workCenterID, eventType
 	}
 
 	return nil
+}
+
+func (h *Hub) BroadcastToTerminalCode(ctx context.Context, terminalCode, eventType string, payload interface{}) error {
+	var terminalID string
+	if err := h.pool.QueryRow(ctx, `SELECT terminal_id FROM terminal WHERE terminal_code=$1`, terminalCode).Scan(&terminalID); err != nil {
+		return err
+	}
+	b, err := json.Marshal(domain.WSOutboundFrame{Type: "event", EventType: eventType, Data: payload, Timestamp: time.Now().UTC().Format(time.RFC3339)})
+	if err != nil {
+		return err
+	}
+	h.mu.RLock()
+	client, connected := h.clients[terminalID]
+	h.mu.RUnlock()
+	if connected && client.Authenticated {
+		client.Send <- b
+		return nil
+	}
+	_, err = h.pool.Exec(ctx, `INSERT INTO outbound_message_queue (message_id, terminal_id, payload, event_type, status, created_at) VALUES ($1,$2,$3,$4,'PENDING',NOW())`, uuid.New().String(), terminalID, b, eventType)
+	return err
 }
 
 func (h *Hub) startHeartbeatChecker() {

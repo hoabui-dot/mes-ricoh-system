@@ -3,26 +3,32 @@ package domain
 import "time"
 
 type WorkOrder struct {
-	WOID                string     `json:"wo_id"`
-	WOCode              string     `json:"wo_code"`
-	ProductionVersionID string     `json:"production_version_id"`
-	ItemRevisionID      string     `json:"item_revision_id"`
-	ItemCode            string     `json:"item_code"`
-	ItemName            string     `json:"item_name"`
-	Quantity            float64    `json:"quantity"`
-	UOMID               string     `json:"uom_id"`
-	SiteID              string     `json:"site_id"`
-	ShiftID             *string    `json:"shift_id,omitempty"`
-	PlannedStartAt      time.Time  `json:"planned_start_at"`
-	PlannedEndAt        time.Time  `json:"planned_end_at"`
-	Status              string     `json:"status"`
-	CreatedBy           string     `json:"created_by"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedBy           *string    `json:"updated_by,omitempty"`
-	UpdatedAt           time.Time  `json:"updated_at"`
-	ApprovedBy          *string    `json:"approved_by,omitempty"`
-	ApprovedAt          *time.Time `json:"approved_at,omitempty"`
-	RowVersion          int        `json:"row_version"`
+	WOID                      string     `json:"wo_id"`
+	WOCode                    string     `json:"wo_code"`
+	ProductionVersionID       string     `json:"production_version_id"`
+	ProductionVersionCode     string     `json:"production_version_code,omitempty"`
+	ProductionVersionNameI18n any        `json:"production_version_name_i18n,omitempty"`
+	ItemRevisionID            string     `json:"item_revision_id"`
+	ItemRevisionCode          string     `json:"item_revision_code,omitempty"`
+	ItemRevisionNameI18n      any        `json:"item_revision_name_i18n,omitempty"`
+	MBOMCode                  string     `json:"mbom_code,omitempty"`
+	RoutingCode               string     `json:"routing_code,omitempty"`
+	ItemCode                  string     `json:"item_code"`
+	ItemName                  string     `json:"item_name"`
+	Quantity                  float64    `json:"quantity"`
+	UOMID                     string     `json:"uom_id"`
+	SiteID                    string     `json:"site_id"`
+	ShiftID                   *string    `json:"shift_id,omitempty"`
+	PlannedStartAt            time.Time  `json:"planned_start_at"`
+	PlannedEndAt              time.Time  `json:"planned_end_at"`
+	Status                    string     `json:"status"`
+	CreatedBy                 string     `json:"created_by"`
+	CreatedAt                 time.Time  `json:"created_at"`
+	UpdatedBy                 *string    `json:"updated_by,omitempty"`
+	UpdatedAt                 time.Time  `json:"updated_at"`
+	ApprovedBy                *string    `json:"approved_by,omitempty"`
+	ApprovedAt                *time.Time `json:"approved_at,omitempty"`
+	RowVersion                int        `json:"row_version"`
 }
 
 type WOOperation struct {
@@ -75,13 +81,16 @@ type DemandIntent struct {
 }
 
 type ReadinessResult struct {
-	ItemRevisionID       string   `json:"item_revision_id"`
-	SiteID               string   `json:"site_id"`
-	Ready                bool     `json:"ready"`
-	MissingPrerequisites []string `json:"missing_prerequisites"`
-	ProductionVersionID  string   `json:"production_version_id,omitempty"`
-	MBOMHeaderID         string   `json:"mbom_header_id,omitempty"`
-	RoutingHeaderID      string   `json:"routing_header_id,omitempty"`
+	ItemRevisionID            string   `json:"item_revision_id"`
+	SiteID                    string   `json:"site_id"`
+	Ready                     bool     `json:"ready"`
+	MissingPrerequisites      []string `json:"missing_prerequisites"`
+	ProductionVersionID       string   `json:"production_version_id,omitempty"`
+	MBOMHeaderID              string   `json:"mbom_header_id,omitempty"`
+	RoutingHeaderID           string   `json:"routing_header_id,omitempty"`
+	UOMID                     string   `json:"uom_id,omitempty"`
+	ProductionVersionCode     string   `json:"production_version_code,omitempty"`
+	ProductionVersionNameI18n any      `json:"production_version_name_i18n,omitempty"`
 }
 
 type ComputeResult struct {

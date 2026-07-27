@@ -383,3 +383,20 @@ codes, current line counts, hierarchy controls, release/convert confirmations, a
 The process-level contract and verification evidence are in
 `process-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md` and
 `implementation-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md`.
+
+## Operation Planning Ownership
+
+Operation Catalog owns reusable business behavior and engineering defaults.
+Routing owns ordered production structure and dependencies. Production
+Standards own Routing-specific setup, cycle, base quantity, labor, efficiency,
+and yield values. Work Orders snapshot these planning values and use the
+snapshot for Compute & Check, so later Operation Catalog or Routing changes do
+not alter an approved Work Order. The detailed ownership matrix and migration
+evidence are recorded in
+`implementation-expand/harmonize-operation-routing-production-standard-ownership.md`.
+
+The current inheritance correction supersedes the former assumption that every
+Routing Operation must have a copied Production Standard. Use `INHERITED` for
+Operation/Work Center resolution and `ROUTING_OVERRIDE` only for an explicit
+Routing-specific standard. See
+`implementation-expand/correct-planning-value-inheritance-operation-workstation-routing-work-order.md`.

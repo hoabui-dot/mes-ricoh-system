@@ -1,0 +1,21 @@
+{
+  "passed": false,
+  "mode": "seed",
+  "environment": null,
+  "reasons": [
+    "MES_ENV must be development, local, test, or staging",
+    "CONFIRM_MASTER_DATA_RESET must equal YES_RESET_E2E_MASTER_DATA"
+  ],
+  "master": {
+    "host": "localhost",
+    "port": "15434",
+    "database": "mes_master_data_db",
+    "user": "mes_master_data_user"
+  },
+  "execution": {
+    "host": "localhost",
+    "port": "15435",
+    "database": "mes_execution_db",
+    "user": "mes_execution_user"
+  }
+}

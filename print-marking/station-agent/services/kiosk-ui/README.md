@@ -53,3 +53,24 @@ Open your browser and navigate to `http://localhost:5222`.
 - `Jwt__Secret`: Signing key for generating JWT tokens (minimum 256 bits recommended).
 - `Jwt__Issuer` & `Jwt__Audience`: Token validator keys.
 - `Jwt__ExpiryMinutes`: Token validity duration (default: `480`).
+
+## Canonical Print Station deployment
+
+The deployed control plane is `infra/docker-compose.print-station.yml`:
+
+```bash
+npm run rebuild:print-station
+npm run verify:print-station
+npm run logs:print-station
+```
+
+Kiosk proxies Projection at `PROJECTION_SERVICE_URL` and uses SignalR through
+the Projection `/hubs/production` route for continuous production/device
+updates. It does not poll the Printer Adapter for continuous status. Label
+template and printer management requests are proxied to the independent edge
+Adapter through `PRINTER_ADAPTER_URL`. An unreachable Adapter returns a
+structured HTTP 503 dependency response; configure the remote Mac/edge URL
+before using those management screens.
+
+The old `simulation` dispatch target is not supported. Production dispatch uses
+`production-printer` only.

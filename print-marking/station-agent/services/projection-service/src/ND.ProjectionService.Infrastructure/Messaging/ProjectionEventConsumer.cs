@@ -97,6 +97,16 @@ public sealed class ProjectionEventConsumer : BackgroundService
             onMessage: (routingKey, json) => HandleMqttEventAsync(routingKey, json, stoppingToken),
             cancellationToken: stoppingToken);
 
+        // MES execution outbox events are published to the shared Kafka
+        // integration topic. This subscription is the authoritative bridge
+        // from MES WO/operation state into the Print Station read model.
+        await _consumer.StartConsumingAsync(
+            exchange: Exchange,
+            queue: "projection-service.mes-execution-events",
+            routingKeyPattern: "MES.Execution.#",
+            onMessage: (routingKey, json) => HandleMesExecutionEventAsync(routingKey, json, stoppingToken),
+            cancellationToken: stoppingToken);
+
         // 5. Consume manual requested events (reprint, re-marking, reprocess)
         await _consumer.StartConsumingAsync(
             exchange: Exchange,
@@ -597,6 +607,147 @@ public sealed class ProjectionEventConsumer : BackgroundService
             throw; // Will Nack
         }
     }
+
+    private async Task HandleMesExecutionEventAsync(string routingKey, string payloadJson, CancellationToken ct)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(payloadJson);
+            var root = document.RootElement;
+            var payload = root.TryGetProperty("payload", out var lowerPayload)
+                ? lowerPayload
+                : root.TryGetProperty("Payload", out var upperPayload) ? upperPayload : root;
+            var eventType = ReadString(root, "event_type", "eventType", "EventType") ?? routingKey;
+            var eventId = ReadString(root, "event_id", "eventId", "EventId") ?? Guid.NewGuid().ToString();
+            var occurredAt = ReadString(root, "occurred_at", "occurredAt", "OccurredAt") ?? DateTimeOffset.UtcNow.ToString("o");
+            var woId = ReadString(payload, "wo_id", "woId", "work_order_id", "workOrderId");
+            if (string.IsNullOrWhiteSpace(woId)) return;
+
+            using var scope = _scopeFactory.CreateScope();
+            var recordRepo = scope.ServiceProvider.GetRequiredService<IProductionRecordRepository>();
+            var orderRepo = scope.ServiceProvider.GetRequiredService<IProductionOrderViewRepository>();
+            var productionRepo = scope.ServiceProvider.GetRequiredService<IProductionViewRepository>();
+            var activityRepo = scope.ServiceProvider.GetRequiredService<IActivityLogRepository>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
+
+            // Claim the event inside the same SQLite transaction as the projection
+            // writes. Redelivery therefore becomes a no-op, while a failed handler
+            // rolls the claim back and remains eligible for the configured retry/DLQ.
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var claimed = await db.Database.ExecuteSqlInterpolatedAsync($@"
+                INSERT OR IGNORE INTO projection_event_dedup
+                    (event_id, event_type, occurred_at, processed_at)
+                VALUES ({eventId}, {eventType}, {occurredAt}, {DateTimeOffset.UtcNow.ToString("o")});", ct);
+            if (claimed == 0)
+            {
+                _logger.LogDebug("Ignoring duplicate MES execution event {EventId}", eventId);
+                await transaction.RollbackAsync(ct);
+                return;
+            }
+
+            var record = await recordRepo.GetByJobIdAsync(woId, ct);
+            var woCode = ReadString(payload, "wo_code", "woCode", "work_order_code", "workOrderCode")
+                ?? record?.JobNo
+                ?? woId;
+            var productCode = ReadString(payload, "item_code", "itemCode", "product_code", "productCode")
+                ?? record?.ProductCode
+                ?? "MES";
+            var quantity = ReadInt(payload, "quantity", "planned_qty", "plannedQty") ?? 1;
+            var status = MesEventStatus(eventType);
+
+            // WOCreated creates the durable correlation row. Later events may
+            // arrive without wo_code/item_code and resolve through wo_id.
+            if (record is null)
+            {
+                record = ProductionRecord.Create(woId, woCode, productCode, null, "MES_WORK_ORDER", _stationId, status);
+                await recordRepo.AddAsync(record, ct);
+            }
+            else if (StatusRank(status) >= StatusRank(record.CurrentStatus))
+            {
+                record.UpdateDetails(woId, woCode, productCode, record.ProductSerial, status);
+            }
+
+            var order = await orderRepo.GetByOrderNoAsync(woCode, ct);
+            if (order is null)
+            {
+                order = ProductionOrderView.Create(woCode, productCode, quantity);
+                await orderRepo.AddAsync(order, ct);
+            }
+            else if (StatusRank(status) >= StatusRank(order.Status))
+            {
+                var completed = status == "COMPLETED" ? quantity : order.CompletedQty;
+                order.UpdateProgress(completed, Math.Max(0, quantity - completed), status);
+            }
+
+            var view = await productionRepo.GetByStationIdAsync(_stationId, ct);
+            if (view is null)
+            {
+                view = ProductionView.Create(_stationId, woId, woCode, productCode, null, status);
+                await productionRepo.AddAsync(view, ct);
+            }
+            else if (StatusRank(status) >= StatusRank(view.JobStatus))
+            {
+                view.Update(woId, woCode, productCode, null, status);
+            }
+
+            var log = ActivityLog.Create(eventType, woId, woCode, productCode, status, $"MES execution event: {eventType}", occurredAt);
+            await activityRepo.AddAsync(log, ct);
+            await activityRepo.TrimExcessAsync(500, ct);
+            await uow.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            var recordDto = new ProductionRecordDto(record.Id, record.JobId, record.JobNo, record.ProductCode, record.ProductSerial, record.JobType, record.CurrentStatus, record.StationId, record.CreatedAt, record.UpdatedAt);
+            var viewDto = new ProductionViewDto(view.StationId, view.JobId, view.WorkOrderNo, view.ProductCode, view.ProductSerial, view.JobStatus, view.UpdatedAt);
+            var logDto = new ActivityLogDto(log.Id, log.EventType, log.JobId, log.JobNo, log.ProductCode, log.Status, log.Message, log.OccurredAt);
+            await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionUpdate", viewDto, ct);
+            await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionRecordUpdate", recordDto, ct);
+            await _hubContext.Clients.Group(_stationId).SendAsync("OnActivityUpdate", logDto, ct);
+            await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionOrderUpdate", new { order.OrderNo, order.ProductCode, order.PlannedQty, order.CompletedQty, order.RemainingQty, order.Status, order.UpdatedAt }, ct);
+            _logger.LogInformation("Projected MES execution event {EventType} for WO {WorkOrderNo} event_id={EventId}", eventType, woCode, eventId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to project MES execution event {RoutingKey}", routingKey);
+            throw;
+        }
+    }
+
+    private static string? ReadString(JsonElement value, params string[] names)
+    {
+        foreach (var name in names)
+            if (value.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String)
+                return property.GetString();
+        return null;
+    }
+
+    private static int? ReadInt(JsonElement value, params string[] names)
+    {
+        foreach (var name in names)
+            if (value.TryGetProperty(name, out var property) && property.TryGetInt32(out var number)) return number;
+        return null;
+    }
+
+    private static string MesEventStatus(string eventType)
+    {
+        var value = eventType.ToUpperInvariant();
+        if (value.Contains("WOCREATED")) return "CREATED";
+        if (value.Contains("WOAPPROVED")) return "RELEASED";
+        if (value.Contains("WOCOMPLETED")) return "COMPLETED";
+        if (value.Contains("OPERATIONFINISHED")) return "IN_PROGRESS";
+        if (value.Contains("FAILED") || value.Contains("ERROR")) return "FAILED";
+        return "IN_PROGRESS";
+    }
+
+    private static int StatusRank(string? status) => status?.ToUpperInvariant() switch
+    {
+        "CREATED" or "RECEIVED" or "DRAFT" => 10,
+        "RELEASED" or "APPROVED" => 20,
+        "IN_PROGRESS" or "PROCESSING" or "PRINTING" => 30,
+        "FAILED" => 35,
+        "COMPLETED" or "FINISHED" => 40,
+        _ => 0
+    };
 
     private async Task HandleMqttEventAsync(string routingKey, string payloadJson, CancellationToken cancellationToken)
     {

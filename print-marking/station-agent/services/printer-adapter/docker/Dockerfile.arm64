@@ -32,12 +32,15 @@ RUN dotnet publish services/printer-adapter/src/ND.PrinterAdapter.Api/ND.Printer
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 USER root
-RUN apt-get update && apt-get install -y cups-client cups-bsd socat && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y cups-client cups-bsd && rm -rf /var/lib/apt/lists/*
 USER app
 COPY --chown=app:app --from=build /app/publish .
 VOLUME ["/data", "/logs"]
 EXPOSE 5003
 ENV ASPNETCORE_URLS=http://+:5003 \
-    CUPS_SERVER=127.0.0.1:8631 \
-    CUPS_USER=root
-ENTRYPOINT ["/bin/bash", "-c", "socat TCP-LISTEN:8631,fork,bind=127.0.0.1 TCP:host.docker.internal:631 & exec dotnet ND.PrinterAdapter.Api.dll"]
+    CUPS_USER=root \
+    # Route lpr to the host macOS CUPS daemon. The health probe may override
+    # this with CUPS_HEALTH_HOST/CUPS_HEALTH_PORT, but print execution also
+    # needs an explicit CUPS server inside the container.
+    CUPS_SERVER=host.docker.internal:631
+ENTRYPOINT ["dotnet", "ND.PrinterAdapter.Api.dll"]

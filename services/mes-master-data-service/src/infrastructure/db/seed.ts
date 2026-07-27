@@ -186,7 +186,7 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     await upsertMaster(client, 'md_role_permission', { ...common, code: 'PERM-PROD-MANAGER-APPROVE', name: 'Production manager can approve master data', role_code: 'PROD_MANAGER', permission_code: 'MES_MASTER_DATA_APPROVE', resource_type: 'MES_MASTER_DATA', action: 'APPROVE' });
     await upsertMaster(client, 'md_user_resource_scope', { ...common, code: 'SCOPE-ADMIN-SITE-KZ3', name: 'Admin scope for Kizuna 3', user_id: ADMIN_USER_ID, role_code: 'PROD_MANAGER', scope_type: 'SITE', scope_resource_id: siteId, condition_expression: 'site_id = SITE-KZ3' });
 
-    await upsertMaster(client, 'md_production_version', { ...common, code: 'PV-FG-WS-CM01-R1', name: 'Production Version FG-WS-CM01 R1', item_revision_id: fgRevId, mbom_header_id: mbomId, routing_header_id: routingId, site_id: siteId, is_default: true });
+    await upsertMaster(client, 'md_production_version', { ...common, code: 'PV-FG-WS-CM01-R1', name: 'Production Version FG-WS-CM01 R1', name_i18n: { vi: 'Phiên bản sản xuất FG-WS-CM01 R1', en: 'Production Version FG-WS-CM01 R1', ja: 'FG-WS-CM01 R1 生産バージョン', ko: 'FG-WS-CM01 R1 생산 버전' }, item_revision_id: fgRevId, mbom_header_id: mbomId, routing_header_id: routingId, site_id: siteId, is_default: true });
 
     await client.query('COMMIT');
     console.info('[Seed] MES master data seed applied');

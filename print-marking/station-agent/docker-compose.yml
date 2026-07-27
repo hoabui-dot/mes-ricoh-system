@@ -271,6 +271,7 @@ services:
     environment:
       - STATION_ID=${STATION_ID:?STATION_ID is required}
       - SQLITE_PROJECTION_PATH=/data/projection.db
+      - DEVICE_HEARTBEAT_STALE_SECONDS=${DEVICE_HEARTBEAT_STALE_SECONDS:-45}
       - Kafka__BootstrapServers=${STATION_KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
       - Kafka__ClientId=${STATION_ID:?STATION_ID is required}-projection
       - Kafka__GroupId=projection-service

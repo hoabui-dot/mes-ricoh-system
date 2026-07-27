@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": {
+    "approval_mode": "DEMO_RESOURCE_BYPASS",
+    "approved_by": "00000000-0000-0000-0000-000000000001",
+    "event_published": true,
+    "event_type": "MES.Execution.WOApproved.v1",
+    "status": "Released",
+    "wo_code": "WO-20260727-0006",
+    "wo_id": "123cc71f-22a8-47fc-9c7f-51966b08ccb1"
+  }
+}

@@ -4451,22 +4451,21 @@ Master Data and is not duplicated in the edge compose file.
 
 Monitoring UI runtime note: Mac deployment uses the standard `5010:5010`
 mapping and the fresh image `printer-adapter-ui:kafka-monitoring-20260727`.
-Verification on this development host used temporary port `5015` because
-`5010` through `5014` are occupied. The UI calls the separately deployed
-adapter through `http://100.68.50.41:5003`; live summary, printer, and Kafka
-endpoints return HTTP 200. The adapter can still report Degraded when the
-physical CUPS queue is offline.
+The co-located UI calls the Adapter through the Compose service name
+`http://printer-adapter:5003`; live summary, printer, and Kafka endpoints
+return HTTP 200. The adapter can still report Degraded when the physical CUPS
+queue is offline.
 
 Co-located Mac Compose correction (2026-07-27): the root
 `docker-compose.print-adapter.yml` runs the Adapter and Monitoring UI together,
 so `PRINTER_ADAPTER_URL` must be `http://printer-adapter:5003`. Do not use
 `localhost` from the UI container and do not use the published host IP for this
-internal call. The Adapter reaches the Mac CUPS daemon through
-`host.docker.internal:631` (`CUPS_HEALTH_HOST` and `CUPS_HEALTH_PORT`). See
+internal call. On Docker Desktop for Mac, the Adapter reaches CUPS through
+`192.168.2.31:631` (`CUPS_HEALTH_HOST`, `CUPS_HEALTH_PORT`, and
+`CUPS_SERVER`) and submits as `CUPS_USER=hoabui`. See
 `implementation/printer-adapter-colocated-mac-compose-and-cups-diagnosis.md`.
-The previously running legacy container had `CUPS_SERVER=127.0.0.1:8631`,
-which overrode those settings and caused a self-container connection refusal;
-recreate it from the current Compose file to remove that stale environment.
+Recreate the Adapter from the current Compose file after any Mac LAN IP or
+CUPS policy change.
 
 MES Print Station capacity model (2026-07-27): one Print Station may serve many
 Workstations, while each current Workstation has at most one station binding.
@@ -4575,3 +4574,763 @@ count and a single selected Site row. The Go Execution migration runner had a
 hard-coded migration list and now includes 000012. Existing Schema Registry
 compatibility 409 warnings are non-blocking and do not prevent service
 startup. Browser-level verification remains a separate check.
+
+## 75. Harmonized Operation, Routing Operation, and Production Standard ownership (2026-07-27)
+
+Process source: `process-expand/Harmonize-Operation-Catalog,-Routing-Operation,-and-Production-Standard-Ownership.md`.
+Implementation report: `implementation-expand/harmonize-operation-routing-production-standard-ownership.md`.
+
+The authoritative hierarchy is `Operation Catalog business definition + engineering defaults -> Routing planning structure -> Routing-scoped Production Standard -> Work Order snapshot`.
+
+`md_operation` owns confirmation mode, quantity reporting, partial completion,
+material scan, output label, schedulable flag, and engineering defaults:
+`default_cycle_time_sec`, `default_setup_time_min`, `default_base_quantity`,
+`default_required_persons`, `default_efficiency_factor`, and `default_yield`.
+The Routing editor displays execution behavior read-only and never writes these
+fields.
+
+`md_routing_operation` owns sequence, predecessor, Work Center, scheduling mode,
+queue/move time, overlap, transfer batch, and milestone. Planning values are
+persisted in `md_production_standard` with `routing_operation_id`,
+`item_revision_id IS NULL`, and `source_method = 'Routing'`. Selecting an
+Operation preloads its defaults. Replacement ends the current generic
+standard and inserts one current standard; it never modifies Operation Catalog
+or merges historical rows.
+
+Routing release requires current operations and a Production Standard for each
+schedulable operation, then releases both in one transaction. Production
+Version readiness resolves an Item Revision-specific standard first and falls
+back to the released Routing Operation standard.
+
+Execution migration `000013_harmonize_work_order_planning_snapshot` adds
+`wo_operation.base_quantity`, `standard_yield`, `required_workers`,
+`calculation_version`, and `planning_snapshot`. Work Order creation selects
+the item-specific standard before the Routing standard. Compute & Check uses
+the snapshot's base quantity, yield, efficiency, setup, queue, and move values;
+it does not reread Operation Catalog defaults.
+
+The new Operation Catalog and Routing planning numeric fields use the shared
+MES Console `FieldHelpPopover` with a visible `CircleAlert` icon. Popover copy
+comes from the existing VI/EN/JA/KO i18n catalog, so new planning labels must
+provide localized explanatory content and must not use fixed English text.
+
+## 76. MES Work Order lifecycle and Print Station validation (2026-07-27)
+
+This is the canonical system-wide description of the current MES Work Order
+flow and its relationship to the integrated Print Station codebase. The more
+focused edge-service notes remain in `print-marking/AI_CONTEXT.md`, but this
+root file is authoritative when describing cross-system behavior.
+
+### 76.1 Master-data readiness before WO creation
+
+The MES Console Work Order form loads
+`GET /api/mes/master-data/production-ready-item-revisions` for the selected
+planned date. The selected option is a complete production configuration, not
+just an Item code. It contains Item Revision, Production Version, MBOM,
+Routing, base UOM, Site IDs, and business display codes/names. The client must
+submit the IDs from the selected option and must never reconstruct them from
+visible labels.
+
+The execution readiness chain is:
+
+1. Item Revision exists in the execution read model and is `Released`.
+2. A Production Version for that Item Revision and Site is `Released`.
+3. The Production Version references a released MBOM header.
+4. The Production Version references a released Routing header.
+5. Routing contains active valid operations and current planning standards.
+6. Site, UOM, Item Revision, Production Version, MBOM, and Routing belong to
+   the same selected configuration.
+
+Print Station readiness is a separate resource/runtime gate. The Workstation
+may have an active Print Station binding, allocated printer quantity, Kafka
+projection, and ready printers, but the initial product selector does not use
+printer health as a product-master filter. Printer readiness is evaluated when
+the operation/resource path requires it.
+
+### 76.2 WO creation workflow
+
+The normal path is:
+
+```text
+MES Console
+  -> POST /api/mes/execution/work-order-creation-workflows
+  -> persisted workflow events and WebSocket updates
+  -> atomic MES Execution transaction
+  -> MES.Execution.WOCreated.v1 outbox event
+```
+
+The request contains `item_revision_id`, `production_version_id` when chosen,
+`item_code`, localized `item_name`, `quantity`, `uom_id`, `site_id`, and target
+date. `Idempotency-Key` is required for safe retry. The same user/key with a
+different request hash returns `IDEMPOTENCY_KEY_PAYLOAD_CONFLICT`.
+
+The four persisted workflow steps are:
+
+| Step | Backend validation/effect | Failure behavior |
+|---|---|---|
+| `request_validation` | Required revision/site/UOM, positive quantity, valid RFC3339 start/end, end after start. | `ERR-WO-REQUEST-001`; no WO is created. |
+| `master_data_readiness` | Rechecks released Item Revision, Production Version, MBOM, and Routing in the execution read model. | `ERR-WO-READINESS-001`; missing prerequisites are returned. |
+| `create_transaction` | Creates WO header, explodes MBOM requirements, snapshots Routing operations, and allocates the authoritative WO number. | `ERR-WO-CREATE-001`; the transaction rolls back. |
+| `outbox_queued` | Commits `MES.Execution.WOCreated.v1` in the same database transaction. | UI must not claim event success before this step. |
+
+The backend owns the concurrency-safe code format `WO-YYYYMMDD-0001`. The
+Console preview is advisory; the committed response is authoritative. The new
+WO starts as `Draft`.
+
+Creation writes:
+
+- `wo_header`: selected product, quantity, UOM, Site, dates, Production
+  Version, status, and audit fields.
+- `wo_material_requirement`: MBOM-exploded component revision, required
+  quantity including scrap, UOM, issue operation, backflush, phantom, and
+  stock-check status.
+- `wo_operation`: Routing sequence, predecessor, Operation, Work Center,
+  operation name/code, setup/cycle/efficiency, base quantity, yield, required
+  workers, and immutable planning snapshot.
+
+Master-data changes after creation must not silently rewrite these WO rows.
+
+### 76.3 Draft review and Compute & Check
+
+The detail page calls:
+
+```text
+POST /api/mes/execution/work-orders/{wo_id}/compute-check
+```
+
+Compute & Check uses the WO planning snapshot. Its duration model is:
+
+```text
+run minutes = cycle_time_sec / 60
+              * (WO quantity / base_quantity)
+              / standard_yield
+              / efficiency_factor
+duration = setup + run + queue + move
+```
+
+For every operation it checks Work Center calendar coverage and resolves
+mandatory/optional worker skills against active employees scheduled on the
+planned date. Missing calendar coverage is a capacity warning. A mandatory
+labor shortage causes HTTP 409. Warnings and shortages must remain visible;
+the UI must not convert them into a false success.
+
+### 76.4 Resource candidates and allocation
+
+The operation resource APIs are:
+
+```text
+GET  /api/mes/execution/work-orders/{wo_id}/operations/{op_id}/resource-candidates
+POST /api/mes/execution/work-orders/{wo_id}/operations/{op_id}/resource-allocation
+POST /api/mes/execution/work-orders/{wo_id}/resource-allocations/revalidate
+```
+
+Candidate resolution uses Site, Item Revision, Routing Operation, Work Center,
+quantity, planned date, and Shift. The submitted Workstation, Equipment, and
+Machine Group must match one returned candidate with no blocking errors.
+Allocation validation requires a planned start and Shift, checks WO row
+version, rejects stale candidates, checks overlapping reservations, and uses a
+serializable transaction plus advisory locks for physical resources.
+
+Reallocation requires a change reason. Idempotency replay returns the previous
+allocation response and must not create another reservation. Allocation is
+lifecycle-locked after the WO leaves `Draft` or `PendingApproval`. Every
+operation needs a valid committed allocation before approval. Revalidation
+returns `WO_OPERATION_ALLOCATION_MISSING` or stale/capacity errors instead of
+allowing unsafe approval.
+
+When an operation requires physical printing, the resource/readiness path must
+also verify the active Workstation Print Station binding, lifecycle readiness,
+Kafka connection, runtime status, and sufficient ready/active printer capacity.
+The browser must never call a physical printer directly.
+
+### 76.5 Approval, rejection, and WMS material staging
+
+Approval uses:
+
+```text
+POST /api/mes/execution/work-orders/{wo_id}/approve
+```
+
+The handler first revalidates allocations, then performs a circuit-breaker-
+guarded freshness check against MES Master Data to ensure the Production
+Version is still `Released`. Only `EXECUTIVE`, `PLANT_MANAGER`, or
+`PROD_MANAGER` may approve. The WO must be `Draft` or `PendingApproval`.
+Success changes it to `Released`, writes the approval audit log, and queues
+`MES.Execution.WOApproved.v1`.
+
+Rejection requires a business comment, changes the WO to `Cancelled`, and
+writes the approval log. It is not the same as a printer failure.
+
+Material staging uses:
+
+```text
+POST /api/mes/execution/work-orders/{wo_id}/stage-materials
+```
+
+Only `Released` or `InProgress` WOs can be staged. Non-phantom, positive,
+not-yet-staged requirements are grouped by Item Revision and Work Center and
+sent to WMS. Responses are persisted as `Staged`, `Shortage`, or `NotChecked`.
+WMS outage is a dependency failure; shortage is a business conflict. Neither
+may be represented as available material.
+
+### 76.6 Operation execution and traceability
+
+Start uses:
+
+```text
+POST /api/mes/execution/work-orders/{wo_id}/operations/{op_id}/start
+```
+
+The WO must be `Released` or `InProgress`. The predecessor operation must be
+`Finished`. Starting the first operation moves the WO to `InProgress`, creates
+an `execution_session`, marks the operation `InProgress`, and queues
+`MES.Execution.OperationStarted.v1` transactionally.
+
+Confirm uses:
+
+```text
+POST /api/mes/execution/work-orders/{wo_id}/operations/{op_id}/confirm
+```
+
+The operation must be `Pending` or `InProgress`. Current execution behavior is:
+
+| Operation | Required behavior |
+|---|---|
+| `OP-MIX` | Material scan; good output can issue a mother label. |
+| `OP-PREP` | Material scan; quantity-only confirmation; no output label by default. |
+| `OP-CUT` | Material scan; split the parent label into child labels. |
+| `OP-MOLD` | Material scan; consume input label and issue output label when required. |
+| `OP-TRIM` | Quantity-only confirmation with good/scrap recording. |
+| `OP-QC` | PASS can issue a PASS label; scrap/fail requires `reason_code`. |
+
+Configured material scan requires `scanned_label_id` or
+`scanned_material_code`. Backflush requirements create material-consumption
+records automatically; non-backflush requirements require manual scan
+consumption. Traceability dependency failures abort confirmation. A successful
+confirmation records quantities, reason, input/output labels, closes the
+session, marks the operation `Finished`, and queues
+`MES.Execution.OperationFinished.v1`.
+
+When all operations are `Finished` and no session remains `IN_PROGRESS`, MES
+changes the WO from `InProgress` to `Completed` and queues
+`MES.Execution.WOCompleted.v1`.
+
+### 76.7 Current Print Station integration boundary
+
+The system has two connected but distinct flows:
+
+```text
+MES Master Data
+  -> Workstation/Print Station binding
+  -> Kafka printer runtime projection in MES
+  -> resource and readiness validation
+
+Station Agent Job Engine
+  -> ProductionBatchPrintCommand
+  -> Kafka station.commands.printer
+  -> remote Printer Adapter
+  -> real CUPS/TCP printer
+  -> Kafka printer result/error events
+  -> Job Engine + Projection Service
+  -> Kiosk REST/SignalR read model
+```
+
+The Printer Adapter does not read MES PostgreSQL. MES owns Print Station
+master data, Workstation binding, and runtime projection. The Edge Station owns
+printer registry, label templates, driver execution, physical health, and
+print-command idempotency. Printer command events must preserve station,
+workstation, adapter, printer, WO/job, operation/output-label correlation,
+event/idempotency key, timestamp, and error reason where supported.
+
+Important current boundary: MES `ConfirmOperation` issues/consumes
+traceability labels and publishes MES execution events, but it does not itself
+publish `command.printer.print` to the Edge Printer Adapter. The current
+physical print producer is Station Agent Job Engine. Do not add both an HTTP
+and Kafka production path or claim a direct MES-confirmation-to-printer flow is
+implemented.
+
+For a future authoritative MES-triggered label flow, validate and execute in
+this order:
+
+1. Confirm the WO operation snapshot and output-label requirement.
+2. Resolve one active Workstation Print Station binding and verify lifecycle,
+   Kafka, runtime, and ready-printer capacity.
+3. Create one idempotent print job containing WO, operation, output label,
+   station, target printer, template/version, and correlation IDs.
+4. Publish one command to `station.commands.printer`; never duplicate it via
+   HTTP.
+5. Printer Adapter reserves the command ID in SQLite before CUPS/TCP execution.
+   Redelivery must acknowledge without a second physical print.
+6. Consume `printer.printed`, `printer.batch.printed`, or `printer.error`,
+   correlate the result, and update the owning job/read model.
+7. Project printer state to Kiosk through Projection Service/SignalR. Kiosk
+   uses REST for initial/diagnostic data only, not continuous adapter polling.
+
+### 76.8 Cross-system troubleshooting sequence
+
+When a WO or print action is blocked, inspect in order:
+
+1. Product-ready API: released Item Revision, PV, MBOM, Routing, Site, UOM,
+   and matching IDs.
+2. Creation workflow: all four steps, error code, sequence, and WOCreated
+   outbox event.
+3. WO detail: status, material requirements, operation snapshots, and row
+   version.
+4. Compute & Check: duration, calendar coverage, worker shortages, warnings.
+5. Allocation: candidate readiness, Shift, stale version, reservation,
+   validation status, and capacity conflicts.
+6. Approval: role, PV freshness, lifecycle, and allocation revalidation.
+7. WMS staging: outbound request correlation, shortage, and NotChecked rows.
+8. Execution: predecessor, session, material scan, traceability response,
+   confirmation idempotency attempt, and operation status.
+9. MES Print Station readiness: binding, Kafka status, runtime timestamp,
+   ready/active printer counts, and lifecycle warnings.
+10. Edge Station: adapter health, physical CUPS queue, Kafka topic/consumer,
+    event ID, offset, DLQ, and duplicate command reservations.
+
+Never bypass a failed validation by inserting simulator printers, skipping the
+Workstation binding, weakening lifecycle rules, or calling the Printer Adapter
+from the browser. Correct the missing business data or the owning service.
+
+### 77. Planning-value inheritance contract (2026-07-27)
+
+`md_operation` owns reusable behavior and engineering defaults. A Workstation
+Operation Capability describes resource ability and is advisory for candidate
+selection; it is not an authoritative production standard. A
+`md_routing_operation` owns production structure and stores
+`planning_mode = INHERITED | ROUTING_OVERRIDE`.
+
+Planning resolution is: active Routing-scoped released Production Standard,
+released generic Work Center Production Standard, then Operation defaults.
+Required unresolved values block release. The Routing API returns resolved
+values and `resolved_source`; the Console shows inherited values read-only and
+creates/replaces a Routing standard only after an explicit override choice.
+Complete replacement is transactional and never appends copied defaults.
+Worker-skill defaults follow the same rule and remain Operation-owned unless
+explicitly overridden.
+
+On Routing release, `MES.MasterData.RoutingReleased.v1` carries the complete
+resolved operation list. Execution migration `000014_routing_planning_resolution`
+projects it into `rm_routing_operation`. Work Order creation snapshots source,
+base quantity, setup, cycle, required workers, efficiency, yield, and
+predecessor into `wo_operation.planning_snapshot`; allocation and execution use
+that snapshot and do not silently replace it with current capability values.
+The old hardcoded 15-minute/45-second fallback is removed, with only a legacy
+0/60/1 compatibility fallback. Detailed evidence is in
+`implementation-expand/correct-planning-value-inheritance-operation-workstation-routing-work-order.md`.
+
+## Historical demo WO execution dispatch and real print completion (superseded 2026-07-27)
+
+The controlled demo execution path keeps the production approval default
+strict. `MES_DEMO_BYPASS_RESOURCE_ALLOCATION` defaults to `false`; an explicit
+demo bypass records `DEMO_RESOURCE_BYPASS`, the reason, and the skipped
+allocation in `wo_approval_log`.
+
+The flow is: create and snapshot a WO, compute/check, approve, then call
+`POST /work-orders/{id}/start-execution`. MES moves Released to InProgress and
+dispatches only predecessor-ready operations. Normal operations publish
+`MES.Execution.OperationDispatchQueued.v1` with `DEMO_SHARED_KIOSK`; the Kiosk
+Gateway routes it to `DEMO_KIOSK_TERMINAL_CODE` (currently `KIOSK-DEMO-01`) and
+the Kiosk refreshes through its existing WebSocket/SignalR path.
+
+An output-label operation has target `PRINT_STATION`. Before dispatch, MES
+calls the Master Data readiness endpoint
+`GET /api/mes/master-data/workstations/{id}/print-station-readiness` and
+requires active binding, valid lifecycle, online runtime, connected Kafka, and
+at least one ready printer. It rejects a missing or unavailable binding rather
+than falling back to an environment-only station.
+
+Migration `000015_demo_execution_dispatch_print_jobs.up.sql` adds operation
+execution target/binding snapshots and durable `wo_print_job`,
+`wo_print_job_attempt`, and `wo_print_job_event` tables. A ready print
+operation writes one Kafka outbox command `command.printer.print` to
+`station.commands.printer`; the MES print-job ID is the adapter `job_id` and
+the payload carries WO, operation, workstation, station, adapter, correlation,
+and idempotency data. `PrinterResultConsumer` consumes
+`station.events.printer` in group `mes-execution-printer-results`, deduplicates
+event IDs, completes successful print operations, dispatches the next ready
+operation, and persists failures for the print-retry endpoint.
+
+Kiosk migration `000002_demo_terminal.up.sql` adds the explicit demo terminal.
+HTTP remains management/diagnostics only; production printing is Kafka-only.
+Builds/tests, migrations, consumer startup, Gateway health, and readiness
+enforcement are verified. The current station reports
+The remote Adapter now reports Healthy with one ready and active printer, and
+physical CUPS `print-test` has passed. Full cross-server WO completion remains
+unclaimed because the controlled WO verification was stopped by the standard
+allocation guard before dispatch. See
+`implementation-expand/implement-demo-wo-execution-dispatch-with-real-print-station-completion.md`.
+
+## Remote MacOS Printer Adapter re-audit (2026-07-27)
+
+The MES host must not run a Printer Adapter or require local CUPS. The stale
+local `station-printer-adapter` container was stopped. The active edge Adapter
+is remote and is identified in MES runtime projection as `PRINT-ADAPTER-01`,
+serving `PRINT-STATION-01` and `Zebra-GK420t-CUPS` through Kafka.
+
+Live MES readiness is currently true: binding, lifecycle, runtime, Kafka, and
+printer checks pass; registered, ready, and active-for-work counts are each 1.
+Kiosk's active-printer display is a different read model and must not be used
+as the authoritative MES production-readiness decision.
+
+Projection Service now returns Kafka-projected runtime facts when remote Adapter
+management is unavailable, and its ready filter correctly requires both active
+and online state. `DEVICE_HEARTBEAT_STALE_SECONDS` defaults to 45 seconds,
+which is greater than the remote Adapter's 15-second heartbeat interval and
+prevents false offline transitions.
+
+The remote verification script requires `PRINTER_ADAPTER_BASE_URL` and never
+defaults to local port 5003. Physical print, remote command consumption, result
+event, and WO completion remain unclaimed until it runs with the actual MacOS
+Adapter URL and a dedicated safe WO. Evidence is in
+`implementation-fix/re-audit-remote-macos-printer-adapter-e2e-verification.md`.
+
+### Remote MacOS CUPS deployment correction (2026-07-27)
+
+On Docker Desktop for macOS, `host.docker.internal` resolves to the Docker VM
+gateway rather than the Mac network interface. For the real USB Zebra queue,
+the independent Adapter must use the Mac LAN address for both IPP health
+checks and `lpr` submission:
+
+```text
+CUPS_HEALTH_HOST=192.168.2.31
+CUPS_HEALTH_PORT=631
+CUPS_SERVER=192.168.2.31:631
+CUPS_USER=hoabui
+CUPS_QUEUE=Zebra_Technologies_ZTC_GK420t
+```
+
+Run `cupsctl WebInterface=yes` on the Mac. `extra_hosts: host-gateway` is a
+native-Linux convenience and is removed from the Mac Compose deployment. The
+corrected image is tagged
+`vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260727-cups-remote-fix`;
+it was pushed with digest
+`sha256:993d869d17b8f73f6bcd50c83c5c6f7f2d97f65192b48fd5bfd0258f5e8a20d6` and
+the remote runtime was verified healthy. The LAN address is DHCP-assigned and
+must be reserved or updated if it changes.
+
+`CUPS_USER` must match the macOS account authorized by the host CUPS policy.
+The current edge Mac uses `hoabui`. Health can be Healthy while print
+submission is unauthorized, so physical print verification must include a
+safe `print-test`. The host CUPS policy currently allows the trusted LAN
+client for print submission; port 631 must not be publicly exposed.
+
+### Full remote WO verification result (2026-07-27)
+
+Remote Adapter, CUPS, Kafka, Kiosk projection, printer activation, and MES
+Print Station readiness were verified healthy. A controlled run against
+`WO-20260727-0001` (`8600346d-2e4c-4566-a47b-108ed6d9469f`) stopped at approval
+with the correct `WO_OPERATION_ALLOCATION_MISSING` result: six operations and
+zero committed allocations. The WO has no shift and several legacy resource
+assignments are unavailable. The service keeps
+`MES_DEMO_BYPASS_RESOURCE_ALLOCATION=false`; it was not changed to falsely
+claim a production-complete WO. Physical CUPS `print-test` passed separately,
+but full MES dispatch/result/WO completion remains pending a valid allocated
+WO.
+
+### Controlled remote MES WO physical-print verification (2026-07-27)
+
+The controlled verifier uses `TEST_MODE=demo-bypass` explicitly and checks the
+actual `MES_DEMO_BYPASS_RESOURCE_ALLOCATION` container environment before
+approval. It never defaults to a local Adapter. The remote runtime is
+`http://100.108.194.102:5003`; the only active printer is
+`Zebra-GK420t-CUPS` and its CUPS queue is physically online.
+
+The run exposed and fixed the complete transport/result contract: selected PV
+readiness, nullable Routing projection, logical printer-topic mapping, Kafka
+`event-type` headers, command timestamps, PascalCase `Payload` envelopes, and
+the UUID/text `wo_print_job` lookup. WO-0008, WO-0009, and WO-0010 physically
+printed through Kafka and CUPS. WO-0010's already-published result was replayed
+without reprinting; MES then persisted the event, completed its print job, and
+finished operation sequence 10.
+
+The full terminal WO claim remains intentionally open: the multi-operation
+fixture queued a second print operation whose remote result was not observed
+within the bounded run. The verifier artifact is therefore a failed terminal
+assertion, not a false success. See
+`implementation-expand/execute-and-verify-full-mes-wo-to-physical-printer-flow.md`
+and the dated artifact directories for exact responses and Kafka evidence.
+
+### Production Version backend numbering correction (2026-07-27)
+
+The Production Version form does not accept an authoritative code. The
+master-data create handler now allocates `PV-YYYYMMDD-NNNN` atomically through
+`md_resource_numbering_daily` and uses the generated code as the default name
+when no name is supplied. This prevents `md_production_version.code` NOT NULL
+failures and keeps numbering backend-owned. A real API create returned
+`PV-20260727-0001` successfully after rebuilding the master-data service.
+## Current Production Version Authority and WO Snapshot Incident (2026-07-27)
+
+Production Version is now the only authoritative user selection for MES Work Order creation. The MES Console posts `production_version_id`, quantity, and target date; the execution service resolves Item Revision, released MBOM, released Routing, Site, and UOM from that Production Version. Legacy derived IDs are accepted only for compatibility and are compared against the resolved context. A mismatch is rejected with `WORK_ORDER_PRODUCTION_VERSION_CONTEXT_MISMATCH:<field>`.
+
+Production Version localized identity is stored as `md_production_version.name_i18n` and projected to `rm_production_version.name_i18n`. Migration `0043_production_version_localized_identity` backfills existing master rows. Execution migration `000017_production_version_authoritative_snapshot` adds the read-model UOM projection and Work Order snapshot columns: Production Version code/name, Item Revision code/name, MBOM code, Routing code, and `planning_snapshot`. The master-data consumer uses group v6 to replay retained enriched events.
+
+The candidate endpoint is `/api/mes/master-data/production-ready-versions`; `/production-ready-item-revisions` remains a compatibility alias. Candidates are validated against released lifecycle, validity, MBOM, Routing, operation, resource, and planning prerequisites. Work Order creation now aborts transactionally if the Routing read model cannot be loaded or contains zero operations.
+
+Runtime incident: WO `2af7fabf-d39e-4754-af9e-627eddcc8b20` was created before this guard was deployed with five material requirements and zero `wo_operation` rows. Its selected Routing `RT-20260727-0001` is marked Released in master data, but its current routing-operation rows are Draft and its historical release event contained no operation payload. Approval returns HTTP 409 `WO_ROUTING_SNAPSHOT_MISSING` and leaves the WO Draft. This is correct protection; the WO must not be manually approved or patched. Correct the Routing through its normal draft-operation/release lifecycle, allow the event to project, and create a new WO from the candidate endpoint.
+
+The detailed implementation and verification report is `implementation-expand/production-version-authoritative-work-order-selection-report.md`.
+
+## MES Work Order Test-Data Baseline (2026-07-27)
+
+Before continuing Work Order, Execution, Kiosk, or Print Station development, the execution database was audited and cleaned with `npm run cleanup:mes:work-orders`. All 16 legacy Work Orders were invalid because they lacked the current Production Version/Routing snapshot contract; one had zero operation snapshots. They were deleted child-first in a transaction, including 55 operations, 80 material rows, 7 print jobs, 7 attempts, 9 approval logs, 112 workflow events, 14 Work Order workflows, and 34 Work Order-related outbox events. A pre-existing orphan print event and one Kiosk outbound message were also removed. Seven failed workflows with no Work Order were then removed as orphan workflow artifacts.
+
+The final execution database contains zero Work Orders, zero Work Order child rows, zero Work Order outbox events, zero creation workflows, and zero orphan rows in the audited execution tables. Master data was not modified. This is the clean deterministic baseline for new testing. Use the `production-ready-versions` endpoint to select a valid Production Version before creating a new Work Order; the creation transaction rejects missing or empty routing snapshots.
+
+## Production Version authority and derived Site fix (2026-07-27)
+
+The Work Order creation contract is Production-Version-centred: the Console
+submits only `production_version_id`, quantity, and target date. Execution loads
+that exact ID and derives Item Revision, MBOM, Routing, execution Site, and UOM;
+it never searches by Item Revision plus Site or trusts a client Site selector.
+The selected Site is validated against the distinct Site IDs of all projected
+Routing Work Center rows. Zero, multi-Site, or Production Version/Routing Site
+mismatches fail before the transaction.
+
+The incident with workflow reference
+`6078638c-4e6f-4a1b-b235-9c1c1b09c164` was a stale read-model projection, not a
+missing Production Version. `rm_item_revision.base_uom_id` was NULL and was
+scanned into a Go string, then incorrectly reported as “Production Version not
+found”. Execution migration `000018_normalize_production_version_read_model_context`
+backfills UOM only where released MBOM references provide one unambiguous value;
+remaining incomplete projections are rejected with a stable error. Query
+errors are now distinct from `PRODUCTION_VERSION_NOT_FOUND`.
+
+The creation UI shows derived Site/UOM read-only and translates backend failure
+details. Failed asynchronous workflows retain step status and correlation
+reference; synchronous request failures show a failure modal instead of only a
+toast. A valid controlled workflow was tested successfully, then its Work Order
+and test workflow artifacts were removed to preserve the zero-WO clean baseline.
+See `implementation-fix/Fix-Production-Version-Authority-and-Derived-Site-Handling-in-Work-Order-Creation.md`.
+
+## Historical temporary Work Order resource-allocation approval policy (superseded 2026-07-27)
+
+During the current MES/Kiosk/Kafka/Print Station integration phase, resource
+allocation is advisory at the Work Order approval gate. The active Compose
+configuration sets `MES_RESOURCE_ALLOCATION_APPROVAL_REQUIRED=false`; the
+legacy `MES_DEMO_BYPASS_RESOURCE_ALLOCATION` flag is not used. Setting the new
+flag to `true` restores strict allocation approval for a controlled environment.
+
+Approval still requires the Work Order to exist, be in an approvable lifecycle
+state, have a Released/effective Production Version context, valid Routing and
+operation snapshots, planning/material snapshots, valid predecessor structure,
+and an authorized approver. No fake allocation, workstation, equipment, shift,
+capacity reservation, or employee is created.
+
+The handler performs a diagnostic-only allocation count. Missing or stale
+allocation produces warnings but does not block approval. The approval audit
+stores `approval_mode=RESOURCE_ALLOCATION_BYPASSED`, allocation status,
+warning-code JSON, `approval_policy=Advisory`, and policy version
+`RESOURCE_ADVISORY_V1`. The API returns `RESOURCE_ALLOCATION_BYPASSED` plus
+diagnostic codes such as `WO_OPERATION_ALLOCATION_MISSING`. MES Console keeps
+the resource section visibly Not allocated/Stale and shows a localized warning.
+
+This bypass applies only to the approval gate. Start/dispatch/print execution
+must still resolve a valid execution target. Demo operations may use the shared
+Kiosk fallback; physical print operations must still pass Workstation and Print
+Station binding, printer capacity, Online status, Kafka connectivity, and ready
+printer checks. See
+`implementation-fix/Temporarily-Bypass-Work-Order-Resource-Allocation-Approval-Gate.md`.
+
+## Physical-printer WO seed baseline (2026-07-27)
+
+The draft PV `PV-20260727-0003` was intentionally not released because its
+selected Routing contained a Draft operation; the release validator returned
+`ROUTING_OPERATION_INACTIVE`. Do not force-release it. The valid physical-print
+configuration is now seeded as `PV-20260727-0004`, ID
+`ca7f09f8-6e6e-4e00-8acc-b4b924e3f1c5`, named `Cấu hình sản xuất FG có in nhãn`
+(EN: `FG Label Printing Production Configuration`). It uses Item Revision
+`FG-WS-CM01-R1`, MBOM `MBOM-FG-WS-CM01-R1`, and Routing
+`RT-FG-WS-CM01-R1`, all at Site `SITE-KZ3`, UOM `PCS`, lot range 1-1000. The
+Routing has six Released operations and the Print Station integration is
+`PRINT-STATION-01` bound to `WS-20260727-0006` with one printer allocation.
+
+Use `npm run seed:mes:physical-printer-pv` to idempotently verify/create/release
+this PV through the API. In the WO form select this PV, enter quantity `10`
+PCS and target date `2026-08-01` or another future date. Site, Item Revision,
+MBOM, Routing, and UOM are derived read-only values. The PV was validated,
+released, event-published, projected into Execution, and returned `ready=true`
+from `production-ready-versions`. See
+`implementation-fix/Seed-Physical-Printer-Production-Version.md`.
+
+## Historical temporary material-staging demo policy (superseded 2026-07-27)
+
+The normal `POST /work-orders/{id}/stage-materials` flow calls WMS Outbound and
+preserves shortage results. The active MES Compose demo policy sets
+`MES_MATERIAL_STAGING_REQUIRED=false` so execution/physical-printer testing is
+not blocked by missing WMS component stock. In bypass mode MES returns
+`status=Bypassed`, keeps material requirements `NotChecked`, does not create a
+WMS material request, and does not mutate inventory. This is intentionally not
+reported as physically staged. Set the flag to `true` or remove it to restore
+the strict WMS gate. Material bypass is independent of the approval resource
+allocation advisory policy. A successful bypass only permits continuing the
+demo execution path; physical printing still requires approval, execution
+dispatch, Print Station binding/readiness, Kafka, and an ONLINE ready printer.
+See `implementation-fix/Bypass-MES-Material-Staging-for-Physical-Print-Demo.md`.
+
+Runtime check on `WO-20260727-0018` returned HTTP 200 `Bypassed` after the
+Execution rebuild. This WO must not be used to claim physical printing yet:
+its operation snapshot currently has `KIOSK_DEMO` targets and null workstation/
+print-station IDs. The remote Print Station readiness endpoint is healthy, but
+the released Routing projection must resolve an eligible workstation for its
+label operation before `start-execution` can emit `command.printer.print`.
+
+## Historical bypass-based physical-print E2E baseline (superseded 2026-07-27)
+
+Use `PV-E2E-SINGLE-20260727` (`4314a2bc-6ab4-4391-bcb9-4a8865bf6c27`) for the
+physical printer flow. It resolves Routing `RT-20260727-0004`, Operation
+`OP-MIX`, Workstation `WS-20260727-0006`, Print Station `PRINT-STATION-01`,
+and printer `Zebra-GK420t-CUPS`. `PV-20260727-0004` is not the physical-print
+fixture because its historical Routing projection has null workstation and
+output-label fields.
+
+Run `npm run e2e:mes:physical-print`. The command ensures Kafka topics,
+creates the WO with authoritative `production_version_id`, runs Compute &
+Check, approval, controlled material staging bypass, execution dispatch, and
+waits for the correlated print job/result. Topic `station.events.printer`
+carries the printer command and result. The verified run created
+`WO-20260727-0023`, print job `965325ab-31d8-4928-9317-ba6b7fabcbb1`, received
+`printer.printed` from the remote Adapter using `Zebra-GK420t-CUPS`, finished
+the operation, and completed the WO. See
+`implementation-fix/Run-MES-WO-Physical-Print-E2E.md`.
+
+## Current Work Order strict-flow policy (2026-07-27)
+
+The temporary resource-allocation approval bypass and WMS material-staging
+bypass are retired. The active execution service always revalidates a current
+committed allocation for every Work Order operation before approval; missing
+or stale allocation returns `409 WO_RESOURCE_ALLOCATION_INVALID`. New approval
+audit rows are `STANDARD`, `Strict`, and
+`resource_allocation_bypassed=false`. The active API no longer accepts
+`bypass_reason` or emits `RESOURCE_ALLOCATION_BYPASSED`.
+
+`POST /work-orders/{id}/stage-materials` always calls WMS Outbound. It does
+not return `Bypassed`, fake a local stock success, or skip stock checks.
+Historical bypass reports and the earlier bypass-based physical-print result
+remain documentation only and are superseded by
+`implementation-fix/Remove-WO-Bypass-and-Restore-Strict-Flow.md`.
+
+The latest cleanup removed all development Work Orders and their
+execution/print/workflow artifacts, leaving zero Work Orders and zero orphan
+child rows. A new physical-printer E2E run is valid only after the fixture has
+released Production Version data, current allocations, sufficient WMS stock,
+a bound online Print Station, Kafka connectivity, and a ready printer.
+
+## MES Work Order reset phase (2026-07-27)
+
+The cleanup-only reset is `scripts/reset-mes-wo-test-data.mjs`. It discovers the
+actual public schema and foreign-key graph, audits Work Order/snapshot/orphan
+records, writes diagnostics under
+`artifacts/mes-reset-seed-verify/<timestamp>/`, and deletes only transactional
+WO data child-first in a transaction. Related Kiosk outbound messages are
+cleaned in a separate service-owned transaction. Released master data, UOMs,
+users, roles, migrations, Kafka topics, and remote printer runtime data are
+preserved.
+
+It is intentionally separate from future seeding:
+
+```bash
+npm run reset:mes:wo:dry-run
+MES_ENV=development CONFIRM_DESTRUCTIVE_RESET=YES_DELETE_MES_TEST_DATA npm run reset:mes:wo
+```
+
+The script refuses unknown environments, non-allow-listed database identities,
+and missing confirmation. Phase 1 dry-run passed with zero Work Orders and
+zero orphan rows; the confirmed reset also completed as a zero-row cleanup.
+No master data was seeded or modified by this phase.
+
+## MES Work Order complete master-data seed baseline (2026-07-27)
+
+Phase 2 is implemented by `scripts/seed-mes-wo-complete-dataset.mjs` and is
+reusable for the development baseline. It first delegates transactional
+Work Order/snapshot cleanup to `scripts/reset-mes-wo-test-data.mjs`, then
+cleans disposable routing, MBOM, Production Version, item/revision fixtures,
+dependent EBOM/standard/numbering rows, and stale execution projections.
+
+The cleanup removes `RT-*`, `MBOM-*`, and `PV-*` development configuration and
+items/revisions coded `DEMO-*`, `ITEM-*`, or `E2E-WO-*`. Since old projections
+can outlive their master rows, deterministic fallback cleanup also removes
+legacy `RT-20260727-*`, `PV-20260727-*`, `PV-E2E-*`, `PV-FG-WS-*`, and
+`E2E-WO-*` projection keys. Shared released `FG-*`, `SFG-*`, and `RM-*` items
+remain, including WMS component revision `SFG-MET-CM01-R1`.
+
+The scenario is one complete released set for one future Work Order:
+
+- finished item `E2E-WO-FG-01`, revision `E2E-WO-FG-01-R1`, localized VI/EN/JA/KO;
+- MBOM `E2E-WO-MBOM-01`, one `SFG-MET-CM01-R1` component at `1 PCS`;
+- backend-generated Routing `RT-YYYYMMDD-NNNN` with three Released operations
+  and predecessor sequence `10 -> 20 -> 30`;
+- backend-generated Production Version `PV-YYYYMMDD-NNNN`, Released, validated,
+  and authoritative for Work Order selection;
+- Site `SITE-KZ3`, UOM `PCS`, physical workstation `WS-20260727-0006`;
+- Print Station `PRINT-STATION-01` reporting `ONLINE`, Kafka `CONNECTED`, one
+  active ready printer;
+- eight employees, three released shifts and 1040 weekday schedule rows;
+- WMS demo locations/lots/inventory/inbound/outbound data, with live active
+  component stock verified as `2038.03 PCS` and required seed quantity `2 PCS`.
+
+Reusable commands:
+
+```bash
+npm run seed:mes:wo:dry-run
+MES_ENV=development CONFIRM_MASTER_DATA_RESET=YES_RESET_E2E_MASTER_DATA npm run seed:mes:wo
+npm run reset:seed:mes:wo
+```
+
+`reset:seed:mes:wo` is the destructive development shortcut with the required
+environment and confirmation values embedded. It must not be used against a
+production database.
+
+The seed writes `seed-manifest.json`, `master-data-readiness.json`,
+`wms-readiness.json`, `labor-wms-seed.json`, and `summary.json` under
+`artifacts/mes-reset-seed-verify/<timestamp>/`. It proves master-data, WMS,
+and Print Station readiness; it does not claim that a Work Order was approved,
+staged, executed, or physically printed. Those steps require the next strict
+flow verification phase with real resource allocations and WMS staging.
+See `implementation-fix/Reset-and-Seed-Complete-MES-WO-Master-Dataset-Phase-2.md`.
+
+## Canonical Print Station control-plane deployment (2026-07-27)
+
+The active MES-host deployment is `infra/docker-compose.print-station.yml` and
+uses platform Kafka on external Docker network `platform-net`. It contains
+`print-station-redis`, `station-projection-service`, and `station-kiosk-ui`.
+The physical Printer Adapter is deliberately excluded: it remains an
+independent edge service on the Mac/printer server and connects to the same
+protected Kafka broker.
+
+Commands:
+
+```bash
+npm run rebuild:print-station
+npm run restart:print-station
+npm run verify:print-station
+npm run logs:print-station
+```
+
+The rebuild starts Kafka, ensures printer/production/integration/device topics,
+builds Projection and Kiosk, recreates them, waits for health, and runs the
+verifier. `PRINT_STATION_PRINTER_ADAPTER_URL` must be reachable from the MES
+host; it is not a local simulator fallback.
+
+MES execution outbox events (`MES.Execution.WOCreated.v1`, `WOApproved.v1`,
+`OperationStarted.v1`, `OperationFinished.v1`, `MaterialConsumed.v1`, and
+`WOCompleted.v1`) are published to `station.events.integration`. Projection
+subscribes to `MES.Execution.#`, updates records/orders/activity, and sends
+`OnProductionUpdate`, `OnProductionRecordUpdate`, `OnActivityUpdate`, and
+`OnProductionOrderUpdate` through `/hubs/production`. Kiosk uses SignalR with
+automatic reconnect; REST is for initial data and diagnostics, not continuous
+Adapter polling.
+
+Kafka payload unwrapping preserves envelope identity. Projection claims each
+event ID in `projection_event_dedup` in the same SQLite transaction as the
+read-model write, making redelivery a no-op. Status ordering prevents late
+events from regressing state: `OperationFinished` is `IN_PROGRESS`, and only
+`WOCompleted` is `COMPLETED`. Runtime devices come from real Kafka heartbeats;
+seeded simulator devices are removed. Kiosk accepts only `production-printer`.
+
+The canonical control plane was built and run successfully. SQLite, Kafka,
+Projection, Kiosk, Redis, SignalR negotiate, and a synthetic Kafka event flow
+were verified; duplicate and out-of-order behavior passed, and the projection
+test volume was reset to an empty baseline. The remote Adapter endpoint
+`http://100.68.50.41:5003` was unreachable from this host, so this run does not
+claim remote CUPS or physical printing.

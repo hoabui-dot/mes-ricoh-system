@@ -7,7 +7,7 @@ import { ClipboardList, Play, CheckCircle2, RefreshCw, LogOut, Package } from 'l
 import { toast } from 'sonner';
 
 export const WOListScreen: React.FC = () => {
-  const { terminalId = 'KIOSK-MOLD-01' } = useParams();
+  const { terminalId = 'KIOSK-DEMO-01' } = useParams();
   const navigate = useNavigate();
   const { lastEvent, disconnectSocket } = useKioskSocket();
 
@@ -25,7 +25,7 @@ export const WOListScreen: React.FC = () => {
         throw { status: resp.status, message: 'Không thể tải danh sách lệnh sản xuất' };
       }
       const data = await resp.json();
-      const list = data.data || [];
+      const list = (data.data || []).filter((item: any) => ['Released', 'InProgress', 'Paused'].includes(item.status));
       setWorkOrders(list);
       await cacheWorkOrders(list);
     } catch (err: any) {
@@ -138,6 +138,7 @@ export const WOListScreen: React.FC = () => {
               </div>
 
               <button
+                disabled={!['Released', 'InProgress', 'Paused'].includes(wo.status)}
                 onClick={() => navigate(`/kiosk/${terminalId}/wo/${wo.wo_id}`)}
                 className="w-full bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/30 hover:border-indigo-500 text-indigo-200 hover:text-white font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center space-x-2"
               >

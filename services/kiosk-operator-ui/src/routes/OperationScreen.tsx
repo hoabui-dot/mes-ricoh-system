@@ -6,9 +6,9 @@ import { Play, CheckCircle2, AlertOctagon, ArrowLeft, Loader2, QrCode, Layers } 
 import { toast } from 'sonner';
 
 export const OperationScreen: React.FC = () => {
-  const { terminalId = 'KIOSK-MOLD-01', woId = '' } = useParams();
+  const { terminalId = 'KIOSK-DEMO-01', woId = '' } = useParams();
   const navigate = useNavigate();
-  const { connectionStatus } = useKioskSocket();
+  const { connectionStatus, lastEvent } = useKioskSocket();
 
   const [woData, setWoData] = useState<any>(null);
   const [selectedOp, setSelectedOp] = useState<any>(null);
@@ -47,6 +47,12 @@ export const OperationScreen: React.FC = () => {
   useEffect(() => {
     fetchWODetails();
   }, [woId]);
+
+  useEffect(() => {
+    if (lastEvent?.event_type === 'MES.Execution.OperationDispatchQueued.v1' || lastEvent?.event_type === 'MES.Execution.OperationFinished.v1') {
+      void fetchWODetails();
+    }
+  }, [lastEvent]);
 
   // Start Operation Handler (Pessimistic)
   const handleStartOperation = async () => {
@@ -239,7 +245,11 @@ export const OperationScreen: React.FC = () => {
               <p className="text-xs text-slate-400">Trạng thái công đoạn: <span className="font-semibold text-slate-300">{selectedOp.status}</span></p>
             </div>
 
-            {selectedOp.status !== 'Finished' && !activeSession && (
+            {selectedOp.execution_target_type === 'PRINT_STATION' ? (
+              <span className="rounded-lg border border-amber-700 bg-amber-950/50 px-4 py-3 text-sm font-semibold text-amber-300">
+                {selectedOp.status === 'Finished' ? 'Đã in thành công' : selectedOp.status === 'ExecutionError' ? 'In thất bại - cần thử lại' : selectedOp.status === 'DispatchQueued' ? 'Đang chờ trạm in' : 'Trạm in tự động'}
+              </span>
+            ) : selectedOp.status !== 'Finished' && !activeSession && (
               <button
                 onClick={handleStartOperation}
                 disabled={isSubmitting || connectionStatus === 'disconnected'}

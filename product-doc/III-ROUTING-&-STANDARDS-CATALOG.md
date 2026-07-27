@@ -184,3 +184,33 @@ Tài liệu đặc tả danh mục Master Data quản lý công đoạn (`Operat
 ### 4. Quy tắc kiểm soát dữ liệu (Validation Rules)
 - Kiosk chỉ hiển thị tài liệu hướng dẫn có `Status = Released` và đang nằm trong khoảng thời gian hiệu lực.
 - Trường hợp có tài liệu cấu hình riêng cho `ProductRevisionID` cụ thể, Kiosk sẽ ưu tiên hiển thị tài liệu này thay cho tài liệu dùng chung của công đoạn.
+
+### 5. Quyền sở hữu Operation, Routing và Production Standard (2026-07-27)
+
+`MD_OPERATION` là nguồn duy nhất cho định nghĩa nghiệp vụ và engineering
+defaults. Confirmation Mode, Quantity Reporting, Material Scan, Output Label,
+Allow Partial Completion, Planning Enabled và các default Cycle/Setup/Base
+Quantity, Required Persons, Efficiency, Yield không được chỉnh sửa trong
+Routing.
+
+`MD_ROUTING_OPERATION` sở hữu cấu trúc kế hoạch: Work Center, Sequence,
+Predecessor, Scheduling, Queue/Move, Overlap, Transfer Batch và Milestone.
+Các giá trị chuẩn kế hoạch được lưu tại `MD_PRODUCTION_STANDARD` theo
+`RoutingOperationID`; Routing editor chỉ là giao diện thống nhất cho hai phần
+lưu trữ này. Work Order chụp các giá trị kế hoạch thành snapshot khi tạo và
+Compute & Check không đọc lại Operation Catalog.
+
+#### Kế thừa giá trị kế hoạch
+
+Routing Operation có `PlanningMode`: `INHERITED` hoặc `ROUTING_OVERRIDE`.
+Ở chế độ kế thừa, giao diện chỉ hiển thị giá trị đã phân giải và nguồn dữ
+liệu. Ở chế độ override, người dùng chủ động tạo hoặc thay thế Production
+Standard gắn với Routing Operation. Workstation Capability chỉ dùng để tư vấn
+năng lực và chọn nguồn lực, không được ghi đè định mức kế hoạch.
+
+Nguồn phân giải theo thứ tự: Production Standard của Routing đã Released,
+Production Standard Work Center đã Released, rồi engineering default của
+Operation. Công đoạn schedulable chưa phân giải đủ cycle time, base quantity,
+workers, efficiency hoặc yield không được Release. Work Order lưu lại toàn bộ
+giá trị và nguồn đã phân giải vào planning snapshot; thay đổi master data sau
+đó không thay đổi Work Order đã tạo.

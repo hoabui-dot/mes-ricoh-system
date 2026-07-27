@@ -980,7 +980,7 @@ app.MapPost("/api/commands/manual-override", async (
 
 // ── Dispatch Order command ──────────────────────────────────────────────────
 // Triggered by the Dispatch Dialog in the frontend. Takes a production order
-// and a dispatchTarget ("simulation" | "production-printer"), fetches queued
+// and a dispatchTarget ("production-printer"), fetches queued
 // jobs for that order from the job engine, then triggers each one.
 app.MapPost("/api/commands/dispatch-order", async (
     HttpContext ctx,
@@ -1006,11 +1006,13 @@ app.MapPost("/api/commands/dispatch-order", async (
     if (reqData is null) return Results.BadRequest(new { error = "Invalid request body" });
 
     var orderNo = reqData["orderNo"]?.ToString();
-    var dispatchTarget = reqData["dispatchTarget"]?.ToString() ?? "simulation";
+    var dispatchTarget = reqData["dispatchTarget"]?.ToString() ?? "production-printer";
     var notes = reqData["notes"]?.ToString() ?? "";
 
     if (string.IsNullOrEmpty(orderNo))
         return Results.BadRequest(new { error = "orderNo is required" });
+    if (!string.Equals(dispatchTarget, "production-printer", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest(new { error = "Only the real production-printer dispatch target is supported." });
 
     var jobEngineHost = Environment.GetEnvironmentVariable("JOB_ENGINE_HOST") ?? config["JobEngine:Host"] ?? "localhost";
     var jobEnginePort = Environment.GetEnvironmentVariable("JOB_ENGINE_PORT") ?? config["JobEngine:Port"] ?? "5002";
@@ -1097,6 +1099,22 @@ string PrinterAdapterBaseUrl()
     return $"http://{host}:{port}";
 }
 
+IResult PrinterAdapterUnavailable(Exception ex)
+{
+    var endpoint = "unconfigured";
+    try { endpoint = PrinterAdapterBaseUrl(); } catch { }
+    return Results.Problem(
+        title: "Printer Adapter unavailable",
+        detail: "The Print Station edge Printer Adapter could not be reached. Check the remote adapter URL and network connectivity.",
+        statusCode: StatusCodes.Status503ServiceUnavailable,
+        extensions: new Dictionary<string, object?>
+        {
+            ["dependency"] = "printer-adapter",
+            ["endpoint"] = endpoint,
+            ["error"] = ex.Message
+        });
+}
+
 async Task<IResult> ProxyPrinterAdapterGetAsync(string relativePath, HttpContext ctx, CancellationToken ct)
 {
     var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -1124,7 +1142,7 @@ async Task<IResult> ProxyPrinterAdapterGetAsync(string relativePath, HttpContext
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 502);
+        return PrinterAdapterUnavailable(ex);
     }
 }
 
@@ -1160,7 +1178,7 @@ async Task<IResult> ProxyPrinterAdapterPostAsync(string relativePath, HttpContex
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 502);
+        return PrinterAdapterUnavailable(ex);
     }
 }
 
@@ -1189,7 +1207,7 @@ async Task<IResult> ProxyPrinterAdapterPutAsync(string relativePath, HttpContext
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 502);
+        return PrinterAdapterUnavailable(ex);
     }
 }
 
@@ -1210,7 +1228,7 @@ async Task<IResult> ProxyPrinterAdapterDeleteAsync(string relativePath, HttpCont
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 502);
+        return PrinterAdapterUnavailable(ex);
     }
 }
 

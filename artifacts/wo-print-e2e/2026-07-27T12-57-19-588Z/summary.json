@@ -1,0 +1,346 @@
+{
+  "success": false,
+  "testMode": "demo-bypass",
+  "woId": "5fcf5c79-54b7-489d-928c-0f0477d0a02a",
+  "startedAt": "2026-07-27T12:57:19.590Z",
+  "completedAt": "2026-07-27T12:58:50.370Z",
+  "workOrderCode": "WO-20260727-0007",
+  "printOperationId": "68e00bbe-f609-4a8d-88cc-508a74280764",
+  "printJobId": null,
+  "responses": {
+    "remote-adapter-health": {
+      "status": 200,
+      "body": {
+        "status": "Healthy",
+        "service": "printer-adapter",
+        "kafka": {
+          "status": "Connected",
+          "bootstrapServers": "100.68.50.41:19092",
+          "clientId": "PRINT-ADAPTER-01",
+          "consumerGroup": "printer-adapter"
+        },
+        "cups": {
+          "status": "Connected",
+          "queue": "Zebra_Technologies_ZTC_GK420t",
+          "printerCode": "Zebra-GK420t-CUPS",
+          "driverStatus": "Online"
+        },
+        "redis": {
+          "status": "NotConfigured",
+          "reason": "Printer Adapter does not cache production commands in Redis."
+        },
+        "printers": {
+          "online": 1,
+          "offline": 0,
+          "error": 0,
+          "total": 1
+        },
+        "version": "1.0.0.0",
+        "printerCount": 1,
+        "uptimeSeconds": 2798,
+        "started": true
+      },
+      "url": "http://100.108.194.102:5003/api/health"
+    },
+    "remote-adapter-active-printers": {
+      "status": 200,
+      "body": [
+        {
+          "id": "a6ba14ac-9f77-4be2-a3aa-10cf08f7fd27",
+          "printerCode": "Zebra-GK420t-CUPS",
+          "displayName": "Zebra GK420t (Physical)",
+          "ipAddress": "host.docker.internal",
+          "port": 631,
+          "protocol": "ZPL",
+          "vendor": "ZEBRA",
+          "status": "ONLINE",
+          "driverType": "cups",
+          "cupsQueueName": "Zebra_Technologies_ZTC_GK420t",
+          "lastHeartbeatAt": "2026-07-27T12:57:05.7704583Z",
+          "isActiveForWork": true,
+          "activeTemplateId": "ec4d21ca-f60b-49c2-bc9c-1526de50bda8",
+          "activeTemplateName": "Vị trí kho / kệ / ô chứa",
+          "activatedAt": "2026-07-27T12:16:12.1411533Z",
+          "activatedBy": "full-flow-verification"
+        }
+      ],
+      "url": "http://100.108.194.102:5003/api/printers/active"
+    },
+    "master-data-health": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "service": "mes-master-data-service",
+        "uptime": 514.375906343,
+        "kafka": {
+          "status": "Connected"
+        },
+        "printStationRuntime": {
+          "status": "Connected"
+        }
+      },
+      "url": "http://localhost:13020/health"
+    },
+    "compute-check": {
+      "status": 200,
+      "body": {
+        "wo_id": "5fcf5c79-54b7-489d-928c-0f0477d0a02a",
+        "total_duration_minutes": 0,
+        "planned_start_at": "2026-07-27T13:00:00Z",
+        "planned_end_at": "2026-07-27T13:00:00Z",
+        "operations": [
+          {
+            "sequence_no": 10,
+            "operation_code": "OP-MIX",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "duration_minutes": 0,
+            "planned_start_at": "2026-07-27T13:00:00Z",
+            "planned_end_at": "2026-07-27T13:00:00Z"
+          },
+          {
+            "sequence_no": 20,
+            "operation_code": "OP-20260727-0001",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "duration_minutes": 0,
+            "planned_start_at": "2026-07-27T13:00:00Z",
+            "planned_end_at": "2026-07-27T13:00:00Z"
+          }
+        ],
+        "capacity_warnings": [
+          "Operation OP-MIX (Seq 10): Work Center calendar has no pre-scheduled availability window for 2026-07-27T13:00:00Z to 2026-07-27T13:00:00Z",
+          "Operation OP-20260727-0001 (Seq 20): Work Center calendar has no pre-scheduled availability window for 2026-07-27T13:00:00Z to 2026-07-27T13:00:00Z"
+        ],
+        "labor_warnings": [],
+        "labor_shortages": [],
+        "labor_assignments": []
+      }
+    },
+    "approve-wo": {
+      "status": 200,
+      "body": {
+        "approval_mode": "DEMO_RESOURCE_BYPASS",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "event_published": true,
+        "event_type": "MES.Execution.WOApproved.v1",
+        "status": "Released",
+        "wo_code": "WO-20260727-0007",
+        "wo_id": "5fcf5c79-54b7-489d-928c-0f0477d0a02a"
+      }
+    },
+    "start-execution": {
+      "status": 200,
+      "body": {
+        "queued_operations": 1,
+        "status": "InProgress",
+        "wo_id": "5fcf5c79-54b7-489d-928c-0f0477d0a02a"
+      }
+    },
+    "work-order-latest": {
+      "status": 200,
+      "body": {
+        "approval_logs": [
+          {
+            "action": "Approved",
+            "actor_role_code": "PLANT_MANAGER",
+            "actor_user_id": "00000000-0000-0000-0000-000000000001",
+            "comment": "E2E demo-bypass",
+            "log_id": "c33017d0-bced-4883-8c6f-f04d9e52c1d5",
+            "occurred_at": "2026-07-27T12:57:20.00291Z"
+          }
+        ],
+        "header": {
+          "created_at": "2026-07-27T12:57:11.284495Z",
+          "created_by": "00000000-0000-0000-0000-0000000000ad",
+          "item_code": "FG-WS-CM01-R1",
+          "item_name": "FG-WS-CM01 E2E Physical Print",
+          "item_revision_id": "16e323c4-0cb8-41e6-ad57-3f2c4810a1bf",
+          "production_version_id": "4186796b-a10f-4e6b-b8a2-5b67920420af",
+          "quantity": 1,
+          "row_version": 3,
+          "shift_id": null,
+          "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+          "status": "InProgress",
+          "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+          "wo_code": "WO-20260727-0007",
+          "wo_id": "5fcf5c79-54b7-489d-928c-0f0477d0a02a"
+        },
+        "material_requirements": [
+          {
+            "backflush_flag": true,
+            "component_item_code": "COMP",
+            "component_item_revision_id": "24448e3d-37f6-4ad9-a7b4-25b27a28305c",
+            "item_name": {
+              "vi": ""
+            },
+            "phantom_flag": false,
+            "required_qty": 1.01,
+            "requirement_id": "a53f0454-a030-4592-b98e-f66ba2ea120a",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "COMP",
+            "component_item_revision_id": "9ea40d00-7ff6-46d6-81f4-b40eed6c7376",
+            "item_name": {
+              "vi": ""
+            },
+            "phantom_flag": false,
+            "required_qty": 1.0404,
+            "requirement_id": "ba4a10ff-0ca4-4023-857e-0598f410b15d",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "COMP",
+            "component_item_revision_id": "44c9c7ea-65d6-4f3f-a02f-63aa13f0f97c",
+            "item_name": {
+              "vi": ""
+            },
+            "phantom_flag": true,
+            "required_qty": 0.15965,
+            "requirement_id": "2964aca1-a37b-4de5-8dc8-a6069dac548a",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "33347b97-cfe0-4f00-8131-de71e18ad258"
+          },
+          {
+            "backflush_flag": false,
+            "component_item_code": "COMP",
+            "component_item_revision_id": "be7fd508-7890-4e69-b8e6-519b78155542",
+            "item_name": {
+              "vi": ""
+            },
+            "phantom_flag": false,
+            "required_qty": 1.01505,
+            "requirement_id": "517d2019-b8bf-44b1-abb3-c622169ba6c6",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "COMP",
+            "component_item_revision_id": "c840f0f8-b665-425f-8349-d5bb1805ae5d",
+            "item_name": {
+              "vi": ""
+            },
+            "phantom_flag": false,
+            "required_qty": 0.01575,
+            "requirement_id": "59b255f7-58c5-4bcb-9c2e-6cebac264bfc",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "7e5e0575-4811-4bdd-9b08-bbfaa13c1be9"
+          }
+        ],
+        "operations": [
+          {
+            "adapter_id": "PRINT-ADAPTER-01",
+            "dispatch_event_id": "49e08d4c-c5db-4067-8799-4d4e469aea75",
+            "execution_target_type": "PRINT_STATION",
+            "operation_code": "OP-MIX",
+            "operation_name": {
+              "en": "Rubber Mixing",
+              "ja": "ゴム混練",
+              "ko": "고무 혼련",
+              "vi": "Luyện cán cao su"
+            },
+            "print_station_id": "6f56f652-bc6a-456e-a6b3-6284ab023f2d",
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 10,
+            "status": "DispatchQueued",
+            "wo_operation_id": "68e00bbe-f609-4a8d-88cc-508a74280764",
+            "work_center_code": "WC-CUTTING",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "work_center_name": {
+              "en": "Rubber Cutting Work Center",
+              "ja": "ゴム切断ワークセンター",
+              "ko": "고무 절단 워크센터",
+              "vi": "Trạm cắt cao su"
+            },
+            "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1"
+          },
+          {
+            "adapter_id": null,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "operation_code": "OP-20260727-0001",
+            "operation_name": {
+              "en": "OP-20260727-0001",
+              "ja": "OP-20260727-0001",
+              "ko": "OP-20260727-0001",
+              "vi": "OP-20260727-0001"
+            },
+            "print_station_id": null,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 20,
+            "status": "Pending",
+            "wo_operation_id": "864f7a64-eca6-47b6-94b3-e53d67932bbe",
+            "work_center_code": "WC-CUTTING",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "work_center_name": {
+              "en": "Rubber Cutting Work Center",
+              "ja": "ゴム切断ワークセンター",
+              "ko": "고무 절단 워크센터",
+              "vi": "Trạm cắt cao su"
+            },
+            "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1"
+          }
+        ]
+      }
+    }
+  },
+  "timeline": [
+    {
+      "at": "2026-07-27T12:57:19.594Z",
+      "stage": "test mode",
+      "status": "INFO",
+      "mode": "demo-bypass"
+    },
+    {
+      "at": "2026-07-27T12:57:19.619Z",
+      "stage": "service configuration",
+      "status": "PASS",
+      "mode": "true"
+    },
+    {
+      "at": "2026-07-27T12:57:20.018Z",
+      "stage": "approval",
+      "status": "PASS",
+      "mode": "demo-bypass"
+    },
+    {
+      "at": "2026-07-27T12:57:20.051Z",
+      "stage": "start execution",
+      "status": "PASS"
+    }
+  ],
+  "printStationCode": "PRINT-STATION-01",
+  "expectedPrinterCode": "Zebra-GK420t-CUPS",
+  "physicalPrintVerified": false,
+  "mesOperationCompleted": false,
+  "workOrderCompleted": false
+}

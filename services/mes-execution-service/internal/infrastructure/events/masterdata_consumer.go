@@ -38,9 +38,11 @@ func (c *MasterDataConsumer) Start() {
 	c.cancel = cancel
 
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:     c.brokers,
+		Brokers: c.brokers,
 		// Rebuild retained master-data projections after schema enrichment.
-		GroupID:     "mes-execution-readmodel-group-v3",
+		// Replay retained master-data events after adding localized Production Version
+		// identity and Item Revision UOM projection fields.
+		GroupID:     "mes-execution-readmodel-group-v6",
 		GroupTopics: masterDataTopics,
 		StartOffset: kafka.FirstOffset,
 	})
@@ -163,11 +165,12 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 	case "MES.MasterData.ItemRevisionReleased.v2":
 		revCode, _ := p["revision_code"].(string)
 		itemType, _ := p["item_type"].(string)
+		baseUOM, _ := p["base_uom_id"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, lifecycle_status, updated_at)
-			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, NOW())
-			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, string(nameJSON), revCode, itemType, siteID, status)
+			INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, lifecycle_status, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, NULLIF($7, '')::uuid, $8, NOW())
+			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, base_uom_id=EXCLUDED.base_uom_id, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
+		`, masterID, code, string(nameJSON), revCode, itemType, siteID, baseUOM, status)
 
 	case "MES.MasterData.MBOMReleased.v2":
 		baseQty, _ := p["base_quantity"].(float64)
@@ -179,22 +182,62 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 		`, masterID, code, string(nameJSON), siteID, baseQty, baseUOM, status)
 
 	case "MES.MasterData.RoutingReleased.v1":
+		log.Printf("[MasterDataConsumer] Projecting routing master_id=%s code=%s", masterID, code)
 		itemRevID, _ := p["item_revision_id"].(string)
-		_, _ = c.pool.Exec(ctx, `
+		if _, err := c.pool.Exec(ctx, `
 			INSERT INTO rm_routing_header (master_id, code, item_revision_id, site_id, lifecycle_status, updated_at)
-			VALUES ($1, $2, $3, $4, $5, NOW())
+			VALUES ($1, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, $5, NOW())
 			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, itemRevID, siteID, status)
+		`, masterID, code, itemRevID, siteID, status); err != nil {
+			log.Printf("[MasterDataConsumer] Routing projection failed master_id=%s: %v", masterID, err)
+		}
+		if operations, ok := p["operations"].([]interface{}); ok {
+			_, _ = c.pool.Exec(ctx, `DELETE FROM rm_routing_operation WHERE routing_header_id = $1`, masterID)
+			for _, raw := range operations {
+				op, ok := raw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				operationID, _ := op["operation_id"].(string)
+				workCenterID, _ := op["work_center_id"].(string)
+				operationCode, _ := op["operation_code"].(string)
+				operationMasterID, _ := op["master_id"].(string)
+				planningMode, _ := op["planning_mode"].(string)
+				resolvedSource, _ := op["resolved_source"].(string)
+				workstationID, _ := op["workstation_id"].(string)
+				requiresOutputLabel, _ := op["requires_output_label"].(bool)
+				seq, _ := op["seq"].(float64)
+				pred, predOK := op["predecessor_seq"].(float64)
+				base, _ := op["resolved_base_quantity"].(float64)
+				setup, _ := op["resolved_setup_time_min"].(float64)
+				cycle, _ := op["resolved_cycle_time_sec"].(float64)
+				workers, _ := op["resolved_required_workers"].(float64)
+				efficiency, _ := op["resolved_efficiency_factor"].(float64)
+				yieldValue, _ := op["resolved_standard_yield"].(float64)
+				if operationID == "" || workCenterID == "" || operationMasterID == "" {
+					continue
+				}
+				var predecessor interface{} = nil
+				if predOK {
+					predecessor = int(pred)
+				}
+				_, _ = c.pool.Exec(ctx, `INSERT INTO rm_routing_operation (master_id, routing_header_id, operation_id, operation_code, work_center_id, seq, predecessor_seq, planning_mode, resolved_source, resolved_base_quantity, resolved_setup_time_min, resolved_cycle_time_sec, resolved_required_workers, resolved_efficiency_factor, resolved_standard_yield, requires_output_label, workstation_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NULLIF($17, '')::uuid) ON CONFLICT (master_id) DO UPDATE SET routing_header_id=EXCLUDED.routing_header_id, operation_id=EXCLUDED.operation_id, operation_code=EXCLUDED.operation_code, work_center_id=EXCLUDED.work_center_id, seq=EXCLUDED.seq, predecessor_seq=EXCLUDED.predecessor_seq, planning_mode=EXCLUDED.planning_mode, resolved_source=EXCLUDED.resolved_source, resolved_base_quantity=EXCLUDED.resolved_base_quantity, resolved_setup_time_min=EXCLUDED.resolved_setup_time_min, resolved_cycle_time_sec=EXCLUDED.resolved_cycle_time_sec, resolved_required_workers=EXCLUDED.resolved_required_workers, resolved_efficiency_factor=EXCLUDED.resolved_efficiency_factor, resolved_standard_yield=EXCLUDED.resolved_standard_yield, requires_output_label=EXCLUDED.requires_output_label, workstation_id=EXCLUDED.workstation_id`, operationMasterID, masterID, operationID, operationCode, workCenterID, int(seq), predecessor, planningMode, resolvedSource, base, setup, cycle, int(workers), efficiency, yieldValue, requiresOutputLabel, workstationID)
+			}
+		}
 
 	case "MES.MasterData.ProductionVersionReleased.v1":
 		itemRevID, _ := p["item_revision_id"].(string)
 		mbomID, _ := p["mbom_header_id"].(string)
 		routingID, _ := p["routing_header_id"].(string)
+		nameI18n, _ := json.Marshal(p["name_i18n"])
+		if string(nameI18n) == "null" {
+			nameI18n = []byte(`{"vi":"","en":"","ja":"","ko":""}`)
+		}
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_production_version (master_id, code, item_revision_id, mbom_header_id, routing_header_id, site_id, lifecycle_status, is_default, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW())
-			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, itemRevID, mbomID, routingID, siteID, status)
+			INSERT INTO rm_production_version (master_id, code, name_i18n, item_revision_id, mbom_header_id, routing_header_id, site_id, lifecycle_status, is_default, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, true, NOW())
+			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name_i18n=EXCLUDED.name_i18n, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
+		`, masterID, code, string(nameI18n), itemRevID, mbomID, routingID, siteID, status)
 
 	case "MES.MasterData.ProductionStandardReleased.v1":
 		itemRevID, _ := p["item_revision_id"].(string)
@@ -203,11 +246,15 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 		setup, _ := p["setup_time_min"].(float64)
 		cycle, _ := p["cycle_time_sec"].(float64)
 		eff, _ := p["efficiency_factor"].(float64)
+		base, _ := p["base_quantity"].(float64)
+		yld, _ := p["standard_yield"].(float64)
+		labor, _ := p["labor_count"].(float64)
+		routingOperationID, _ := p["routing_operation_id"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_production_standard (master_id, item_revision_id, operation_id, work_center_id, setup_time_min, cycle_time_sec, efficiency_factor, lifecycle_status)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (master_id) DO UPDATE SET lifecycle_status=EXCLUDED.lifecycle_status
-		`, masterID, itemRevID, opID, wcID, setup, cycle, eff, status)
+			INSERT INTO rm_production_standard (master_id, item_revision_id, operation_id, work_center_id, setup_time_min, cycle_time_sec, efficiency_factor, routing_operation_id, base_quantity, standard_yield, labor_count, lifecycle_status)
+			VALUES ($1, NULLIF($2, '')::uuid, $3, $4, $5, $6, $7, NULLIF($8, '')::uuid, COALESCE(NULLIF($9, 0), 1), COALESCE(NULLIF($10, 0), 1), COALESCE(NULLIF($11, 0), 1), $12)
+			ON CONFLICT (master_id) DO UPDATE SET item_revision_id=EXCLUDED.item_revision_id, routing_operation_id=EXCLUDED.routing_operation_id, base_quantity=EXCLUDED.base_quantity, standard_yield=EXCLUDED.standard_yield, labor_count=EXCLUDED.labor_count, setup_time_min=EXCLUDED.setup_time_min, cycle_time_sec=EXCLUDED.cycle_time_sec, efficiency_factor=EXCLUDED.efficiency_factor, lifecycle_status=EXCLUDED.lifecycle_status
+		`, masterID, itemRevID, opID, wcID, setup, cycle, eff, routingOperationID, base, yld, labor, status)
 
 	case "MES.MasterData.WorkCenterActivated.v2":
 		areaID, _ := p["area_id"].(string)

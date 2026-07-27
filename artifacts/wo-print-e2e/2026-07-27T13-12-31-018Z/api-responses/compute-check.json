@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "body": {
+    "wo_id": "3c8dc68b-0ada-44dc-9a63-3bd0c6dc8501",
+    "total_duration_minutes": 0,
+    "planned_start_at": "2026-07-27T13:15:00Z",
+    "planned_end_at": "2026-07-27T13:15:00Z",
+    "operations": [
+      {
+        "sequence_no": 10,
+        "operation_code": "OP-MIX",
+        "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+        "duration_minutes": 0,
+        "planned_start_at": "2026-07-27T13:15:00Z",
+        "planned_end_at": "2026-07-27T13:15:00Z"
+      }
+    ],
+    "capacity_warnings": [
+      "Operation OP-MIX (Seq 10): Work Center calendar has no pre-scheduled availability window for 2026-07-27T13:15:00Z to 2026-07-27T13:15:00Z"
+    ],
+    "labor_warnings": [],
+    "labor_shortages": [],
+    "labor_assignments": []
+  }
+}
