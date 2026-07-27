@@ -9,9 +9,9 @@ Tài liệu đặc tả các quan hệ bắt buộc giữa các bảng Master Da
 | Thực thể nguồn | Thực thể đích | Tỷ lệ quan hệ (Cardinality) | Quy tắc nghiệp vụ & Ràng buộc toàn vẹn |
 | :--- | :--- | :---: | :--- |
 | `MD_ITEM` | `MD_ITEM_REVISION` | `1 : N` | Lệnh sản xuất (WO) bắt buộc phải tham chiếu trực tiếp đến `ItemRevisionID` cụ thể, không chỉ dùng `ItemID` chung. |
-| `MD_ITEM_REVISION` | `MD_MBOM_HEADER` | `1 : N` | Một Revision sản phẩm có thể có nhiều cấu trúc MBOM tùy thuộc theo Nhà máy (`SiteID`) hoặc phiên bản BOM (`MBOMVersion`). |
+| `MD_ITEM_REVISION` | `MD_MBOM_HEADER` | `Không có quan hệ trực tiếp` | MBOM là master data độc lập. Production Version là nơi liên kết Item Revision, MBOM và Routing. |
 | `MD_MBOM_HEADER` | `MD_MBOM_LINE` | `1 : N` (Cây) | Sử dụng trường `ParentLineID` để thiết lập cây định mức đa cấp. Hệ thống bắt buộc phải kiểm tra chống vòng lặp (Cycle Check). |
-| `[ItemRevision + MBOM + Routing]` | `MD_PRODUCTION_VERSION` | `N : 1` | `Production Version` là bộ khóa cấu hình chính thức duy nhất được phép sử dụng để phát hành Lệnh sản xuất (WO). |
+| `[ItemRevision + MBOM + Routing]` | `MD_PRODUCTION_VERSION` | `N : 1` | `Production Version` là bộ khóa cấu hình chính thức duy nhất được phép sử dụng để phát hành Lệnh sản xuất (WO); ba thực thể được chọn độc lập và phải thỏa các điều kiện hiệu lực/Site được nêu rõ. |
 | `MD_ROUTING_HEADER` | `MD_ROUTING_OPERATION` | `1 : N` | Thứ tự thực hiện công đoạn được xác định bởi `SequenceNo` và danh sách phụ thuộc `PredecessorSeq`. |
 | `MD_ROUTING_OPERATION` | `MD_WORK_CENTER` | `N : 1` | `Work Center` đóng vai trò là cụm tài nguyên năng lực logic mặc định để gán cho từng bước công đoạn. |
 | `Work Center` $\leftrightarrow$ `Workstation` $\leftrightarrow$ `Equipment` | `MD_RESOURCE_ASSIGNMENT` | `N : N` | Mối quan hệ gán giữa cụm máy logic, trạm thực thi và máy vật lý được quản lý qua bảng gán có hiệu lực thời gian (`EffectiveFrom`/`To`). |
@@ -31,7 +31,7 @@ Trước khi chuyển trạng thái một cấu hình sản xuất (`Production 
 | STT | Bảng / Đối tượng kiểm tra | Điều kiện kiểm tra toàn vẹn | Hành vi hệ thống khi vi phạm |
 | :---: | :--- | :--- | :--- |
 | **1** | **Item Revision** | Phải ở trạng thái `Status = Released` và thời gian hiện tại nằm trong khoảng `[EffectiveFrom, EffectiveTo]`. | **Block Release:** Báo lỗi phiên bản kỹ thuật sản phẩm chưa được phê duyệt hoặc đã hết hiệu lực. |
-| **2** | **MBOM** | MBOM Header phải chứa ít nhất 1 dòng chi tiết; không bị vòng lặp cây BOM; định mức `QuantityPer > 0`; đơn vị `UOMID` hợp lệ. | **Block Release:** Báo lỗi cấu trúc BOM rỗng, sai định mức hoặc vi phạm vòng lặp dữ liệu. |
+| **2** | **MBOM** | MBOM Header Released/effective phải chứa ít nhất 1 dòng chi tiết; không bị vòng lặp cây BOM; định mức `QuantityPer > 0`; đơn vị `UOMID` hợp lệ. MBOM không bị kiểm tra theo Item Revision. | **Block Release:** Báo lỗi cấu trúc BOM rỗng, sai định mức hoặc vi phạm vòng lặp dữ liệu. |
 | **3** | **Phantom Component** | Dòng vật tư có cờ `PhantomFlag = Yes` bắt buộc phải có một MBOM con ở trạng thái `Released` còn hiệu lực. | **Block Release:** Báo lỗi bán thành phẩm ảo (Phantom) thiếu cấu trúc định mức cấp dưới. |
 | **4** | **Routing** | Routing Header phải chứa ít nhất 1 công đoạn; không trùng `SequenceNo`; danh sách `PredecessorSeq` không tạo vòng lặp logic. | **Block Release:** Báo lỗi quy trình công nghệ rỗng, trùng bước hoặc phụ thuộc vòng lặp. |
 | **5** | **Work Center** | Cụm máy mặc định (`DefaultWorkCenterID`) phải ở trạng thái `Status = Active` và thuộc đúng Nhà máy (`SiteID`). | **Block Release:** Báo lỗi Work Center không tồn tại, bị khóa hoặc sai lệch phân vùng nhà máy. |

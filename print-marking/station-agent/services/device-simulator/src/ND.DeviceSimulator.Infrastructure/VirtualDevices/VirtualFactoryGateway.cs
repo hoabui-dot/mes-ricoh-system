@@ -22,7 +22,7 @@ namespace ND.DeviceSimulator.Infrastructure.VirtualDevices;
 /// Virtual Factory Gateway — MQTT client that connects to the broker.
 /// Publishes UnifiedEvent format messages (manual or scheduled).
 /// Subscribes to command topics and forwards to timeline.
-/// Also publishes DeviceStatusHeartbeat to RabbitMQ so the projection-service
+/// Also publishes DeviceStatusHeartbeat to Kafka so the projection-service
 /// and kiosk UI reflect gateway online/offline state in real time.
 /// </summary>
 public sealed class VirtualFactoryGateway : BackgroundService
@@ -32,7 +32,7 @@ public sealed class VirtualFactoryGateway : BackgroundService
     private readonly ISimulatorStateService _state;
     private readonly IHubContext<SimulatorHub, ISimulatorClient> _hub;
     private readonly IConfiguration _config;
-    private readonly IRabbitMqPublisher _rabbitPublisher;
+    private readonly IEventPublisher _kafkaPublisher;
     private readonly ILogger<VirtualFactoryGateway> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts  = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
@@ -48,14 +48,14 @@ public sealed class VirtualFactoryGateway : BackgroundService
         ISimulatorStateService state,
         IHubContext<SimulatorHub, ISimulatorClient> hub,
         IConfiguration config,
-        IRabbitMqPublisher rabbitPublisher,
+        IEventPublisher kafkaPublisher,
         ILogger<VirtualFactoryGateway> logger)
     {
         _scopeFactory    = scopeFactory;
         _state           = state;
         _hub             = hub;
         _config          = config;
-        _rabbitPublisher = rabbitPublisher;
+        _kafkaPublisher = kafkaPublisher;
         _logger          = logger;
     }
 
@@ -69,8 +69,8 @@ public sealed class VirtualFactoryGateway : BackgroundService
         _state.SetGatewayConnected(false);
         await _hub.Clients.All.SimulatorStatusUpdated(_state.GetStatus());
 
-        // Immediately publish offline heartbeat to RabbitMQ so projection-service + kiosk UI update now
-        await PublishRabbitHeartbeatAsync(isOnline: false, ct);
+        // Immediately publish offline heartbeat to Kafka so projection-service + kiosk UI update now
+        await PublishKafkaHeartbeatAsync(isOnline: false, ct);
 
         _logger.LogInformation("Factory Gateway MQTT manually disconnected via API");
     }
@@ -104,7 +104,7 @@ public sealed class VirtualFactoryGateway : BackgroundService
                 await _hub.Clients.All.SimulatorStatusUpdated(_state.GetStatus());
 
                 // Publish offline heartbeat on unexpected disconnect
-                await PublishRabbitHeartbeatAsync(isOnline: false, stoppingToken);
+                await PublishKafkaHeartbeatAsync(isOnline: false, stoppingToken);
 
                 await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
             }
@@ -146,8 +146,8 @@ public sealed class VirtualFactoryGateway : BackgroundService
             _state.SetGatewayConnected(false);
             await _hub.Clients.All.SimulatorStatusUpdated(_state.GetStatus());
 
-            // Publish offline heartbeat to RabbitMQ on any unexpected disconnect
-            await PublishRabbitHeartbeatAsync(isOnline: false, CancellationToken.None);
+            // Publish offline heartbeat to Kafka on any unexpected disconnect
+            await PublishKafkaHeartbeatAsync(isOnline: false, CancellationToken.None);
             _logger.LogWarning("Gateway MQTT disconnected");
         };
 
@@ -162,7 +162,7 @@ public sealed class VirtualFactoryGateway : BackgroundService
         await _hub.Clients.All.SimulatorStatusUpdated(_state.GetStatus());
 
         // Publish initial online heartbeat immediately on connect
-        await PublishRabbitHeartbeatAsync(isOnline: true, ct);
+        await PublishKafkaHeartbeatAsync(isOnline: true, ct);
 
         _logger.LogInformation("VirtualFactoryGateway connected to MQTT {Host}:{Port}, subscribed to {Topic}", host, port, subscribeTopic);
     }
@@ -177,9 +177,9 @@ public sealed class VirtualFactoryGateway : BackgroundService
             // heartbeat — this was the race condition causing kiosk UI to snap back to Online.
             if (_forceDisconnected) break;
 
-            // Publish gateway-01 heartbeat to RabbitMQ every 3s.
+            // Publish gateway-01 heartbeat to Kafka every 3s.
             // DeviceStatusPoller marks device offline after 10s silence — so 3s interval keeps it alive.
-            await PublishRabbitHeartbeatAsync(isOnline: true, ct);
+            await PublishKafkaHeartbeatAsync(isOnline: true, ct);
 
             var enabled = (_config["Simulator:GATEWAY_AUTO_PUBLISH_ENABLED"] ?? "false") == "true";
             if (!enabled) continue;
@@ -193,11 +193,11 @@ public sealed class VirtualFactoryGateway : BackgroundService
 
 
     /// <summary>
-    /// Publishes a DeviceStatusHeartbeat to RabbitMQ station.events exchange.
+    /// Publishes a DeviceStatusHeartbeat to Kafka station.events exchange.
     /// Consumed by projection-service HandleDeviceHeartbeatAsync → updates device status
     /// table → pushes OnDeviceStatusUpdate via SignalR to kiosk UI.
     /// </summary>
-    private async Task PublishRabbitHeartbeatAsync(bool isOnline, CancellationToken ct)
+    private async Task PublishKafkaHeartbeatAsync(bool isOnline, CancellationToken ct)
     {
         try
         {
@@ -211,13 +211,13 @@ public sealed class VirtualFactoryGateway : BackgroundService
             );
             var routingKey = $"device.heartbeat.{GatewayDeviceId}";
             var json = JsonSerializer.Serialize(hb, CamelOpts);
-            await _rabbitPublisher.PublishAsync(Exchange, routingKey, json, ct);
-            _logger.LogDebug("Published gateway heartbeat → RabbitMQ: isOnline={IsOnline}", isOnline);
+            await _kafkaPublisher.PublishAsync(Exchange, routingKey, json, ct);
+            _logger.LogDebug("Published gateway heartbeat → Kafka: isOnline={IsOnline}", isOnline);
         }
         catch (Exception ex)
         {
-            // Non-fatal — don't crash gateway loop if RabbitMQ is temporarily unavailable
-            _logger.LogWarning(ex, "Failed to publish gateway heartbeat to RabbitMQ");
+            // Non-fatal — don't crash gateway loop if Kafka is temporarily unavailable
+            _logger.LogWarning(ex, "Failed to publish gateway heartbeat to Kafka");
         }
     }
 

@@ -78,7 +78,7 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 ## B3. MD_MBOM_HEADER — MBOM Header
 
 ### 1. Thông tin chung (Overview)
-- **Mục đích:** Định nghĩa cấu trúc sản xuất đa cấp của một phiên bản thành phẩm tại một Nhà máy (Site).
+- **Mục đích:** Định nghĩa cấu trúc sản xuất đa cấp độc lập tại một Nhà máy (Site). MBOM không sở hữu Item Revision; Production Version là nơi liên kết MBOM với Item Revision và Routing.
 - **Mức ưu tiên:** MVP-Core
 - **Data Owner đề xuất:** Kỹ thuật sản xuất
 
@@ -88,7 +88,6 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 | :--- | :--- | :---: | :--- | :--- |
 | `MBOMID` | UUID | Có | `MBOM-FG001-V1` | Khóa chính MBOM Header. |
 | `MBOMCode` | String(50) | Có | `MBOM-FG001` | Mã định danh MBOM. |
-| `ProductRevisionID` | UUID | Có | `REV-FG001-R2` | Tham chiếu Revision thành phẩm đầu ra. |
 | `SiteID` | UUID | Có | `SITE-HN01` | Nhà máy áp dụng MBOM. |
 | `MBOMVersion` | Integer | Có | `1` | Số phiên bản cấu trúc BOM. |
 | `BaseQuantity` | Decimal(18,6) | Có | `1.000000` | Sản lượng cơ sở dùng để tính định mức. |
@@ -215,5 +214,5 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 | **UC-TRACE-01** | Quản lý | Truy xuất thông tin cấu hình đã dùng để tạo WO. | Dữ liệu lịch sử cấu hình sản xuất bất biến. |
 
 ### 4. Quy tắc kiểm soát dữ liệu (Validation Rules)
-- `MBOMID` và `RoutingID` được liên kết bắt buộc phải thuộc cùng một `SiteID` và cùng một `ProductRevisionID`.
+- `MBOMID` và `RoutingID` được liên kết trong Production Version phải thỏa điều kiện cùng `SiteID`; Item Revision là quan hệ độc lập do chính Production Version lưu giữ.
 - Tại một thời điểm, chỉ cho phép duy nhất một bản ghi có `DefaultFlag = Yes` có hiệu lực cho cùng một tổ hợp `[ProductRevisionID + SiteID + Khoảng LotSize]`.

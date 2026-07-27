@@ -1,6 +1,6 @@
 # AI_CONTEXT.md - Canonical Full Context for AI Agents
 
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 Repository: `/home/neurosus/mes-system`
 Project: S-Factory MOM Platform - MES / WMS / QMS
 Audience: AI agents, engineers, architects, and maintainers continuing this codebase.
@@ -15,6 +15,40 @@ This is the first file to read before making changes in this repository. It cons
 
 This document is intentionally long. It is designed to let a new AI agent understand the system without
 needing to rediscover the whole repository from scratch.
+
+## Current Print Adapter Transport Snapshot (2026-07-26)
+
+The independent Printer Adapter transport was restored from the recent HTTP-only
+refactor. This is the current evidence-based state and supersedes older
+HTTP-primary notes in historical implementation reports:
+
+- `IMPLEMENTED_AND_VERIFIED`: Job Engine writes production batch print
+  commands to its SQLite outbox with routing key
+  `command.printer.print.batch`; the scheduler does not call adapter
+  `POST /api/print` during production execution.
+- `IMPLEMENTED_AND_VERIFIED`: Printer Adapter consumes batch and single print
+  commands from remote/shared RabbitMQ exchange `station.events`, then
+  publishes `printer.batch.printed` and printer failure events.
+- `IMPLEMENTED_AND_VERIFIED`: Adapter command `event_id` is protected by the
+  unique SQLite table `printer_command_executions` before physical I/O. A local
+  private-broker replay test produced no second physical print.
+- `IMPLEMENTED_AND_VERIFIED`: Adapter emits periodic `printer.heartbeat` and
+  only-on-change `printer.status.changed`; Projection consumes those events
+  and pushes printer state through its existing SignalR path to Kiosk.
+- `IMPLEMENTED_AND_VERIFIED`: Remote connection variables are
+  `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`,
+  `RABBITMQ_VHOST`, `RABBITMQ_USE_TLS`, and `RABBITMQ_CONNECTION_NAME`.
+- `IMPLEMENTED_AND_VERIFIED`: standalone compose is
+  `print-marking/station-agent/docker-compose.printer-adapter.yml`; it does
+  not start a duplicate RabbitMQ or Redis container.
+- `IMPLEMENTED_AND_VERIFIED`: root `docker-compose.print-adapter.yml` has
+  direct demo broker values `100.68.50.41:5673`, `/`, and `guest/guest`, with
+  no `${...}` substitutions. Production must use a dedicated broker account.
+- `IMPLEMENTED_AND_VERIFIED`: ARM64 Docker Hub push for
+  `vanhoadotbui2628/printer-adapter:rabbitmq-remote-20260727` completed; the
+  remaining unverified items are production TLS credentials, physical
+  cross-server deployment, and live broker outage recovery. See
+  `implementation/printer-adapter-independent-rabbitmq-service.md`.
 
 ## 0. Source Of Truth Rules
 
@@ -3584,7 +3618,7 @@ the current `product-doc` catalogs, and runtime source under `services/mes-maste
 - `md_item_revision` has item, revision code, site, default flag, and common lifecycle/audit columns.
   Specification reference, effective dates, change reason, and released-by are not present in the
   running table. **CONFLICTING_SOURCES**.
-- `md_mbom_header` has item revision, site, business version, purpose, localized name/description,
+- `md_mbom_header` has Site, business version, purpose, localized name/description,
   quantities/UOM and engineering fields. Product-document lifecycle/effective fields are represented
   through common columns where available; the documented header naming is not a separate runtime code
   field. **CONFLICTING_SOURCES**.
@@ -3596,11 +3630,10 @@ the current `product-doc` catalogs, and runtime source under `services/mes-maste
   lifecycle/audit columns. Product-document lot-size and effective-date fields are absent.
   **CONFLICTING_SOURCES**.
 
-### 39.2 Confirmed missing capabilities
+### 39.2 Confirmed missing capabilities at the time of the 2026-07-24 audit
 
-- The Production Version route is currently a read/navigation aggregator; there is no dedicated
-  `/master-data/production-versions/new` or `/:id/edit` screen. The generic backend registry exposes
-  the resource but does not provide the requested constrained CRUD workflow. **MISSING**.
+- The Production Version CRUD gap described in this historical audit was subsequently closed. See
+  section 74 for the current create/edit flow and server-side constraints. **HISTORICAL_FINDING**.
 - No `md_ebom_*` table, EBOM route, or EBOM console screen exists in the repository. **MISSING**.
 - `md_operation_skill_requirement` exists and is seeded, but no routing-operation skill editor and no
   employee eligibility/scoring/assignment logic exists in Work Order Compute & Check. **PARTIALLY_IMPLEMENTED**
@@ -3637,7 +3670,8 @@ Evidence report: `implementation-expand/Cross-Doc-Reconciliation-EBOM-Labor-PV-I
 Master-data migration `0010_ebom_and_mbom_traceability` is applied in the running container and adds
 EBOM header/line data plus MBOM source-line traceability. `/master-data/eboms` supports design-tree
 create/release and released-EBOM-to-MBOM-draft conversion. Production Version create/edit routes use
-server-side Item Revision/Site/Released MBOM/Routing predicates. Item create/edit/deactivate handles
+server-side Item Revision/Released MBOM/Routing predicates; Production Version Site is derived from
+the selected MBOM rather than entered by the client. Item create/edit/deactivate handles
 required Base UOM.
 
 Execution migration `000009_labor_assignments_and_read_models` is applied and Compute & Check returns
@@ -4335,3 +4369,209 @@ were applied and the conversion query was qualified. Command: `npm run verify:me
 hydration, edit/remove, cycle rejection, release immutability, MBOM conversion, source-line traceability,
 and unchanged EBOM content. The demo fixtures retained by the run are EBOM
 `a14152d7-144a-4961-aac6-91d4d34ab065` and MBOM `6d33d665-89c3-4f54-99dd-4d91379ac9b0`.
+## Latest MES Work Order Selector Fix (2026-07-26)
+
+The MES Console Work Order form uses `GET /api/mes/master-data/production-ready-item-revisions`. The endpoint intentionally returns only configurations that pass the full production-readiness validator; an Item being `Released` alone is insufficient. Migration `0034_repair_released_production_configuration_capabilities` repairs the demo routing graph by ensuring each routed Work Center has an active Workstation, matching Work Center composition, and matching Workstation operation capability. `services/mes-master-data-service/src/infrastructure/db/seed.ts` contains the same graph for clean installs. After rebuilding the service, the live endpoint returned two ready products for `planned_date=2026-08-01`, each containing `item_revision_id`, `production_version_id`, `base_uom_id`, `site_id`, MBOM, Routing, and UOM fields. Do not weaken the endpoint by returning released-but-invalid configurations; investigate readiness validation failures instead. Report: `implementation/mes-work-order-product-selector-readiness-fix.md`.
+
+The Work Order creation WebSocket in `services/mes-console/src/routes/work-orders/WOCreateScreen.tsx` must use URL parsing for transport conversion. `https:` becomes `wss:` and `http:` becomes `ws:`; replacing the string prefix `http` with `wss` creates the invalid `wsss:` scheme. Report: `implementation/mes-work-order-websocket-scheme-fix.md`.
+
+## 68. Printer Adapter Virtual Simulator Listener Fix (2026-07-26)
+
+Implementation report: `implementation/printer-adapter-virtual-simulator-listener-race-fix.md`.
+
+`VirtualPrinterSimulator` had two related startup/runtime problems. `SetOnlineAsync` could stop a listener while `RunListenerAsync` was awaiting `AcceptTcpClientAsync`, causing the expected transition to be logged as `Not listening`. The SQLite printer data also contained `Printer-01` and `printer-01` on the same TCP port `9100`; the duplicate bind failed with `Address already in use` and entered a retry loop.
+
+The simulator now synchronizes listener start/stop ownership, captures the exact listener instance before accept, classifies replaced/stopped listeners as expected lifecycle races, and preserves real bind errors. Startup groups simulation records by TCP port and deterministically retains one endpoint per port while logging the duplicate configuration. The same source was compiled into the published ARM64-only image `vanhoadotbui2628/printer-adapter:independent-http-20260726` and runtime-tested with a temporary AMD64 image on this host: three listeners started, health returned `healthy`, and no `Not listening` loop occurred. The ARM image cannot run on the local AMD64 host without emulation; deploy it on an ARM64 host.
+
+## 67. MES Print Station Integration (2026-07-26)
+
+Implementation report: `implementation/mes-print-station-workstation-integration.md`.
+Process source: `process/Implement-MES-Print-Station-Integration-+-Workstation-Binding-+-Seeded-End-to-End-Flow.md`.
+
+Print Stations are separate MES master-data resources from Workstations, physical Machines, the Station Agent Gateway, and the Printer Adapter. Migration `0035_print_stations_and_workstation_bindings` creates `md_print_station` and `md_workstation_print_station_binding`. The station owns business code, localized identity, Site/optional Shopfloor, Gateway URL, deployment mode, capabilities, lifecycle status, software and health projection. Bindings own Workstation relationship, Primary/Backup role, effective dates, active state, and audit history. Same-Site and compatible Shopfloor validation is mandatory; the database prevents overlapping open active Primary bindings.
+
+The deployed API is mounted under `/api/mes/master-data`: Print Station list/create/detail/update/soft-disable, Gateway health test/projection, station Workstation projection, binding list/create/update/delete, and effective Primary/Backup resolution. Health probes the Station Gateway `/health`, not the Printer Adapter. Resolver excludes disabled stations, prefers Primary, then Backup, and warns when the selected station is Offline/Degraded. Current effective binding deactivation is conservatively blocked with `PRINT_BINDING_ACTIVE_REQUIRES_SAFE_REALLOCATION` because master-data does not own the execution database and cannot safely inspect active Work Order dependencies; historical bindings remain auditable.
+
+MES Console route `/master-data/print-stations` uses shared shadcn/Radix components and VI/EN/JA/KO translations for station details, status/mode/capabilities, connection test, and binding management. Seed and verification are idempotent and use `npm run seed:mes:print-workstation`, optional `--health`, and `npm run verify:mes:print-workstation`. The demo station is `PRINT-STATION-01` at `SITE-KZ3`, bound Primary to `WS-MOLD-KIOSK01`, with Station Gateway `http://100.68.50.41:5001`; live verification confirmed `ONLINE` and resolver selection. The Console build and Docker runtime route returned HTTP 200.
+
+## 69. Printer Adapter Two-Architecture Build Command (2026-07-26)
+
+Implementation report: `implementation/printer-adapter-two-architecture-build-command.md`.
+
+Run `npm run build:printer-adapter:images` from the repository root. The script first builds `printer-adapter:local-amd64` with `linux/amd64` and loads it for local verification. It then builds and pushes `vanhoadotbui2628/printer-adapter:independent-http-20260726` with `linux/arm64`. The stable Docker Hub tag must remain ARM64-only; the AMD64 image is intentionally a separate local tag and is never pushed over the deployment tag. The script prints image name, platform, environment type, and the final registry manifest. Override references with `PRINTER_ADAPTER_LOCAL_IMAGE` or `PRINTER_ADAPTER_IMAGE` when releasing a different tag.
+
+## 70. Print Station Kiosk Admin Login Seed (2026-07-26)
+
+Implementation report: `implementation/print-station-kiosk-admin-login-seed.md`.
+
+Kiosk UI is the service on port `5007`; its database is `sqlite-databases/kiosk.db`, initialized by `KioskDbSeeder` at startup. The canonical demo login is `admin` / `admin123`. The legacy `admin123` / `admin123` account remains available for compatibility. The seeder idempotently ensures both accounts are active, have valid BCrypt hashes, and have the `SUPER_ADMIN` role without deleting unrelated data. Both accounts are protected from delete/disable operations. After rebuilding `station-kiosk-ui`, live login verification returned HTTP 200 for both accounts and the health endpoint returned HTTP 200.
+
+## 71. Kiosk Label Template 502 Upstream Recovery (2026-07-26)
+
+Implementation report: `implementation/kiosk-label-template-502-upstream-fix.md`.
+
+Kiosk `/api/label-templates/active` is a proxy to Printer Adapter `http://100.68.50.41:5003`. A 502 with `Connection refused` means the Printer Adapter is unavailable; it is not a missing Kiosk route. The stable Printer Adapter Docker Hub tag is ARM64-only, while the current development host is AMD64. Use `docker-compose.print-adapter.local-amd64.yml` with the base compose for local runtime, and use only the base compose on an ARM64 deployment host. After restoring `printer-adapter:local-amd64`, direct and authenticated proxied active-template requests returned HTTP 200 and the default published template.
+## 72. Station Print Architecture Kafka Migration and Edge Runtime (2026-07-27)
+
+This section is authoritative for the current runtime; earlier RabbitMQ
+sections in this file are historical implementation records.
+
+Implementation report: `implementation/print-station-rabbitmq-to-kafka-and-mes-edge-integration.md`.
+
+The current Station Agent transport is Kafka, not RabbitMQ. Shared .NET
+transport is implemented in `print-marking/station-agent/shared/ND.Infrastructure/Messaging`.
+Logical printer routing keys map to `station.commands.printer`,
+`station.events.printer`, `station.events.jobs`, `station.events.devices`,
+`station.events.production`, `station.events.integration`, and `station.dlq`.
+The .NET envelope serializes PascalCase fields; consumers accept both casing
+styles and unwrap both `Payload` and `payload`. Physical print commands use
+SQLite command reservations and require an explicit physical printer target.
+
+Platform Kafka is `platform-kafka` on `platform-net`, internal address
+`kafka:29092`, external advertised address `100.68.50.41:19092`. Station Agent
+Compose no longer declares a local Rabbit/Kafka broker. Obsolete
+`station-rabbitmq` and `production-station-rabbitmq` containers were removed;
+the separate legacy `mes-rabbitmq` was intentionally not removed without an
+independent stack audit.
+
+MES Print Station master data remains separate from Workstations and Machines.
+Migration `0036_print_station_runtime_projection` adds runtime state and
+event-ID deduplication. MES consumes `station.events.printer` and exposes
+`GET /api/mes/master-data/print-stations/:id/runtime` plus
+`GET /api/mes/master-data/workstations/:id/print-station-readiness`. Runtime
+verification received the real `Zebra-GK420t-CUPS` heartbeat and projected one
+printer with Kafka connected and printer offline on this host because CUPS is
+unreachable. Physical exactly-once printing, production TLS/ACLs, and broker
+outage recovery remain open deployment-host gates.
+
+The root standalone `docker-compose.print-adapter.yml` maps
+`PRINT_STATION_ID=PRINT-STATION-01` and `PRINTER_ADAPTER_ID=PRINT-ADAPTER-01`
+to Kafka `100.68.50.41:19092`. Workstation binding remains owned by MES
+Master Data and is not duplicated in the edge compose file.
+
+Monitoring UI runtime note: Mac deployment uses the standard `5010:5010`
+mapping and the fresh image `printer-adapter-ui:kafka-monitoring-20260727`.
+Verification on this development host used temporary port `5015` because
+`5010` through `5014` are occupied. The UI calls the separately deployed
+adapter through `http://100.68.50.41:5003`; live summary, printer, and Kafka
+endpoints return HTTP 200. The adapter can still report Degraded when the
+physical CUPS queue is offline.
+
+Co-located Mac Compose correction (2026-07-27): the root
+`docker-compose.print-adapter.yml` runs the Adapter and Monitoring UI together,
+so `PRINTER_ADAPTER_URL` must be `http://printer-adapter:5003`. Do not use
+`localhost` from the UI container and do not use the published host IP for this
+internal call. The Adapter reaches the Mac CUPS daemon through
+`host.docker.internal:631` (`CUPS_HEALTH_HOST` and `CUPS_HEALTH_PORT`). See
+`implementation/printer-adapter-colocated-mac-compose-and-cups-diagnosis.md`.
+The previously running legacy container had `CUPS_SERVER=127.0.0.1:8631`,
+which overrode those settings and caused a self-container connection refusal;
+recreate it from the current Compose file to remove that stale environment.
+
+MES Print Station capacity model (2026-07-27): one Print Station may serve many
+Workstations, while each current Workstation has at most one station binding.
+Bindings reserve positive `allocated_printer_quantity`; physical printer IDs
+remain internal to the Edge Adapter. Effective MES allocation capacity is the
+minimum of `configured_allocation_limit` (when set) and runtime
+`active_for_work_printer_count`. Runtime projection now distinguishes
+registered, ready, busy, offline, error, and active-for-work counts. Over-
+allocation is retained and reported as a deficit; it never deletes bindings.
+Migration `0037_print_station_capacity_allocation`, candidate filtering, row
+locking, and UI/API integration are documented in
+`implementation-fix/Complete-MES-Print-Station-Workstation-Capacity-Allocation-and-Runtime-Visibility.md`.
+
+## 73. Superseded Production Version MBOM Selection (2026-07-27)
+
+This section is historical and is superseded by section 74. It documented the
+temporary model that filtered MBOM by Item Revision and derived Production
+Version Site from MBOM. The current domain no longer permits that relationship.
+
+Implementation report: `implementation-fix/production-version-mbom-selection-and-derived-site.md`.
+
+The Create/Edit Production Version form no longer exposes a user-editable Production Site field.
+`md_mbom_header.item_revision_id` is required by the schema, so the MBOM selector must request only
+Released MBOM headers for the selected Item Revision. The backend API is authoritative for this filter.
+For the live request tested on 2026-07-27:
+
+`GET /api/mes/master-data/mbom-headers?limit=500&item_revision_id=16e323c4-0cb8-41e6-ad57-3f2c4810a1bf&lifecycle_status=Released`
+
+returned HTTP 200 with one row: `MBOM-FG-WS-CM01-R1`, lifecycle `Released`, and the exact requested
+`item_revision_id`. A second Released MBOM may belong to another Item Revision; it should not appear
+for this selected revision.
+
+The console clears stale dependency rows when Item Revision changes and treats the already-filtered API
+response as authoritative. It does not apply a second local Item Revision/Site filter that could hide a
+valid response. Selecting an MBOM derives the hidden `site_id` form value from `mbom.site_id`; the client
+does not choose or authoritatively submit Site.
+
+The master-data POST/PUT handlers validate that the selected MBOM is Released and belongs to the selected
+Item Revision, then derive `md_production_version.site_id` from that MBOM. Migration
+`0038_production_version_site_derived_from_mbom` normalizes legacy mismatches and installs a database
+trigger that prevents a Production Version from persisting a mismatched Site. The `site_id` column is
+intentionally retained because readiness validation, Work Order creation, resource planning, and existing
+execution queries use it as a required execution key. This is a server/database ownership change, not a
+client-only workaround.
+
+MES Console and MES Master Data Service builds passed after the change. Live database migration execution
+and browser verification were not run from this environment because the local Docker/Postgres runtime is
+not accessible; deploy/restart the master-data service to apply migration 0038 and rebuild the Console to
+serve the updated bundle.
+
+## 74. MBOM Independence from Item Revision (2026-07-27)
+
+Process source: `process-fix/Decouple-MBOM-from-Item-Revision-Across-the-MES-Platform.md`.
+Implementation status: **IMPLEMENTED and runtime deployed/verified**.
+
+The current target model is:
+
+`Item Revision ─┐`
+`MBOM ──────────┼──> Production Version`
+`Routing ───────┘`
+
+`md_mbom_header` no longer owns `item_revision_id` in the Drizzle schema or
+current application contract. Migration `0039_decouple_mbom_from_item_revision`
+audits legacy values into `md_mbom_legacy_revision_audit`, drops the obsolete
+column, removes the old Production Version Site trigger, and installs a new
+database trigger that derives Production Version Site from the Released Routing
+Work Center Site. It does not alter Production Version Item Revision values or
+delete MBOMs.
+
+MBOM create/edit no longer requests or persists Item Revision. MBOM list/detail
+DTOs no longer join or expose an owning Item Revision. EBOM-to-MBOM conversion
+still derives the MBOM Site from the source EBOM's revision/site context, but it
+does not copy the EBOM Item Revision into MBOM. MBOM component lines may still
+reference Item Revisions as material/component records; this is not MBOM header
+ownership.
+
+Production Version selectors load Released MBOMs independently of the selected
+Item Revision and do not send `item_revision_id` as an MBOM filter. Changing the
+Item Revision does not clear a selected MBOM. The backend validates Item
+Revision, MBOM, and Routing independently. It requires each selected header to
+be Released/effective, requires Routing operations to resolve to one Site, and
+requires MBOM Site to match that Routing Site. It never validates or derives an
+Item Revision through MBOM. The selected Item Revision remains authoritative on
+Production Version.
+
+The previous implementation report
+`implementation-fix/production-version-mbom-selection-and-derived-site.md` is
+superseded by the decoupled implementation. The active code paths are
+`services/mes-master-data-service/src/infrastructure/db/schema.ts`,
+`src/infrastructure/db/migrate.ts`, `src/infrastructure/http/master-data.router.ts`,
+`src/application/validation-engine/validation-engine.ts`,
+`services/mes-console/src/routes/master-data/MbomCreateScreen.tsx`,
+`MbomScreen.tsx`, and `ProductionVersionCrudScreen.tsx`.
+
+MES Console and MES Master Data Service builds passed after these changes.
+`npm run rebuild:mes` completed successfully. Master Data applied migration
+`0040_fix_production_version_site_trigger_uuid_aggregate` and completed seed
+bootstrap. Execution applied `000012_decouple_mbom_read_model`; its database
+confirmed `rm_mbom_header.item_revision_id` is absent. Master Data and
+Execution containers are healthy, and the in-container Execution health
+endpoint returned status `ok`.
+
+The startup hotfix was required because the original 0039 trigger used the
+unsupported PostgreSQL expression `MIN(uuid)`. The corrected trigger uses a
+count and a single selected Site row. The Go Execution migration runner had a
+hard-coded migration list and now includes 000012. Existing Schema Registry
+compatibility 409 warnings are non-blocking and do not prevent service
+startup. Browser-level verification remains a separate check.

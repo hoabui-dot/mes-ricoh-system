@@ -4,7 +4,7 @@ namespace ND.PrinterAdapter.Application.Interfaces;
 
 /// <summary>
 /// Abstraction for a printer driver.
-/// Implementations: SimulationPrinterDriver (TCP to Device Simulator), CupsPrinterDriver (lpr via CUPS)
+/// Implementations: TcpPrinterDriver (raw TCP), CupsPrinterDriver (lpr via CUPS)
 /// Nothing outside Print Adapter should know which driver is active.
 /// </summary>
 public interface IPrinterDriver

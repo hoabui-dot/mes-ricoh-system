@@ -17,6 +17,7 @@ services:
       - redis-data:/data
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -33,36 +34,7 @@ services:
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: production-station-rabbitmq
-    restart: always
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    networks:
-      - station-net
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-
+  # Kafka is provided by the shared platform Kafka cluster on platform-net.
   # 1. Station Gateway Service (HTTP Gateway)
   # ─────────────────────────────────────────────
   station-gateway:
@@ -74,8 +46,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     environment:
       - ASPNETCORE_HTTP_PORTS=5001
       - ASPNETCORE_ENVIRONMENT=Production
@@ -84,17 +54,16 @@ services:
       - SQLITE_GATEWAY_PATH=${SQLITE_GATEWAY_PATH:-/data/gateway.db}
       - Gateway__OutboxBatchSize=10
       - Gateway__OutboxIntervalSeconds=5
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Port=5672
-      - RabbitMq__Username=${RABBITMQ_USER}
-      - RabbitMq__Password=${RABBITMQ_PASS}
-      - RabbitMq__VirtualHost=/
-      - RabbitMq__DefaultExchange=station.events
+      - Kafka__BootstrapServers=${STATION_KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      - Kafka__EnableIdempotence=true
+      - PRINTER_ADAPTER_URL=${PRINTER_ADAPTER_URL:?PRINTER_ADAPTER_URL is required}
+      - Kafka__DefaultExchange=station.events
     volumes:
       - sqlite-data:/data
       - mqtt-logs:/logs
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -116,26 +85,22 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "5002:5002"
     environment:
       - STATION_ID=${STATION_ID}
       - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD}
       - SQLITE_JOB_ENGINE_PATH=/data/job_engine.db
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Port=5672
-      - RabbitMq__Username=${RABBITMQ_USER}
-      - RabbitMq__Password=${RABBITMQ_PASS}
-      - RabbitMq__VirtualHost=/
-      - RabbitMq__DefaultExchange=station.events
+      - Kafka__BootstrapServers=${STATION_KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      - Kafka__EnableIdempotence=true
+      - Kafka__DefaultExchange=station.events
       - ASPNETCORE_ENVIRONMENT=Production
     volumes:
       - sqlite-data:/data
       - job-engine-logs:/logs
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -153,49 +118,6 @@ services:
       retries: 3
 
   # ─────────────────────────────────────────────
-  # 3. Printer Adapter Service
-  # ─────────────────────────────────────────────
-  printer-adapter:
-    image: ${DOCKER_REGISTRY:-vanhoadotbui2628}/printer-adapter:${VERSION:-latest}
-    container_name: production-station-printer-adapter
-    restart: always
-    depends_on:
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "5003:5003"
-    environment:
-      - STATION_ID=${STATION_ID}
-      - REDIS_CONNECTION_STRING=redis:6379,password=${REDIS_PASSWORD}
-      - SQLITE_PRINTER_PATH=/data/printer.db
-      - ASPNETCORE_ENVIRONMENT=Production
-      - Printer__Host=${PRODUCTION_PRINTER_IP}
-      - Printer__Port=${PRODUCTION_PRINTER_PORT:-9100}
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Port=5672
-      - RabbitMq__Username=${RABBITMQ_USER}
-      - RabbitMq__Password=${RABBITMQ_PASS}
-      - RabbitMq__VirtualHost=/
-      - RabbitMq__DefaultExchange=station.events
-    volumes:
-      - sqlite-data:/data
-      - printer-logs:/logs
-    networks:
-      - station-net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ─────────────────────────────────────────────
   # 4. Laser Adapter Service
   # ─────────────────────────────────────────────
   laser-adapter:
@@ -205,8 +127,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "5004:5004"
     environment:
@@ -215,18 +135,16 @@ services:
       - SQLITE_LASER_PATH=/data/laser.db
       - Laser__Host=${PRODUCTION_LASER_IP}
       - Laser__Port=${PRODUCTION_LASER_PORT:-8901}
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Port=5672
-      - RabbitMq__Username=${RABBITMQ_USER}
-      - RabbitMq__Password=${RABBITMQ_PASS}
-      - RabbitMq__VirtualHost=/
-      - RabbitMq__DefaultExchange=station.events
+      - Kafka__BootstrapServers=${STATION_KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      - Kafka__EnableIdempotence=true
+      - Kafka__DefaultExchange=station.events
       - ASPNETCORE_ENVIRONMENT=Production
     volumes:
       - sqlite-data:/data
       - laser-logs:/logs
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -248,8 +166,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "5005:5005"
     environment:
@@ -259,12 +175,9 @@ services:
       - VISION_IMAGE_STORAGE_PATH=/storage/vision
       - VisionCamera__Host=${PRODUCTION_CAMERA_IP}
       - VisionCamera__Port=${PRODUCTION_CAMERA_PORT:-80}
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Port=5672
-      - RabbitMq__Username=${RABBITMQ_USER}
-      - RabbitMq__Password=${RABBITMQ_PASS}
-      - RabbitMq__VirtualHost=/
-      - RabbitMq__DefaultExchange=station.events
+      - Kafka__BootstrapServers=${STATION_KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      - Kafka__EnableIdempotence=true
+      - Kafka__DefaultExchange=station.events
       - ASPNETCORE_ENVIRONMENT=Production
     volumes:
       - sqlite-data:/data
@@ -272,6 +185,7 @@ services:
       - vision-storage:/storage
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -293,8 +207,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "5006:5006"
     environment:
@@ -303,18 +215,16 @@ services:
       - SQLITE_PLC_PATH=/data/plc.db
       - Plc__Host=${PRODUCTION_PLC_IP}
       - Plc__Port=${PRODUCTION_PLC_PORT:-502}
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Port=5672
-      - RabbitMq__Username=${RABBITMQ_USER}
-      - RabbitMq__Password=${RABBITMQ_PASS}
-      - RabbitMq__VirtualHost=/
-      - RabbitMq__DefaultExchange=station.events
+      - Kafka__BootstrapServers=${STATION_KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      - Kafka__EnableIdempotence=true
+      - Kafka__DefaultExchange=station.events
       - ASPNETCORE_ENVIRONMENT=Production
     volumes:
       - sqlite-data:/data
       - plc-logs:/logs
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -336,8 +246,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "5222:5007"
     environment:
@@ -351,12 +259,14 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - JOB_ENGINE_HOST=${JOB_ENGINE_HOST}
       - JOB_ENGINE_PORT=${JOB_ENGINE_PORT}
+      - PRINTER_ADAPTER_URL=${PRINTER_ADAPTER_URL:?PRINTER_ADAPTER_URL is required}
       - CORS_ORIGINS=${CORS_ORIGINS}
     volumes:
       - sqlite-data:/data
       - kiosk-logs:/logs
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -375,27 +285,22 @@ services:
     image: ${DOCKER_REGISTRY:-vanhoadotbui2628}/projection-service:${VERSION:-latest}
     container_name: production-station-projection-service
     restart: always
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "5009:5009"
     environment:
       - STATION_ID=${STATION_ID}
       - SQLITE_PROJECTION_PATH=/data/projection.db
-      - RabbitMq__Host=rabbitmq
-      - RabbitMq__Port=5672
-      - RabbitMq__Username=${RABBITMQ_USER}
-      - RabbitMq__Password=${RABBITMQ_PASS}
-      - RabbitMq__VirtualHost=/
-      - RabbitMq__DefaultExchange=station.events
+      - Kafka__BootstrapServers=${STATION_KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      - Kafka__EnableIdempotence=true
+      - Kafka__DefaultExchange=station.events
       - ASPNETCORE_ENVIRONMENT=Production
-      - SIMULATOR_URL=${SIMULATOR_URL:-http://device-simulator:8080}
+      - PRINTER_ADAPTER_URL=${PRINTER_ADAPTER_URL:?PRINTER_ADAPTER_URL is required}
     volumes:
       - sqlite-data:/data
       - projection-logs:/logs
     networks:
       - station-net
+      - platform-net
     deploy:
       resources:
         limits:
@@ -417,11 +322,9 @@ services:
 # ─────────────────────────────────────────────
 volumes:
   redis-data:
-  rabbitmq-data:
   sqlite-data:
   mqtt-logs:
   job-engine-logs:
-  printer-logs:
   laser-logs:
   vision-logs:
   vision-storage:
@@ -436,3 +339,6 @@ networks:
   station-net:
     driver: bridge
     name: station-net-production
+  platform-net:
+    external: true
+    name: platform-net

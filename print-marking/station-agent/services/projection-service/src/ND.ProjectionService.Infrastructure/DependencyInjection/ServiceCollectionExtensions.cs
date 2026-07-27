@@ -7,6 +7,7 @@ using ND.ProjectionService.Infrastructure.BackgroundServices;
 using ND.ProjectionService.Infrastructure.Messaging;
 using ND.ProjectionService.Infrastructure.Persistence;
 using ND.ProjectionService.Infrastructure.Repositories;
+using ND.ProjectionService.Infrastructure.Integration;
 using ND.SharedKernel.Abstractions;
 
 namespace ND.ProjectionService.Infrastructure.DependencyInjection;
@@ -31,18 +32,20 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAlarmRepository, AlarmRepository>();
         services.AddScoped<IProductionOrderViewRepository, ProductionOrderViewRepository>();
 
-        // RabbitMQ Publisher & Consumer
-        services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
-        services.AddSingleton<IRabbitMqConsumer, RabbitMqConsumer>();
-        services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+        // Kafka Publisher & Consumer
+        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
+        services.AddSingleton<IEventConsumer, KafkaConsumer>();
+        services.AddSingleton<IEventPublisher, KafkaPublisher>();
 
         // HttpClient for polling
         services.AddHttpClient();
+        services.AddSingleton<IMesConnectionStatusProvider, MesConnectionStatusProvider>();
 
         // Hosted Services
         services.AddHostedService<ProjectionEventConsumer>();
         services.AddHostedService<DeviceStatusPoller>();
         services.AddHostedService<StartupAlarmScanService>();
+        services.AddHostedService<MesConnectionStatusPoller>();
 
         return services;
     }

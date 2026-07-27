@@ -14,13 +14,13 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 public sealed class HeartbeatHostedService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IRabbitMqPublisher _publisher;
+    private readonly IEventPublisher _publisher;
     private readonly ILogger<HeartbeatHostedService> _logger;
     private const string Exchange = "station.events";
 
     public HeartbeatHostedService(
         IServiceScopeFactory scopeFactory,
-        IRabbitMqPublisher publisher,
+        IEventPublisher publisher,
         ILogger<HeartbeatHostedService> logger)
     {
         _scopeFactory = scopeFactory;

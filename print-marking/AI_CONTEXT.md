@@ -1,9 +1,32 @@
 # AI_CONTEXT.md - Canonical Full Context for AI Agents (Print Marking Station Agent)
 
 Last updated: 2026-07-26
-Repository: `/Users/hoabui/Desktop/mes-ricoh-system/print-marking/station-agent`
+Repository: `/home/neurosus/mes-system/print-marking/station-agent`
 Project: ND Station Agent — Industrial Edge Print & Marking Platform
 Audience: AI agents, engineers, architects, and maintainers continuing this codebase.
+
+## Latest Runtime Snapshot (2026-07-26)
+
+The current standalone Printer Adapter deployment is
+`station-agent/docker-compose.printer-adapter.yml` using
+`vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260726`
+on the ARM64 Print Station host. It listens on `5003` and is the upstream for
+Projection Service's `/api/projection/printers/active` and `/ready` routes.
+
+The Kiosk active-printer 502 observed during cleanup was caused by the adapter
+container being stopped, not by a missing API route. Once the adapter was
+started, `GET http://localhost:5007/api/projection/printers/active` returned
+HTTP 200 with `[]` because no printer was activated for production. A 502 from
+this route means port `5003` is unreachable or the adapter is not running.
+
+The local obsolete `printer-adapter:local-rabbitmq-amd64` container was stopped
+and removed. Its `VirtualPrinterSimulator` was the source of the legacy
+`PRINTER-01`, `PRINTER-02`, and `PRINTER-03` events. Do not run that image or a
+second adapter beside the independent adapter.
+
+Current local adapter health after startup: RabbitMQ `Connected`, CUPS
+`Disconnected`, printer `Zebra-GK420t-CUPS` `OFFLINE`, overall `Degraded`.
+This is an actual CUPS queue/connectivity condition, not an HTTP proxy error.
 
 This is the first file to read before making changes in this repository. It consolidates:
 
@@ -16,6 +39,57 @@ This is the first file to read before making changes in this repository. It cons
 This document is intentionally long. It is designed to let a new AI agent understand the system without
 needing to rediscover the whole repository from scratch.
 
+## Current transport correction (2026-07-26)
+
+This section supersedes older HTTP-only printer-adapter notes below. Transport
+evidence is recorded in `implementation/printer-adapter-independent-rabbitmq-service.md`;
+live runtime evidence is recorded in
+`implementation/remote-printer-adapter-runtime-verification.md`.
+
+- `IMPLEMENTED_AND_VERIFIED`: Job Engine production batch dispatch is written
+  to its SQLite outbox and published with `command.printer.print.batch`; the
+  scheduler no longer calls Printer Adapter `POST /api/print`.
+- `IMPLEMENTED_AND_VERIFIED`: Independent Printer Adapter consumes
+  `command.printer.print.batch` and `command.printer.print`, renders and sends
+  through TCP/CUPS, and publishes `printer.batch.printed`. The legacy single
+  label `JobProcessingEvent` payload is normalized into a one-label batch
+  command while preserving its event ID, then returns `printer.printed`.
+- `IMPLEMENTED_AND_VERIFIED`: `printer_command_executions.command_id` is a
+  unique durable reservation created before physical I/O. Replaying the same
+  command in the local RabbitMQ test produced no second physical print.
+- `IMPLEMENTED_AND_VERIFIED`: Adapter publishes `printer.heartbeat` every
+  configured interval and publishes `printer.status.changed` only on state
+  transitions, plus `printer.error` for failed batch results.
+- `IMPLEMENTED_AND_VERIFIED`: Projection Service binds the printer runtime
+  event queue with one routing-key dispatcher and maps events to the existing
+  device read model and SignalR; Kiosk listens to explicit printer
+  heartbeat/status events as well.
+- `IMPLEMENTED_AND_VERIFIED`: RabbitMQ connection settings support
+  `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`,
+  `RABBITMQ_VHOST`, `RABBITMQ_USE_TLS`, and `RABBITMQ_CONNECTION_NAME`, with
+  startup retry and automatic recovery.
+- `IMPLEMENTED_BUT_NOT_TESTED`: `POST /api/print` remains only for manual or
+  administrative requests carrying `X-Print-Source: MANUAL_TEST` or `ADMIN`.
+- `IMPLEMENTED_AND_VERIFIED`: standalone deployment is
+  `station-agent/docker-compose.printer-adapter.yml`; it contains no local
+  RabbitMQ or Redis service and uses the shared broker over TCP/IP. The
+  deployment file now uses direct demo settings and the real-printer ARM64
+  image; production should replace `guest/guest` with a dedicated account.
+- `IMPLEMENTED_AND_VERIFIED`: root `docker-compose.print-adapter.yml` uses
+  direct current demo values `100.68.50.41:5673`, `/`, and `guest/guest`, with
+  no `${...}` substitutions. Production must use a dedicated broker account.
+- `IMPLEMENTED_AND_VERIFIED`: real-printer images were pushed to Docker Hub:
+  `vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260726-amd64`
+  digest `sha256:4d79756a9be13fff7b654a424e9171a0256db4de548aaf103a78aa55792c9a18`
+  and
+  `vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260726-arm64`
+  digest `sha256:9587acf68d771d781d83cd4f47ff6da4bc548b05c3bf7266612ce85b1448af0e`.
+  The older `rabbitmq-remote-20260727` image reference is historical.
+- `PARTIALLY_VERIFIED`: Live station verification found RabbitMQ connections,
+  queue bindings, projected Zebra state, advancing heartbeat timestamps, and
+  Kiosk projection access. The configured physical CUPS queue is currently
+  offline, so no physical label was sent.
+
 ---
 
 ## 0. Source Of Truth Rules
@@ -24,7 +98,7 @@ Do not treat any single prompt as current truth by itself.
 
 Use this precedence order exactly:
 
-1. Running source code (C# .NET 9, React/Vite/TypeScript).
+1. Running source code (C# .NET 10, React/Vite/TypeScript).
 2. Service manifests and `docker-compose.yml` in `station-agent/`.
 3. `docker-compose.yml` and environment variable configuration files.
 4. SQLite database schemas via EF Core migrations in each service.
@@ -255,7 +329,7 @@ sequenceDiagram
 
     Bus->>PS: Update ProjectionRecord to PREPARING
     PS-->>Kiosk: SignalR push OnProductionOrderUpdate (PREPARING)
-    Bus->>PA: BatchPrintConsumer consumes ProductionBatchPrintCommand
+    Bus->>PA: PrinterCommandConsumer consumes ProductionBatchPrintCommand
     PA->>PA: Fetch label template JSON (columns, rows, gapMm, DPI)
     PA->>PA: Render aggregated ZPL in memory (multi-up grid transformation)
     PA->>Printer: lpr -P CupsQueueName -o raw (CUPS) or TCP socket port 9100
@@ -315,7 +389,7 @@ sequenceDiagram
 - **Key Responsibilities:**
   - Maintains `job_engine_jobs` state machine: `CREATED → QUEUED → PREPARING → PROCESSING → COMPLETED/FAILED/WAIT_REWORK`.
   - Maps production items to attempts and individual process steps: `PRINT_LABEL → LASER_MARK → VISION_CHECK → PLC_REJECT`.
-  - `JobQueueScheduler`: Polls pending QUEUED jobs every 1.5 seconds, calls `GET /api/printers/active` on printer-adapter, aggregates by Production Order, sends batch print commands.
+  - `JobQueueScheduler`: Polls pending QUEUED jobs every 1.5 seconds, calls `GET /api/printers/active` on printer-adapter for selection, aggregates by Production Order, and writes the batch print command to the Job Engine outbox. Production dispatch is asynchronous through RabbitMQ; it does not call `POST /api/print`.
   - Processes manual rework requests: `REPRINT`, `RELASER`, `FORCE_PASS`, `FORCE_COMPLETE` via new-job model.
   - Writes full audit history to `job_engine_job_history` and state transitions to `job_engine_state_transitions`.
 - **Database:** `job_engine.db`.
@@ -344,9 +418,10 @@ sequenceDiagram
   - CUPS health aggregation via IPP HTTP API: parses `media-empty-report`, `cover-open-report`, `offline-report`.
 - **Database:** `printer.db`.
 - **Background Workers:**
-  - `JobProcessingConsumer`: Single-label print commands (`command.printer.print`).
-  - `BatchPrintConsumer`: Multi-up batch commands (`command.printer.print.batch`).
+  - `PrinterCommandConsumer`: Durable RabbitMQ consumer for `command.printer.print` and `command.printer.print.batch`; it supports both the current batch contract and the legacy single-label `JobProcessingEvent` contract.
   - `PrinterHealthService` / `HeartbeatHostedService`: Polls printer connectivity every 3 seconds.
+- **Messaging:** Publishes `printer.printed`, `printer.batch.printed`, `printer.status.changed`, `printer.heartbeat`, and `printer.error` to the `station.events` exchange.
+- **Idempotency:** `printer_command_executions.command_id` is unique and reserved before printer I/O. Redelivered commands are acknowledged without a second print.
 - **Key Config:**
   - `CUPS_HEALTH_HOST=host.docker.internal` / `CUPS_HEALTH_PORT=8631`.
   - `extra_hosts: - "host.docker.internal:host-gateway"` required in Docker compose.
@@ -865,8 +940,8 @@ All messaging flows through the `station.events` **RabbitMQ Topic Exchange**.
 | `job-engine.vision-check-commands` | `command.vision.check` | `job-engine` |
 | `job-engine.plc-reject-commands` | `command.plc.reject` | `job-engine` |
 | `job-engine.manual-reprint-events` | `command.manual-reprint` | `job-engine` |
-| `printer-adapter.job-events` | `command.printer.print` | `printer-adapter` |
-| `printer-adapter.batch-print-commands` | `command.printer.print.batch` | `printer-adapter` |
+| `printer-adapter.print-commands` | `command.printer.print` | `printer-adapter` |
+| `printer-adapter.print-commands` | `command.printer.print.batch` | `printer-adapter` |
 | `projection-service.activity-log` | `*.*.*` (all events) | `projection-service` |
 
 ### 8.2 Event Message Schema Dictionary
@@ -1278,3 +1353,401 @@ These tables reconstruct the full production history, audit trail, QA traceabili
 2. PoC on actual production line: run Station Agent in parallel with legacy system on one designated line.
 3. Evaluate k3s (lightweight Kubernetes) for multi-station edge cluster orchestration.
 4. MQTT SSL/TLS hardening for Factory Gateway external connection security.
+## Current implementation override: Remote RabbitMQ Printer Adapter (2026-07-26)
+
+This section is the authoritative correction to the historical HTTP extraction
+notes. The active code is `print-marking/station-agent`; the removed duplicate
+trees `print-marking/mes-frontend` and `print-marking/mes-platform` must not be
+recreated or used as implementation references. Detailed transport evidence is
+in `implementation/printer-adapter-independent-rabbitmq-service.md`; live
+runtime evidence is in `implementation/remote-printer-adapter-runtime-verification.md`.
+
+### Active production transport
+
+1. Job Engine selects an idle printer through the management API, transitions
+   the job, and writes a `ProductionBatchPrintCommand` to its transactional
+   outbox.
+2. The outbox publishes to the `station.events` topic exchange with
+   `command.printer.print.batch`.
+3. Printer Adapter consumes the durable queue
+   `printer-adapter.print-commands`, validates and reserves the command in
+   `printer_command_executions`, renders ZPL, and prints through TCP/CUPS.
+4. It publishes `printer.batch.printed`; Job Engine consumes the result and
+   advances job state. Projection Service consumes the resulting domain event.
+5. Legacy single-label `command.printer.print` messages are also supported.
+   When their payload is `JobProcessingEvent`, the adapter normalizes it into a
+   one-label batch internally and publishes the compatible `printer.printed`
+   result. This prevents a second HTTP execution path.
+
+The adapter also publishes `printer.status.changed` only on status transitions,
+periodic `printer.heartbeat`, and `printer.error` on failed execution. The
+Projection Service consumes the printer runtime queue with one dispatcher and forwards status,
+heartbeat, error, and completion updates to Kiosk through SignalR. Kiosk does
+not poll the adapter for continuous printer state.
+
+The adapter health endpoint reports authenticated RabbitMQ state, CUPS queue
+state, and printer counts. A reachable CUPS proxy is not sufficient for
+`Healthy`; IPP must identify the configured physical queue. When the queue is
+unavailable, health is `Degraded` and Docker health remains unhealthy.
+
+### Remote deployment configuration
+
+The independent deployment file is
+`print-marking/station-agent/docker-compose.printer-adapter.yml`. It has no
+RabbitMQ or Redis container. It is intended to connect to a broker on another
+server using configurable `RABBITMQ_HOST`, `RABBITMQ_PORT`,
+`RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`, `RABBITMQ_VHOST`,
+`RABBITMQ_USE_TLS`, and `RABBITMQ_CONNECTION_NAME` values.
+
+The root demo file `docker-compose.print-adapter.yml` intentionally contains
+direct current values for the working private demo broker:
+
+```yaml
+RABBITMQ_HOST: 100.68.50.41
+RABBITMQ_PORT: 5673
+RABBITMQ_USERNAME: guest
+RABBITMQ_PASSWORD: guest
+RABBITMQ_VHOST: /
+RABBITMQ_USE_TLS: "false"
+RABBITMQ_CONNECTION_NAME: PRINT-ADAPTER-01
+```
+
+This direct `guest/guest` configuration is demo-only. For a remote production
+server use a dedicated least-privilege RabbitMQ account, private firewall
+allow-listing, a dedicated vhost where appropriate, and TLS. Never expose the
+broker anonymously to the public internet and never use the default guest
+account for production.
+
+### HTTP role and health
+
+HTTP remains available for health, printer/template management, history, and
+diagnostics. `POST /api/print` is restricted to explicit
+`X-Print-Source: MANUAL_TEST` or `ADMIN` requests and is not the Job Engine
+production path. The adapter health endpoint reports RabbitMQ connectivity,
+Redis state (`NotConfigured` in the independent adapter), and online/offline/
+error printer counts. It reports `Degraded` when RabbitMQ is disconnected,
+fallback dependencies are unavailable, or all printers are offline.
+
+### Verification status
+
+The following passed: Docker Compose validation, AMD64 compile builds for local
+checks, Job Engine/Projection/Kiosk compile builds, isolated private-broker
+command flow, simulated single-label and batch execution, duplicate replay
+without a second physical print, live remote RabbitMQ connection/bindings,
+Projection heartbeat projection, Kiosk projection access, and ARM64 Docker Hub
+publication. The current ARM64 image is
+`vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260726-arm64`.
+The older `rabbitmq-remote-20260727` image is retained only as historical
+transport documentation.
+
+### Simulator and hardcoded-runtime cleanup (2026-07-26)
+
+The Device Simulator is no longer part of the default station runtime. Its
+Compose service is available only under the explicit `simulator` profile and
+the running `station-device-simulator` container was removed. Job Engine no
+longer receives simulator printer settings; Projection diagnostics report
+laser/PLC as `Unconfigured` instead of probing `device-simulator`; and the
+Projection simulator configuration endpoints return `404` because simulator
+configuration is not a production feature.
+
+Station identity is configuration-driven. `STATION_ID` is required by the
+station Compose stacks, and the Kiosk reads `VITE_STATION_ID` when supplied.
+When no station is configured, the Kiosk does not request a production view and
+the Projection API returns `204 No Content` rather than a misleading
+`STATION-01` 404. The printer adapter URL is also required configuration in
+the station services; no source fallback to `100.68.50.41:5003` remains.
+
+RabbitMQ port meanings must not be mixed: the local root demo Compose stack
+maps its local `station-rabbitmq` container to host port `5673`, while the
+independent Print Station deployment uses the shared broker at port `5672`.
+Both values are deployment settings, not code defaults. The log line
+`Connecting RabbitMQ ...:5673` is expected only for the local root demo stack.
+Detailed change record: `implementation-runtime-simulator-hardcode-cleanup-20260726.md`.
+
+Not proven yet: physical printer output, real cross-server TLS credentials,
+live RabbitMQ outage/reconnect, and a complete MES-originated production job
+through the deployed remote station. Do not report those as verified.
+
+The former HTTP-only report remains historical documentation only:
+`implementation-printer-adapter-http-refactor.md`.
+
+### Kiosk printer-tab defensive data handling (2026-07-26)
+
+The Kiosk `Kết nối mạng` / `Thiết bị in` tab treats Projection Service REST
+rows and SignalR printer events as untrusted runtime payloads. Printer rows
+without `printerCode` and projected device rows without `deviceId` are skipped.
+Lifecycle, status, protocol, and driver fields are normalized with safe
+defaults before rendering or case-insensitive lookup. Missing SignalR printer
+codes are ignored, while missing status/timestamps use `UNKNOWN` and the
+current timestamp. This prevents a transient incomplete projection row from
+crashing the tab through direct `toLowerCase()`/`toUpperCase()` calls.
+
+Implementation report:
+`implementation-kiosk-printer-tab-undefined-status-fix.md`.
+
+### Real-printer-only runtime cleanup (2026-07-26)
+
+Printer simulation is no longer an active runtime capability. The independent
+Printer Adapter now supports real CUPS and raw TCP drivers only. Startup
+removes legacy simulation/demo printer rows before ensuring the physical
+`Zebra-GK420t-CUPS` record. `VirtualPrinterSimulator`, the simulation driver,
+and simulation control endpoints are removed. Kiosk no longer renders
+`Thiết bị mô phỏng` or requests simulation printers; Projection Service exposes
+only the real printer-ready contract. Device Simulator remains only for other
+non-printer station simulation paths.
+
+The CUPS heartbeat default is 15 seconds, with three 200 ms status-probe
+retries. A one-second ONLINE/OFFLINE loop is not explained by the current
+default cadence; investigate remote image version, overridden heartbeat
+interval, duplicate adapter processes, and CUPS IPP logs on the Print Station.
+See `implementation-real-printer-only-cleanup-20260726.md` for the audit and
+deployment verification steps.
+
+### Legacy simulator projection cleanup and printer probe telemetry (2026-07-26)
+
+Projection device rows are persisted in SQLite. Removing simulator code does
+not remove old Kiosk rows by itself. `ProjectionDbSeeder` no longer adds
+`printer-01`, startup deletes `printer-01/02/03` case-insensitively, and
+`ProjectionEventConsumer` rejects those codes and printer events with a
+`simulation` driver marker. Local restart verification showed only
+`Zebra-GK420t-CUPS` in `/api/projection/devices`; logs confirmed old simulator
+heartbeats were ignored.
+
+The Printer Adapter now emits structured console telemetry for each heartbeat:
+adapter/process identity, interval, cycle/probe duration, printer code, driver,
+host/port, previous and normalized status, CUPS IPP URL/state/reasons/jobs,
+retry/fallback details, and published events. The default is 15 seconds with
+three 200 ms CUPS retries. Diagnose a 1-2 second ONLINE/OFFLINE loop remotely
+by checking for duplicate process IDs, an overridden interval, and repeated
+`[CUPS-IPP]` failures. Credentials are never logged.
+
+Pushed images:
+
+- `vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260726-amd64`
+  digest `sha256:4d79756a9be13fff7b654a424e9171a0256db4de548aaf103a78aa55792c9a18`
+- `vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260726-arm64`
+  digest `sha256:9587acf68d771d781d83cd4f47ff6da4bc548b05c3bf7266612ce85b1448af0e`
+
+The remote adapter was not restarted from this workspace because its RabbitMQ
+credentials and server access are unavailable. After deploying the ARM64 tag,
+run `docker logs -f station-printer-adapter` and inspect `[PRINTER-PROBE]` and
+`[CUPS-IPP]` records before attributing the flapping to the physical printer.
+
+### Printer Adapter Monitoring UI (2026-07-26)
+
+`printer-adapter-ui` is an independent read-only ASP.NET Core + React/Vite
+service under `station-agent/services/printer-adapter-ui`. It listens on
+`5010`, serves a five-second polling dashboard, and exposes monitoring APIs
+under `/api/monitoring`. It queries the Printer Adapter HTTP API, Projection
+Service read APIs, and RabbitMQ Management API server-side. The browser never
+receives RabbitMQ credentials, opens AMQP, consumes print commands, publishes
+events, or mounts adapter SQLite.
+
+The UI monitors adapter state, RabbitMQ connection and queue topology, CUPS,
+TCP printers, registered printers, heartbeat freshness, print history, and
+read-only error summaries. `Healthy` requires a reachable adapter, connected
+RabbitMQ, and at least one online printer. Reachable-but-degraded dependencies
+produce `Degraded`; unreachable adapter produces `Offline`. Temporary dependency
+failures return safe degraded/empty models instead of crashing the dashboard.
+
+Deployment files:
+
+- `print-marking/station-agent/docker-compose.printer-adapter-ui.yml` for a
+  standalone UI container using remote adapter/projection/broker endpoints.
+- Root `docker-compose.print-adapter.yml` now starts the real printer adapter
+  and monitoring UI together, exposing UI port `5010`.
+
+In the root same-stack Compose file, the UI must use
+`PRINTER_ADAPTER_URL=http://printer-adapter:5003`. `localhost` inside the UI
+container points to itself and causes adapter monitoring requests to fail.
+The standalone UI compose uses `100.68.50.41:5003` because its adapter is in a
+different Compose project/server.
+
+The UI image is `vanhoadotbui2628/printer-adapter-ui:lastest` to match the
+requested process tag. Compose currently uses direct private-network demo
+values (`100.68.50.41`, ports `5003`, `5009`, `15673`/`5673`, `guest/guest`).
+Production must replace these with a dedicated RabbitMQ user, restricted
+firewall rules, TLS where required, and an authenticated gateway for the UI.
+Do not expose RabbitMQ management publicly. Full implementation and runtime
+verification are recorded in
+`print-marking/implementation/printer-adapter-monitoring-ui.md`.
+
+The ARM64 image was pushed successfully on 2026-07-26. Manifest digest:
+`sha256:60a06204cb78a2aa62d263c9d4c2427e0c1b320faab2f76ebeade9b36518bd36`.
+
+The blank dashboard issue was caused by `frontend/src/main.tsx` exporting the
+React `App` component without calling `createRoot(...).render(<App />)`. The
+health endpoint and static index still worked, but React never mounted. The
+fix is included in the current `lastest` image; the generated JS bundle is now
+approximately 199 KB instead of the previous 1.6 KB.
+
+The UI now renders default operational values immediately during API cold start
+or dependency failure (`Starting`, `Not connected`, `Not checked`, `Waiting`)
+instead of leaving an empty background. The latest ARM64 manifest digest is
+`sha256:c9bc31d295e943828f213d79a52bf642ccabdfac3dcea02919845bc6f5c2f3e3`.
+
+Local runtime audit also found an obsolete container named `printer-adapter`
+using `printer-adapter:local-rabbitmq-amd64`. Its logs explicitly showed
+`VirtualPrinterSimulator` printing `Printer-01/02/03`; it was stopped and
+removed. After one heartbeat interval no new simulator events arrived. Do not
+run a second local adapter alongside the independent remote adapter; this can
+duplicate RabbitMQ events and make the projected status appear unstable.
+
+### Kiosk active-printer proxy (2026-07-26)
+
+`GET /api/projection/printers/active` is served by Projection Service and
+proxies to the independent adapter's `GET /api/printers/active` at
+`http://100.68.50.41:5003`. A 502 with `Printer adapter unreachable` means no
+adapter is listening on port 5003 or the network path is blocked; it is not a
+missing route. The standalone deployment file
+`print-marking/station-agent/docker-compose.printer-adapter.yml` now uses
+`vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260726-arm64`
+with explicit RabbitMQ, CUPS, and 15-second heartbeat settings. After the
+adapter is running, the endpoint returns HTTP 200 and an empty array when no
+printer is activated, or active printer records when activation exists.
+
+### Printer activation list source-of-truth fix (2026-07-26)
+
+The Kiosk Network page previously read runtime state from Projection's
+`/api/projection/devices`, while Printer Management called Projection proxy
+endpoints that directly returned the Printer Adapter's `/api/printers/ready`
+and `/active` results. A stale adapter probe could therefore make a printer
+visible in Device Network but absent from activation.
+
+Projection Service now composes the canonical printer read model: adapter
+configuration/activation metadata plus Projection `projection_device_status`
+runtime state. `/api/projection/printers/ready` and `/active` apply filters at
+that single boundary, and Kiosk continues to call Projection only. The adapter
+remains the owner of activation writes. No hardcoded printer or manual database
+row was added.
+
+The local rebuilt Projection Service was verified with a real RabbitMQ printer
+heartbeat: ready returned one Zebra printer; activation moved it to active;
+deactivation returned it to ready. Full report:
+`implementation-fix/Root-Cause-Investigation-Printer-Activation-List.md`.
+
+### Direct MES connection status in Kiosk (2026-07-26)
+
+The Kiosk Device Network view must not use the synthetic `gateway-01` device as
+the factory or MES connection status. The actual order intake path is the HTTP
+Station Gateway endpoint `POST /api/gateway/orders`, which persists requests in
+the existing `gateway_requests` SQLite audit table and publishes the outbox to
+RabbitMQ. The old Factory Gateway/MQTT banner was replaced with a direct MES
+status banner.
+
+Station Gateway now exposes the sanitized read-only endpoint
+`GET /api/gateway/connection-status`. It reports `RECENTLY_ACTIVE`, `IDLE`,
+`DEGRADED`, or `OFFLINE`, Station Gateway readiness, HTTP protocol, last
+successful MES request, 24-hour request counts, and dependency state for the
+database, Redis, and RabbitMQ. It never returns request payloads or credentials.
+Sources containing `simulator`, `manual`, or `device-sim` are excluded from MES
+telemetry. A reachable HTTP integration with no traffic is `IDLE`, not Offline.
+
+Projection is the Kiosk-facing source of truth at
+`GET /api/projection/integrations/mes`. It polls the Station Gateway status
+endpoint every 15 seconds and broadcasts `OnMesConnectionStatusChanged` to the
+station SignalR group only when meaningful status/dependency/request changes
+occur. The compose network setting is
+`STATION_GATEWAY_URL=http://station-gateway:5001`.
+
+Kiosk fetches the Projection endpoint during initial load and subscribes to the
+SignalR event. Physical device counters remain derived only from real device
+records and no longer include the MES integration. Implementation report:
+`implementation/direct-mes-kiosk-connection-status.md`.
+
+The shared RabbitMQ publisher now exposes an idle-safe connection warmup, and
+Station Gateway's outbox worker calls it before polling. This prevents a false
+`rabbitMq=DISCONNECTED` result when the broker is healthy but no event has yet
+created an outbox row. A live idle station therefore reports `IDLE` plus
+`stationGateway=READY` and `rabbitMq=CONNECTED`.
+
+### RabbitMQ to Kafka migration and MES Edge Print Station runtime (2026-07-27)
+
+This section is authoritative for the current runtime; earlier RabbitMQ
+sections in this file are historical implementation records.
+
+The current Station Agent source is Kafka-based. Do not restore the deleted
+RabbitMQ client types or add a second asynchronous production path. Shared
+transport files are `shared/ND.Infrastructure/Messaging/KafkaPublisher.cs`,
+`KafkaConsumer.cs`, `KafkaOptions.cs`, `KafkaTopicMap.cs`, `IEventPublisher.cs`,
+and `IEventConsumer.cs`. Logical printer routing keys remain compatible:
+`command.printer.print`, `command.printer.print.batch`, `printer.printed`,
+`printer.batch.printed`, `printer.heartbeat`, `printer.status.changed`, and
+`printer.error`.
+
+Kafka topics are `station.commands.printer`, `station.events.printer`,
+`station.events.jobs`, `station.events.devices`, `station.events.production`,
+`station.events.integration`, and `station.dlq`. The .NET envelope currently
+serializes PascalCase metadata; consumers must accept PascalCase and camelCase
+metadata and must unwrap both `Payload` and `payload`. Do not assume a raw
+printer payload arrives from Kafka. Producer keys preserve station/printer/job
+ordering, acks are all, idempotence is enabled, and consumers commit after
+processing. Physical print commands are reserved in the Printer Adapter SQLite
+`printer_command_executions` table before execution, so redelivery cannot print
+twice. The Printer Adapter rejects production print requests without an
+explicit physical printer target; simulator fallback IDs are not valid.
+
+Platform Kafka is `platform-kafka` on external Docker network `platform-net`.
+Internal services use `kafka:29092`; remote Edge Print Station deployment uses
+`100.68.50.41:19092`, which is advertised by
+`infra/docker-compose.platform.yml`. Station Agent Compose files no longer
+declare a local RabbitMQ or Kafka broker and attach Kafka clients to
+`platform-net`. The standalone deployment is
+`print-marking/station-agent/docker-compose.printer-adapter.yml` and contains
+direct `KAFKA_BOOTSTRAP_SERVERS`, `KAFKA_CLIENT_ID`, `PRINT_STATION_ID`, and
+`PRINTER_ADAPTER_ID` settings. RabbitMQ station containers were stopped and
+removed on 2026-07-27; named volumes remain. Do not remove `mes-rabbitmq`
+without auditing its separate legacy stack.
+
+The Printer Adapter monitoring UI obtains Kafka state from
+`GET /api/health`; RabbitMQ Management API endpoints are not valid Kafka
+monitoring APIs and are no longer used. It continues to show real printer
+health, CUPS/TCP diagnostics, and print history.
+
+MES Print Station master data remains separate from Workstations and physical
+Machines. Migration `0035_print_stations_and_workstation_bindings` owns master
+data and one-to-one active bindings. Migration
+`0036_print_station_runtime_projection` adds
+`md_print_station_runtime_projection` and
+`md_print_station_runtime_events`. The MES Master Data service consumes
+`station.events.printer` with group
+`mes-master-data-print-station-runtime`, deduplicates event IDs transactionally,
+and projects adapter/printer status, heartbeat, counts, and snapshots. APIs:
+`GET /api/mes/master-data/print-stations/:id/runtime` and
+`GET /api/mes/master-data/workstations/:id/print-station-readiness`.
+Resolved Print Station responses include runtime state and warnings for
+lifecycle, runtime, Kafka, or printer readiness. The MES Console route remains
+`/master-data/print-stations`.
+
+Runtime verification on 2026-07-27: platform Kafka became healthy with the
+remote advertised listener; all documented Kafka topics were created; Station
+Gateway, Job Engine, Laser Adapter, Kiosk, and Projection containers started
+healthy; MES migration 0036 applied and its consumer joined Kafka; the real
+`Zebra-GK420t-CUPS` heartbeat reached MES and the runtime API reported
+`kafka_status=CONNECTED`, `printer_count=1`, adapter `PRINT-ADAPTER-01`, and
+`runtime_status=OFFLINE`. Offline is expected on this development host because
+the CUPS queue is not reachable. A real physical print exactly-once flow,
+cross-server TLS/ACLs, and broker outage recovery remain deployment-host gates;
+do not report the final process as fully verified until those are tested.
+
+Full implementation report:
+`implementation/print-station-rabbitmq-to-kafka-and-mes-edge-integration.md`.
+
+The root standalone compose is Kafka-aligned with Print Station
+`PRINT-STATION-01` and adapter `PRINT-ADAPTER-01`; it uses
+`100.68.50.41:19092`, and MES Master Data remains the owner of Workstation
+binding.
+
+Monitoring UI runtime note: Mac deployment uses `5010:5010` and image
+`printer-adapter-ui:kafka-monitoring-20260727`. Temporary verification on this
+development host used `5015:5010` because ports `5010` through `5014` are
+occupied. The UI calls the separately deployed adapter at
+`http://100.68.50.41:5003`; its live summary, printer, and Kafka endpoints
+were verified with HTTP 200.
+
+For the root co-located Mac Compose deployment, the Monitoring UI calls the
+adapter through Compose DNS at `http://printer-adapter:5003`. The adapter uses
+`host.docker.internal:631` for the Mac CUPS daemon. A separate UI-only Compose
+deployment may use the published adapter host instead. `Degraded` with
+`Zebra-GK420t-CUPS` offline is expected until the Mac CUPS listener and the
+`Zebra_Technologies_ZTC_GK420t` queue are reachable.

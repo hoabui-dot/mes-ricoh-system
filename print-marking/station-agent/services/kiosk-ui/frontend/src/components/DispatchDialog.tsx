@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Printer as PrinterIcon, Cpu, CheckCircle2, XCircle, Loader2, Wifi, WifiOff, AlertTriangle, Zap } from 'lucide-react'
+import { Printer as PrinterIcon, CheckCircle2, XCircle, Loader2, Wifi, WifiOff, AlertTriangle, Zap } from 'lucide-react'
 import { printerApi } from '@/api/client'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type DispatchTarget = 'simulation' | 'production-printer'
+export type DispatchTarget = 'production-printer'
 
 export interface DispatchDialogProps {
   open: boolean
@@ -55,19 +55,13 @@ function statusColor(ready: boolean, status: string) {
 export function DispatchDialog({
   open, onClose, onConfirm, itemCount, jobType, isSubmitting = false
 }: DispatchDialogProps) {
-  const savedTarget = (localStorage.getItem('dispatch-target') ?? 'simulation') as DispatchTarget
-  const [target, setTarget] = useState<DispatchTarget>(savedTarget)
+  const [target] = useState<DispatchTarget>('production-printer')
   const [notes, setNotes] = useState('')
   const [printerHealth, setPrinterHealth] = useState<PrinterHealth | null>(null)
   const [healthLoading, setHealthLoading] = useState(false)
   const [healthError, setHealthError] = useState<string | null>(null)
   const [testLoading, setTestLoading] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
-
-  // Persist last chosen target
-  useEffect(() => {
-    localStorage.setItem('dispatch-target', target)
-  }, [target])
 
   // Fetch printer health when Production Printer is selected
   const fetchHealth = useCallback(async () => {
@@ -111,9 +105,7 @@ export function DispatchDialog({
     }
   }
 
-  const canDispatch =
-    target === 'simulation' ||
-    (target === 'production-printer' && printerHealth?.isReady === true)
+  const canDispatch = printerHealth?.isReady === true
 
   const handleConfirm = () => {
     if (!canDispatch || isSubmitting) return
@@ -152,51 +144,22 @@ export function DispatchDialog({
             <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
               Execution Target
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              {/* Simulation */}
+            <div className="grid grid-cols-1 gap-3">
               <button
-                onClick={() => setTarget('simulation')}
                 className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border transition-all duration-200 text-left cursor-pointer
-                  ${target === 'simulation'
-                    ? 'border-brand bg-brand/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
-                    : 'border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/8'}`}
-                id="dispatch-target-simulation"
-              >
-                <div className={`flex items-center gap-2 ${target === 'simulation' ? 'text-brand-light' : 'text-white/70'}`}>
-                  <Cpu size={16} />
-                  <span className="font-semibold text-sm">Simulation</span>
-                </div>
-                <p className="text-xs text-white/40 leading-relaxed">
-                  Device Simulator — no physical labels printed.
-                </p>
-                {target === 'simulation' && (
-                  <span className="absolute top-3 right-3">
-                    <CheckCircle2 size={14} className="text-brand" />
-                  </span>
-                )}
-              </button>
-
-              {/* Production Printer */}
-              <button
-                onClick={() => setTarget('production-printer')}
-                className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border transition-all duration-200 text-left cursor-pointer
-                  ${target === 'production-printer'
-                    ? 'border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_20px_rgba(52,211,153,0.12)]'
-                    : 'border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/8'}`}
+                  border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_20px_rgba(52,211,153,0.12)]`}
                 id="dispatch-target-production-printer"
               >
-                <div className={`flex items-center gap-2 ${target === 'production-printer' ? 'text-emerald-400' : 'text-white/70'}`}>
+                <div className="flex items-center gap-2 text-emerald-400">
                   <PrinterIcon size={16} />
                   <span className="font-semibold text-sm">Production Printer</span>
                 </div>
                 <p className="text-xs text-white/40 leading-relaxed">
                   Zebra GK420t — physical labels via CUPS.
                 </p>
-                {target === 'production-printer' && (
-                  <span className="absolute top-3 right-3">
-                    <CheckCircle2 size={14} className="text-emerald-400" />
-                  </span>
-                )}
+                <span className="absolute top-3 right-3">
+                  <CheckCircle2 size={14} className="text-emerald-400" />
+                </span>
               </button>
             </div>
           </div>
@@ -303,7 +266,7 @@ export function DispatchDialog({
             <div className="flex items-center justify-between px-4 py-2.5">
               <span className="text-xs text-white/40">Target</span>
               <span className={`text-xs font-semibold ${target === 'production-printer' ? 'text-emerald-400' : 'text-brand-light'}`}>
-                {target === 'production-printer' ? 'Production Printer' : 'Simulation Environment'}
+                Production Printer
               </span>
             </div>
           </div>
@@ -349,7 +312,7 @@ export function DispatchDialog({
               <><Loader2 size={14} className="animate-spin mr-2" />Dispatching...</>
             ) : (
               <>
-                {target === 'production-printer' ? <PrinterIcon size={14} className="mr-2" /> : <Cpu size={14} className="mr-2" />}
+                <PrinterIcon size={14} className="mr-2" />
                 Dispatch {itemCount > 0 ? `${itemCount} Job${itemCount !== 1 ? 's' : ''}` : ''}
               </>
             )}

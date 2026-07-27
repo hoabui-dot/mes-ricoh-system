@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { Cpu, CheckCircle2, RefreshCw, X, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { useI18n } from '@mom-platform/i18n-ui-shared';
+import { useI18n, useLocalizedText } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum, normalizeStatusCode } from '../../lib/i18nLabels';
 import { Button } from '../../components/ui';
 import { gatewayBaseUrl } from '../../lib/masterDataApi';
@@ -12,6 +12,7 @@ import { gatewayBaseUrl } from '../../lib/masterDataApi';
 export const ProductionVersionScreen: React.FC = () => {
   const { user } = useAuth();
   const { t } = useI18n();
+  const text = useLocalizedText();
   const navigate = useNavigate();
   const [pvList, setPvList] = useState<any[]>([]);
   const [itemRevisions, setItemRevisions] = useState<any[]>([]);
@@ -112,12 +113,28 @@ export const ProductionVersionScreen: React.FC = () => {
               const status = normalizeStatusCode(pv.status || pv.lifecycle_status || 'Draft');
               const revision = itemRevisions.find((row) => row.master_id === pv.item_revision_id);
               const item = items.find((row) => row.master_id === revision?.item_id);
+              const productionVersionCode = pv.code || pv.version_code || '-';
+              const productionVersionName = text(pv.name) || text(item?.name) || text(revision?.name) || productionVersionCode;
+              const itemCode = pv.item_code || item?.code || revision?.code || '-';
+              const itemName = text(item?.name) || text(revision?.name) || itemCode;
               return (
               <tr key={pv.master_id || pv.production_version_id || pv.id} onClick={() => setSelectedPV({ ...pv, revision, item, status })} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedPV({ ...pv, revision, item, status }); }} tabIndex={0} className="cursor-pointer hover:bg-slate-800/40 transition">
-                <td className="px-6 py-4 font-mono font-bold text-action">{pv.code || pv.version_code || '-'}</td>
-                <td className="px-6 py-4 text-slate-100 font-medium">{pv.item_code || item?.code || revision?.code || '-'}</td>
-                <td className="px-6 py-4 font-mono text-xs text-sky-300">{pv.mbom_code || '-'}</td>
-                <td className="px-6 py-4 font-mono text-xs text-amber-300">{pv.routing_code || '-'}</td>
+                <td className="px-6 py-4">
+                  <div className="font-semibold text-slate-100">{productionVersionName}</div>
+                  <div className="mt-1 font-mono text-xs text-action">{productionVersionCode}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-medium text-slate-100">{itemName}</div>
+                  <div className="mt-1 font-mono text-xs text-slate-400">{itemCode}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-medium text-slate-100">{text(pv.mbom_name) || pv.mbom_code || '-'}</div>
+                  <div className="mt-1 font-mono text-xs text-sky-300">{pv.mbom_code || '-'}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-medium text-slate-100">{text(pv.routing_name) || pv.routing_code || '-'}</div>
+                  <div className="mt-1 font-mono text-xs text-amber-300">{pv.routing_code || '-'}</div>
+                </td>
                 <td className="px-6 py-4">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                     status === 'Released'

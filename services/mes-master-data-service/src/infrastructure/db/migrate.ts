@@ -1616,6 +1616,354 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
         WHERE lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NULL;
     `,
   },
+  {
+    name: '0034_repair_released_production_configuration_capabilities',
+    sql: `
+      -- Keep readiness validation strict, but repair the canonical demo graph
+      -- when legacy capability/composition rows point at obsolete operation ids.
+      INSERT INTO md_workstation
+        (code, name, lifecycle_status, effective_from, created_by, approved_by, approved_at,
+         site_id, work_center_id, workstation_type, active_flag, area_id, execution_mode,
+         max_concurrent_jobs, shopfloor_id, machine_requirement_flag)
+      SELECT v.code,
+             jsonb_build_object('vi', v.display_name, 'en', v.display_name, 'ja', v.display_name, 'ko', v.display_name),
+             'Released', NOW(), '00000000-0000-0000-0000-000000000001'::UUID,
+             '00000000-0000-0000-0000-000000000001'::UUID, NOW(),
+             wc.site_id, wc.master_id, 'Kiosk', TRUE, wc.area_id, 'Kiosk', 1, wc.shopfloor_id, TRUE
+      FROM (VALUES
+        ('WS-MIXING-01', 'Mixing Workstation', 'WC-MIXING'),
+        ('WS-CUTTING-01', 'Cutting Workstation', 'WC-CUTTING'),
+        ('WS-QC-01', 'Quality Inspection Workstation', 'WC-QC')
+      ) AS v(code, display_name, work_center_code)
+      JOIN md_work_center wc ON wc.code = v.work_center_code
+      WHERE NOT EXISTS (SELECT 1 FROM md_workstation ws WHERE ws.code = v.code AND ws.version_no = 1);
+
+      INSERT INTO md_work_center_composition
+        (work_center_id, workstation_id, operation_id, effective_from, created_by)
+      SELECT ro.work_center_id, ws.master_id, ro.operation_id, NOW(),
+             '00000000-0000-0000-0000-000000000001'::UUID
+      FROM md_routing_header rh
+      JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
+      JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+      JOIN md_workstation ws ON ws.work_center_id = wc.master_id
+       AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+      WHERE rh.code = 'RT-FG-WS-CM01-R1'
+        AND rh.version_no = 1
+        AND NOT EXISTS (
+          SELECT 1 FROM md_work_center_composition current_row
+          WHERE current_row.work_center_id = ro.work_center_id
+            AND current_row.workstation_id = ws.master_id
+            AND current_row.operation_id = ro.operation_id
+            AND current_row.active_flag = TRUE
+            AND (current_row.effective_to IS NULL OR current_row.effective_to > NOW())
+        );
+
+      INSERT INTO md_workstation_operation_capability
+        (workstation_id, operation_id, cycle_time_sec, setup_time_min, base_quantity,
+         efficiency_factor, scheduling_mode, effective_from, created_by)
+      SELECT ws.master_id, ro.operation_id, 60, 0, 1, 1, 'Finite', NOW(),
+             '00000000-0000-0000-0000-000000000001'::UUID
+      FROM md_routing_header rh
+      JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
+      JOIN md_workstation ws ON ws.work_center_id = ro.work_center_id
+       AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+      WHERE rh.code = 'RT-FG-WS-CM01-R1'
+        AND rh.version_no = 1
+        AND NOT EXISTS (
+          SELECT 1 FROM md_workstation_operation_capability current_row
+          WHERE current_row.workstation_id = ws.master_id
+            AND current_row.operation_id = ro.operation_id
+            AND current_row.active_flag = TRUE
+            AND (current_row.effective_to IS NULL OR current_row.effective_to > NOW())
+        );
+    `,
+  },
+  {
+    name: '0035_print_stations_and_workstation_bindings',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_print_station (
+        master_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code VARCHAR(80) NOT NULL UNIQUE,
+        name JSONB NOT NULL,
+        description JSONB,
+        site_id UUID NOT NULL REFERENCES md_site(master_id),
+        shopfloor_id UUID REFERENCES md_shopfloor(master_id),
+        gateway_base_url TEXT NOT NULL,
+        deployment_mode VARCHAR(20) NOT NULL DEFAULT 'PHYSICAL'
+          CHECK (deployment_mode IN ('PHYSICAL','SIMULATION','HYBRID')),
+        status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+          CHECK (status IN ('PENDING','ONLINE','OFFLINE','DEGRADED','DISABLED')),
+        capabilities JSONB NOT NULL DEFAULT '["PRINT"]'::jsonb
+          CHECK (jsonb_typeof(capabilities) = 'array'),
+        software_version VARCHAR(120),
+        last_heartbeat_at TIMESTAMPTZ,
+        last_health_check_at TIMESTAMPTZ,
+        last_health_error TEXT,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_by UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'::UUID,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS ix_md_print_station_scope
+        ON md_print_station(site_id, shopfloor_id, is_active, status);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_print_station_code_lower
+        ON md_print_station(LOWER(code));
+
+      CREATE TABLE IF NOT EXISTS md_workstation_print_station_binding (
+        binding_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        workstation_id UUID NOT NULL REFERENCES md_workstation(master_id),
+        print_station_id UUID NOT NULL REFERENCES md_print_station(master_id),
+        role VARCHAR(20) NOT NULL CHECK (role IN ('PRIMARY','BACKUP')),
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_by UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'::UUID,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK (effective_to IS NULL OR effective_to > effective_from)
+      );
+      CREATE INDEX IF NOT EXISTS ix_md_ws_print_binding_resolution
+        ON md_workstation_print_station_binding(workstation_id, role, is_active, effective_from, effective_to);
+      CREATE INDEX IF NOT EXISTS ix_md_ws_print_binding_station
+        ON md_workstation_print_station_binding(print_station_id, is_active, effective_from, effective_to);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_ws_print_binding_active_pair
+        ON md_workstation_print_station_binding(workstation_id, print_station_id, role, effective_from)
+        WHERE is_active = TRUE;
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_ws_print_binding_active_primary
+        ON md_workstation_print_station_binding(workstation_id)
+        WHERE is_active = TRUE AND role = 'PRIMARY' AND effective_to IS NULL;
+    `,
+  },
+  {
+    name: '0036_print_station_runtime_projection',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_print_station_runtime_projection (
+        print_station_id UUID PRIMARY KEY REFERENCES md_print_station(master_id) ON DELETE CASCADE,
+        station_code VARCHAR(80) NOT NULL,
+        adapter_id VARCHAR(120),
+        runtime_status VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN'
+          CHECK (runtime_status IN ('UNKNOWN','ONLINE','OFFLINE','DEGRADED','ERROR')),
+        kafka_status VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN'
+          CHECK (kafka_status IN ('UNKNOWN','CONNECTED','DISCONNECTED')),
+        printer_count INTEGER NOT NULL DEFAULT 0 CHECK (printer_count >= 0),
+        online_printer_count INTEGER NOT NULL DEFAULT 0 CHECK (online_printer_count >= 0),
+        error_printer_count INTEGER NOT NULL DEFAULT 0 CHECK (error_printer_count >= 0),
+        last_heartbeat_at TIMESTAMPTZ,
+        last_status_change_at TIMESTAMPTZ,
+        last_event_id VARCHAR(160),
+        last_event_type VARCHAR(120),
+        last_error TEXT,
+        printer_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(printer_snapshot) = 'array'),
+        details JSONB NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(details) = 'object'),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_print_station_runtime_event
+        ON md_print_station_runtime_projection(last_event_id)
+        WHERE last_event_id IS NOT NULL;
+      CREATE TABLE IF NOT EXISTS md_print_station_runtime_events (
+        event_id VARCHAR(160) PRIMARY KEY,
+        print_station_id UUID REFERENCES md_print_station(master_id) ON DELETE CASCADE,
+        event_type VARCHAR(120) NOT NULL,
+        occurred_at TIMESTAMPTZ NOT NULL,
+        received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS ix_md_print_station_runtime_status
+        ON md_print_station_runtime_projection(runtime_status, kafka_status, updated_at);
+    `,
+  },
+  {
+    name: '0037_print_station_capacity_allocation',
+    sql: `
+      ALTER TABLE md_print_station
+        ADD COLUMN IF NOT EXISTS configured_allocation_limit INTEGER;
+      ALTER TABLE md_print_station
+        DROP CONSTRAINT IF EXISTS ck_md_print_station_configured_allocation_limit;
+      ALTER TABLE md_print_station
+        ADD CONSTRAINT ck_md_print_station_configured_allocation_limit
+        CHECK (configured_allocation_limit IS NULL OR configured_allocation_limit >= 0);
+
+      ALTER TABLE md_workstation_print_station_binding
+        ADD COLUMN IF NOT EXISTS allocated_printer_quantity INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE md_workstation_print_station_binding
+        ADD COLUMN IF NOT EXISTS ended_by UUID,
+        ADD COLUMN IF NOT EXISTS end_reason TEXT;
+      ALTER TABLE md_workstation_print_station_binding
+        DROP CONSTRAINT IF EXISTS ck_md_ws_print_binding_allocated_quantity;
+      ALTER TABLE md_workstation_print_station_binding
+        ADD CONSTRAINT ck_md_ws_print_binding_allocated_quantity
+        CHECK (allocated_printer_quantity > 0);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_ws_print_binding_current_workstation
+        ON md_workstation_print_station_binding(workstation_id)
+        WHERE is_active = TRUE AND effective_to IS NULL;
+
+      ALTER TABLE md_print_station_runtime_projection
+        ADD COLUMN IF NOT EXISTS registered_printer_count INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS ready_printer_count INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS busy_printer_count INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS offline_printer_count INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS active_for_work_printer_count INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE md_print_station_runtime_projection
+        DROP CONSTRAINT IF EXISTS ck_md_print_station_runtime_counts;
+      ALTER TABLE md_print_station_runtime_projection
+        ADD CONSTRAINT ck_md_print_station_runtime_counts CHECK (
+          registered_printer_count >= 0 AND ready_printer_count >= 0 AND
+          busy_printer_count >= 0 AND offline_printer_count >= 0 AND
+          active_for_work_printer_count >= 0
+      );
+    `,
+  },
+  {
+    name: '0038_production_version_site_derived_from_mbom',
+    sql: `
+      CREATE OR REPLACE FUNCTION sync_production_version_site_from_mbom()
+      RETURNS TRIGGER AS $fn$
+      DECLARE mbom_site UUID;
+      BEGIN
+        SELECT site_id INTO mbom_site
+        FROM md_mbom_header
+        WHERE master_id = NEW.mbom_header_id
+          AND item_revision_id = NEW.item_revision_id
+          AND lifecycle_status = 'Released';
+        IF mbom_site IS NULL THEN
+          RAISE EXCEPTION 'Production Version requires a Released MBOM for the selected Item Revision';
+        END IF;
+        NEW.site_id := mbom_site;
+        RETURN NEW;
+      END;
+      $fn$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS trg_md_production_version_derive_site ON md_production_version;
+      CREATE TRIGGER trg_md_production_version_derive_site
+        BEFORE INSERT OR UPDATE OF item_revision_id, mbom_header_id, site_id
+        ON md_production_version
+        FOR EACH ROW EXECUTE FUNCTION sync_production_version_site_from_mbom();
+
+      -- Production Version site remains a required execution/readiness key.
+      -- Normalize legacy rows to the Released MBOM site; new writes are derived
+      -- by the master-data API from the selected MBOM.
+      UPDATE md_production_version pv
+      SET site_id = mb.site_id,
+          updated_at = NOW()
+      FROM md_mbom_header mb
+      WHERE mb.master_id = pv.mbom_header_id
+        AND mb.lifecycle_status = 'Released'
+        AND pv.site_id IS DISTINCT FROM mb.site_id;
+    `,
+  },
+  {
+    name: '0039_decouple_mbom_from_item_revision',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_mbom_legacy_revision_audit (
+        audit_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        mbom_id UUID NOT NULL,
+        legacy_item_revision_id UUID,
+        captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        reason TEXT NOT NULL DEFAULT 'MBOM_ITEM_REVISION_DECOUPLED'
+      );
+      INSERT INTO md_mbom_legacy_revision_audit (mbom_id, legacy_item_revision_id)
+      SELECT master_id, item_revision_id
+      FROM md_mbom_header
+      WHERE item_revision_id IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM md_mbom_legacy_revision_audit audit
+          WHERE audit.mbom_id = md_mbom_header.master_id
+        );
+
+      DROP TRIGGER IF EXISTS trg_md_production_version_derive_site ON md_production_version;
+      DROP FUNCTION IF EXISTS sync_production_version_site_from_mbom();
+      ALTER TABLE md_mbom_header DROP COLUMN IF EXISTS item_revision_id;
+
+      CREATE OR REPLACE FUNCTION sync_production_version_site_from_routing()
+      RETURNS TRIGGER AS $fn$
+      DECLARE routing_site UUID;
+      DECLARE routing_site_count INTEGER;
+      DECLARE mbom_site UUID;
+      BEGIN
+        SELECT site_id INTO mbom_site
+        FROM md_mbom_header
+        WHERE master_id = NEW.mbom_header_id
+          AND lifecycle_status = 'Released';
+        IF mbom_site IS NULL THEN
+          RAISE EXCEPTION 'Production Version requires a Released MBOM';
+        END IF;
+        SELECT COUNT(*)::INTEGER INTO routing_site_count
+        FROM (
+          SELECT DISTINCT wc.site_id
+          FROM md_routing_header rh
+          JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
+          JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+          WHERE rh.master_id = NEW.routing_header_id
+            AND rh.lifecycle_status = 'Released'
+        ) sites;
+        SELECT site_id INTO routing_site
+        FROM (
+          SELECT DISTINCT wc.site_id
+          FROM md_routing_header rh
+          JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
+          JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+          WHERE rh.master_id = NEW.routing_header_id
+            AND rh.lifecycle_status = 'Released'
+        ) sites LIMIT 1;
+        IF routing_site IS NULL OR routing_site_count <> 1 OR routing_site <> mbom_site THEN
+          RAISE EXCEPTION 'Production Version requires a Released Routing with Work Center Site';
+        END IF;
+        NEW.site_id := routing_site;
+        RETURN NEW;
+      END;
+      $fn$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS trg_md_production_version_derive_site ON md_production_version;
+      CREATE TRIGGER trg_md_production_version_derive_site
+        BEFORE INSERT OR UPDATE OF item_revision_id, mbom_header_id, routing_header_id, site_id
+        ON md_production_version
+        FOR EACH ROW EXECUTE FUNCTION sync_production_version_site_from_routing();
+    `,
+  },
+  {
+    name: '0040_fix_production_version_site_trigger_uuid_aggregate',
+    sql: `
+      CREATE OR REPLACE FUNCTION sync_production_version_site_from_routing()
+      RETURNS TRIGGER AS $fn$
+      DECLARE routing_site UUID;
+      DECLARE routing_site_count INTEGER;
+      DECLARE mbom_site UUID;
+      BEGIN
+        SELECT site_id INTO mbom_site
+        FROM md_mbom_header
+        WHERE master_id = NEW.mbom_header_id
+          AND lifecycle_status = 'Released';
+        IF mbom_site IS NULL THEN
+          RAISE EXCEPTION 'Production Version requires a Released MBOM';
+        END IF;
+        SELECT COUNT(*)::INTEGER INTO routing_site_count
+        FROM (
+          SELECT DISTINCT wc.site_id
+          FROM md_routing_header rh
+          JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
+          JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+          WHERE rh.master_id = NEW.routing_header_id
+            AND rh.lifecycle_status = 'Released'
+        ) sites;
+        SELECT site_id INTO routing_site
+        FROM (
+          SELECT DISTINCT wc.site_id
+          FROM md_routing_header rh
+          JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
+          JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+          WHERE rh.master_id = NEW.routing_header_id
+            AND rh.lifecycle_status = 'Released'
+        ) sites LIMIT 1;
+        IF routing_site IS NULL OR routing_site_count <> 1 OR routing_site <> mbom_site THEN
+          RAISE EXCEPTION 'Production Version requires a Released Routing with one Work Center Site matching the MBOM Site';
+        END IF;
+        NEW.site_id := routing_site;
+        RETURN NEW;
+      END;
+      $fn$ LANGUAGE plpgsql;
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

@@ -1,4 +1,6 @@
-1using System.Text.Json;
+using System.Diagnostics;
+using System.Net.Sockets;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using ND.Infrastructure.Observability;
@@ -9,16 +11,15 @@ using ND.PrinterAdapter.Infrastructure.DeviceAdapters;
 using ND.PrinterAdapter.Infrastructure.Messaging;
 using ND.PrinterAdapter.Infrastructure.Persistence;
 using ND.PrinterAdapter.Infrastructure.Rendering;
-using ND.PrinterAdapter.Infrastructure.Simulation;
 using ND.SharedKernel.Abstractions;
 using ND.SharedKernel.Time;
-using StackExchange.Redis;
-using ND.Infrastructure.Redis;
 using Serilog;
+using Microsoft.Extensions.Options;
 using FluentValidation;
 using ND.PrinterAdapter.Application.DTOs;
 using ND.PrinterAdapter.Application.Validation;
 using ND.PrinterAdapter.Application.Dtos;
+using ND.UnifiedContracts.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,11 +30,6 @@ builder.Host.UseSerilog();
 var dbPath = builder.Configuration["SQLITE_PRINTER_PATH"] ?? "data/printer.db";
 builder.Services.AddDbContext<PrinterDbContext>(opts => opts.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<PrinterDbContext>());
-
-var redisConnection = builder.Configuration["REDIS_CONNECTION_STRING"] ?? "localhost:6379";
-builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
-builder.Services.AddSingleton<IIdempotencyService, RedisIdempotencyService>();
-builder.Services.AddSingleton<RedisHeartbeatCache>();
 
 builder.Services.AddSingleton<ISystemClock, SystemClock>();
 builder.Services.AddSingleton<IPrinterAdapter, ZplTcpPrinterAdapter>();
@@ -65,20 +61,27 @@ builder.Services.AddScoped<IPrintHistoryRepository, PrintHistoryRepository>();
 // Validators
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTemplateRequestValidator>();
 
-// RabbitMQ registrations
-builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
-builder.Services.AddSingleton<IRabbitMqConsumer, RabbitMqConsumer>();
-builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+builder.Services.AddScoped<BatchPrintService>();
 
-// Register hosted consumer
-builder.Services.AddHostedService<JobProcessingConsumer>();
-builder.Services.AddHostedService<BatchPrintConsumer>();
-builder.Services.AddHostedService<HeartbeatHostedService>();
-builder.Services.AddHostedService<PrinterHealthService>();
-
-// Virtual printer simulator — self-hosted TCP listeners replacing device-simulator's printer TCP server
-builder.Services.AddSingleton<VirtualPrinterSimulator>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<VirtualPrinterSimulator>());
+// Remote Kafka is the production command/result transport. Environment
+// variables intentionally override appsettings for independent deployment.
+builder.Services.Configure<KafkaOptions>(options =>
+{
+    builder.Configuration.GetSection(KafkaOptions.SectionName).Bind(options);
+    var bootstrap = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS");
+    if (!string.IsNullOrWhiteSpace(bootstrap)) options.BootstrapServers = bootstrap;
+    options.ClientId = Environment.GetEnvironmentVariable("KAFKA_CLIENT_ID") ?? options.PrinterAdapterId;
+    options.PrintStationId = Environment.GetEnvironmentVariable("PRINT_STATION_ID") ?? options.PrintStationId;
+    options.PrinterAdapterId = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_ID") ?? options.PrinterAdapterId;
+    options.SaslUsername = Environment.GetEnvironmentVariable("KAFKA_SASL_USERNAME");
+    options.SaslPassword = Environment.GetEnvironmentVariable("KAFKA_SASL_PASSWORD");
+    options.SecurityProtocol = Environment.GetEnvironmentVariable("KAFKA_SECURITY_PROTOCOL") ?? options.SecurityProtocol;
+    options.SaslMechanism = Environment.GetEnvironmentVariable("KAFKA_SASL_MECHANISM") ?? options.SaslMechanism;
+});
+builder.Services.AddSingleton<IEventConsumer, KafkaConsumer>();
+builder.Services.AddSingleton<IEventPublisher, KafkaPublisher>();
+builder.Services.AddHostedService<PrinterCommandConsumer>();
+builder.Services.AddHostedService<PrinterHeartbeatPublisher>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();   // Microsoft.AspNetCore.OpenApi — generates /openapi/v1.json
@@ -111,7 +114,7 @@ using (var scope = app.Services.CreateScope())
     }
     foreach (var sql in new[]
     {
-        "ALTER TABLE printer_printers ADD COLUMN driver_type TEXT NOT NULL DEFAULT 'simulation'",
+        "ALTER TABLE printer_printers ADD COLUMN driver_type TEXT NOT NULL DEFAULT 'cups'",
         "ALTER TABLE printer_printers ADD COLUMN cups_queue_name TEXT",
         "ALTER TABLE printer_printers ADD COLUMN is_active_for_work INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE printer_printers ADD COLUMN active_template_id TEXT",
@@ -136,6 +139,16 @@ using (var scope = app.Services.CreateScope())
             assigned_by TEXT,
             assigned_at TEXT NOT NULL,
             created_at TEXT NOT NULL
+        )",
+        @"CREATE TABLE IF NOT EXISTS printer_command_executions (
+            id TEXT PRIMARY KEY,
+            command_id TEXT NOT NULL UNIQUE,
+            command_type TEXT NOT NULL,
+            status TEXT NOT NULL,
+            result_json TEXT,
+            started_at TEXT NOT NULL,
+            completed_at TEXT,
+            created_at TEXT NOT NULL
         )"
     })
     {
@@ -148,14 +161,12 @@ using (var scope = app.Services.CreateScope())
         catch { /* Column/table already exists — safe to ignore */ }
     }
 
-    // Migrate any existing simulation printers still pointing to old device-simulator host -> localhost
-    try
-    {
-        using var migCmd = conn.CreateCommand();
-        migCmd.CommandText = "UPDATE printer_printers SET ip_address = 'localhost' WHERE driver_type = 'simulation' AND ip_address != 'localhost'";
-        await migCmd.ExecuteNonQueryAsync();
-    }
-    catch { /* ignore */ }
+    // Remove legacy virtual printers. Production state must come only from real
+    // CUPS or raw-TCP devices; this is idempotent for existing station volumes.
+    var legacyPrinterCodes = new[] { "Printer-01", "Printer-02", "Printer-03", "printer-01" };
+    await db.Printers
+        .Where(p => p.DriverType == "simulation" || legacyPrinterCodes.Contains(p.PrinterCode))
+        .ExecuteDeleteAsync();
 
     await conn.CloseAsync();
 
@@ -189,23 +200,17 @@ app.MapGet("/api/printers", async (PrinterDbContext db, CancellationToken ct) =>
     }).ToListAsync(ct)))
     .WithName("GetAllPrinters")
     .WithSummary("List all printers")
-    .WithDescription("Returns all registered printers with their current status, driver type (simulation / tcp / cups), CUPS queue name, active template assignment, last heartbeat timestamp, and work activation state.")
+    .WithDescription("Returns all registered real printers with their current status, driver type (tcp / cups), CUPS queue name, active template assignment, last heartbeat timestamp, and work activation state.")
     .WithTags("Printers")
     .Produces(200);
 
 // GET /api/printers/ready — printers that are online and available for work registration
 app.MapGet("/api/printers/ready", async (
-    bool? includeSimulation,
     PrinterDbContext db,
     CancellationToken ct) =>
 {
     var query = db.Printers
         .Where(p => p.Status == "ONLINE" || p.Status == "IDLE" || p.Status == "Idle");
-
-    // By default exclude simulation printers — they are managed by the device-simulator service.
-    // Pass ?includeSimulation=true to include them (e.g. for development/testing).
-    if (includeSimulation != true)
-        query = query.Where(p => p.DriverType != "simulation");
 
     var printers = await query.Select(p => new
     {
@@ -218,7 +223,7 @@ app.MapGet("/api/printers/ready", async (
 })
     .WithName("GetReadyPrinters")
     .WithSummary("List ready printers")
-    .WithDescription("Returns only printers whose status is ONLINE or IDLE. These are candidates to be activated for production work via the activate endpoint.")
+    .WithDescription("Returns only real printers whose status is ONLINE or IDLE. These are candidates to be activated for production work via the activate endpoint.")
     .WithTags("Printers")
     .Produces(200);
 
@@ -301,47 +306,6 @@ app.MapPost("/api/printers/{code}/deactivate", async (
 .WithTags("Printers")
 .Produces(200)
 .ProducesProblem(404);
-
-// GET /api/simulation/printers — status of all virtual printer simulators
-app.MapGet("/api/simulation/printers", (VirtualPrinterSimulator simulator) =>
-    Results.Ok(simulator.GetStatus()))
-    .WithName("GetSimulationPrinters")
-    .WithSummary("List virtual printer simulator statuses")
-    .WithDescription("Returns the current state of all virtual TCP printer simulators (online/offline, failure mode, port). These simulators replace the physical printer TCP servers in development and testing environments.")
-    .WithTags("Simulation")
-    .Produces(200);
-
-// POST /api/simulation/printers/{code}/mode — set failure mode for a simulated printer
-app.MapPost("/api/simulation/printers/{code}/mode", (string code, JsonElement body, VirtualPrinterSimulator simulator) =>
-{
-    var mode = body.TryGetProperty("mode", out var m) ? m.GetString() ?? "Success" : "Success";
-    simulator.SetMode(code, mode);
-    return Results.Ok(new { printerCode = code, mode });
-})
-.WithName("SetSimulationPrinterMode")
-.WithSummary("Set failure mode of a simulated printer")
-.WithDescription("Changes the behaviour of a virtual printer simulator. Supported modes: `Success` (normal ACK), `Timeout` (connection hangs), `Disconnect` (immediate TCP close), `Error` (NACK response). Useful for testing print retry and error-handling logic.")
-.WithTags("Simulation")
-.Produces(200);
-
-// POST /api/simulation/printers/{code}/connect|disconnect
-app.MapPost("/api/simulation/printers/{code}/connect",
-    async (string code, VirtualPrinterSimulator simulator, CancellationToken ct) =>
-    { await simulator.SetOnlineAsync(code, true, ct); return Results.Ok(); })
-    .WithName("ConnectSimulationPrinter")
-    .WithSummary("Bring simulated printer online")
-    .WithDescription("Starts the virtual TCP listener for the specified simulated printer code, making it appear online and reachable to the print queue processor.")
-    .WithTags("Simulation")
-    .Produces(200);
-
-app.MapPost("/api/simulation/printers/{code}/disconnect",
-    async (string code, VirtualPrinterSimulator simulator, CancellationToken ct) =>
-    { await simulator.SetOnlineAsync(code, false, ct); return Results.Ok(); })
-    .WithName("DisconnectSimulationPrinter")
-    .WithSummary("Take simulated printer offline")
-    .WithDescription("Stops the virtual TCP listener for the specified simulated printer code, causing it to appear unreachable. Useful for testing offline/failover scenarios.")
-    .WithTags("Simulation")
-    .Produces(200);
 
 app.MapGet("/api/printers/discover", async (IPrinterDriverFactory driverFactory, ILoggerFactory loggerFactory, CancellationToken ct) =>
 {
@@ -438,11 +402,106 @@ app.MapPost("/api/printers/{code}/test-connection", async (string code, PrinterD
 .ProducesProblem(404);
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "printer-adapter" }))
-    .WithName("HealthCheck")
+    .WithName("Health")
     .WithSummary("Service health check")
-    .WithDescription("Lightweight liveness probe. Returns HTTP 200 with `{ status: 'healthy', service: 'printer-adapter' }` when the service is running. Used by Docker health checks and load balancers.")
-    .WithTags("Health")
+    .WithDescription("Lightweight liveness probe for the independently deployed printer adapter.")
+    .WithTags("Infrastructure")
     .Produces(200);
+
+app.MapGet("/api/health", async (
+    PrinterDbContext db,
+    IHostApplicationLifetime lifetime,
+    IOptions<KafkaOptions> kafkaOptions,
+    IEventConsumer kafkaConsumer,
+    IEventPublisher kafkaPublisher,
+    IPrinterDriverFactory driverFactory,
+    CancellationToken ct) =>
+{
+    var count = await db.Printers.CountAsync(ct);
+    var online = await db.Printers.CountAsync(p => p.Status == "ONLINE" || p.Status == "IDLE" || p.Status == "PRINTING", ct);
+    var offline = await db.Printers.CountAsync(p => p.Status == "OFFLINE", ct);
+    var error = await db.Printers.CountAsync(p => p.Status == "ERROR", ct);
+
+    var kafkaConnected = kafkaConsumer.IsConnected && kafkaPublisher.IsConnected;
+
+    var cupsPrinter = await db.Printers
+        .Where(p => p.DriverType == "cups" && p.CupsQueueName != null)
+        .OrderBy(p => p.PrinterCode)
+        .FirstOrDefaultAsync(ct);
+    var cupsConnected = false;
+    object cups = new { status = "NotConfigured", queue = (string?)null, printerCode = (string?)null, driverStatus = (string?)null };
+    if (cupsPrinter is not null)
+    {
+        var driver = driverFactory.Resolve(cupsPrinter);
+        var cupsStatus = await driver.GetStatusAsync(ct);
+        cupsConnected = cupsStatus is not ND.PrinterAdapter.Application.Dtos.PrinterDriverStatus.Offline
+            and not ND.PrinterAdapter.Application.Dtos.PrinterDriverStatus.Disconnected
+            and not ND.PrinterAdapter.Application.Dtos.PrinterDriverStatus.Unknown;
+        cups = new
+        {
+            status = cupsConnected ? "Connected" : "Disconnected",
+            queue = cupsPrinter.CupsQueueName,
+            printerCode = cupsPrinter.PrinterCode,
+            driverStatus = cupsStatus.ToString()
+        };
+    }
+
+    var overall = kafkaConnected && cupsConnected && online > 0 ? "Healthy" : "Degraded";
+    return Results.Ok(new
+    {
+        status = overall,
+        service = "printer-adapter",
+        kafka = new
+        {
+            status = kafkaConnected ? "Connected" : "Disconnected",
+            bootstrapServers = kafkaOptions.Value.BootstrapServers,
+            clientId = kafkaOptions.Value.ClientId,
+            consumerGroup = "printer-adapter"
+        },
+        cups,
+        redis = new { status = "NotConfigured", reason = "Printer Adapter does not cache production commands in Redis." },
+        printers = new { online, offline, error, total = count },
+        version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown",
+        printerCount = count,
+        uptimeSeconds = (long)(DateTimeOffset.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds,
+        started = !lifetime.ApplicationStarted.IsCancellationRequested ? false : true
+    });
+})
+    .WithName("ApiHealth")
+    .WithTags("Infrastructure");
+
+app.MapPost("/api/print", async (
+    ProductionBatchPrintCommand command,
+    BatchPrintService service,
+    HttpRequest request,
+    CancellationToken ct) =>
+{
+    var source = request.Headers["X-Print-Source"].ToString();
+    if (!string.Equals(source, "MANUAL_TEST", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(source, "ADMIN", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest(new { error = "HTTP printing is diagnostic only. Set X-Print-Source to MANUAL_TEST or ADMIN." });
+
+    if (command.LabelItems is null || command.LabelItems.Count == 0)
+        return Results.BadRequest(new { error = "label_items must contain at least one item" });
+
+    var result = await service.HandleCommandAsync(command, ct, source);
+    if (result is null)
+        return Results.Conflict(new { error = "This print command is already being processed." });
+    return Results.Ok(result);
+})
+    .WithName("PrintBatch")
+    .WithSummary("Render and print a batch through the independent printer adapter")
+    .WithTags("Print Jobs")
+    .Produces<ProductionBatchPrintedEvent>(200)
+    .Produces(400);
+
+app.MapGet("/api/jobs/{id}", async (string id, PrinterDbContext db, CancellationToken ct) =>
+{
+    var job = await db.PrinterJobs.AsNoTracking().FirstOrDefaultAsync(item => item.JobId == id, ct);
+    return job is null ? Results.NotFound() : Results.Ok(job);
+})
+    .WithName("GetPrinterJob")
+    .WithTags("Print Jobs");
 
 // ── Label Template API ──────────────────────────────────────────────────────
 
@@ -1096,7 +1155,8 @@ app.MapPost("/api/label-templates/{id}/print-test", async (
     var template = await templateRepo.GetByIdAsync(id, ct);
     if (template is null) return Results.NotFound();
 
-    var printer = await db.Printers.FirstOrDefaultAsync(p => p.PrinterCode == (req.PrinterCode ?? "printer-01"), ct);
+    if (string.IsNullOrWhiteSpace(req.PrinterCode)) return Results.BadRequest(new { error = "Printer code is required for a physical print test" });
+    var printer = await db.Printers.FirstOrDefaultAsync(p => p.PrinterCode == req.PrinterCode, ct);
     if (printer is null) return Results.BadRequest(new { error = "Printer not found" });
 
     var data = req.Data ?? new Dictionary<string, string>();

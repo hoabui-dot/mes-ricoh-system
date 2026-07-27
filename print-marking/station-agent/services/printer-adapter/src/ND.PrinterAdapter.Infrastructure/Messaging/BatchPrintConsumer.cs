@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ND.Infrastructure.Messaging;
 using ND.PrinterAdapter.Application.Interfaces;
 using ND.PrinterAdapter.Domain.Entities;
 using ND.PrinterAdapter.Infrastructure.Persistence;
@@ -15,93 +14,43 @@ using ND.UnifiedContracts.Events;
 namespace ND.PrinterAdapter.Infrastructure.Messaging;
 
 /// <summary>
-/// Consumes <see cref="ProductionBatchPrintCommand"/> events from the Job Engine and:
+/// Executes <see cref="ProductionBatchPrintCommand"/> requests from the Job Engine and:
 /// <list type="number">
 ///   <item>Resolves the label template (once for the entire Production Order)</item>
 ///   <item>Renders ZPL for every label item</item>
 ///   <item>Concatenates them into one ZPL document (chunked by <c>PrintBatch:ChunkSize</c>)</item>
 ///   <item>Sends ONE print request per chunk to the physical printer / simulator</item>
-///   <item>Publishes <see cref="ProductionBatchPrintedEvent"/> back to RabbitMQ</item>
+///   <item>Returns <see cref="ProductionBatchPrintedEvent"/> to the transport adapter</item>
 /// </list>
 ///
-/// Exchange:    station.events
-/// Queue:       printer-adapter.batch-print-commands
-/// Pattern:     command.printer.print.batch
 /// </summary>
-public sealed class BatchPrintConsumer : BackgroundService
+public sealed class BatchPrintService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IRabbitMqConsumer _consumer;
-    private readonly IRabbitMqPublisher _publisher;
     private readonly IPrintQueue _printQueue;
     private readonly ILabelRenderer _labelRenderer;
     private readonly IConfiguration _configuration;
-    private readonly ILogger<BatchPrintConsumer> _logger;
+    private readonly ILogger<BatchPrintService> _logger;
 
-    private const string Exchange = "station.events";
-    private const string Queue   = "printer-adapter.batch-print-commands";
-    private const string Pattern = "command.printer.print.batch";
-
-    private static readonly JsonSerializerOptions JsonOpts =
-        new() { PropertyNameCaseInsensitive = true };
-
-    public BatchPrintConsumer(
+    public BatchPrintService(
         IServiceScopeFactory scopeFactory,
-        IRabbitMqConsumer consumer,
-        IRabbitMqPublisher publisher,
         IPrintQueue printQueue,
         ILabelRenderer labelRenderer,
         IConfiguration configuration,
-        ILogger<BatchPrintConsumer> logger)
+        ILogger<BatchPrintService> logger)
     {
         _scopeFactory  = scopeFactory;
-        _consumer      = consumer;
-        _publisher     = publisher;
         _printQueue    = printQueue;
         _labelRenderer = labelRenderer;
         _configuration = configuration;
         _logger        = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task<ProductionBatchPrintedEvent?> HandleCommandAsync(
+        ProductionBatchPrintCommand cmd,
+        CancellationToken ct,
+        string source = "KAFKA")
     {
-        _logger.LogInformation(
-            "BatchPrintConsumer starting. exchange={Exchange} queue={Queue} pattern={Pattern}",
-            Exchange, Queue, Pattern);
-
-        await _consumer.StartConsumingAsync(
-            exchange: Exchange,
-            queue: Queue,
-            routingKeyPattern: Pattern,
-            onMessage: (_, json) => HandleMessageAsync(json, stoppingToken),
-            cancellationToken: stoppingToken);
-
-        await Task.Delay(Timeout.Infinite, stoppingToken).ConfigureAwait(false);
-    }
-
-    // ── Main handler ────────────────────────────────────────────────────────────
-
-    private async Task HandleMessageAsync(string payloadJson, CancellationToken ct)
-    {
-        _logger.LogInformation("BatchPrintConsumer received batch command.");
-
-        ProductionBatchPrintCommand? cmd;
-        try
-        {
-            cmd = JsonSerializer.Deserialize<ProductionBatchPrintCommand>(payloadJson, JsonOpts);
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "Failed to deserialise ProductionBatchPrintCommand");
-            throw;
-        }
-
-        if (cmd is null)
-        {
-            _logger.LogWarning("Received null ProductionBatchPrintCommand — skipping.");
-            return;
-        }
-
         _logger.LogInformation(
             "Batch command: PO={OrderNo} Labels={Count} Printer={Printer} DispatchTarget={Target}",
             cmd.ProductionOrderNo, cmd.LabelItems.Count, cmd.TargetPrinter, cmd.DispatchTarget);
@@ -109,6 +58,48 @@ public sealed class BatchPrintConsumer : BackgroundService
         using var scope     = _scopeFactory.CreateScope();
         var db              = scope.ServiceProvider.GetRequiredService<PrinterDbContext>();
         var unitOfWork      = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        // Reserve the command before touching a physical printer. A redelivery
+        // returns the stored result, while a command already being processed is
+        // acknowledged by the caller without printing a second time.
+        var existingExecution = await db.PrinterCommandExecutions
+            .SingleOrDefaultAsync(x => x.CommandId == cmd.EventId, ct);
+        if (existingExecution is not null)
+        {
+            if (existingExecution.Status == "COMPLETED" && !string.IsNullOrWhiteSpace(existingExecution.ResultJson))
+            {
+                return JsonSerializer.Deserialize<ProductionBatchPrintedEvent>(
+                    existingExecution.ResultJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+
+            _logger.LogWarning(
+                "Ignoring duplicate in-flight print command {CommandId} from {Source}; physical print is already reserved.",
+                cmd.EventId, source);
+            return null;
+        }
+
+        var execution = PrinterCommandExecution.Start(cmd.EventId, cmd.EventType);
+        db.PrinterCommandExecutions.Add(execution);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Another consumer instance won the unique command_id race.
+            var winner = await db.PrinterCommandExecutions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x => x.CommandId == cmd.EventId, ct);
+            if (winner?.Status == "COMPLETED" && !string.IsNullOrWhiteSpace(winner.ResultJson))
+            {
+                return JsonSerializer.Deserialize<ProductionBatchPrintedEvent>(
+                    winner.ResultJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+
+            return null;
+        }
 
         // ── 1. Resolve printer ───────────────────────────────────────────────────
         var isPhysical = string.Equals(cmd.DispatchTarget, "production-printer",
@@ -123,18 +114,23 @@ public sealed class BatchPrintConsumer : BackgroundService
         }
         else
         {
-            var targetCode = cmd.TargetPrinter ?? "Printer-01";
+            var targetCode = cmd.TargetPrinter;
+            if (string.IsNullOrWhiteSpace(targetCode))
+            {
+                return await CompleteAsync(execution, db, unitOfWork, CreateBatchResult(cmd, "unknown",
+                    succeededIds: [], failedIds: cmd.LabelItems.Select(i => i.JobId).ToList(),
+                    error: "A target physical printer is required."), ct);
+            }
             printer = await db.Printers.FirstOrDefaultAsync(p => p.PrinterCode == targetCode, ct);
-            _logger.LogInformation("[Batch] Using simulation printer: {Code}", printer?.PrinterCode ?? targetCode);
+            _logger.LogInformation("[Batch] Using requested physical printer: {Code}", printer?.PrinterCode ?? targetCode);
         }
 
         if (printer is null)
         {
             _logger.LogError("[Batch] No printer found for dispatch_target={Target} — failing batch.", cmd.DispatchTarget);
-            await PublishBatchResultAsync(cmd, printer?.PrinterCode ?? "unknown",
+            return await CompleteAsync(execution, db, unitOfWork, CreateBatchResult(cmd, printer?.PrinterCode ?? "unknown",
                 succeededIds: [], failedIds: cmd.LabelItems.Select(i => i.JobId).ToList(),
-                error: "No printer configured.", ct);
-            return;
+                error: "No printer configured."), ct);
         }
 
         // ── 2. Resolve template (once for the whole batch) ───────────────────────
@@ -146,18 +142,15 @@ public sealed class BatchPrintConsumer : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "[Batch] No label template found — failing batch.");
-            await PublishBatchResultAsync(cmd, printer.PrinterCode,
+            return await CompleteAsync(execution, db, unitOfWork, CreateBatchResult(cmd, printer.PrinterCode,
                 succeededIds: [], failedIds: cmd.LabelItems.Select(i => i.JobId).ToList(),
-                error: ex.Message, ct);
-            return;
+                error: ex.Message), ct);
         }
 
         // ── 3. Build shared base variables from PO payload ───────────────────────
         var baseVars = BuildBaseVariables(cmd);
 
         // ── 4. Announce Printing heartbeat ───────────────────────────────────────
-        await PublishHeartbeatAsync(printer.PrinterCode, isOnline: true, lifecycleState: "Printing", ct);
-
         // ── 5. Render ALL ZPL in memory → collect per-label ZPL strings ──────────
         var effectiveChunkSize = _configuration.GetValue<int>("PrintBatch:ChunkSize", cmd.BatchSize);
 
@@ -253,14 +246,26 @@ public sealed class BatchPrintConsumer : BackgroundService
         }
 
         // ── 6. Recovery heartbeat ────────────────────────────────────────────────
-        await PublishHeartbeatAsync(printer.PrinterCode, isOnline: true, lifecycleState: "Online", ct);
-
         // ── 7. Publish batch result ───────────────────────────────────────────────
-        await PublishBatchResultAsync(cmd, printer.PrinterCode, succeededIds, failedIds, batchError, ct);
+        var result = CreateBatchResult(cmd, printer.PrinterCode, succeededIds, failedIds, batchError);
+        await CompleteAsync(execution, db, unitOfWork, result, ct);
 
         _logger.LogInformation(
             "[Batch] PO={OrderNo} complete. Succeeded={S} Failed={F}",
             cmd.ProductionOrderNo, succeededIds.Count, failedIds.Count);
+        return result;
+    }
+
+    private static async Task<ProductionBatchPrintedEvent> CompleteAsync(
+        PrinterCommandExecution execution,
+        PrinterDbContext db,
+        IUnitOfWork unitOfWork,
+        ProductionBatchPrintedEvent result,
+        CancellationToken ct)
+    {
+        execution.Complete(JsonSerializer.Serialize(result));
+        await unitOfWork.SaveChangesAsync(ct);
+        return result;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -443,49 +448,19 @@ public sealed class BatchPrintConsumer : BackgroundService
         }
     }
 
-    private async Task PublishBatchResultAsync(
+    private static ProductionBatchPrintedEvent CreateBatchResult(
         ProductionBatchPrintCommand cmd,
         string printerCode,
         IReadOnlyList<string> succeededIds,
         IReadOnlyList<string> failedIds,
-        string? error,
-        CancellationToken ct)
+        string? error)
     {
-        var resultEvent = ProductionBatchPrintedEvent.Create(
+        return ProductionBatchPrintedEvent.Create(
             productionOrderNo: cmd.ProductionOrderNo,
             printerCode: printerCode,
             succeededJobIds: succeededIds,
             failedJobIds: failedIds,
-            errorMessage: error);
-
-        try
-        {
-            await _publisher.PublishAsync(
-                Exchange,
-                JobEventRoutingKeys.PrinterBatchPrinted,
-                JsonSerializer.Serialize(resultEvent, JsonOpts),
-                ct);
-            _logger.LogInformation(
-                "[Batch] Published ProductionBatchPrintedEvent for PO={OrderNo}.", cmd.ProductionOrderNo);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[Batch] Failed to publish ProductionBatchPrintedEvent for PO={OrderNo}.", cmd.ProductionOrderNo);
-        }
-    }
-
-    private async Task PublishHeartbeatAsync(string printerCode, bool isOnline, string lifecycleState, CancellationToken ct)
-    {
-        try
-        {
-            var routingKey = $"device.heartbeat.{printerCode.ToLowerInvariant()}";
-            var hb = new DeviceStatusHeartbeat(printerCode, "Printer", isOnline, lifecycleState, DateTime.UtcNow.ToString("o"));
-            await _publisher.PublishAsync(Exchange, routingKey, JsonSerializer.Serialize(hb), ct);
-            _logger.LogDebug("[Batch] Published heartbeat [{Code}] → {State}", printerCode, lifecycleState);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "[Batch] Failed to publish heartbeat for {Code} → {State}", printerCode, lifecycleState);
-        }
+            errorMessage: error,
+            commandId: cmd.EventId);
     }
 }

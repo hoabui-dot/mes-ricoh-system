@@ -26,6 +26,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 USER root
 RUN apt-get update && apt-get install -y cups-client cups-bsd socat && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /data /logs && chown -R app:app /data /logs
 USER app
 COPY --chown=app:app --from=build /app/publish .
 VOLUME ["/data", "/logs"]
@@ -34,6 +35,5 @@ ENV ASPNETCORE_URLS=http://+:5003 \
     CUPS_SERVER=127.0.0.1:8631 \
     CUPS_USER=root
 ENTRYPOINT ["/bin/bash", "-c", "socat TCP-LISTEN:8631,fork,bind=127.0.0.1 TCP:host.docker.internal:631 & exec dotnet ND.PrinterAdapter.Api.dll"]
-
 
 

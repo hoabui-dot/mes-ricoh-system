@@ -1,6 +1,8 @@
 using System.Text.Json;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using ND.Infrastructure.Messaging;
 using ND.Infrastructure.Observability;
 using ND.StationGateway.Application.Commands;
 using ND.StationGateway.Infrastructure.DependencyInjection;
@@ -9,6 +11,7 @@ using ND.UnifiedContracts.Events;
 using ND.UnifiedContracts.Validation;
 using Scalar.AspNetCore;
 using Serilog;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +24,7 @@ Log.Logger = SerilogConfiguration.Configure(
 builder.Logging.ClearProviders();
 builder.Services.AddSerilog();
 
-// ── Infrastructure (SQLite, Redis, RabbitMQ, outbox poller) ──────────────────
+// ── Infrastructure (SQLite, Redis, Kafka, outbox poller) ──────────────────
 builder.Services.AddStationGatewayInfrastructure(builder.Configuration);
 
 // ── OpenAPI ───────────────────────────────────────────────────────────────────
@@ -72,6 +75,56 @@ app.MapGet("/health", () => Results.Ok(new
 .WithName("HealthCheck")
 .WithTags("System")
 .WithSummary("Health check");
+
+// Read-only readiness and MES activity derived from the existing gateway audit log.
+// Simulator/manual sources are intentionally excluded from MES telemetry.
+app.MapGet("/api/gateway/connection-status", async (
+    GatewayDbContext db,
+    IEventPublisher eventPublisher,
+    IConnectionMultiplexer redis,
+    CancellationToken cancellationToken) =>
+{
+    var now = DateTimeOffset.UtcNow;
+    var windowStart = now.AddHours(-24);
+    var requests = await db.GatewayRequests.AsNoTracking().ToListAsync(cancellationToken);
+    var mesRequests = requests
+        .Where(r => IsMesSource(r.Source))
+        .Select(r => new { Request = r, ReceivedAt = ParseUtc(r.ReceivedAt) })
+        .Where(x => x.ReceivedAt.HasValue && x.ReceivedAt.Value >= windowStart)
+        .OrderByDescending(x => x.ReceivedAt)
+        .ToList();
+    var lastSuccess = mesRequests.FirstOrDefault(x => x.Request.Status.Equals("PROCESSED", StringComparison.OrdinalIgnoreCase));
+    var lastFailure = mesRequests.FirstOrDefault(x => x.Request.Status.Equals("FAILED", StringComparison.OrdinalIgnoreCase));
+    var databaseConnected = await db.Database.CanConnectAsync(cancellationToken);
+    var redisConnected = redis.IsConnected;
+    var dependenciesReady = databaseConnected && redisConnected && eventPublisher.IsConnected;
+    var recentSuccess = lastSuccess?.ReceivedAt >= now.AddMinutes(-15);
+    var status = !dependenciesReady || (lastFailure?.ReceivedAt is not null && lastFailure.ReceivedAt > lastSuccess?.ReceivedAt)
+        ? "DEGRADED" : recentSuccess ? "RECENTLY_ACTIVE" : "IDLE";
+
+    return Results.Ok(new
+    {
+        integration = "MES", status, protocol = "HTTP",
+        stationGateway = new
+        {
+            status = dependenciesReady ? "READY" : "DEGRADED",
+            service = "station-gateway",
+            database = databaseConnected ? "CONNECTED" : "DISCONNECTED",
+            redis = redisConnected ? "CONNECTED" : "DISCONNECTED",
+            kafka = eventPublisher.IsConnected ? "CONNECTED" : "DISCONNECTED"
+        },
+        lastSuccessfulMesRequest = lastSuccess?.ReceivedAt,
+        lastMesRequest = mesRequests.FirstOrDefault()?.ReceivedAt,
+        lastError = lastFailure is null ? null : new { occurredAt = lastFailure.ReceivedAt, message = lastFailure.Request.ErrorMessage },
+        requestsLast24Hours = mesRequests.Count,
+        successfulRequestsLast24Hours = mesRequests.Count(x => x.Request.Status.Equals("PROCESSED", StringComparison.OrdinalIgnoreCase)),
+        failedRequestsLast24Hours = mesRequests.Count(x => x.Request.Status.Equals("FAILED", StringComparison.OrdinalIgnoreCase)),
+        observedAt = now
+    });
+})
+.WithName("MesConnectionStatus")
+.WithTags("Gateway")
+.WithSummary("MES direct connection and Station Gateway readiness");
 
 // GET /api/gateway/info
 app.MapGet("/api/gateway/info", () => Results.Ok(new
@@ -155,7 +208,7 @@ app.MapPost("/api/gateway/orders", async (
 .WithDescription("""
     Accepts a UnifiedEvent JSON payload from Factory Gateway.
     Validates, deduplicates (Redis 24h), persists to SQLite, and enqueues
-    to RabbitMQ for the Job Engine to process.
+    to Kafka for the Job Engine to process.
 
     Idempotent: same event_id → 409 Conflict (not an error, safe to retry with a new event_id).
     """)
@@ -165,3 +218,15 @@ app.MapPost("/api/gateway/orders", async (
 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
 await app.RunAsync();
+
+static bool IsMesSource(string? source)
+{
+    if (string.IsNullOrWhiteSpace(source)) return false;
+    var value = source.Trim();
+    return !value.Contains("simulator", StringComparison.OrdinalIgnoreCase)
+        && !value.Contains("manual", StringComparison.OrdinalIgnoreCase)
+        && !value.Contains("device-sim", StringComparison.OrdinalIgnoreCase);
+}
+
+static DateTimeOffset? ParseUtc(string? value)
+    => DateTimeOffset.TryParse(value, out var parsed) ? parsed.ToUniversalTime() : null;

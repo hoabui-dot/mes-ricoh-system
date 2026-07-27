@@ -8,6 +8,7 @@ import { runMigrations } from './infrastructure/db/migrate.js';
 import { seedMasterData } from './infrastructure/db/seed.js';
 import { masterDataRouter } from './infrastructure/http/master-data.router.js';
 import { registerEventSchemas } from './infrastructure/events/schema-registry.js';
+import { PrintStationRuntimeConsumer } from './infrastructure/events/print-station-runtime-consumer.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3020', 10);
 const DATABASE_URL = process.env['DATABASE_URL'] ?? 'postgresql://mes_master_data_user:mes_master_data_pass@localhost:15434/mes_master_data_db';
@@ -50,12 +51,28 @@ async function bootstrap() {
     maxRetries: 3,
   });
   await relay.start();
+  const printStationRuntime = new PrintStationRuntimeConsumer(pool, KAFKA_BROKERS);
+  let runtimeKafkaConnected = false;
+  const connectRuntime = async () => {
+    while (true) {
+      try {
+        await printStationRuntime.start();
+        runtimeKafkaConnected = true;
+        return;
+      } catch (error) {
+        runtimeKafkaConnected = false;
+        console.warn('[PrintStationRuntime] Kafka unavailable; retrying in 10 seconds', error);
+        await new Promise((resolve) => setTimeout(resolve, 10_000));
+      }
+    }
+  };
+  void connectRuntime();
 
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'mes-master-data-service', uptime: process.uptime() });
+    res.status(runtimeKafkaConnected ? 200 : 503).json({ status: runtimeKafkaConnected ? 'ok' : 'degraded', service: 'mes-master-data-service', uptime: process.uptime(), kafka: { status: runtimeKafkaConnected ? 'Connected' : 'Disconnected' }, printStationRuntime: { status: runtimeKafkaConnected ? 'Connected' : 'Disconnected' } });
   });
   app.get('/metrics', (_req, res) => {
     res.set('Content-Type', 'text/plain');
@@ -76,6 +93,7 @@ async function bootstrap() {
     console.info(`[Bootstrap] Received ${signal}, shutting down gracefully...`);
     server.close(async () => {
       await relay.stop();
+      await printStationRuntime.stop();
       await pool.end();
       console.info('[Bootstrap] Shutdown complete');
       process.exit(0);

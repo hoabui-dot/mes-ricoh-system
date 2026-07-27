@@ -48,9 +48,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IIdempotencyService, RedisIdempotencyService>();
         services.AddSingleton<IDistributedLock, RedisDistributedLock>();
 
-        // ── RabbitMQ publisher (singleton — one AMQP connection per process) ──
-        services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
-        services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+        // ── Kafka publisher (singleton — one AMQP connection per process) ──
+        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
+        services.AddSingleton<IEventPublisher, KafkaPublisher>();
 
         // ── Outbox processor background worker ─────────────────────────────────
         services.AddHostedService<OutboxProcessorWorker>();

@@ -2,9 +2,11 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
-    return (
+type InputProps = React.ComponentProps<"input"> & { label?: React.ReactNode };
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, label, ...props }, ref) => {
+    const input = (
       <input
         type={type}
         className={cn(
@@ -14,6 +16,13 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         ref={ref}
         {...props}
       />
+    );
+    if (label === undefined) return input;
+    return (
+      <label className="block space-y-1 text-sm font-medium">
+        <span>{label}</span>
+        {input}
+      </label>
     )
   }
 )

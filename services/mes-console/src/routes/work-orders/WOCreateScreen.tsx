@@ -151,9 +151,13 @@ export const WOCreateScreen: React.FC = () => {
     const connect = () => {
       if (disposed) return;
       setConnectionStatus(lastSequenceRef.current ? 'reconnecting' : 'connecting');
-      const host = window.location.hostname;
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const socket = new WebSocket(`${gatewayBaseUrl().replace(/^http/, protocol)} /api/mes/execution/ws/work-order-creation?workflow_id=${encodeURIComponent(workflowId)}&user_id=${encodeURIComponent(user?.userId || 'admin')}`.replace(' ', ''));
+      const socketUrl = new URL('/api/mes/execution/ws/work-order-creation', gatewayBaseUrl());
+      socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+      socketUrl.search = new URLSearchParams({
+        workflow_id: workflowId,
+        user_id: user?.userId || 'admin',
+      }).toString();
+      const socket = new WebSocket(socketUrl.toString());
       socketRef.current = socket;
       socket.onopen = () => setConnectionStatus('connected');
       socket.onmessage = (message) => {

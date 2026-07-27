@@ -10,6 +10,7 @@ public sealed class PrinterDbContext : DbContext, IUnitOfWork
 
     public DbSet<Printer> Printers => Set<Printer>();
     public DbSet<PrinterJob> PrinterJobs => Set<PrinterJob>();
+    public DbSet<PrinterCommandExecution> PrinterCommandExecutions => Set<PrinterCommandExecution>();
     public DbSet<PrinterEvent> PrinterEvents => Set<PrinterEvent>();
     public DbSet<LabelTemplate> LabelTemplates => Set<LabelTemplate>();
     public DbSet<LabelTemplateVersion> LabelTemplateVersions => Set<LabelTemplateVersion>();
@@ -33,7 +34,7 @@ public sealed class PrinterDbContext : DbContext, IUnitOfWork
             e.Property(x => x.Status).HasColumnName("status").IsRequired();
             e.Property(x => x.GroupId).HasColumnName("group_id");
             e.Property(x => x.LastHeartbeatAt).HasColumnName("last_heartbeat_at");
-            e.Property(x => x.DriverType).HasColumnName("driver_type").HasDefaultValue("simulation").IsRequired();
+            e.Property(x => x.DriverType).HasColumnName("driver_type").HasDefaultValue("cups").IsRequired();
             e.Property(x => x.CupsQueueName).HasColumnName("cups_queue_name");
             e.Property(x => x.IsActiveForWork).HasColumnName("is_active_for_work").HasDefaultValue(false);
             e.Property(x => x.ActiveTemplateId).HasColumnName("active_template_id");
@@ -58,6 +59,21 @@ public sealed class PrinterDbContext : DbContext, IUnitOfWork
             e.Property(x => x.SentAt).HasColumnName("sent_at");
             e.Property(x => x.FinishedAt).HasColumnName("finished_at");
             e.Property(x => x.ErrorMessage).HasColumnName("error_message");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
+        });
+
+        modelBuilder.Entity<PrinterCommandExecution>(e =>
+        {
+            e.ToTable("printer_command_executions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.CommandId).HasColumnName("command_id").IsRequired();
+            e.HasIndex(x => x.CommandId).IsUnique();
+            e.Property(x => x.CommandType).HasColumnName("command_type").IsRequired();
+            e.Property(x => x.Status).HasColumnName("status").IsRequired();
+            e.Property(x => x.ResultJson).HasColumnName("result_json");
+            e.Property(x => x.StartedAt).HasColumnName("started_at").IsRequired();
+            e.Property(x => x.CompletedAt).HasColumnName("completed_at");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
         });
 

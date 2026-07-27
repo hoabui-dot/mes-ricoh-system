@@ -105,6 +105,9 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const wcQcId = await upsertMaster(client, 'md_work_center', { ...common, code: 'WC-QC', name: 'Quality Inspection', site_id: siteId, area_id: areaMoldingId, work_center_type: 'Inspection', active_flag: true });
 
     const wsMoldId = await upsertMaster(client, 'md_workstation', { ...common, code: 'WS-MOLD-KIOSK01', name: 'Molding Kiosk 01', site_id: siteId, area_id: areaMoldingId, work_center_id: wcMoldId, workstation_type: 'Kiosk', execution_mode: 'Kiosk', active_flag: true });
+    const wsMixId = await upsertMaster(client, 'md_workstation', { ...common, code: 'WS-MIXING-01', name: 'Mixing Workstation', site_id: siteId, area_id: areaRubberId, work_center_id: wcMixId, workstation_type: 'Kiosk', execution_mode: 'Kiosk', active_flag: true });
+    const wsCutId = await upsertMaster(client, 'md_workstation', { ...common, code: 'WS-CUTTING-01', name: 'Cutting Workstation', site_id: siteId, area_id: areaRubberId, work_center_id: wcCutId, workstation_type: 'Kiosk', execution_mode: 'Kiosk', active_flag: true });
+    const wsQcId = await upsertMaster(client, 'md_workstation', { ...common, code: 'WS-QC-01', name: 'Quality Inspection Workstation', site_id: siteId, area_id: areaMoldingId, work_center_id: wcQcId, workstation_type: 'Kiosk', execution_mode: 'Kiosk', active_flag: true });
     const eqHyd01Id = await upsertMaster(client, 'md_equipment', { ...common, code: 'EQ-MOLD-HYD01', name: 'Máy ép 500 tấn', site_id: siteId, work_center_id: wcMoldId, equipment_type: 'HydraulicPress', active_flag: true });
     const eqHyd02Id = await upsertMaster(client, 'md_equipment', { ...common, code: 'EQ-MOLD-HYD02', name: 'Máy ép 300 tấn', site_id: siteId, work_center_id: wcMoldId, equipment_type: 'HydraulicPress', active_flag: true });
 
@@ -121,14 +124,14 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const skillVulcanId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-WC-VULCAN-OPERATOR', name: 'Vận hành máy ép lưu hóa áp lực cao', skill_group: 'Production', skill_group_id: skillGroups.get('SKG-WC-PROCESS'), scope: 'WorkCenter', legacy_flag: false, minimum_level: 'L2' });
     const skillInspectionId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-WC-INSPECTION', name: 'Kỹ thuật viên QC', skill_group: 'Quality', skill_group_id: skillGroups.get('SKG-WC-QUALITY'), scope: 'WorkCenter', legacy_flag: false, minimum_level: 'L2' });
 
-    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', item_revision_id: fgRevId, site_id: siteId, base_quantity: '100.000000', base_uom_id: pcsId });
+    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', site_id: siteId, base_quantity: '100.000000', base_uom_id: pcsId });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L10', name: 'Treated metal core', mbom_header_id: mbomId, seq: 10, component_revision_id: metRevId, quantity_per: '100.000000', uom_id: pcsId, scrap_rate: '0.0100', issue_operation_id: opMoldId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L20', name: 'Rubber child blank', mbom_header_id: mbomId, seq: 20, component_revision_id: rubRevId, quantity_per: '102.000000', uom_id: pcsId, scrap_rate: '0.0200', issue_operation_id: opMoldId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L30', name: 'Raw steel blank', mbom_header_id: mbomId, seq: 30, component_revision_id: steelRevId, quantity_per: '101.000000', uom_id: pcsId, scrap_rate: '0.0050', issue_operation_id: opPrepId, backflush_flag: false, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L40', name: 'Bonding chemical', mbom_header_id: mbomId, seq: 40, component_revision_id: bondRevId, quantity_per: '1.500000', uom_id: kgId, scrap_rate: '0.0500', issue_operation_id: opPrepId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L50', name: 'EPDM parent roll phantom', mbom_header_id: mbomId, seq: 50, component_revision_id: rollRevId, quantity_per: '15.500000', uom_id: m2Id, scrap_rate: '0.0300', issue_operation_id: opCutId, backflush_flag: true, phantom_flag: true });
 
-    const childMbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1', name: 'Child MBOM for EPDM phantom roll', item_revision_id: rollRevId, site_id: siteId, base_quantity: '1.000000', base_uom_id: m2Id });
+    const childMbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1', name: 'Child MBOM for EPDM phantom roll', site_id: siteId, base_quantity: '1.000000', base_uom_id: m2Id });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1-L10', name: 'Synthetic rubber base', mbom_header_id: childMbomId, seq: 10, component_revision_id: rollRevId, quantity_per: '1.000000', uom_id: m2Id, scrap_rate: '0.0000', issue_operation_id: opMixId, backflush_flag: true, phantom_flag: false });
 
     const routingId = await upsertMaster(client, 'md_routing_header', { ...common, code: 'RT-FG-WS-CM01-R1', name: 'Routing Cao su chân máy ô tô' });
@@ -138,6 +141,22 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const roMoldId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-040', name: 'Molding', routing_header_id: routingId, operation_id: opMoldId, work_center_id: wcMoldId, seq: 40, predecessor_seq: 30 });
     const roTrimId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-050', name: 'Trimming', routing_header_id: routingId, operation_id: opTrimId, work_center_id: wcMoldId, seq: 50, predecessor_seq: 40 });
     const roQcId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-060', name: 'QC', routing_header_id: routingId, operation_id: opQcId, work_center_id: wcQcId, seq: 60, predecessor_seq: 50 });
+
+    for (const [workCenterId, workstationId, operationId] of [
+      [wcMixId, wsMixId, opMixId], [wcMoldId, wsMoldId, opPrepId], [wcCutId, wsCutId, opCutId],
+      [wcMoldId, wsMoldId, opMoldId], [wcMoldId, wsMoldId, opTrimId], [wcQcId, wsQcId, opQcId],
+    ] as const) {
+      await client.query(`INSERT INTO md_work_center_composition (work_center_id, workstation_id, operation_id, created_by)
+        SELECT $1, $2, $3, $4 WHERE NOT EXISTS (
+          SELECT 1 FROM md_work_center_composition WHERE work_center_id = $1 AND workstation_id = $2
+            AND operation_id = $3 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW())
+        )`, [workCenterId, workstationId, operationId, SYSTEM_USER_ID]);
+      await client.query(`INSERT INTO md_workstation_operation_capability (workstation_id, operation_id, cycle_time_sec, setup_time_min, base_quantity, efficiency_factor, scheduling_mode, created_by)
+        SELECT $1, $2, 60, 0, 1, 1, 'Finite', $3 WHERE NOT EXISTS (
+          SELECT 1 FROM md_workstation_operation_capability WHERE workstation_id = $1 AND operation_id = $2
+            AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW())
+        )`, [workstationId, operationId, SYSTEM_USER_ID]);
+    }
 
     const standardDefaults = { site_id: siteId, base_quantity: '1.000000', standard_yield: '1.0000', source_method: 'Engineering', valid_from: now };
     await upsertMaster(client, 'md_production_standard', { ...common, ...standardDefaults, code: 'STD-FG-WS-CM01-MOLD-HYD01', name: 'Mold standard HYD01', item_revision_id: fgRevId, routing_operation_id: roMoldId, operation_id: opMoldId, work_center_id: wcMoldId, equipment_id: eqHyd01Id, labor_count: 1, skill_id: skillVulcanId, minimum_level: 'L2', setup_time_min: '15.000', cycle_time_sec: '45.000', efficiency_factor: '0.9200' });

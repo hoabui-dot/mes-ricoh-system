@@ -1,0 +1,5 @@
+services:
+  printer-adapter:
+    # Local verification/runtime override for an AMD64 host. The base compose
+    # file remains the ARM64 deployment configuration.
+    image: printer-adapter:local-rabbitmq-amd64

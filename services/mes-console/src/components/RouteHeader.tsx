@@ -21,6 +21,7 @@ function routeCrumbs(pathname: string): Crumb[] {
   if (normalized.startsWith('/master-data/equipment/')) return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'nav.equipment', href: '/master-data/equipment' }, { labelKey: 'common.detail' }];
   if (normalized === '/master-data/workstations') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.workstations' }];
   if (normalized.startsWith('/master-data/workstations/')) return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.workstations', href: '/master-data/workstations' }, { labelKey: 'common.detail' }];
+  if (normalized === '/master-data/print-stations') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'nav.printStations' }];
   if (normalized === '/master-data/production-areas') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.productionAreas' }];
   if (normalized.startsWith('/master-data/production-areas/')) return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.productionAreas', href: '/master-data/production-areas' }, { labelKey: 'common.detail' }];
   if (normalized === '/master-data/factories') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.factories' }];

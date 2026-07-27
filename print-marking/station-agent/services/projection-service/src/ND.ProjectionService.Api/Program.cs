@@ -9,6 +9,7 @@ using ND.ProjectionService.Domain.Entities;
 using System.Net.Sockets;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using ND.SharedKernel.Abstractions;
 
@@ -133,10 +134,12 @@ app.MapGet("/api/projection/production", async (
     IProductionViewRepository repo,
     CancellationToken ct) =>
 {
-    var targetStationId = stationId ?? config["STATION_ID"] ?? "STATION-01";
+    var targetStationId = stationId ?? config["STATION_ID"];
+    if (string.IsNullOrWhiteSpace(targetStationId))
+        return Results.NoContent();
     var view = await repo.GetByStationIdAsync(targetStationId, ct);
     if (view is null)
-        return Results.NotFound(new { error = $"No production view found for station: {targetStationId}" });
+        return Results.NoContent();
 
     var dto = new ProductionViewDto(
         view.StationId,
@@ -184,6 +187,10 @@ app.MapGet("/api/projection/devices", async (
 
     return Results.Ok(dtos);
 });
+
+app.MapGet("/api/projection/integrations/mes", async (
+    IMesConnectionStatusProvider provider,
+    CancellationToken ct) => Results.Ok(await provider.GetAsync(ct)));
 
 app.MapGet("/api/projection/devices/{code}/history", async (
     string code,
@@ -400,6 +407,7 @@ app.MapPost("/api/projection/alarms/{id}/acknowledge", async (
 
 app.MapGet("/api/projection/diagnostics/health", async (
     ProjectionDbContext db,
+    IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
     CancellationToken ct) =>
 {
@@ -441,25 +449,40 @@ app.MapGet("/api/projection/diagnostics/health", async (
         return new { status = ok ? "Healthy" : "Unhealthy", latencyMs = time };
     }
 
-    // 2. RabbitMQ
-    var rabbitHost = configuration["RabbitMq:Host"] ?? "rabbitmq";
-    var rabbitPort = 5672;
-    report["rabbitmq"] = await CheckTcpAsync(rabbitHost, rabbitPort);
+    // 2. Kafka
+    var kafkaHost = configuration["Kafka:Host"] ?? "kafka";
+    var kafkaPort = 5672;
+    report["kafka"] = await CheckTcpAsync(kafkaHost, kafkaPort);
 
     // 3. MQTT Broker
     var mqttHost = configuration["MQTT_BROKER_HOST"] ?? "mosquitto";
     var mqttPort = 1883;
     report["mqtt"] = await CheckTcpAsync(mqttHost, mqttPort);
 
-    // 4. Printer (now self-hosted in printer-adapter)
-    var printerAdapterHost = configuration["PRINTER_ADAPTER_HOST"] ?? "printer-adapter";
-    report["printer"] = await CheckTcpAsync(printerAdapterHost, 9100);
+    // 4. Printer Adapter is an independent HTTP service.
+    var printerAdapterUrl = configuration["PRINTER_ADAPTER_URL"];
+    if (string.IsNullOrWhiteSpace(printerAdapterUrl))
+    {
+        report["printer"] = new { status = "Unconfigured" };
+    }
+    else
+    {
+    try
+    {
+        using var client = httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(2);
+        var response = await client.GetAsync($"{printerAdapterUrl.TrimEnd('/')}/api/health", ct);
+        report["printer"] = new { status = response.IsSuccessStatusCode ? "Healthy" : "Unhealthy", endpoint = printerAdapterUrl };
+    }
+    catch
+    {
+        report["printer"] = new { status = "Unhealthy", endpoint = printerAdapterUrl };
+    }
+    }
 
-    // 5. Laser
-    report["laser"] = await CheckTcpAsync("device-simulator", 8901);
-
-    // 6. PLC
-    report["plc"] = await CheckTcpAsync("device-simulator", 5020);
+    // Laser and PLC are not simulated in the production station stack.
+    report["laser"] = new { status = "Unconfigured" };
+    report["plc"] = new { status = "Unconfigured" };
 
     return Results.Ok(report);
 });
@@ -528,22 +551,7 @@ app.MapGet("/api/projection/config", async (
     IConfiguration configuration,
     CancellationToken ct) =>
 {
-    var simulatorUrl = configuration["SIMULATOR_URL"] ?? "http://device-simulator:8080";
-    using var client = httpClientFactory.CreateClient();
-    try
-    {
-        var response = await client.GetAsync($"{simulatorUrl}/api/config", ct);
-        if (response.IsSuccessStatusCode)
-        {
-            var content = await response.Content.ReadAsStringAsync(ct);
-            return Results.Content(content, "application/json");
-        }
-        return Results.StatusCode((int)response.StatusCode);
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(ex.Message);
-    }
+    return Results.NotFound(new { error = "Device simulator configuration is not part of the production station." });
 });
 
 app.MapPut("/api/projection/config/{key}", async (
@@ -553,58 +561,91 @@ app.MapPut("/api/projection/config/{key}", async (
     IConfiguration configuration,
     CancellationToken ct) =>
 {
-    var simulatorUrl = configuration["SIMULATOR_URL"] ?? "http://device-simulator:8080";
-    using var client = httpClientFactory.CreateClient();
-    try
-    {
-        var response = await client.PutAsJsonAsync($"{simulatorUrl}/api/config/{key}", reqBody, ct);
-        if (response.IsSuccessStatusCode)
-        {
-            return Results.Ok();
-        }
-        return Results.StatusCode((int)response.StatusCode);
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(ex.Message);
-    }
+    return Results.NotFound(new { error = "Device simulator configuration is not part of the production station." });
 });
 
-// ── Printer Management Proxy ──────────────────────────────────────────────────
-// Forwards kiosk-ui printer management requests to printer-adapter.
-// printer-adapter is the single source of truth for all printer devices.
+// ── Canonical Printer Read Model ─────────────────────────────────────────────
+// Printer Adapter owns printer configuration and activation mutations. Projection
+// owns runtime state. These endpoints combine the two at the Projection boundary
+// so Network and Printer Management never apply different readiness filters.
+
+async Task<List<JsonObject>> GetCanonicalPrintersAsync(
+    bool activeOnly,
+    bool readyOnly,
+    IHttpClientFactory httpClientFactory,
+    IConfiguration configuration,
+    ProjectionDbContext db,
+    CancellationToken ct)
+{
+    var adapterUrl = configuration["PRINTER_ADAPTER_URL"]
+        ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
+    using var client = httpClientFactory.CreateClient();
+    using var response = await client.GetAsync($"{adapterUrl.TrimEnd('/')}/api/printers", ct);
+    response.EnsureSuccessStatusCode();
+    var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+    if (payload is not JsonArray rows) return [];
+
+    var projected = await db.DeviceStatuses
+        .AsNoTracking()
+        .Where(d => d.DeviceType.ToUpper() == "PRINTER")
+        .ToDictionaryAsync(d => d.DeviceId, StringComparer.OrdinalIgnoreCase, ct);
+
+    var result = new List<JsonObject>();
+    foreach (var item in rows.OfType<JsonObject>())
+    {
+        var printer = item.DeepClone().AsObject();
+        var code = printer["printerCode"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(code)) continue;
+
+        projected.TryGetValue(code, out var runtime);
+        var adapterStatus = printer["status"]?.GetValue<string>() ?? "UNKNOWN";
+        var adapterOnline = adapterStatus.Equals("ONLINE", StringComparison.OrdinalIgnoreCase)
+            || adapterStatus.Equals("IDLE", StringComparison.OrdinalIgnoreCase)
+            || adapterStatus.Equals("PRINTING", StringComparison.OrdinalIgnoreCase);
+        var isOnline = runtime?.IsOnline ?? adapterOnline;
+        var status = runtime is not null
+            ? (runtime.IsOnline ? (string.IsNullOrWhiteSpace(runtime.LifecycleState) ? "ONLINE" : runtime.LifecycleState) : "OFFLINE")
+            : adapterStatus;
+
+        printer["status"] = status;
+        printer["isOnline"] = isOnline;
+        if (runtime is not null)
+        {
+            printer["lastHeartbeatAt"] = runtime.LastSeenAt;
+            printer["projectionLifecycleState"] = runtime.LifecycleState;
+        }
+
+        var active = printer["isActiveForWork"]?.GetValue<bool>() == true;
+        if (activeOnly && !active) continue;
+        if (readyOnly && (active || !isOnline)) continue;
+        result.Add(printer);
+    }
+
+    return result;
+}
 
 app.MapGet("/api/projection/printers/ready", async (
-    bool? includeSimulation,
-    IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
+    IHttpClientFactory httpClientFactory, IConfiguration configuration,
+    ProjectionDbContext db, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
-    using var client = httpClientFactory.CreateClient();
     try
     {
-        // Forward includeSimulation query param so printer-adapter can filter simulation printers
-        var qs = includeSimulation == true ? "?includeSimulation=true" : "";
-        var res = await client.GetAsync($"{adapterUrl}/api/printers/ready{qs}", ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        return Results.Content(body, "application/json", statusCode: (int)res.StatusCode);
+        return Results.Ok(await GetCanonicalPrintersAsync(false, true, httpClientFactory, configuration, db, ct));
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
 app.MapGet("/api/projection/printers/active", async (
-    IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
+    IHttpClientFactory httpClientFactory, IConfiguration configuration,
+    ProjectionDbContext db, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
-    using var client = httpClientFactory.CreateClient();
     try
     {
-        var res = await client.GetAsync($"{adapterUrl}/api/printers/active", ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        return Results.Content(body, "application/json", statusCode: (int)res.StatusCode);
+        return Results.Ok(await GetCanonicalPrintersAsync(true, false, httpClientFactory, configuration, db, ct));
     }
-    catch
+    catch (Exception ex)
     {
-        return Results.Problem("Printer adapter unreachable", statusCode: 502);
+        return Results.Problem(ex.Message, statusCode: 502);
     }
 });
 
@@ -612,7 +653,7 @@ app.MapGet("/api/projection/printers/{code}/maintenance", async (
     string code,
     IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
+    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
     using var client = httpClientFactory.CreateClient();
     try
     {
@@ -630,7 +671,7 @@ app.MapPost("/api/projection/printers/{code}/activate", async (
     string code, JsonElement reqBody,
     IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
+    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
     using var client = httpClientFactory.CreateClient();
     try
     {
@@ -645,7 +686,7 @@ app.MapPost("/api/projection/printers/{code}/deactivate", async (
     string code,
     IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
+    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
     using var client = httpClientFactory.CreateClient();
     try
     {

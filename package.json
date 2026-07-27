@@ -25,6 +25,10 @@
     "verify:mes:workstation-hydration": "node scripts/verify-workstation-form-hydration.mjs",
     "verify:mes:workstation-replacements": "node scripts/verify-workstation-replacement-semantics.mjs",
     "verify:mes:ebom": "node scripts/verify-ebom-crud-flow.mjs",
+    "seed:mes:print-workstation": "node scripts/seed-print-workstation-flow.mjs",
+    "verify:mes:print-workstation": "node scripts/verify-print-workstation-integration.mjs",
+    "build:printer-adapter:images": "bash scripts/build-printer-adapter-images.sh",
+    "build:printer-adapter:both": "bash scripts/build-printer-adapter-images.sh",
     "i18n:scan": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts",
     "i18n:scan:wms-console": "tsx scripts/i18n-scan/check-hardcoded-ui-strings.ts services/wms-console/src",
     "test": "npm run test --workspaces --if-present",
@@ -32,6 +36,7 @@
     "infra:down": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml logs -f",
     "infra:ps": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml ps",
+    "rebuild:mes": "bash scripts/rebuild-mes.sh",
     "cloudflare:urls": "bash scripts/show-cloudflare-urls.sh"
   },
   "devDependencies": {

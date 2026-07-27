@@ -1,5 +1,7 @@
 # Routing Ownership and Resource Selection Implementation
 
+> Historical note: the Production Version MBOM Item Revision/Site filtering statement below is superseded by `implementation-fix/decouple-mbom-from-item-revision.md`. Routing ownership and resource-selection decisions remain current.
+
 ## Scope
 
 Implemented `process-fix/Decouple-Routing-from-Product-Revision-and-Site,-and-Correct-Routing-Operation-Resource-Selection.md`.

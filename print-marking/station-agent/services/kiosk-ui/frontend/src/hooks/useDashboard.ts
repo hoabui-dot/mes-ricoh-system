@@ -46,6 +46,52 @@ export interface DeviceStatus {
   connectionDetails?: string
 }
 
+export interface MesConnectionStatus {
+  integration: string
+  status: string
+  protocol: string
+  stationGatewayStatus: string
+  databaseStatus: string
+  redisStatus: string
+  kafkaStatus: string
+  lastSuccessfulMesRequest?: string
+  lastMesRequest?: string
+  lastErrorAt?: string
+  lastErrorMessage?: string
+  requestsLast24Hours: number
+  successfulRequestsLast24Hours: number
+  failedRequestsLast24Hours: number
+  observedAt: string
+}
+
+interface PrinterRuntimeEvent {
+  printerCode: string
+  status: string
+  timestamp: string
+  errorMessage?: string
+}
+
+function normalizeDeviceStatus(value: unknown): DeviceStatus | null {
+  if (!value || typeof value !== 'object') return null
+  const row = value as Record<string, unknown>
+  const deviceId = typeof row.deviceId === 'string' ? row.deviceId.trim() : ''
+  if (!deviceId) return null
+  if (['printer-01', 'printer-02', 'printer-03'].includes(deviceId.toLowerCase())) return null
+  return {
+    deviceId,
+    deviceType: typeof row.deviceType === 'string' ? row.deviceType : 'UNKNOWN',
+    isOnline: row.isOnline === true,
+    lastSeenAt: typeof row.lastSeenAt === 'string' ? row.lastSeenAt : '',
+    lifecycleState: typeof row.lifecycleState === 'string'
+      ? row.lifecycleState
+      : row.isOnline === true ? 'Online' : 'Offline',
+    serialNumber: typeof row.serialNumber === 'string' ? row.serialNumber : undefined,
+    lifetimePrintCounter: typeof row.lifetimePrintCounter === 'number' ? row.lifetimePrintCounter : undefined,
+    thermalTemp: typeof row.thermalTemp === 'number' ? row.thermalTemp : undefined,
+    connectionDetails: typeof row.connectionDetails === 'string' ? row.connectionDetails : undefined,
+  }
+}
+
 export interface ProductionRecord {
   id: string
   jobId: string
@@ -175,6 +221,7 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [devices, setDevices] = useState<DeviceStatus[]>([])
   const [todayRecords, setTodayRecords] = useState<ProductionRecord[]>([])
+  const [mesConnection, setMesConnection] = useState<MesConnectionStatus | null>(null)
   const [isConnected, setIsConnected] = useState(false)
 
   const baseUrl = import.meta.env.VITE_PROJECTION_URL ||
@@ -203,17 +250,39 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
   }, [])
 
   const handleDeviceStatusUpdate = useCallback((data: DeviceStatus) => {
+    const normalized = normalizeDeviceStatus(data)
+    if (!normalized) return
     setDevices(prev => {
-      const exists = prev.some(d => d.deviceId === data.deviceId)
-      if (exists) return prev.map(d => d.deviceId === data.deviceId ? data : d)
-      return [...prev, data]
+      const exists = prev.some(d => d.deviceId === normalized.deviceId)
+      if (exists) return prev.map(d => d.deviceId === normalized.deviceId ? normalized : d)
+      return [...prev, normalized]
     })
   }, [])
+
+  // Printer Adapter runtime events are projected through the same device model,
+  // while retaining explicit listeners for consumers that need printer semantics.
+  const handlePrinterRuntimeUpdate = useCallback((data: PrinterRuntimeEvent) => {
+    const printerCode = typeof data?.printerCode === 'string' ? data.printerCode.trim() : ''
+    if (!printerCode) return
+    if (['printer-01', 'printer-02', 'printer-03'].includes(printerCode.toLowerCase())) return
+    const status = typeof data?.status === 'string' ? data.status : 'UNKNOWN'
+    handleDeviceStatusUpdate({
+      deviceId: printerCode,
+      deviceType: 'PRINTER',
+      isOnline: !['OFFLINE', 'ERROR'].includes(status.toUpperCase()),
+      lastSeenAt: typeof data?.timestamp === 'string' ? data.timestamp : new Date().toISOString(),
+      lifecycleState: status,
+    })
+  }, [handleDeviceStatusUpdate])
 
   const handleAlarmRaised = useCallback((data: Alarm) => {
     // Forward to AlarmCenterTab via callback — alarm state is managed there
     onAlarmRaised?.(data)
   }, [onAlarmRaised])
+
+  const handleMesConnectionStatusChanged = useCallback((data: MesConnectionStatus) => {
+    if (data && typeof data.status === 'string') setMesConnection(data)
+  }, [])
 
   // Keep a ref to the connection so we can stop it on cleanup
   const connRef = useRef<signalR.HubConnection | null>(null)
@@ -224,13 +293,16 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
     // 1. Initial REST fetch from projection service
     const fetchInitialData = async () => {
       try {
-        const [prodRes, actRes, devRes, todayRecsRes] = await Promise.all([
-          axios.get<ProductionView>(`${baseUrl}/api/projection/production?stationId=${stationId}`).catch(() => null),
+        const [prodRes, actRes, devRes, todayRecsRes, mesRes] = await Promise.all([
+          stationId
+            ? axios.get<ProductionView>(`${baseUrl}/api/projection/production?stationId=${encodeURIComponent(stationId)}`).catch(() => null)
+            : Promise.resolve(null),
           axios.get<ActivityLog[]>(`${baseUrl}/api/projection/activities?limit=10`).catch(() => ({ data: [] as ActivityLog[] })),
           axios.get<DeviceStatus[]>(`${baseUrl}/api/projection/devices`).catch(() => ({ data: [] as DeviceStatus[] })),
           axios.get<{ items: ProductionRecord[], totalCount: number }>(
             `${baseUrl}/api/projection/records/today?page=1&pageSize=100`
           ).catch(() => ({ data: { items: [] as ProductionRecord[], totalCount: 0 } })),
+          axios.get<MesConnectionStatus>(`${baseUrl}/api/projection/integrations/mes`).catch(() => null),
         ])
 
         if (!mounted) return
@@ -240,8 +312,14 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
           syncStoreFromProductionView(prodRes.data)
         }
         if (actRes?.data) setActivities(actRes.data)
-        if (devRes?.data) setDevices(devRes.data)
+        if (devRes?.data) {
+          const initialDevices = (Array.isArray(devRes.data) ? devRes.data : [])
+            .map((value: unknown) => normalizeDeviceStatus(value))
+            .filter((device: DeviceStatus | null): device is DeviceStatus => device !== null)
+          setDevices(initialDevices)
+        }
         if (todayRecsRes?.data?.items) setTodayRecords(todayRecsRes.data.items)
+        if (mesRes?.data) setMesConnection(mesRes.data)
       } catch (err) {
         console.error('[useDashboard] Error fetching initial projection data:', err)
       }
@@ -262,7 +340,10 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
     conn.on('OnActivityUpdate', handleActivityUpdate)
     conn.on('OnProductionRecordUpdate', handleProductionRecordUpdate)
     conn.on('OnDeviceStatusUpdate', handleDeviceStatusUpdate)
+    conn.on('OnPrinterHeartbeat', handlePrinterRuntimeUpdate)
+    conn.on('OnPrinterStatusChanged', handlePrinterRuntimeUpdate)
     conn.on('OnAlarmRaised', handleAlarmRaised)
+    conn.on('OnMesConnectionStatusChanged', handleMesConnectionStatusChanged)
 
     conn.start()
       .then(async () => {
@@ -290,12 +371,15 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
       conn.off('OnActivityUpdate', handleActivityUpdate)
       conn.off('OnProductionRecordUpdate', handleProductionRecordUpdate)
       conn.off('OnDeviceStatusUpdate', handleDeviceStatusUpdate)
+      conn.off('OnPrinterHeartbeat', handlePrinterRuntimeUpdate)
+      conn.off('OnPrinterStatusChanged', handlePrinterRuntimeUpdate)
       conn.off('OnAlarmRaised', handleAlarmRaised)
+      conn.off('OnMesConnectionStatusChanged', handleMesConnectionStatusChanged)
       conn.stop().catch(() => {})
       connRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stationId, baseUrl])
 
-  return { isConnected, production, activities, devices, todayRecords }
+  return { isConnected, production, activities, devices, todayRecords, mesConnection }
 }

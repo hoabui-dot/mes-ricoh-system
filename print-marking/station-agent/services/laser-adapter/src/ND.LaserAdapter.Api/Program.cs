@@ -27,10 +27,10 @@ builder.Services.AddSingleton<IIdempotencyService, RedisIdempotencyService>();
 // ── Laser device adapter ─────────────────────────────────────────────────────
 builder.Services.AddSingleton<ILaserAdapter, TcpLaserAdapter>();
 
-// ── RabbitMQ ─────────────────────────────────────────────────────────────────
-builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
-builder.Services.AddSingleton<IRabbitMqConsumer, RabbitMqConsumer>();
-builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+// ── Kafka ─────────────────────────────────────────────────────────────────
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
+builder.Services.AddSingleton<IEventConsumer, KafkaConsumer>();
+builder.Services.AddSingleton<IEventPublisher, KafkaPublisher>();
 
 // ── Hosted consumers ─────────────────────────────────────────────────────────
 builder.Services.AddHostedService<JobMarkingConsumer>();

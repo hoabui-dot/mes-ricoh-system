@@ -13,7 +13,7 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 public sealed class PlcRejectConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IRabbitMqConsumer _consumer;
+    private readonly IEventConsumer _consumer;
     private readonly ILogger<PlcRejectConsumer> _logger;
     private readonly HttpClient _httpClient;
     private readonly string _simulatorUrl;
@@ -24,7 +24,7 @@ public sealed class PlcRejectConsumer : BackgroundService
 
     public PlcRejectConsumer(
         IServiceScopeFactory scopeFactory,
-        IRabbitMqConsumer consumer,
+        IEventConsumer consumer,
         IConfiguration configuration,
         ILogger<PlcRejectConsumer> logger)
     {
@@ -69,13 +69,13 @@ public sealed class PlcRejectConsumer : BackgroundService
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to deserialise JobProcessingEvent payload from RabbitMQ message");
+            _logger.LogError(ex, "Failed to deserialise JobProcessingEvent payload from Kafka message");
             throw; // Nack
         }
 
         if (evt is null)
         {
-            _logger.LogWarning("Received null JobProcessingEvent from RabbitMQ — skipping");
+            _logger.LogWarning("Received null JobProcessingEvent from Kafka — skipping");
             return;
         }
 

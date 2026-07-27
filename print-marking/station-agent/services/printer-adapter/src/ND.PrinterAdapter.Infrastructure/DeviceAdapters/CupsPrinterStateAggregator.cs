@@ -90,7 +90,7 @@ public sealed class CupsPrinterStateAggregator : ICupsPrinterStateAggregator
             var printerUri = $"ipp://{CupsHost}/printers/{queueName}";
             var httpUrl    = $"http://{CupsHost}:{CupsPort}/printers/{queueName}";
 
-            _logger.LogDebug("[CUPS-IPP] {Queue}: querying {Url}", queueName, httpUrl);
+            _logger.LogInformation("[CUPS-IPP] probe begin queue={Queue} url={Url}", queueName, httpUrl);
 
             var ippRequest = BuildGetPrinterAttributesRequest(printerUri);
 
@@ -110,14 +110,14 @@ public sealed class CupsPrinterStateAggregator : ICupsPrinterStateAggregator
             var (printerState, reasons, queueLength, deviceId, info, model) = ParseIppResponse(responseBytes);
             var serialNumber = ParseSerialNumber(deviceId);
 
-            _logger.LogDebug("[CUPS-IPP] {Queue}: state={S} reasons=[{R}] jobs={J} sn={SN} info={I} model={M}",
+            _logger.LogInformation("[CUPS-IPP] probe result queue={Queue} state={S} reasons=[{R}] jobs={J} serial={SN} info={I} model={M}",
                 queueName, printerState, string.Join(",", reasons), queueLength, serialNumber, info, model);
 
             return Normalize(printerState, reasons, queueLength, serialNumber);
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "[CUPS-IPP] {Queue}: IPP request failed — falling back to TCP", queueName);
+            _logger.LogWarning(ex, "[CUPS-IPP] probe failed queue={Queue}; falling back to TCP", queueName);
             return await TcpFallbackAsync(ct);
         }
     }
@@ -359,9 +359,9 @@ public sealed class CupsPrinterStateAggregator : ICupsPrinterStateAggregator
 
     /// <summary>
     /// Last-resort TCP reachability check against the CUPS endpoint.
-    /// If the port is reachable → CUPS tunnel is alive → treat as Online (optimistic).
-    /// CUPS being up with a USB-connected printer almost always means the printer is ready.
-    /// If the port is unreachable → CUPS is down or tunnel is broken → Offline.
+    /// A reachable CUPS proxy only proves that a listener exists; it does not prove
+    /// that the configured physical queue exists or that the printer is ready. Keep
+    /// the result Offline until a valid IPP response identifies the queue state.
     /// </summary>
     private async Task<NormalizedPrinterState> TcpFallbackAsync(CancellationToken ct)
     {
@@ -373,17 +373,11 @@ public sealed class CupsPrinterStateAggregator : ICupsPrinterStateAggregator
             var reachable   = completed == connectTask && tcp.Connected;
 
             if (reachable)
-            {
-                // CUPS port is open → tunnel/server is alive.
-                // IPP parsing failed for this cycle but CUPS is running, so treat as Online.
-                // The next 3s heartbeat will attempt IPP again and may get a more precise state.
-                _logger.LogInformation("[CUPS-IPP] TCP fallback {Host}:{Port} reachable → Online (IPP parse failed this cycle)",
+                _logger.LogWarning("[CUPS-IPP] TCP fallback {Host}:{Port} reachable but IPP queue state is unavailable → Offline",
                     CupsHost, CupsPort);
-                return NormalizedPrinterState.Online();
-            }
-
-            _logger.LogWarning("[CUPS-IPP] TCP fallback {Host}:{Port} unreachable → Offline (CUPS tunnel down or printer off)",
-                CupsHost, CupsPort);
+            else
+                _logger.LogWarning("[CUPS-IPP] TCP fallback {Host}:{Port} unreachable → Offline (CUPS tunnel down or printer off)",
+                    CupsHost, CupsPort);
             return NormalizedPrinterState.FallbackOffline();
         }
         catch

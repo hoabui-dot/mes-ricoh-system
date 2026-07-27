@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, RefreshCw, Save, Trash2, Wrench } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Plus, RefreshCw, Save, Trash2, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
@@ -78,6 +78,8 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
   const [machineImpact, setMachineImpact] = useState<AnyRecord | null>(null);
   const [machineConfirmationOpen, setMachineConfirmationOpen] = useState(false);
   const [machineConfirmationKind, setMachineConfirmationKind] = useState<'edit' | 'delete' | 'deactivate'>('delete');
+  const [releaseConfirmationOpen, setReleaseConfirmationOpen] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const confirmedMachineSave = useRef(false);
   const loadRequestRef = useRef(0);
   const [formSectionsLoading, setFormSectionsLoading] = useState({ basic: false, machineGroups: false, operations: false, skills: false, availability: false });
@@ -240,6 +242,19 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
   };
 
   const set = (key: string, value: any) => setForm((current) => ({ ...current, [key]: value }));
+  const releaseResource = async () => {
+    if (!id || entity !== 'workstations') return;
+    setReleasing(true);
+    try {
+      const response = await fetch(`${masterDataBaseUrl()}/${entity}/${id}/release`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || payload.error || t('resourceFoundation.releaseFailed'));
+      setDetail(payload.data ?? payload);
+      toast.success(t('resourceFoundation.released'));
+      setReleaseConfirmationOpen(false);
+    } catch (err: any) { toast.error(err.message || t('resourceFoundation.releaseFailed')); }
+    finally { setReleasing(false); }
+  };
   const openMachineAction = async (target: AnyRecord, action: 'delete' | 'deactivate') => {
     const resourceType = entity === 'workstations' ? 'workstations' : 'machines';
     setMachineTarget({ ...target, __resourceType: resourceType }); setMachineAction(action); setMachineImpact(null); setMachineActionOpen(true); setMachineActionLoading(true);
@@ -269,7 +284,7 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
   const resourceTitle = t(labels[entity]);
   if (error) return <ErrorBoundaryCard error={error} onRetry={load} />;
   if (formMode) return <><ResourceForm entity={entity} title={resourceTitle} form={form} set={set} save={save} sites={sites} areas={areas} shopfloors={shopfloors} workCenters={workCenters} workstations={workstations} equipment={equipment} machineGroups={machineGroups} operations={operations} setOperations={setOperations} skills={skills} text={text} t={t} id={id} user={user} loading={loading} formSectionsLoading={formSectionsLoading} /><Confirmation open={machineConfirmationOpen && machineConfirmationKind === 'edit'} title={t(entity === 'workstations' ? 'resourceFoundation.confirmEditWorkstation' : 'resourceFoundation.confirmEditMachine')} description={t(entity === 'workstations' ? 'resourceFoundation.editWorkstationImpactConfirm' : 'resourceFoundation.editImpactConfirm')} confirmLabel={t('common.save')} cancelLabel={t('common.cancel')} onClose={() => setMachineConfirmationOpen(false)} onConfirm={() => void confirmMachineEdit()} /></>;
-  if (detailMode && detail) return <ResourceDetail entity={entity} row={detail} text={text} t={t} onBack={() => navigate(`/master-data/${entity}`)} />;
+  if (detailMode && detail) return <><ResourceDetail entity={entity} row={detail} text={text} t={t} onBack={() => navigate(`/master-data/${entity}`)} onRelease={() => setReleaseConfirmationOpen(true)} releasing={releasing} /><Confirmation open={releaseConfirmationOpen} title={t('resourceFoundation.release')} description={t('resourceFoundation.releaseConfirm')} confirmLabel={t('resourceFoundation.release')} cancelLabel={t('common.cancel')} onClose={() => setReleaseConfirmationOpen(false)} onConfirm={() => void releaseResource()} /></>;
   const workstationAction = machineTarget?.__resourceType === 'workstations';
   const actionLabel = (kind: 'delete' | 'deactivate') => workstationAction ? t(kind === 'delete' ? 'resourceFoundation.deleteWorkstation' : 'resourceFoundation.deactivateWorkstation') : t(kind === 'delete' ? 'resourceFoundation.deleteMachine' : 'resourceFoundation.deactivateMachine');
   return <><ResourceList entity={entity} title={resourceTitle} rows={rows} loading={loading} text={text} t={t} sites={sites} areas={areas} shopfloors={shopfloors} workCenters={workCenters} workstations={workstations} equipment={equipment} onRefresh={load} onCreate={() => navigate(`/master-data/${entity}/new`)} onOpen={(row: AnyRecord) => entity === 'resource-assignments' ? undefined : navigate(`/master-data/${entity}/${row.master_id}`)} onEdit={(row: AnyRecord) => navigate(`/master-data/${entity}/${row.master_id}/edit`)} onDelete={(row: AnyRecord) => void openMachineAction(row, 'delete')} />
@@ -385,11 +400,41 @@ function WorkstationCapabilityDetail({ row, text, t }: { row: AnyRecord; text: (
   </Card>;
 }
 
-function ResourceDetail({ entity, row, text, t, onBack }: AnyRecord) {
-  return <>{entity === 'workstations' ? <WorkstationCapabilityDetail row={row} text={text} t={t} /> : null}<LegacyResourceDetail entity={entity} row={row} text={text} t={t} onBack={onBack} /></>;
+function WorkstationPrintStationDetail({ integration, text, t }: { integration: AnyRecord; text: (value: unknown) => string; t: (key: string, params?: Record<string, unknown>) => string }) {
+  const stationName = text(integration.print_station_name) || integration.print_station_code || t('common.notAvailable');
+  const status = integration.runtime_status || integration.lifecycle_status || 'UNKNOWN';
+  const printers = Array.isArray(integration.printers) ? integration.printers : [];
+  return <Card className="space-y-4 border-action/40 bg-surface-subtle p-5">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">{t('nav.printStations')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('printStation.bindings')}</p>
+      </div>
+      <StatusBadge status={status} />
+    </div>
+    <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div><div className="text-xs text-muted-foreground">{t('printStation.name')}</div><div className="font-semibold">{stationName}</div><div className="font-mono text-xs text-muted-foreground">{integration.print_station_code || '-'}</div></div>
+      <div><div className="text-xs text-muted-foreground">{t('printStation.allocated')}</div><div className="font-semibold">{integration.allocated_printer_quantity ?? 0}</div></div>
+      <div><div className="text-xs text-muted-foreground">{t('printStation.capacity')}</div><div className="font-semibold">{integration.effective_allocation_capacity ?? t('printStation.unknown')}</div></div>
+      <div><div className="text-xs text-muted-foreground">{t('printStation.ready')}</div><div className="font-semibold">{integration.ready_printer_count ?? 0} / {integration.registered_printer_count ?? 0}</div></div>
+      <div><div className="text-xs text-muted-foreground">{t('printStation.runtimeStatus')}</div><StatusBadge status={status} /></div>
+      <div><div className="text-xs text-muted-foreground">{t('printStation.kafka')}</div><StatusBadge status={integration.kafka_status || 'UNKNOWN'} /></div>
+      <div className="sm:col-span-2"><div className="text-xs text-muted-foreground">{t('printStation.runtimeStatus')}</div><div>{integration.last_heartbeat_at || t('common.notAvailable')}</div></div>
+    </div>
+    <div className="space-y-3 border-t border-border pt-4">
+      <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-bold">{t('printStation.devices')}</h3><span className="text-xs text-muted-foreground">{printers.length} / {integration.registered_printer_count ?? 0}</span></div>
+      {printers.length ? <div className="grid gap-2 md:grid-cols-2">{printers.map((printer: AnyRecord, index: number) => <div key={printer.printerCode || index} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3"><div><div className="font-semibold">{printer.printerCode || t('common.notAvailable')}</div>{printer.adapterId ? <div className="text-xs text-muted-foreground">{printer.adapterId}</div> : null}</div><StatusBadge status={printer.status || 'UNKNOWN'} /></div>)}</div> : <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">{t('common.notAvailable')}</div>}
+    </div>
+    {integration.last_error ? <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"><div className="font-semibold">{t('printStation.runtimeStatus')}</div><div className="mt-1">{integration.last_error}</div></div> : null}
+  </Card>;
 }
 
-function LegacyResourceDetail({ entity, row, text, t, onBack }: AnyRecord) {
+function ResourceDetail({ entity, row, text, t, onBack, onRelease, releasing }: AnyRecord) {
+  const canRelease = entity === 'workstations' && ['Draft', 'InReview', 'Inactive'].includes(row.lifecycle_status);
+  return <>{entity === 'workstations' ? <><Card className="flex items-center justify-between gap-3 border-action/40 bg-surface-subtle p-4"><div><div className="font-semibold">{t('resourceFoundation.release')}</div><div className="text-sm text-muted-foreground">{t('resourceFoundation.releaseHelp')}</div></div>{canRelease ? <Button onClick={onRelease} disabled={releasing}><CheckCircle2 className="h-4 w-4" />{t('resourceFoundation.release')}</Button> : null}</Card><WorkstationCapabilityDetail row={row} text={text} t={t} />{row.print_station_integration ? <WorkstationPrintStationDetail integration={row.print_station_integration} text={text} t={t} /> : null}</> : null}<LegacyResourceDetail entity={entity} row={row} text={text} t={t} onBack={onBack} onRelease={onRelease} releasing={releasing} /></>;
+}
+
+function LegacyResourceDetail({ entity, row, text, t, onBack, onRelease, releasing }: AnyRecord) {
   const assignments = row.assignments || [];
   const skills = row.skills || [];
   const units = row.units || [];

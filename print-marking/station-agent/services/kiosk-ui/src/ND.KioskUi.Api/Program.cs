@@ -418,7 +418,7 @@ app.MapDelete("/api/rbac/users/{id}", async (string id, KioskDbContext db, HttpC
     var user = await db.Users.FindAsync([id], ct);
     if (user is null) return Results.NotFound();
 
-    if (user.Username == "admin123")
+    if (user.Username is "admin" or "admin123")
         return Results.BadRequest(new { error = "Cannot delete the default super admin user" });
 
     var deletedUsername = user.Username;
@@ -463,7 +463,7 @@ app.MapPost("/api/rbac/users/{userId}/toggle-active", async (string userId, Kios
     var user = await db.Users.FindAsync([userId], ct);
     if (user is null) return Results.NotFound();
 
-    if (user.Username == "admin123")
+    if (user.Username is "admin" or "admin123")
         return Results.BadRequest(new { error = "Cannot modify the default super admin user" });
 
     var oldVal = user.IsActive ? "ACTIVE" : "DISABLED";
@@ -852,7 +852,7 @@ app.MapPost("/api/commands/manual-override", async (
     HttpContext ctx,
     KioskDbContext db,
     ND.KioskUi.Application.Interfaces.IKioskRbacRepository rbac,
-    IRabbitMqPublisher publisher,
+    IEventPublisher publisher,
     IConfiguration config,
     CancellationToken ct) =>
 {
@@ -904,7 +904,7 @@ app.MapPost("/api/commands/manual-override", async (
         return Results.Forbid();
     }
 
-    var stationId = config["STATION_ID"] ?? "STATION-01";
+    var stationId = config["STATION_ID"] ?? throw new InvalidOperationException("STATION_ID is required");
     string routingKey;
     string eventJson;
     string eventId;
@@ -972,7 +972,7 @@ app.MapPost("/api/commands/manual-override", async (
     }
     catch (Exception ex)
     {
-        await WriteAuditLogAsync(db, userId, sessionId, $"MANUAL_OVERRIDE_{overrideType}", "JOB", jobId, "FAILED", $"Lỗi gửi RabbitMQ: {ex.Message}");
+        await WriteAuditLogAsync(db, userId, sessionId, $"MANUAL_OVERRIDE_{overrideType}", "JOB", jobId, "FAILED", $"Lỗi gửi Kafka: {ex.Message}");
 
         return Results.Problem(ex.Message, statusCode: 502);
     }
@@ -1086,14 +1086,23 @@ app.MapPost("/api/commands/dispatch-order", async (
 }).RequireAuthorization();
 
 // ── Printer Adapter proxy endpoints ──────────────────────────────────────────
+string PrinterAdapterBaseUrl()
+{
+    var configured = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_URL") ?? builder.Configuration["PrinterAdapter:Url"];
+    if (!string.IsNullOrWhiteSpace(configured)) return configured.TrimEnd('/');
+    var host = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_HOST") ?? builder.Configuration["PrinterAdapter:Host"];
+    var port = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_PORT") ?? builder.Configuration["PrinterAdapter:Port"];
+    if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port))
+        throw new InvalidOperationException("PRINTER_ADAPTER_URL or PRINTER_ADAPTER_HOST/PORT is required");
+    return $"http://{host}:{port}";
+}
+
 async Task<IResult> ProxyPrinterAdapterGetAsync(string relativePath, HttpContext ctx, CancellationToken ct)
 {
     var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     if (userId is null) return Results.Unauthorized();
 
-    var printerHost = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_HOST") ?? builder.Configuration["PrinterAdapter:Host"] ?? "localhost";
-    var printerPort = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_PORT") ?? builder.Configuration["PrinterAdapter:Port"] ?? "5004";
-    var targetUrl = $"http://{printerHost}:{printerPort}/{relativePath}{ctx.Request.QueryString.Value}";
+    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}{ctx.Request.QueryString.Value}";
 
     try
     {
@@ -1124,9 +1133,7 @@ async Task<IResult> ProxyPrinterAdapterPostAsync(string relativePath, HttpContex
     var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     if (userId is null) return Results.Unauthorized();
 
-    var printerHost = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_HOST") ?? builder.Configuration["PrinterAdapter:Host"] ?? "localhost";
-    var printerPort = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_PORT") ?? builder.Configuration["PrinterAdapter:Port"] ?? "5004";
-    var targetUrl = $"http://{printerHost}:{printerPort}/{relativePath}";
+    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}";
 
     try
     {
@@ -1162,9 +1169,7 @@ async Task<IResult> ProxyPrinterAdapterPutAsync(string relativePath, HttpContext
     var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     if (userId is null) return Results.Unauthorized();
 
-    var printerHost = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_HOST") ?? builder.Configuration["PrinterAdapter:Host"] ?? "localhost";
-    var printerPort = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_PORT") ?? builder.Configuration["PrinterAdapter:Port"] ?? "5004";
-    var targetUrl = $"http://{printerHost}:{printerPort}/{relativePath}";
+    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}";
 
     try
     {
@@ -1193,9 +1198,7 @@ async Task<IResult> ProxyPrinterAdapterDeleteAsync(string relativePath, HttpCont
     var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     if (userId is null) return Results.Unauthorized();
 
-    var printerHost = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_HOST") ?? builder.Configuration["PrinterAdapter:Host"] ?? "localhost";
-    var printerPort = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_PORT") ?? builder.Configuration["PrinterAdapter:Port"] ?? "5004";
-    var targetUrl = $"http://{printerHost}:{printerPort}/{relativePath}";
+    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}";
 
     try
     {

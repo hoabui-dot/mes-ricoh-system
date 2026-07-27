@@ -133,3 +133,10 @@ Chúng tôi đã thực hiện một đợt kiểm toán mã nguồn chi tiết 
 ### 🏢 Hành động dài hạn (1 - 3 tháng tới)
 1. **Đóng gói Docker toàn phần**: Chuyển đổi toàn bộ các dịch vụ Adapter, Job Engine và Projection thành các Container Docker chạy dưới dạng cụm Edge cục bộ (sử dụng Docker Compose hoặc k3s).
 2. **Triển khai thử nghiệm (PoC) trên dây chuyền thực tế**: Chạy song song hệ thống mới bên cạnh hệ thống cũ tại một dây chuyền chỉ định để đo lường độ trễ và tính tương thích phần cứng thực tế.
+# Current runtime override: independent Printer Adapter HTTP extraction
+
+Updated: 2026-07-26
+
+The current implementation is `print-marking/station-agent`. The duplicated `print-marking/mes-frontend` and `print-marking/mes-platform` copies were removed. Printer Adapter is independently deployed on HTTP port 5003; Job Engine calls `POST /api/print` and applies the returned `ProductionBatchPrintedEvent` through its existing result application logic.
+
+The Station Agent compose stack intentionally retains its own RabbitMQ and Redis because the main MES platform compose currently has Kafka but no RabbitMQ or Redis. Broker host/connection overrides are available for future shared infrastructure. See `print-marking/implementation-printer-adapter-http-refactor.md` for the detailed implementation and verification record.

@@ -4,6 +4,7 @@ import { createEventEnvelope, localizedTextSchema, writeToOutbox } from '@mom-pl
 import { TABLE_BY_RESOURCE, type TableDefinition } from '../../domain/table-registry.js';
 import { validateProductionVersion } from '../../application/validation-engine/validation-engine.js';
 import { formatRoutingCode } from './routing-numbering.js';
+import { validateRoutingOperationGraph } from './routing-validation.js';
 
 const SERVICE_NAME = 'mes-master-data-service';
 const IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -46,6 +47,106 @@ async function routingCodePreview(pool: Pool): Promise<{ preview_code: string; i
   const row = rows[0];
   if (!row) throw new Error('Routing number preview returned no counter row');
   return { preview_code: formatRoutingCode(row.number_date, Number(row.next_value)), is_reserved: false };
+}
+
+type RoutingOperationInput = {
+  operation_id: string;
+  work_center_id: string;
+  seq: number;
+  predecessor_seq: number | null;
+  scheduling_mode: string;
+  queue_time_min: number;
+  move_time_min: number;
+  overlap_allowed: boolean;
+  transfer_batch_qty: number | null;
+  milestone_flag: boolean;
+};
+
+function routingError(code: string, message: string, statusCode = 422): Error & { statusCode: number; code: string } {
+  return Object.assign(new Error(message), { statusCode, code });
+}
+
+async function validateRoutingOperationReplacement(client: PoolClient, routingId: string, value: unknown): Promise<RoutingOperationInput[]> {
+  if (!Array.isArray(value)) throw routingError('ROUTING_OPERATIONS_REQUIRED', 'The submitted operation list is required.');
+  const rows = value as Record<string, unknown>[];
+  const normalized: RoutingOperationInput[] = rows.map((row) => ({
+    operation_id: String(row['operation_id'] || ''),
+    work_center_id: String(row['work_center_id'] || ''),
+    seq: Number(row['seq']),
+    predecessor_seq: row['predecessor_seq'] === null || row['predecessor_seq'] === '' || row['predecessor_seq'] === undefined ? null : Number(row['predecessor_seq']),
+    scheduling_mode: String(row['scheduling_mode'] || 'Finite'),
+    queue_time_min: Number(row['queue_time_min'] ?? 0),
+    move_time_min: Number(row['move_time_min'] ?? 0),
+    overlap_allowed: row['overlap_allowed'] === true,
+    transfer_batch_qty: row['transfer_batch_qty'] === null || row['transfer_batch_qty'] === undefined || row['transfer_batch_qty'] === '' ? null : Number(row['transfer_batch_qty']),
+    milestone_flag: row['milestone_flag'] === true,
+  }));
+  const sequences = new Set<number>();
+  const operationIds = new Set<string>();
+  for (const row of normalized) {
+    if (!row.operation_id || !row.work_center_id || !Number.isInteger(row.seq) || row.seq < 1) throw routingError('ROUTING_OPERATION_FIELDS_INVALID', 'Each routing operation requires an active Operation, Work Center, and positive integer sequence.');
+    if (sequences.has(row.seq)) throw routingError('ROUTING_SEQUENCE_DUPLICATE', 'Routing operation sequence numbers must be unique.');
+    if (operationIds.has(row.operation_id)) throw routingError('ROUTING_OPERATION_DUPLICATE', 'An Operation may appear only once in a Routing.');
+    if (row.predecessor_seq !== null && (!Number.isInteger(row.predecessor_seq) || row.predecessor_seq === row.seq)) throw routingError('ROUTING_PREDECESSOR_INVALID', 'A predecessor must reference another operation sequence.');
+    if (!Number.isFinite(row.queue_time_min) || row.queue_time_min < 0 || !Number.isFinite(row.move_time_min) || row.move_time_min < 0 || (row.transfer_batch_qty !== null && (!Number.isFinite(row.transfer_batch_qty) || row.transfer_batch_qty <= 0))) throw routingError('ROUTING_TIMING_INVALID', 'Queue, move, and transfer-batch values are invalid.');
+    sequences.add(row.seq); operationIds.add(row.operation_id);
+  }
+  validateRoutingOperationGraph(normalized);
+  for (const row of normalized) if (row.predecessor_seq !== null && !sequences.has(row.predecessor_seq)) throw routingError('ROUTING_PREDECESSOR_INVALID', `Predecessor sequence ${row.predecessor_seq} does not exist.`);
+
+  const routing = await client.query(`SELECT master_id, lifecycle_status FROM md_routing_header WHERE master_id = $1 FOR UPDATE`, [routingId]);
+  if (!routing.rows[0]) throw Object.assign(new Error('ROUTING_NOT_FOUND'), { statusCode: 404 });
+  if (routing.rows[0].lifecycle_status === 'Released') throw routingError('ROUTING_RELEASED_IMMUTABLE', 'Released Routings cannot be edited. Create a new Routing version.', 409);
+  if (!normalized.length) return normalized;
+  const operations = await client.query(`SELECT master_id FROM md_operation WHERE master_id = ANY($1::uuid[]) AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [[...operationIds]]);
+  if (operations.rowCount !== operationIds.size) throw routingError('ROUTING_OPERATION_INACTIVE', 'All selected Operations must be active.');
+  const workCenters = await client.query(`SELECT master_id, site_id FROM md_work_center WHERE master_id = ANY($1::uuid[]) AND active_flag = TRUE AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [[...new Set(normalized.map((row) => row.work_center_id))]]);
+  if (workCenters.rowCount !== new Set(normalized.map((row) => row.work_center_id)).size) throw routingError('ROUTING_WORK_CENTER_INVALID', 'All selected Work Centers must be active.');
+  const sites = new Set(workCenters.rows.map((row) => String(row.site_id)));
+  if (sites.size > 1) throw routingError('ROUTING_WORK_CENTER_SITE_MISMATCH', 'All Routing Work Centers must belong to the same Site.');
+
+  const predecessorBySeq = new Map(normalized.map((row) => [row.seq, row.predecessor_seq]));
+  for (const start of normalized) {
+    const visited = new Set<number>(); let current = start.seq;
+    while (predecessorBySeq.get(current) !== null && predecessorBySeq.get(current) !== undefined) {
+      if (visited.has(current)) throw routingError('ROUTING_PREDECESSOR_CYCLE', 'Routing predecessor dependencies cannot contain a cycle.');
+      visited.add(current); current = predecessorBySeq.get(current) as number;
+    }
+  }
+  return normalized;
+}
+
+async function resolveProductionVersionSite(client: PoolClient, itemRevisionId: string, mbomHeaderId: string, routingHeaderId: string): Promise<string> {
+  const itemRevision = await client.query(`
+    SELECT master_id FROM md_item_revision
+    WHERE master_id = $1 AND lifecycle_status = 'Released'
+      AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())
+  `, [itemRevisionId]);
+  if (!itemRevision.rows[0]) throw Object.assign(new Error('PRODUCTION_VERSION_ITEM_REVISION_INVALID'), { statusCode: 422 });
+
+  const mbom = await client.query(`
+    SELECT master_id, site_id FROM md_mbom_header
+    WHERE master_id = $1 AND lifecycle_status = 'Released'
+      AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())
+  `, [mbomHeaderId]);
+  if (!mbom.rows[0]) throw Object.assign(new Error('PRODUCTION_VERSION_MBOM_INVALID'), { statusCode: 422 });
+
+  const routing = await client.query(`
+    SELECT rh.master_id, wc.site_id
+    FROM md_routing_header rh
+    JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
+    JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+    WHERE rh.master_id = $1 AND rh.lifecycle_status = 'Released'
+      AND rh.effective_from <= NOW() AND (rh.effective_to IS NULL OR rh.effective_to > NOW())
+    GROUP BY rh.master_id, wc.site_id
+  `, [routingHeaderId]);
+  const routingSites = new Set(routing.rows.map((row) => String(row.site_id)));
+  if (routingSites.size === 0) throw Object.assign(new Error('PRODUCTION_VERSION_ROUTING_INVALID'), { statusCode: 422 });
+  const routingSite = [...routingSites][0];
+  if (!routingSite || routingSites.size > 1 || String(mbom.rows[0].site_id) !== routingSite) {
+    throw Object.assign(new Error('PRODUCTION_VERSION_SITE_MISMATCH'), { statusCode: 422 });
+  }
+  return routingSite;
 }
 
 function getContext(req: Request) {
@@ -101,6 +202,34 @@ function machineGroupName(value: unknown): Record<string, string> {
   const parsed = localizedTextSchema.safeParse(value);
   if (!parsed.success) throw Object.assign(new Error('Machine Group name must include a non-empty Vietnamese value'), { statusCode: 422 });
   return parsed.data as Record<string, string>;
+}
+
+const PRINT_STATION_MODES = new Set(['PHYSICAL', 'SIMULATION', 'HYBRID']);
+const PRINT_STATION_STATUSES = new Set(['PENDING', 'ONLINE', 'OFFLINE', 'DEGRADED', 'DISABLED']);
+const PRINT_STATION_CAPABILITIES = new Set(['PRINT', 'LASER', 'VISION', 'PLC']);
+
+function printStationUrl(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) throw Object.assign(new Error('PRINT_STATION_GATEWAY_URL_REQUIRED'), { statusCode: 422 });
+  const input = value.trim();
+  let parsed: URL;
+  try { parsed = new URL(input); } catch { throw Object.assign(new Error('PRINT_STATION_GATEWAY_URL_INVALID'), { statusCode: 422 }); }
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw Object.assign(new Error('PRINT_STATION_GATEWAY_URL_INVALID'), { statusCode: 422 });
+  if (/\/{2,}$/.test(input.replace(`${parsed.protocol}//${parsed.host}`, ''))) throw Object.assign(new Error('PRINT_STATION_GATEWAY_URL_INVALID'), { statusCode: 422 });
+  return input.replace(/\/+$/, '');
+}
+
+function printStationCapabilities(value: unknown): string[] {
+  const values = Array.isArray(value) ? value.map(String) : ['PRINT'];
+  const unique = [...new Set(values.map((item) => item.toUpperCase()))];
+  if (!unique.length || unique.some((item) => !PRINT_STATION_CAPABILITIES.has(item))) throw Object.assign(new Error('PRINT_STATION_CAPABILITIES_INVALID'), { statusCode: 422 });
+  return unique;
+}
+
+function printStationDate(value: unknown, fallback: Date): Date {
+  if (value === undefined || value === null || value === '') return fallback;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) throw Object.assign(new Error('PRINT_STATION_EFFECTIVE_DATE_INVALID'), { statusCode: 422 });
+  return date;
 }
 
 async function resolveMachineUnit(client: PoolClient, machineId: string, requestedUnitId?: string): Promise<Record<string, any>> {
@@ -276,7 +405,7 @@ function validateEngineeringMetadata(table: TableDefinition, body: Record<string
     lifecycle_status: row['lifecycle_status'],
   };
   if (table.tableName === 'md_mbom_header') {
-    return { ...base, item_revision_id: row['item_revision_id'], site_id: row['site_id'], base_quantity: row['base_quantity'], base_uom_id: row['base_uom_id'], description: row['description'], business_version: row['business_version'], purpose: row['purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
+    return { ...base, site_id: row['site_id'], base_quantity: row['base_quantity'], base_uom_id: row['base_uom_id'], description: row['description'], business_version: row['business_version'], purpose: row['purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
   }
   if (table.tableName === 'md_routing_header') {
     return { ...base, description: row['description'], business_version: row['business_version'], routing_type: row['routing_type'], production_purpose: row['production_purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
@@ -384,8 +513,8 @@ export function masterDataRouter(pool: Pool): Router {
       const header = await client.query('SELECT * FROM md_ebom_header WHERE master_id = $1 AND lifecycle_status = \'Released\'', [req.params['id']]);
       if (!header.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Released EBOM not found' }); }
       const ebom = header.rows[0];
-      const mbom = await client.query(`INSERT INTO md_mbom_header (code, name, description, item_revision_id, site_id, business_version, purpose, base_quantity, base_uom_id, effective_from, created_by)
-        SELECT $1, e.name, e.description, e.item_revision_id, r.site_id, '1', 'Standard', 1, i.base_uom_id, NOW(), $2
+      const mbom = await client.query(`INSERT INTO md_mbom_header (code, name, description, site_id, business_version, purpose, base_quantity, base_uom_id, effective_from, created_by)
+        SELECT $1, e.name, e.description, r.site_id, '1', 'Standard', 1, i.base_uom_id, NOW(), $2
         FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id
         WHERE e.master_id = $3 RETURNING *`, [`MBOM-FROM-${ebom.code}`, getContext(req).userId, req.params['id']]);
       const mbomRow = mbom.rows[0];
@@ -1173,13 +1302,8 @@ export function masterDataRouter(pool: Pool): Router {
         FROM md_work_center wc
         JOIN md_shopfloor sf ON sf.master_id = wc.shopfloor_id
         JOIN md_site s ON s.master_id = wc.site_id
-        JOIN md_work_center_composition composition
-          ON composition.work_center_id = wc.master_id
-         AND composition.active_flag = TRUE
-         AND (composition.effective_to IS NULL OR composition.effective_to > NOW())
         JOIN md_workstation ws
-          ON ws.master_id = composition.workstation_id
-         AND ws.work_center_id = wc.master_id
+          ON ws.work_center_id = wc.master_id
          AND ws.active_flag = TRUE
          AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
         JOIN md_workstation_operation_capability capability
@@ -1517,12 +1641,19 @@ export function masterDataRouter(pool: Pool): Router {
       const assignments = await pool.query(`SELECT ra.*, wc.code AS work_center_code, wc.name AS work_center_name, eq.code AS equipment_code, eq.name AS equipment_name, mu.code AS machine_unit_code, mg.code AS machine_group_code FROM md_resource_assignment ra JOIN md_work_center wc ON wc.master_id = ra.work_center_id LEFT JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id LEFT JOIN md_workstation_machine_group mg ON mg.master_id = ra.machine_group_id WHERE ra.workstation_id = $1 ORDER BY ra.effective_from DESC`, [req.params['id']]);
       const groups = await pool.query(`SELECT mg.*, s.code AS site_code, sf.code AS shopfloor_code, wc.code AS work_center_code, ws.code AS workstation_code FROM md_workstation_machine_group mg JOIN md_site s ON s.master_id = mg.site_id JOIN md_shopfloor sf ON sf.master_id = mg.shopfloor_id JOIN md_work_center wc ON wc.master_id = mg.work_center_id JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.workstation_id = $1 AND mg.lifecycle_status NOT IN ('Inactive','Obsolete') AND (mg.effective_to IS NULL OR mg.effective_to > NOW()) ORDER BY mg.code`, [req.params['id']]);
       const capabilities = await pool.query(`SELECT c.*, o.code AS operation_code, o.name AS operation_name FROM md_workstation_operation_capability c JOIN md_operation o ON o.master_id = c.operation_id WHERE c.workstation_id = $1 AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW()) ORDER BY c.effective_from DESC, o.code`, [req.params['id']]);
+      const printStationIntegration = await pool.query(`SELECT b.binding_id, b.allocated_printer_quantity, ps.master_id AS print_station_id, ps.code AS print_station_code, ps.name AS print_station_name, ps.status AS lifecycle_status,
+        rt.adapter_id, rt.runtime_status, rt.kafka_status, rt.registered_printer_count, rt.ready_printer_count, rt.active_for_work_printer_count, rt.last_heartbeat_at, rt.last_error,
+        COALESCE(rt.printer_snapshot, '[]'::jsonb) AS printers,
+        CASE WHEN rt.active_for_work_printer_count IS NULL AND ps.configured_allocation_limit IS NULL THEN NULL ELSE LEAST(COALESCE(ps.configured_allocation_limit, rt.active_for_work_printer_count), COALESCE(rt.active_for_work_printer_count, ps.configured_allocation_limit)) END AS effective_allocation_capacity,
+        (SELECT COALESCE(SUM(other.allocated_printer_quantity), 0)::INT FROM md_workstation_print_station_binding other WHERE other.print_station_id = ps.master_id AND other.is_active = TRUE AND other.effective_to IS NULL) AS total_allocated_quantity
+        FROM md_workstation_print_station_binding b JOIN md_print_station ps ON ps.master_id = b.print_station_id LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id
+        WHERE b.workstation_id = $1 AND b.is_active = TRUE AND b.effective_to IS NULL LIMIT 1`, [req.params['id']]);
       for (const group of groups.rows) {
         group.members = assignments.rows.filter((assignment) => assignment.machine_group_id === group.master_id);
         const requirements = await pool.query(`SELECT r.*, eq.code AS machine_code, eq.name AS machine_name FROM md_workstation_machine_requirement r JOIN md_equipment eq ON eq.master_id = r.machine_id WHERE r.machine_group_id = $1 ORDER BY r.sequence_no`, [group.master_id]);
         group.requirements = requirements.rows;
       }
-      return res.json({ data: { ...detail.rows[0], assignments: assignments.rows, machine_groups: groups.rows, operation_capabilities: capabilities.rows } });
+      return res.json({ data: { ...detail.rows[0], assignments: assignments.rows, machine_groups: groups.rows, operation_capabilities: capabilities.rows, print_station_integration: printStationIntegration.rows[0] ?? null } });
     } catch (err) { return next(err); }
   });
 
@@ -1708,6 +1839,348 @@ export function masterDataRouter(pool: Pool): Router {
     } catch (err) { return next(err); }
   });
 
+  // Print Stations are integration resources, not generic master rows. Keep
+  // their lifecycle and binding validation explicit at this boundary.
+  router.get('/print-stations', async (req, res, next) => {
+    try {
+      const values: unknown[] = [];
+      const filters: string[] = [];
+      if (typeof req.query['site_id'] === 'string' && req.query['site_id']) { values.push(req.query['site_id']); filters.push(`ps.site_id = $${values.length}`); }
+      if (typeof req.query['status'] === 'string' && req.query['status']) { values.push(req.query['status'].toUpperCase()); filters.push(`ps.status = $${values.length}`); }
+      const result = await pool.query(`
+        SELECT ps.*, s.code AS site_code, s.name AS site_name, sf.code AS shopfloor_code, sf.name AS shopfloor_name,
+               (SELECT COUNT(*)::INT FROM md_workstation_print_station_binding b WHERE b.print_station_id = ps.master_id AND b.is_active = TRUE AND b.effective_to IS NULL) AS active_binding_count,
+               (SELECT COALESCE(SUM(b.allocated_printer_quantity), 0)::INT FROM md_workstation_print_station_binding b WHERE b.print_station_id = ps.master_id AND b.is_active = TRUE AND b.effective_to IS NULL) AS allocated_printer_quantity,
+               rt.registered_printer_count, rt.active_for_work_printer_count, rt.ready_printer_count, rt.busy_printer_count, rt.offline_printer_count, rt.error_printer_count, rt.runtime_status, rt.kafka_status, rt.last_heartbeat_at,
+               CASE WHEN rt.active_for_work_printer_count IS NULL AND ps.configured_allocation_limit IS NULL THEN NULL ELSE LEAST(COALESCE(ps.configured_allocation_limit, rt.active_for_work_printer_count), COALESCE(rt.active_for_work_printer_count, ps.configured_allocation_limit)) END AS effective_allocation_capacity,
+               CASE WHEN rt.active_for_work_printer_count IS NULL AND ps.configured_allocation_limit IS NULL THEN NULL ELSE GREATEST(0, LEAST(COALESCE(ps.configured_allocation_limit, rt.active_for_work_printer_count), COALESCE(rt.active_for_work_printer_count, ps.configured_allocation_limit)) - (SELECT COALESCE(SUM(b2.allocated_printer_quantity), 0) FROM md_workstation_print_station_binding b2 WHERE b2.print_station_id = ps.master_id AND b2.is_active = TRUE AND b2.effective_to IS NULL)) END AS remaining_printer_quantity
+        FROM md_print_station ps
+        JOIN md_site s ON s.master_id = ps.site_id
+        LEFT JOIN md_shopfloor sf ON sf.master_id = ps.shopfloor_id
+        LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id
+        ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
+        ORDER BY ps.code`, values);
+      for (const row of result.rows) row.allocation_deficit = row.effective_allocation_capacity == null ? null : Math.max(0, Number(row.allocated_printer_quantity || 0) - Number(row.effective_allocation_capacity));
+      return res.json({ data: result.rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.post('/print-stations', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const body = req.body || {};
+      const code = String(body.code || '').trim();
+      if (!code) return res.status(422).json({ error: 'PRINT_STATION_CODE_REQUIRED' });
+      const name = localizedTextSchema.safeParse(body.name);
+      if (!name.success) return res.status(422).json({ error: 'PRINT_STATION_NAME_INVALID' });
+      const mode = String(body.deployment_mode || 'PHYSICAL').toUpperCase();
+      const status = String(body.status || 'PENDING').toUpperCase();
+      if (!PRINT_STATION_MODES.has(mode)) return res.status(422).json({ error: 'PRINT_STATION_DEPLOYMENT_MODE_INVALID' });
+      if (!PRINT_STATION_STATUSES.has(status)) return res.status(422).json({ error: 'PRINT_STATION_STATUS_INVALID' });
+      const url = printStationUrl(body.gateway_base_url);
+      const capabilities = printStationCapabilities(body.capabilities);
+      const siteId = String(body.site_id || '');
+      const shopfloorId = body.shopfloor_id ? String(body.shopfloor_id) : null;
+      if (!siteId) return res.status(422).json({ error: 'PRINT_STATION_SITE_REQUIRED' });
+      const site = await pool.query('SELECT master_id FROM md_site WHERE master_id = $1', [siteId]);
+      if (!site.rows[0]) return res.status(422).json({ error: 'PRINT_STATION_SITE_NOT_FOUND' });
+      if (shopfloorId) {
+        const shopfloor = await pool.query('SELECT master_id FROM md_shopfloor WHERE master_id = $1 AND site_id = $2', [shopfloorId, siteId]);
+        if (!shopfloor.rows[0]) return res.status(422).json({ error: 'PRINT_STATION_SHOPFLOOR_SITE_MISMATCH' });
+      }
+      const result = await pool.query(`INSERT INTO md_print_station (code, name, description, site_id, shopfloor_id, gateway_base_url, deployment_mode, status, capabilities, software_version, is_active, created_by, updated_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) RETURNING *`, [code, name.data, body.description || null, siteId, shopfloorId, url, mode, status, JSON.stringify(capabilities), body.software_version || null, status !== 'DISABLED', context.userId]);
+      return res.status(201).json({ data: result.rows[0] });
+    } catch (err: any) {
+      if (err?.code === '23505') return res.status(409).json({ error: 'PRINT_STATION_CODE_DUPLICATE' });
+      return next(err);
+    }
+  });
+
+  router.get('/print-stations/:id', async (req, res, next) => {
+    try {
+      const result = await pool.query(`SELECT ps.*, s.code AS site_code, s.name AS site_name, sf.code AS shopfloor_code, sf.name AS shopfloor_name,
+        (SELECT COUNT(*)::INT FROM md_workstation_print_station_binding b WHERE b.print_station_id = ps.master_id AND b.is_active = TRUE AND b.effective_to IS NULL) AS active_binding_count,
+        (SELECT COALESCE(SUM(b.allocated_printer_quantity), 0)::INT FROM md_workstation_print_station_binding b WHERE b.print_station_id = ps.master_id AND b.is_active = TRUE AND b.effective_to IS NULL) AS allocated_printer_quantity,
+        rt.registered_printer_count, rt.active_for_work_printer_count, rt.ready_printer_count, rt.busy_printer_count, rt.offline_printer_count, rt.error_printer_count, rt.runtime_status, rt.kafka_status, rt.last_heartbeat_at,
+        CASE WHEN rt.active_for_work_printer_count IS NULL AND ps.configured_allocation_limit IS NULL THEN NULL ELSE LEAST(COALESCE(ps.configured_allocation_limit, rt.active_for_work_printer_count), COALESCE(rt.active_for_work_printer_count, ps.configured_allocation_limit)) END AS effective_allocation_capacity,
+        CASE WHEN rt.active_for_work_printer_count IS NULL AND ps.configured_allocation_limit IS NULL THEN NULL ELSE GREATEST(0, LEAST(COALESCE(ps.configured_allocation_limit, rt.active_for_work_printer_count), COALESCE(rt.active_for_work_printer_count, ps.configured_allocation_limit)) - (SELECT COALESCE(SUM(b2.allocated_printer_quantity), 0) FROM md_workstation_print_station_binding b2 WHERE b2.print_station_id = ps.master_id AND b2.is_active = TRUE AND b2.effective_to IS NULL)) END AS remaining_printer_quantity
+        FROM md_print_station ps JOIN md_site s ON s.master_id = ps.site_id LEFT JOIN md_shopfloor sf ON sf.master_id = ps.shopfloor_id LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id WHERE ps.master_id = $1`, [req.params['id']]);
+      if (!result.rows[0]) return res.status(404).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      const detail = result.rows[0];
+      detail.allocation_deficit = detail.effective_allocation_capacity == null ? null : Math.max(0, Number(detail.allocated_printer_quantity || 0) - Number(detail.effective_allocation_capacity));
+      return res.json({ data: detail });
+    } catch (err) { return next(err); }
+  });
+
+  router.patch('/print-stations/:id', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const current = await pool.query('SELECT * FROM md_print_station WHERE master_id = $1 FOR UPDATE', [req.params['id']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      const body = req.body || {};
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      const add = (column: string, value: unknown) => { values.push(value); sets.push(`${column} = $${values.length}`); };
+      if (body.name !== undefined) { const parsed = localizedTextSchema.safeParse(body.name); if (!parsed.success) return res.status(422).json({ error: 'PRINT_STATION_NAME_INVALID' }); add('name', parsed.data); }
+      if (body.description !== undefined) add('description', body.description || null);
+      if (body.gateway_base_url !== undefined) add('gateway_base_url', printStationUrl(body.gateway_base_url));
+      if (body.capabilities !== undefined) add('capabilities', JSON.stringify(printStationCapabilities(body.capabilities)));
+      if (body.deployment_mode !== undefined) { const mode = String(body.deployment_mode).toUpperCase(); if (!PRINT_STATION_MODES.has(mode)) return res.status(422).json({ error: 'PRINT_STATION_DEPLOYMENT_MODE_INVALID' }); add('deployment_mode', mode); }
+      if (body.software_version !== undefined) add('software_version', body.software_version || null);
+      if (body.status !== undefined) { const status = String(body.status).toUpperCase(); if (!PRINT_STATION_STATUSES.has(status)) return res.status(422).json({ error: 'PRINT_STATION_STATUS_INVALID' }); add('status', status); add('is_active', status !== 'DISABLED'); }
+      if (!sets.length) return res.status(400).json({ error: 'PRINT_STATION_NO_UPDATE_FIELDS' });
+      add('updated_by', context.userId);
+      values.push(req.params['id']);
+      const result = await pool.query(`UPDATE md_print_station SET ${sets.join(', ')}, updated_at = NOW() WHERE master_id = $${values.length} RETURNING *`, values);
+      return res.json({ data: result.rows[0] });
+    } catch (err) { return next(err); }
+  });
+
+  router.delete('/print-stations/:id', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const bindings = await pool.query(`SELECT 1 FROM md_workstation_print_station_binding WHERE print_station_id = $1 AND is_active = TRUE AND (effective_to IS NULL OR effective_to > NOW()) LIMIT 1`, [req.params['id']]);
+      if (bindings.rows[0]) return res.status(409).json({ error: 'PRINT_STATION_HAS_ACTIVE_BINDINGS' });
+      const result = await pool.query(`UPDATE md_print_station SET status = 'DISABLED', is_active = FALSE, updated_by = $2, updated_at = NOW() WHERE master_id = $1 RETURNING *`, [req.params['id'], context.userId]);
+      if (!result.rows[0]) return res.status(404).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      return res.json({ data: result.rows[0] });
+    } catch (err) { return next(err); }
+  });
+
+  router.post('/print-stations/:id/test-connection', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const station = await pool.query('SELECT * FROM md_print_station WHERE master_id = $1', [req.params['id']]);
+      if (!station.rows[0]) return res.status(404).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      const row = station.rows[0];
+      if (row.status === 'DISABLED') return res.status(409).json({ error: 'PRINT_STATION_DISABLED' });
+      const checkedAt = new Date();
+      let status = 'OFFLINE'; let healthError: string | null = null; let health: Record<string, any> = {};
+      try {
+        const response = await fetch(`${row.gateway_base_url}/health`, { signal: AbortSignal.timeout(4000) });
+        health = (await response.json().catch(() => ({}))) as Record<string, any>;
+        if (response.ok && String(health.status || '').toLowerCase() === 'healthy') status = 'ONLINE';
+        else if (response.ok) status = 'DEGRADED';
+        else healthError = `Station Gateway returned HTTP ${response.status}`;
+      } catch (err: any) { healthError = err?.name === 'TimeoutError' ? 'Station Gateway health check timed out' : 'Station Gateway health check failed'; }
+      const result = await pool.query(`UPDATE md_print_station SET status = $2::VARCHAR, last_health_check_at = $3::TIMESTAMPTZ, last_heartbeat_at = CASE WHEN $2::VARCHAR = 'ONLINE' THEN $3::TIMESTAMPTZ ELSE last_heartbeat_at END, last_health_error = $4::TEXT, software_version = COALESCE($5::VARCHAR, software_version), updated_by = $6, updated_at = NOW() WHERE master_id = $1 RETURNING *`, [req.params['id'], status, checkedAt.toISOString(), healthError, health.version || null, context.userId]);
+      return res.status(status === 'ONLINE' ? 200 : 503).json({ data: result.rows[0], reachable: status !== 'OFFLINE', health });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/print-stations/:id/health', async (req, res, next) => {
+    try {
+      const result = await pool.query(`SELECT master_id, code, status, last_heartbeat_at, last_health_check_at, last_health_error, software_version FROM md_print_station WHERE master_id = $1`, [req.params['id']]);
+      if (!result.rows[0]) return res.status(404).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      return res.json({ data: result.rows[0] });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/print-stations/:id/runtime', async (req, res, next) => {
+    try {
+      const result = await pool.query(`
+        SELECT ps.master_id AS print_station_id, ps.code, ps.status AS lifecycle_status,
+               COALESCE(rt.runtime_status, 'UNKNOWN') AS runtime_status,
+               COALESCE(rt.kafka_status, 'UNKNOWN') AS kafka_status,
+               rt.registered_printer_count, rt.active_for_work_printer_count, rt.ready_printer_count,
+               rt.busy_printer_count, rt.offline_printer_count, rt.error_printer_count,
+               rt.adapter_id, rt.last_heartbeat_at, rt.last_status_change_at,
+               rt.last_event_id, rt.last_event_type, rt.last_error,
+               COALESCE(rt.printer_snapshot, '[]'::jsonb) AS printers,
+               rt.updated_at,
+               ps.configured_allocation_limit,
+               (SELECT COALESCE(SUM(b.allocated_printer_quantity), 0)::INT FROM md_workstation_print_station_binding b WHERE b.print_station_id = ps.master_id AND b.is_active = TRUE AND b.effective_to IS NULL) AS allocated_printer_quantity,
+               CASE WHEN rt.active_for_work_printer_count IS NULL AND ps.configured_allocation_limit IS NULL THEN NULL ELSE LEAST(COALESCE(ps.configured_allocation_limit, rt.active_for_work_printer_count), COALESCE(rt.active_for_work_printer_count, ps.configured_allocation_limit)) END AS effective_allocation_capacity
+        FROM md_print_station ps
+        LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id
+        WHERE ps.master_id = $1`, [req.params['id']]);
+      if (!result.rows[0]) return res.status(404).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      const runtimeDetail = result.rows[0];
+      const effective = runtimeDetail.effective_allocation_capacity == null ? null : Number(runtimeDetail.effective_allocation_capacity);
+      runtimeDetail.remaining_printer_quantity = effective == null ? null : Math.max(0, effective - Number(runtimeDetail.allocated_printer_quantity || 0));
+      runtimeDetail.allocation_deficit = effective == null ? null : Math.max(0, Number(runtimeDetail.allocated_printer_quantity || 0) - effective);
+      return res.json({ data: runtimeDetail });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/print-stations/:id/workstations', async (req, res, next) => {
+    try {
+      const result = await pool.query(`SELECT b.*, ws.code AS workstation_code, ws.name AS workstation_name, ws.site_id, ps.code AS print_station_code
+        FROM md_workstation_print_station_binding b JOIN md_workstation ws ON ws.master_id = b.workstation_id JOIN md_print_station ps ON ps.master_id = b.print_station_id
+        WHERE b.print_station_id = $1 AND b.is_active = TRUE AND b.effective_to IS NULL ORDER BY b.role, b.effective_from DESC`, [req.params['id']]);
+      return res.json({ data: result.rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/workstations/:workstationId/print-station-bindings', async (req, res, next) => {
+    try {
+      const result = await pool.query(`SELECT b.*, ps.code AS print_station_code, ps.name AS print_station_name, ps.gateway_base_url, ps.status AS print_station_status, ps.deployment_mode
+        FROM md_workstation_print_station_binding b JOIN md_print_station ps ON ps.master_id = b.print_station_id
+        WHERE b.workstation_id = $1 AND b.is_active = TRUE AND b.effective_to IS NULL ORDER BY b.role, b.effective_from DESC`, [req.params['workstationId']]);
+      return res.json({ data: result.rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/print-stations/:id/workstation-candidates', async (req, res, next) => {
+    try {
+      const station = await pool.query(`SELECT ps.master_id, ps.site_id, ps.shopfloor_id, ps.configured_allocation_limit,
+        rt.active_for_work_printer_count, rt.ready_printer_count, rt.runtime_status,
+        COALESCE((SELECT SUM(b.allocated_printer_quantity) FROM md_workstation_print_station_binding b WHERE b.print_station_id = ps.master_id AND b.is_active = TRUE AND b.effective_to IS NULL), 0)::INT AS allocated_printer_quantity
+        FROM md_print_station ps LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id WHERE ps.master_id = $1`, [req.params['id']]);
+      if (!station.rows[0]) return res.status(404).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      const row = station.rows[0];
+      const capacity = row.active_for_work_printer_count == null && row.configured_allocation_limit == null ? null : Math.min(Number(row.configured_allocation_limit ?? row.active_for_work_printer_count), Number(row.active_for_work_printer_count ?? row.configured_allocation_limit));
+      const remaining = capacity == null ? null : Math.max(0, capacity - Number(row.allocated_printer_quantity));
+      const result = await pool.query(`SELECT ws.master_id AS workstation_id, ws.code AS workstation_code, ws.name AS workstation_name
+        FROM md_workstation ws
+        WHERE ws.active_flag = TRUE AND ws.lifecycle_status = 'Released' AND ws.site_id = $1
+          AND NOT EXISTS (SELECT 1 FROM md_workstation_print_station_binding b WHERE b.workstation_id = ws.master_id AND b.is_active = TRUE AND b.effective_to IS NULL)
+        ORDER BY ws.code`, [row.site_id]);
+      return res.json({ data: { capacity: { effective: capacity, allocated: Number(row.allocated_printer_quantity), remaining, ready: row.ready_printer_count == null ? null : Number(row.ready_printer_count), runtimeStatus: row.runtime_status ?? 'UNKNOWN' }, candidates: result.rows.map((candidate) => ({ ...candidate, eligible: remaining != null && remaining > 0, maximumAllocatableQuantity: remaining ?? 0, alreadyBoundToPrintStation: false })) } });
+    } catch (err) { return next(err); }
+  });
+
+  router.post('/workstations/:workstationId/print-station-bindings', async (req, res, next) => {
+    const context = getContext(req);
+    const client = await pool.connect();
+    let transactionCompleted = false;
+    try {
+      await client.query('BEGIN');
+      const body = req.body || {};
+      const role = String(body.role || 'PRIMARY').toUpperCase();
+      if (!['PRIMARY', 'BACKUP'].includes(role)) return res.status(422).json({ error: 'PRINT_BINDING_ROLE_INVALID' });
+      const workstation = await client.query('SELECT master_id, site_id, shopfloor_id, active_flag FROM md_workstation WHERE master_id = $1 FOR UPDATE', [req.params['workstationId']]);
+      const station = await client.query(`SELECT ps.master_id, ps.site_id, ps.shopfloor_id, ps.status, ps.is_active, ps.configured_allocation_limit,
+        rt.active_for_work_printer_count, rt.runtime_status
+        FROM md_print_station ps LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id
+        WHERE ps.master_id = $1 FOR UPDATE OF ps`, [String(body.print_station_id || '')]);
+      if (!workstation.rows[0] || workstation.rows[0].active_flag !== true) return res.status(422).json({ error: 'WORKSTATION_NOT_FOUND_OR_INACTIVE' });
+      if (!station.rows[0]) return res.status(422).json({ error: 'PRINT_STATION_NOT_FOUND' });
+      const ws = workstation.rows[0]; const ps = station.rows[0];
+      const allocatedQuantity = Number(body.allocated_printer_quantity);
+      if (!Number.isInteger(allocatedQuantity) || allocatedQuantity <= 0) return res.status(422).json({ error: 'INVALID_ALLOCATED_PRINTER_QUANTITY' });
+      if (ws.site_id !== ps.site_id) return res.status(422).json({ error: 'PRINT_BINDING_SITE_MISMATCH' });
+      if (ws.shopfloor_id && ps.shopfloor_id && ws.shopfloor_id !== ps.shopfloor_id) return res.status(422).json({ error: 'PRINT_BINDING_SHOPFLOOR_MISMATCH' });
+      if (ps.status === 'DISABLED' || ps.is_active !== true) return res.status(422).json({ error: 'PRINT_STATION_DISABLED' });
+      const effectiveFrom = printStationDate(body.effective_from, new Date());
+      const effectiveTo = body.effective_to ? printStationDate(body.effective_to, new Date()) : null;
+      if (effectiveTo && effectiveTo <= effectiveFrom) return res.status(422).json({ error: 'PRINT_BINDING_EFFECTIVE_RANGE_INVALID' });
+      const existing = await client.query(`SELECT binding_id FROM md_workstation_print_station_binding WHERE workstation_id = $1 AND is_active = TRUE AND effective_to IS NULL FOR UPDATE`, [req.params['workstationId']]);
+      if (existing.rows[0]) return res.status(409).json({ error: 'WORKSTATION_ALREADY_HAS_PRINT_STATION' });
+      const capacity = ps.active_for_work_printer_count == null ? null : Math.min(Number(ps.configured_allocation_limit ?? ps.active_for_work_printer_count), Number(ps.active_for_work_printer_count));
+      if (capacity == null) return res.status(409).json({ error: 'PRINT_STATION_RUNTIME_NOT_AVAILABLE' });
+      const allocated = await client.query(`SELECT COALESCE(SUM(allocated_printer_quantity), 0)::INT AS total FROM md_workstation_print_station_binding WHERE print_station_id = $1 AND is_active = TRUE AND effective_to IS NULL`, [ps.master_id]);
+      const currentTotal = Number(allocated.rows[0]?.total || 0);
+      if (currentTotal + allocatedQuantity > capacity) return res.status(409).json({ error: 'PRINT_STATION_ALLOCATION_EXCEEDS_CAPACITY', details: { capacity, allocated: currentTotal, remaining: Math.max(0, capacity - currentTotal), requested: allocatedQuantity } });
+      const result = await client.query(`INSERT INTO md_workstation_print_station_binding (workstation_id, print_station_id, allocated_printer_quantity, role, effective_from, effective_to, created_by, updated_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING *`, [req.params['workstationId'], ps.master_id, allocatedQuantity, role, effectiveFrom.toISOString(), effectiveTo?.toISOString() || null, context.userId]);
+      await client.query('COMMIT');
+      transactionCompleted = true;
+      return res.status(201).json({ data: result.rows[0] });
+    } catch (err: any) { await client.query('ROLLBACK').catch(() => undefined); if (err?.code === '23505') return res.status(409).json({ error: 'WORKSTATION_ALREADY_HAS_PRINT_STATION' }); return next(err); } finally { if (!transactionCompleted) await client.query('ROLLBACK').catch(() => undefined); client.release(); }
+  });
+
+  router.delete('/workstation-print-station-bindings/:bindingId', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const current = await pool.query('SELECT * FROM md_workstation_print_station_binding WHERE binding_id = $1', [req.params['bindingId']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'PRINT_BINDING_NOT_FOUND' });
+      // Removing a binding ends its effective period; the row remains for audit
+      // and historical Work Order resolution.
+      const result = await pool.query(`UPDATE md_workstation_print_station_binding
+        SET is_active = FALSE, effective_to = COALESCE(effective_to, NOW()), ended_by = $2, end_reason = COALESCE($3, end_reason), updated_by = $2, updated_at = NOW()
+        WHERE binding_id = $1 AND is_active = TRUE AND effective_to IS NULL RETURNING *`, [req.params['bindingId'], context.userId, req.body?.reason || null]);
+      if (!result.rows[0]) return res.status(409).json({ error: 'PRINT_BINDING_ALREADY_ENDED' });
+      return res.json({ data: result.rows[0] });
+    } catch (err) { return next(err); }
+  });
+
+  router.patch('/workstation-print-station-bindings/:bindingId', async (req, res, next) => {
+    const context = getContext(req);
+    const client = await pool.connect();
+    let transactionCompleted = false;
+    try {
+      await client.query('BEGIN');
+      const current = await client.query('SELECT * FROM md_workstation_print_station_binding WHERE binding_id = $1 FOR UPDATE', [req.params['bindingId']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'PRINT_BINDING_NOT_FOUND' });
+      const row = current.rows[0];
+      const sets: string[] = []; const values: unknown[] = [];
+      if (req.body?.allocated_printer_quantity !== undefined) {
+        const quantity = Number(req.body.allocated_printer_quantity);
+        if (!Number.isInteger(quantity) || quantity <= 0) return res.status(422).json({ error: 'INVALID_ALLOCATED_PRINTER_QUANTITY' });
+        const station = await client.query(`SELECT ps.configured_allocation_limit, rt.active_for_work_printer_count FROM md_print_station ps LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id WHERE ps.master_id = $1 FOR UPDATE OF ps`, [row.print_station_id]);
+        const capacity = station.rows[0]?.active_for_work_printer_count == null ? null : Math.min(Number(station.rows[0].configured_allocation_limit ?? station.rows[0].active_for_work_printer_count), Number(station.rows[0].active_for_work_printer_count));
+        if (capacity == null) return res.status(409).json({ error: 'PRINT_STATION_RUNTIME_NOT_AVAILABLE' });
+        const allocated = await client.query(`SELECT COALESCE(SUM(allocated_printer_quantity), 0)::INT AS total FROM md_workstation_print_station_binding WHERE print_station_id = $1 AND is_active = TRUE AND effective_to IS NULL AND binding_id <> $2`, [row.print_station_id, row.binding_id]);
+        const total = Number(allocated.rows[0]?.total || 0);
+        if (total + quantity > capacity) return res.status(409).json({ error: 'PRINT_STATION_ALLOCATION_EXCEEDS_CAPACITY', details: { capacity, allocated: total, remaining: Math.max(0, capacity - total), requested: quantity } });
+        values.push(quantity); sets.push(`allocated_printer_quantity = $${values.length}`);
+      }
+      if (req.body?.role !== undefined) { const role = String(req.body.role).toUpperCase(); if (!['PRIMARY', 'BACKUP'].includes(role)) return res.status(422).json({ error: 'PRINT_BINDING_ROLE_INVALID' }); values.push(role); sets.push(`role = $${values.length}`); }
+      if (req.body?.effective_to !== undefined) { const effectiveTo = printStationDate(req.body.effective_to, new Date()); if (effectiveTo <= new Date(row.effective_from)) return res.status(422).json({ error: 'PRINT_BINDING_EFFECTIVE_RANGE_INVALID' }); values.push(effectiveTo.toISOString()); sets.push(`effective_to = $${values.length}`); }
+      if (req.body?.is_active !== undefined) { values.push(Boolean(req.body.is_active)); sets.push(`is_active = $${values.length}`); }
+      if (!sets.length) return res.status(400).json({ error: 'PRINT_BINDING_NO_UPDATE_FIELDS' });
+      const result = await client.query(`UPDATE md_workstation_print_station_binding SET ${sets.join(', ')}, updated_by = $${values.length + 1}, updated_at = NOW() WHERE binding_id = $${values.length + 2} RETURNING *`, [...values, context.userId, req.params['bindingId']]);
+      await client.query('COMMIT');
+      transactionCompleted = true;
+      return res.json({ data: result.rows[0] });
+    } catch (err: any) { await client.query('ROLLBACK').catch(() => undefined); if (err?.code === '23505') return res.status(409).json({ error: 'WORKSTATION_ALREADY_HAS_PRINT_STATION' }); return next(err); } finally { if (!transactionCompleted) await client.query('ROLLBACK').catch(() => undefined); client.release(); }
+  });
+
+  router.get('/workstations/:workstationId/resolved-print-station', async (req, res, next) => {
+    try {
+      const at = req.query['at'] ? new Date(String(req.query['at'])) : new Date();
+      if (Number.isNaN(at.getTime())) return res.status(422).json({ error: 'PRINT_RESOLUTION_DATE_INVALID' });
+      const result = await pool.query(`SELECT b.*, ps.code AS print_station_code, ps.name AS print_station_name, ps.description AS print_station_description,
+        ps.gateway_base_url, ps.status AS print_station_status, ps.deployment_mode, ps.capabilities, ps.site_id, ps.shopfloor_id
+        FROM md_workstation_print_station_binding b JOIN md_print_station ps ON ps.master_id = b.print_station_id
+        WHERE b.workstation_id = $1 AND b.is_active = TRUE AND ps.is_active = TRUE AND ps.status <> 'DISABLED'
+          AND b.effective_from <= $2::timestamptz AND (b.effective_to IS NULL OR b.effective_to > $2::timestamptz)
+        ORDER BY CASE WHEN b.role = 'PRIMARY' THEN 0 ELSE 1 END, b.effective_from DESC`, [req.params['workstationId'], at.toISOString()]);
+      const selected = result.rows[0];
+      if (!selected) return res.status(404).json({ error: 'PRINT_STATION_BINDING_NOT_FOUND' });
+      const runtime = await pool.query(`SELECT runtime_status, kafka_status, registered_printer_count, active_for_work_printer_count, ready_printer_count, busy_printer_count, offline_printer_count, error_printer_count, last_heartbeat_at, last_error FROM md_print_station_runtime_projection WHERE print_station_id = $1`, [selected.print_station_id]);
+      const projection = runtime.rows[0] ?? { runtime_status: 'UNKNOWN', kafka_status: 'UNKNOWN', registered_printer_count: null, active_for_work_printer_count: null, ready_printer_count: null, busy_printer_count: null, offline_printer_count: null, error_printer_count: null };
+      const warnings = [
+        ['OFFLINE', 'DEGRADED'].includes(selected.print_station_status) ? 'PRINT_STATION_LIFECYCLE_NOT_READY' : null,
+        projection.runtime_status !== 'ONLINE' ? 'PRINT_STATION_RUNTIME_NOT_READY' : null,
+        projection.kafka_status !== 'CONNECTED' ? 'PRINT_STATION_KAFKA_NOT_READY' : null,
+      ].filter(Boolean);
+      return res.json({ data: { ...selected, runtime: projection, warning: warnings[0] ?? null, warnings } });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/workstations/:workstationId/print-station-readiness', async (req, res, next) => {
+    try {
+      const result = await pool.query(`
+        SELECT b.binding_id, b.role, ps.master_id AS print_station_id, ps.code AS print_station_code,
+               ps.status AS lifecycle_status, ps.is_active,
+               COALESCE(rt.runtime_status, 'UNKNOWN') AS runtime_status,
+               COALESCE(rt.kafka_status, 'UNKNOWN') AS kafka_status,
+               rt.ready_printer_count, rt.active_for_work_printer_count, b.allocated_printer_quantity,
+               rt.last_heartbeat_at
+        FROM md_workstation_print_station_binding b
+        JOIN md_print_station ps ON ps.master_id = b.print_station_id
+        LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id
+        WHERE b.workstation_id = $1 AND b.role = 'PRIMARY' AND b.is_active = TRUE
+          AND b.effective_from <= NOW() AND (b.effective_to IS NULL OR b.effective_to > NOW())
+        ORDER BY b.effective_from DESC LIMIT 1`, [req.params['workstationId']]);
+      const row = result.rows[0];
+      if (!row) return res.json({ ready: false, code: 'PRINT_STATION_BINDING_REQUIRED', data: null });
+      const checks = {
+        binding: true,
+        lifecycle: row.is_active === true && row.lifecycle_status !== 'DISABLED',
+        runtime: row.runtime_status === 'ONLINE',
+        kafka: row.kafka_status === 'CONNECTED',
+        printer: Number(row.ready_printer_count || 0) > 0,
+      };
+      const failed = Object.entries(checks).filter(([, value]) => !value).map(([key]) => key);
+      const firstFailed = failed[0];
+      return res.json({ ready: failed.length === 0, code: firstFailed ? `PRINT_STATION_${firstFailed.toUpperCase()}_NOT_READY` : null, failed_checks: failed, checks, data: row });
+    } catch (err) { return next(err); }
+  });
+
   router.get('/:resource', async (req, res, next) => {
     try {
       const table = requireTable(req.params['resource'] ?? '');
@@ -1724,7 +2197,7 @@ export function masterDataRouter(pool: Pool): Router {
       }
       if (['md_production_version', 'md_mbom_header', 'md_routing_header'].includes(table.tableName)) {
         const filters: string[] = [];
-        if (table.tableName !== 'md_routing_header' && typeof req.query['item_revision_id'] === 'string' && req.query['item_revision_id']) { params.push(req.query['item_revision_id']); filters.push(`${table.tableName}.item_revision_id = $${params.length}`); }
+        if (!['md_routing_header', 'md_mbom_header'].includes(table.tableName) && typeof req.query['item_revision_id'] === 'string' && req.query['item_revision_id']) { params.push(req.query['item_revision_id']); filters.push(`${table.tableName}.item_revision_id = $${params.length}`); }
         if (table.tableName !== 'md_routing_header' && typeof req.query['site_id'] === 'string' && req.query['site_id']) { params.push(req.query['site_id']); filters.push(`${table.tableName}.site_id = $${params.length}`); }
         if (typeof req.query['lifecycle_status'] === 'string' && req.query['lifecycle_status']) { params.push(req.query['lifecycle_status']); filters.push(`${table.tableName}.lifecycle_status = $${params.length}`); }
         if (filters.length) where = `WHERE ${filters.join(' AND ')}`;
@@ -1758,11 +2231,9 @@ export function masterDataRouter(pool: Pool): Router {
                  FROM md_routing_header rt
                  ${where.replaceAll('md_routing_header.', 'rt.')} ORDER BY rt.code, rt.version_no LIMIT $1`;
       } else if (table.tableName === 'md_mbom_header') {
-        query = `SELECT mb.*, r.revision_code, i.code AS item_code, i.name AS item_name, s.code AS site_code,
+        query = `SELECT mb.*, s.code AS site_code,
                         u.code AS base_uom_code
                  FROM md_mbom_header mb
-                 LEFT JOIN md_item_revision r ON r.master_id = mb.item_revision_id
-                 LEFT JOIN md_item i ON i.master_id = r.item_id
                  LEFT JOIN md_site s ON s.master_id = mb.site_id
                  LEFT JOIN md_uom u ON u.master_id = mb.base_uom_id
                  ${where.replaceAll('md_mbom_header.', 'mb.')} ORDER BY mb.code, mb.version_no LIMIT $1`;
@@ -1843,8 +2314,13 @@ export function masterDataRouter(pool: Pool): Router {
       } else if (table.tableName === 'md_workstation') {
         query = `SELECT ws.*, s.code AS site_code, s.name AS site_name, a.code AS area_code, a.name AS area_name,
                         wc.code AS work_center_code, wc.name AS work_center_name,
-                        (SELECT COUNT(*)::INT FROM md_resource_assignment ra WHERE ra.workstation_id = ws.master_id AND (ra.effective_to IS NULL OR ra.effective_to > NOW())) AS active_assignment_count
+                        (SELECT COUNT(*)::INT FROM md_resource_assignment ra WHERE ra.workstation_id = ws.master_id AND (ra.effective_to IS NULL OR ra.effective_to > NOW())) AS active_assignment_count,
+                        ps.code AS print_station_code, b.allocated_printer_quantity AS allocated_printer_quantity,
+                        rt.runtime_status AS print_station_runtime_status, rt.ready_printer_count AS print_station_ready_printer_count
                  FROM md_workstation ws JOIN md_site s ON s.master_id = ws.site_id LEFT JOIN md_production_area a ON a.master_id = ws.area_id LEFT JOIN md_work_center wc ON wc.master_id = ws.work_center_id
+                 LEFT JOIN md_workstation_print_station_binding b ON b.workstation_id = ws.master_id AND b.is_active = TRUE AND b.effective_to IS NULL
+                 LEFT JOIN md_print_station ps ON ps.master_id = b.print_station_id
+                 LEFT JOIN md_print_station_runtime_projection rt ON rt.print_station_id = ps.master_id
                  ORDER BY ws.code, ws.version_no LIMIT $1`;
       } else if (table.tableName === 'md_equipment') {
         query = `SELECT eq.*, s.code AS site_code, s.name AS site_name, wc.code AS work_center_code, wc.name AS work_center_name,
@@ -1872,6 +2348,29 @@ export function masterDataRouter(pool: Pool): Router {
     } catch (err) {
       next(err);
     }
+  });
+
+  router.put('/routing-headers/:id/operations', async (req, res, next) => {
+    const context = getContext(req);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const operations = await validateRoutingOperationReplacement(client, req.params['id'], normalizeBody(req.body).operations ?? req.body);
+      const routing = await client.query(`SELECT code FROM md_routing_header WHERE master_id = $1`, [req.params['id']]);
+      await client.query(`UPDATE md_routing_operation SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $1, updated_at = NOW() WHERE routing_header_id = $2 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
+      for (const row of operations) {
+        const operation = await client.query(`SELECT code, name FROM md_operation WHERE master_id = $1`, [row.operation_id]);
+        const code = `${routing.rows[0].code}-${String(row.seq).padStart(3, '0')}`;
+        await client.query(`INSERT INTO md_routing_operation (code, name, version_no, lifecycle_status, effective_from, created_by, routing_header_id, operation_id, work_center_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag) VALUES ($1,$2,1,'Draft',NOW(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, [code, operation.rows[0].name || operation.rows[0].code, context.userId, req.params['id'], row.operation_id, row.work_center_id, row.seq, row.predecessor_seq, row.scheduling_mode, row.queue_time_min, row.move_time_min, row.overlap_allowed, row.transfer_batch_qty, row.milestone_flag]);
+      }
+      const result = await client.query(`SELECT ro.*, op.code AS operation_code, op.name AS operation_name, wc.code AS work_center_code, wc.name AS work_center_name FROM md_routing_operation ro JOIN md_operation op ON op.master_id = ro.operation_id JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.routing_header_id = $1 AND ro.effective_to IS NULL AND ro.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY ro.seq`, [req.params['id']]);
+      await client.query('COMMIT');
+      return res.json({ data: result.rows });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      return next(err);
+    } finally { client.release(); }
   });
 
   router.post('/business-codes/reservations', async (req, res, next) => {
@@ -1976,6 +2475,9 @@ export function masterDataRouter(pool: Pool): Router {
         body['shopfloor_id'] = parent.rows[0].shopfloor_id;
         body['area_id'] = parent.rows[0].area_id;
       }
+      if (table.tableName === 'md_production_version') {
+        body['site_id'] = await resolveProductionVersionSite(client, String(body['item_revision_id'] || ''), String(body['mbom_header_id'] || ''), String(body['routing_header_id'] || ''));
+      }
       if (table.tableName === 'md_equipment') {
         body['code'] = await consumeBusinessCode(client, body['code_reservation_id'], 'Machine', context);
         if (!body['site_id']) throw Object.assign(new Error('MACHINE_SITE_REQUIRED'), { statusCode: 422 });
@@ -2058,6 +2560,7 @@ export function masterDataRouter(pool: Pool): Router {
         delete body['item_revision_id'];
         delete body['site_id'];
       }
+      if (table.tableName === 'md_mbom_header') delete body['item_revision_id'];
       if (table.tableName === 'md_routing_operation') {
         const operation = await client.query(`SELECT lifecycle_status FROM md_operation WHERE master_id = $1`, [body['operation_id']]);
         if (!operation.rows[0] || ['Inactive', 'Obsolete'].includes(String(operation.rows[0].lifecycle_status))) throw Object.assign(new Error('ROUTING_OPERATION_INACTIVE'), { statusCode: 422 });
@@ -2131,9 +2634,31 @@ export function masterDataRouter(pool: Pool): Router {
     const table = requireTable(req.params['resource'] ?? '');
     const context = getContext(req);
     const body = normalizeLocalizedFields(table, normalizeBody(req.body));
+    if (table.tableName === 'md_production_version') {
+      const current = await pool.query(`SELECT item_revision_id, mbom_header_id, routing_header_id FROM md_production_version WHERE master_id = $1`, [req.params['id']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'Not Found' });
+      const itemRevisionId = body['item_revision_id'] || current.rows[0].item_revision_id;
+      const mbomHeaderId = body['mbom_header_id'] || current.rows[0].mbom_header_id;
+      const routingHeaderId = body['routing_header_id'] || current.rows[0].routing_header_id;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        body['site_id'] = await resolveProductionVersionSite(client, String(itemRevisionId), String(mbomHeaderId), String(routingHeaderId));
+        await client.query('COMMIT');
+      } catch (error: any) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(error?.statusCode || 422).json({ error: error?.message || 'PRODUCTION_VERSION_INVALID' });
+      }
+      client.release();
+    }
     if (table.protectedAfterRelease) {
       const released = await pool.query(`SELECT lifecycle_status FROM ${table.tableName} WHERE master_id = $1`, [req.params['id']]);
       if (released.rows[0]?.lifecycle_status === 'Released') return res.status(409).json({ error: table.tableName.startsWith('md_ebom') ? 'EBOM_RELEASED_IMMUTABLE' : 'RELEASED_RECORD_IMMUTABLE' });
+    }
+    if (table.tableName === 'md_routing_operation') {
+      const parent = await pool.query(`SELECT rh.lifecycle_status FROM md_routing_operation ro JOIN md_routing_header rh ON rh.master_id = ro.routing_header_id WHERE ro.master_id = $1`, [req.params['id']]);
+      if (parent.rows[0]?.lifecycle_status === 'Released') return res.status(409).json({ error: 'ROUTING_RELEASED_IMMUTABLE', message: 'Released Routings cannot be edited; create a new Routing version.' });
     }
     if (table.tableName === 'md_item' && Object.keys(body).some((column) => ['name', 'item_group', 'base_uom_id'].includes(column))) {
       const { rows } = await pool.query(`SELECT 1 FROM md_item_revision WHERE item_id = $1 AND lifecycle_status = 'Released' LIMIT 1`, [req.params['id']]);
@@ -2156,6 +2681,7 @@ export function masterDataRouter(pool: Pool): Router {
       delete body['item_revision_id'];
       delete body['site_id'];
     }
+    if (table.tableName === 'md_mbom_header') delete body['item_revision_id'];
     if (table.tableName === 'md_operation') {
       delete body['code']; delete body['version_no'];
       // md_operation uses the shared lifecycle_status column; active_flag is a legacy client field.
@@ -2224,11 +2750,21 @@ export function masterDataRouter(pool: Pool): Router {
         md_workstation: `SELECT EXISTS (SELECT 1 FROM md_resource_assignment WHERE workstation_id=$1) OR EXISTS (SELECT 1 FROM md_workstation_machine_group WHERE workstation_id=$1) OR EXISTS (SELECT 1 FROM md_workstation_operation_capability WHERE workstation_id=$1) OR EXISTS (SELECT 1 FROM md_work_center_composition WHERE workstation_id=$1) AS used`,
         md_equipment: `SELECT EXISTS (SELECT 1 FROM md_machine_unit WHERE machine_id=$1) OR EXISTS (SELECT 1 FROM md_resource_assignment WHERE equipment_id=$1) OR EXISTS (SELECT 1 FROM md_workstation_machine_requirement WHERE machine_id=$1) OR EXISTS (SELECT 1 FROM md_resource_capability WHERE equipment_id=$1) OR EXISTS (SELECT 1 FROM md_resource_calendar WHERE equipment_id=$1 OR (resource_type = 'Equipment' AND resource_id=$1)) OR EXISTS (SELECT 1 FROM md_production_standard WHERE equipment_id=$1) AS used`,
         md_operation: `SELECT EXISTS (SELECT 1 FROM md_workstation_operation_capability WHERE operation_id=$1) OR EXISTS (SELECT 1 FROM md_work_center_composition WHERE operation_id=$1) OR EXISTS (SELECT 1 FROM md_routing_operation WHERE operation_id=$1) OR EXISTS (SELECT 1 FROM md_operation_skill_requirement WHERE operation_id=$1) OR EXISTS (SELECT 1 FROM md_resource_capability WHERE operation_id=$1) OR EXISTS (SELECT 1 FROM md_production_standard WHERE operation_id=$1) AS used`,
+        md_routing_header: `SELECT EXISTS (SELECT 1 FROM md_production_version WHERE routing_header_id=$1) OR EXISTS (SELECT 1 FROM md_production_standard ps JOIN md_routing_operation ro ON ro.master_id = ps.routing_operation_id WHERE ro.routing_header_id=$1) OR EXISTS (SELECT 1 FROM md_operation_skill_requirement osr JOIN md_routing_operation ro ON ro.master_id = osr.routing_operation_id WHERE ro.routing_header_id=$1) AS used`,
+        md_routing_operation: `SELECT EXISTS (SELECT 1 FROM md_production_standard WHERE routing_operation_id=$1) OR EXISTS (SELECT 1 FROM md_operation_skill_requirement WHERE routing_operation_id=$1) AS used`,
       };
       const dependencyQuery = dependencyQueries[table.tableName];
       if (dependencyQuery) {
         const dependency = await client.query<{ used: boolean }>(dependencyQuery, [id]);
         if (dependency.rows[0]?.used) return res.status(409).json({ error: table.tableName === 'md_equipment' ? 'MACHINE_REFERENCED' : table.tableName === 'md_workstation' ? 'WORKSTATION_REFERENCED' : table.tableName === 'md_operation' ? 'OPERATION_REFERENCED' : 'RESOURCE_REFERENCED', message: 'Referenced resources cannot be deleted; deactivate or end the configuration instead.' });
+      }
+      if (table.tableName === 'md_routing_header') {
+        const lifecycle = await client.query(`SELECT lifecycle_status FROM md_routing_header WHERE master_id = $1`, [id]);
+        if (lifecycle.rows[0]?.lifecycle_status === 'Released') return res.status(409).json({ error: 'ROUTING_RELEASED_IMMUTABLE', message: 'Released Routings cannot be deleted.' });
+      }
+      if (table.tableName === 'md_routing_operation') {
+        const parent = await client.query(`SELECT rh.lifecycle_status FROM md_routing_operation ro JOIN md_routing_header rh ON rh.master_id = ro.routing_header_id WHERE ro.master_id = $1`, [id]);
+        if (parent.rows[0]?.lifecycle_status === 'Released') return res.status(409).json({ error: 'ROUTING_RELEASED_IMMUTABLE', message: 'Operations of a Released Routing cannot be deleted.' });
       }
       const result = await client.query(`DELETE FROM ${table.tableName} WHERE master_id=$1 RETURNING master_id`, [id]);
       if (!result.rows[0]) return res.status(404).json({ error: 'Not Found' });

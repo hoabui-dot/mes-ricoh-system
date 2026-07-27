@@ -60,6 +60,9 @@ export async function validateProductionVersion(
     failures.push(fail('1', 'ITEM_REVISION.NOT_RELEASED'));
   }
 
+  const mbomHeader = await db.query<{ site_id: string }>(`SELECT site_id FROM md_mbom_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.mbom_header_id]);
+  if (!mbomHeader.rows[0]) failures.push(fail('2', 'MBOM.NOT_RELEASED'));
+
   const { rows: mbomLines } = await db.query<{ master_id: string; quantity_per: string; uom_id: string; phantom_flag: boolean; component_revision_id: string }>(
     `SELECT master_id, quantity_per, uom_id, phantom_flag, component_revision_id
      FROM md_mbom_line WHERE mbom_header_id = $1`,
@@ -75,9 +78,9 @@ export async function validateProductionVersion(
     if (!(await exists(db, `SELECT 1 FROM md_uom WHERE master_id = $1 AND lifecycle_status = 'Released'`, [line.uom_id]))) {
       failures.push(fail('2', 'MBOM.LINE_UOM_NOT_RELEASED', { lineId: line.master_id }));
     }
-    if (line.phantom_flag && !(await exists(db, `SELECT 1 FROM md_mbom_header WHERE item_revision_id = $1 AND lifecycle_status = 'Released'`, [line.component_revision_id]))) {
-      failures.push(fail('3', 'MBOM.PHANTOM_MISSING_CHILD', { lineId: line.master_id }));
-    }
+    // MBOM headers are independent master data. A phantom line has no implicit
+    // child-MBOM ownership relationship, so it is not resolved through a
+    // component revision lookup.
   }
   if (await exists(db, `WITH RECURSIVE c(master_id, parent_line_id, path) AS (
       SELECT master_id, parent_line_id, ARRAY[master_id] FROM md_mbom_line WHERE mbom_header_id = $1
@@ -98,7 +101,7 @@ export async function validateProductionVersion(
   if (routingOps.length === 0) {
     failures.push(fail('4', 'ROUTING.NO_OPERATIONS'));
   }
-  const routingActive = await exists(db, `SELECT 1 FROM md_routing_header WHERE master_id = $1 AND lifecycle_status IN ('Released', 'InReview')`, [pv.routing_header_id]);
+  const routingActive = await exists(db, `SELECT 1 FROM md_routing_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.routing_header_id]);
   if (!routingActive) failures.push(fail('4', 'ROUTING.NOT_ACTIVE'));
   const factoryIds = new Set<string>();
   const seqs = new Set<number>();
@@ -128,6 +131,9 @@ export async function validateProductionVersion(
   }
 
   const warnings: ValidationFailure[] = factoryIds.size > 1 ? [{ rule: '5', severity: 'WARN', code: 'INTER_FACTORY_ROUTING' }] : [];
+  if (mbomHeader.rows[0] && factoryIds.size === 1 && mbomHeader.rows[0].site_id !== [...factoryIds][0]) {
+    failures.push(fail('5', 'PRODUCTION_VERSION.SITE_MISMATCH'));
+  }
 
   if (!(await exists(db, `SELECT 1 FROM md_resource_calendar WHERE available_from <= NOW() AND available_to > NOW() AND lifecycle_status = 'Released'`, []))) {
     failures.push(fail('8', 'RESOURCE_CALENDAR.MISSING'));

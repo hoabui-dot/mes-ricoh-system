@@ -19,10 +19,10 @@ public record ProcessGatewayOrderCommand(
 ///
 /// Atomically:
 ///   1. GatewayRequest — persists the raw request for audit
-///   2. GatewayOutboxEvent — queues the event for RabbitMQ dispatch
+///   2. GatewayOutboxEvent — queues the event for Kafka dispatch
 ///
 /// The OutboxProcessorWorker picks up PENDING events and publishes them
-/// to the RabbitMQ <c>station.events</c> exchange with routing key
+/// to the Kafka <c>station.events</c> exchange with routing key
 /// <c>mqtt.MqttMessage.MqttMessageReceived</c> (kept for Job Engine backward-compat).
 /// </summary>
 public sealed class ProcessGatewayOrderHandler
@@ -91,7 +91,7 @@ public sealed class ProcessGatewayOrderHandler
             await tx.CommitAsync(cancellationToken);
 
             _logger.LogInformation(
-                "Gateway request {RequestId} from {Source} persisted — outbox queued for RabbitMQ",
+                "Gateway request {RequestId} from {Source} persisted — outbox queued for Kafka",
                 command.RequestId, command.Source);
 
             return true;

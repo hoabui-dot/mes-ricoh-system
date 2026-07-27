@@ -5,7 +5,7 @@ namespace ND.JobEngine.Domain.Entities;
 /// <summary>
 /// Outbox pattern entity for Job Engine domain events.
 /// Events written here are picked up by <c>JobEngineOutboxProcessorWorker</c>
-/// and published to RabbitMQ exchange <c>station.events</c>.
+/// and published to Kafka exchange <c>station.events</c>.
 ///
 /// Table: job_engine_outbox_events
 /// </summary>

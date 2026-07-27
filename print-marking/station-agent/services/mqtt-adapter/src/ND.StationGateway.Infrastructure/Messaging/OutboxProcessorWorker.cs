@@ -11,7 +11,7 @@ namespace ND.StationGateway.Infrastructure.Messaging;
 
 /// <summary>
 /// Background worker that polls <c>gateway_outbox_events</c> and publishes
-/// each PENDING event to the RabbitMQ topic exchange.
+/// each PENDING event to the Kafka topic exchange.
 ///
 /// Exchange:    station.events  (topic exchange, durable)
 /// Routing key: mqtt.MqttMessage.MqttMessageReceived
@@ -20,7 +20,7 @@ namespace ND.StationGateway.Infrastructure.Messaging;
 public sealed class OutboxProcessorWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IRabbitMqPublisher _rabbitMqPublisher;
+    private readonly IEventPublisher _kafkaPublisher;
     private readonly GatewayOptions _options;
     private readonly ILogger<OutboxProcessorWorker> _logger;
 
@@ -28,12 +28,12 @@ public sealed class OutboxProcessorWorker : BackgroundService
 
     public OutboxProcessorWorker(
         IServiceScopeFactory scopeFactory,
-        IRabbitMqPublisher rabbitMqPublisher,
+        IEventPublisher kafkaPublisher,
         IOptions<GatewayOptions> options,
         ILogger<OutboxProcessorWorker> logger)
     {
         _scopeFactory = scopeFactory;
-        _rabbitMqPublisher = rabbitMqPublisher;
+        _kafkaPublisher = kafkaPublisher;
         _options = options.Value;
         _logger = logger;
     }
@@ -41,13 +41,16 @@ public sealed class OutboxProcessorWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "Outbox processor started. Polling every {Interval}s → RabbitMQ exchange '{Exchange}'",
+            "Outbox processor started. Polling every {Interval}s → Kafka exchange '{Exchange}'",
             _options.OutboxIntervalSeconds, Exchange);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                // Keep readiness meaningful during idle periods. The shared
+                // publisher otherwise opens lazily only after the first event.
+                await _kafkaPublisher.EnsureConnectedAsync(stoppingToken);
                 await ProcessBatchAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -78,7 +81,7 @@ public sealed class OutboxProcessorWorker : BackgroundService
 
             try
             {
-                await _rabbitMqPublisher.PublishAsync(
+                await _kafkaPublisher.PublishAsync(
                     exchange: Exchange,
                     routingKey: routingKey,
                     messageJson: outboxEvent.PayloadJson,
@@ -94,7 +97,7 @@ public sealed class OutboxProcessorWorker : BackgroundService
             {
                 outboxEvent.MarkFailed();
                 _logger.LogError(ex,
-                    "Failed to publish outbox event to RabbitMQ. routingKey={RoutingKey} retryCount={RetryCount}",
+                    "Failed to publish outbox event to Kafka. routingKey={RoutingKey} retryCount={RetryCount}",
                     routingKey, outboxEvent.RetryCount);
             }
 

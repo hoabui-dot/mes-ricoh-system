@@ -18,13 +18,17 @@ using Microsoft.EntityFrameworkCore;
 namespace ND.ProjectionService.Infrastructure.Messaging;
 
 /// <summary>
-/// Background worker that consumes job and mqtt events from RabbitMQ,
+/// Background worker that consumes job and mqtt events from Kafka,
 /// updates the projection read model, and pushes updates to Kiosk UI via SignalR.
 /// </summary>
 public sealed class ProjectionEventConsumer : BackgroundService
 {
+    private static readonly HashSet<string> RemovedSimulatorPrinters = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "printer-01", "printer-02", "printer-03"
+    };
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IRabbitMqConsumer _consumer;
+    private readonly IEventConsumer _consumer;
     private readonly IHubContext<ProductionHub> _hubContext;
     private readonly ILogger<ProjectionEventConsumer> _logger;
     private readonly string _stationId;
@@ -44,7 +48,7 @@ public sealed class ProjectionEventConsumer : BackgroundService
 
     public ProjectionEventConsumer(
         IServiceScopeFactory scopeFactory,
-        IRabbitMqConsumer consumer,
+        IEventConsumer consumer,
         IHubContext<ProductionHub> hubContext,
         IConfiguration configuration,
         ILogger<ProjectionEventConsumer> logger)
@@ -53,7 +57,7 @@ public sealed class ProjectionEventConsumer : BackgroundService
         _consumer = consumer;
         _hubContext = hubContext;
         _logger = logger;
-        _stationId = configuration["STATION_ID"] ?? "STATION-01";
+        _stationId = configuration["STATION_ID"] ?? string.Empty;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -145,6 +149,19 @@ public sealed class ProjectionEventConsumer : BackgroundService
             queue: "projection-service.batch-printed-events",
             routingKeyPattern: JobEventRoutingKeys.PrinterBatchPrinted,
             onMessage: (routingKey, json) => HandleJobEventAsync(routingKey, json, stoppingToken),
+            cancellationToken: stoppingToken);
+
+        // Remote Printer Adapter runtime state. Use one consumer for this queue.
+        // Kafka load-balances messages between consumers on the same queue and
+        // does not re-apply each consumer's binding pattern at delivery time.
+        // Separate handlers on one queue would therefore deserialize a heartbeat
+        // as a status/error event. The dispatcher keeps the queue single-consumer
+        // while retaining explicit routing-key bindings.
+        await _consumer.StartConsumingAsync(
+            exchange: Exchange,
+            queue: "projection-service.printer-runtime-events",
+            routingKeyPattern: "printer.#",
+            onMessage: (routingKey, json) => HandlePrinterRuntimeEventAsync(routingKey, json, stoppingToken),
             cancellationToken: stoppingToken);
 
         // Keep service alive
@@ -801,29 +818,46 @@ public sealed class ProjectionEventConsumer : BackgroundService
         {
             var heartbeat = JsonSerializer.Deserialize<ND.UnifiedContracts.Events.DeviceStatusHeartbeat>(payloadJson, JsonSerializerOptions);
             if (heartbeat == null) return;
+            // Older device producers used snake_case fields while the station
+            // contract is camel/Pascal case. Never let an empty identity reach
+            // EF as a null primary key; use the routing-key identity only for
+            // legacy device telemetry.
+            var deviceId = string.IsNullOrWhiteSpace(heartbeat.DeviceId)
+                ? routingKey.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()
+                : heartbeat.DeviceId;
+            if (string.IsNullOrWhiteSpace(deviceId)) return;
+            var heartbeatTimestamp = string.IsNullOrWhiteSpace(heartbeat.Timestamp)
+                ? DateTime.UtcNow.ToString("o")
+                : heartbeat.Timestamp;
+            var heartbeatLifecycle = string.IsNullOrWhiteSpace(heartbeat.LifecycleState)
+                ? (heartbeat.IsOnline ? "Online" : "Offline")
+                : heartbeat.LifecycleState;
 
             using var scope = _scopeFactory.CreateScope();
             var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceStatusRepository>();
             var dbContext = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var device = await deviceRepo.GetByIdAsync(heartbeat.DeviceId, cancellationToken);
+            // DeviceId is the external business identity. Older projection
+            // rows may use a generated database Id, so resolving by EF primary
+            // key can produce a stale update/concurrency failure.
+            var device = await deviceRepo.GetByDeviceIdAsync(deviceId, cancellationToken);
             bool wasOnline  = device != null && device.IsOnline;
             bool wasOffline = device != null && !device.IsOnline;
             string? oldLifecycle = device?.LifecycleState;
 
-            bool stateChanged = device == null 
-                || device.IsOnline != heartbeat.IsOnline 
-                || device.LifecycleState != heartbeat.LifecycleState;
+            bool stateChanged = device == null
+                || device.IsOnline != heartbeat.IsOnline
+                || device.LifecycleState != heartbeatLifecycle;
 
             if (device == null)
             {
                 device = DeviceStatus.Create(
-                    heartbeat.DeviceId, 
-                    heartbeat.DeviceType, 
-                    heartbeat.IsOnline, 
-                    heartbeat.Timestamp, 
-                    heartbeat.LifecycleState,
+                    deviceId,
+                    heartbeat.DeviceType,
+                    heartbeat.IsOnline,
+                    heartbeatTimestamp,
+                    heartbeatLifecycle,
                     heartbeat.SerialNumber,
                     heartbeat.LifetimePrintCounter,
                     heartbeat.ThermalTemp,
@@ -834,8 +868,8 @@ public sealed class ProjectionEventConsumer : BackgroundService
             {
                 device.UpdateStatus(
                     heartbeat.IsOnline, 
-                    heartbeat.Timestamp, 
-                    heartbeat.LifecycleState,
+                    heartbeatTimestamp,
+                    heartbeatLifecycle,
                     heartbeat.SerialNumber,
                     heartbeat.LifetimePrintCounter,
                     heartbeat.ThermalTemp,
@@ -846,10 +880,10 @@ public sealed class ProjectionEventConsumer : BackgroundService
             {
                 // Phase 11: Log transition to history
                 var transitionHistory = DeviceStatusHistory.Create(
-                    heartbeat.DeviceId,
-                    heartbeat.LifecycleState,
+                    deviceId,
+                    heartbeatLifecycle,
                     heartbeat.IsOnline,
-                    heartbeat.Timestamp
+                    heartbeatTimestamp
                 );
                 await dbContext.DeviceStatusHistories.AddAsync(transitionHistory, cancellationToken);
             }
@@ -865,12 +899,12 @@ public sealed class ProjectionEventConsumer : BackgroundService
             }
 
             // Phase 7: Alarms for fault states (Offline, Paper Out, Ribbon Out, Head Open, Buffer Full, Thermal Warning)
-            bool isFaultState = !heartbeat.IsOnline 
-                || heartbeat.LifecycleState is "Paper Out" 
-                || heartbeat.LifecycleState is "Ribbon Out" 
-                || heartbeat.LifecycleState is "Head Open" 
-                || heartbeat.LifecycleState is "Buffer Full" 
-                || heartbeat.LifecycleState is "Thermal Warning";
+            bool isFaultState = !heartbeat.IsOnline
+                || heartbeatLifecycle is "Paper Out"
+                || heartbeatLifecycle is "Ribbon Out"
+                || heartbeatLifecycle is "Head Open"
+                || heartbeatLifecycle is "Buffer Full"
+                || heartbeatLifecycle is "Thermal Warning";
 
             bool wasFaultState = !wasOnline 
                 || oldLifecycle is "Paper Out" 
@@ -879,34 +913,34 @@ public sealed class ProjectionEventConsumer : BackgroundService
                 || oldLifecycle is "Buffer Full" 
                 || oldLifecycle is "Thermal Warning";
 
-            if (isFaultState && (!wasFaultState || oldLifecycle != heartbeat.LifecycleState))
+            if (isFaultState && (!wasFaultState || oldLifecycle != heartbeatLifecycle))
             {
                 try
                 {
                     var alarmRepo = scope.ServiceProvider.GetRequiredService<IAlarmRepository>();
-                    var alarmGroupKey = $"{heartbeat.DeviceId}-{heartbeat.LifecycleState.Replace(" ", "")}";
+                    var alarmGroupKey = $"{deviceId}-{heartbeatLifecycle.Replace(" ", "")}";
                     var existingAlarm = await alarmRepo.GetActiveByGroupKeyAsync(alarmGroupKey, cancellationToken);
 
                     if (existingAlarm != null && existingAlarm.CurrentState == "Active")
                     {
-                        existingAlarm.UpdateRepeat(heartbeat.Timestamp);
+                        existingAlarm.UpdateRepeat(heartbeatTimestamp);
                         await unitOfWork.SaveChangesAsync(cancellationToken);
                         _logger.LogDebug(
                             "Alarm dedup: updated existing device alarm for {DeviceId}, RepeatCount={Rc}",
-                            heartbeat.DeviceId, existingAlarm.RepeatCount);
+                            deviceId, existingAlarm.RepeatCount);
                     }
                     else
                     {
-                        var lifecycleDetail = heartbeat.LifecycleState is not null and not "Offline"
-                            ? $" (trạng thái: {heartbeat.LifecycleState})"
+                        var lifecycleDetail = heartbeatLifecycle is not "Offline"
+                            ? $" (trạng thái: {heartbeatLifecycle})"
                             : string.Empty;
 
                         var alarm = Alarm.Create(
                             severity: "Error",
                             source: "Device",
-                            message: $"Thiết bị {heartbeat.DeviceId} ({heartbeat.DeviceType}) báo lỗi hoặc mất kết nối{lifecycleDetail}.",
-                            deviceId: heartbeat.DeviceId,
-                            deviceName: heartbeat.DeviceId,
+                            message: $"Thiết bị {deviceId} ({heartbeat.DeviceType ?? "DEVICE"}) báo lỗi hoặc mất kết nối{lifecycleDetail}.",
+                            deviceId: deviceId,
+                            deviceName: deviceId,
                             alarmType: "DeviceConnection",
                             alarmGroupKey: alarmGroupKey
                         );
@@ -924,12 +958,12 @@ public sealed class ProjectionEventConsumer : BackgroundService
                         );
                         await _hubContext.Clients.Group(_stationId).SendAsync("OnAlarmRaised", alarmDto, cancellationToken);
 
-                        _logger.LogWarning("Device {DeviceId} went offline or reports fault {Fault} — alarm raised", heartbeat.DeviceId, heartbeat.LifecycleState);
+                        _logger.LogWarning("Device {DeviceId} went offline or reports fault {Fault} — alarm raised", deviceId, heartbeatLifecycle);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to raise device offline or fault alarm for {DeviceId}", heartbeat.DeviceId);
+                    _logger.LogError(ex, "Failed to raise device offline or fault alarm for {DeviceId}", deviceId);
                 }
             }
 
@@ -974,5 +1008,69 @@ public sealed class ProjectionEventConsumer : BackgroundService
         }
     }
 
-}
+    private async Task HandlePrinterHeartbeatAsync(string payloadJson, CancellationToken ct)
+    {
+        var evt = JsonSerializer.Deserialize<PrinterHeartbeatEvent>(payloadJson, JsonSerializerOptions);
+        if (evt is null) return;
+        if (IsRemovedSimulatorPrinter(evt.PrinterCode, evt.Details))
+        {
+            _logger.LogWarning("Ignoring removed simulator printer heartbeat. PrinterCode={PrinterCode}", evt.PrinterCode);
+            return;
+        }
+        var heartbeat = new DeviceStatusHeartbeat(
+            evt.PrinterCode,
+            "PRINTER",
+            !string.Equals(evt.Status, "OFFLINE", StringComparison.OrdinalIgnoreCase),
+            evt.Status,
+            evt.Timestamp,
+            ConnectionDetails: evt.Details?.ToString());
+        await HandleDeviceHeartbeatAsync(JobEventRoutingKeys.PrinterHeartbeat,
+            JsonSerializer.Serialize(heartbeat), ct);
+        await _hubContext.Clients.Group(_stationId).SendAsync("OnPrinterHeartbeat", evt, ct);
+    }
 
+    private Task HandlePrinterRuntimeEventAsync(string routingKey, string payloadJson, CancellationToken ct) =>
+        routingKey switch
+        {
+            JobEventRoutingKeys.PrinterHeartbeat => HandlePrinterHeartbeatAsync(payloadJson, ct),
+            JobEventRoutingKeys.PrinterStatusChanged => HandlePrinterStatusChangedAsync(payloadJson, ct),
+            JobEventRoutingKeys.PrinterError => HandlePrinterErrorAsync(payloadJson, ct),
+            _ => Task.CompletedTask
+        };
+
+    private async Task HandlePrinterStatusChangedAsync(string payloadJson, CancellationToken ct)
+    {
+        var evt = JsonSerializer.Deserialize<PrinterStatusChangedEvent>(payloadJson, JsonSerializerOptions);
+        if (evt is null) return;
+        if (IsRemovedSimulatorPrinter(evt.PrinterCode, evt.Details))
+        {
+            _logger.LogWarning("Ignoring removed simulator printer status event. PrinterCode={PrinterCode}", evt.PrinterCode);
+            return;
+        }
+        await _hubContext.Clients.Group(_stationId).SendAsync("OnPrinterStatusChanged", evt, ct);
+        var heartbeat = new DeviceStatusHeartbeat(
+            evt.PrinterCode,
+            "PRINTER",
+            !string.Equals(evt.Status, "OFFLINE", StringComparison.OrdinalIgnoreCase),
+            evt.Status,
+            evt.Timestamp);
+        await HandleDeviceHeartbeatAsync(JobEventRoutingKeys.PrinterStatusChanged,
+            JsonSerializer.Serialize(heartbeat), ct);
+    }
+
+    private static bool IsRemovedSimulatorPrinter(string? printerCode, object? details)
+    {
+        if (!string.IsNullOrWhiteSpace(printerCode) && RemovedSimulatorPrinters.Contains(printerCode))
+            return true;
+
+        return details?.ToString()?.Contains("simulation", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private async Task HandlePrinterErrorAsync(string payloadJson, CancellationToken ct)
+    {
+        var evt = JsonSerializer.Deserialize<PrinterErrorEvent>(payloadJson, JsonSerializerOptions);
+        if (evt is not null)
+            await _hubContext.Clients.Group(_stationId).SendAsync("OnPrinterError", evt, ct);
+    }
+
+}

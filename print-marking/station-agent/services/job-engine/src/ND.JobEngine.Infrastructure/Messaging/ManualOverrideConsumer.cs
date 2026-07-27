@@ -13,14 +13,14 @@ using ND.SharedKernel.Abstractions;
 namespace ND.JobEngine.Infrastructure.Messaging;
 
 /// <summary>
-/// Background worker that consumes manual override requested events from RabbitMQ
+/// Background worker that consumes manual override requested events from Kafka
 /// (manual reprint, manual re-marking, manual reprocess) and schedules new job attempts
 /// in the Job Engine with customized step overrides.
 /// </summary>
 public sealed class ManualOverrideConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IRabbitMqConsumer _consumer;
+    private readonly IEventConsumer _consumer;
     private readonly ILogger<ManualOverrideConsumer> _logger;
 
     private const string Exchange = "station.events";
@@ -32,7 +32,7 @@ public sealed class ManualOverrideConsumer : BackgroundService
 
     public ManualOverrideConsumer(
         IServiceScopeFactory scopeFactory,
-        IRabbitMqConsumer consumer,
+        IEventConsumer consumer,
         ILogger<ManualOverrideConsumer> logger)
     {
         _scopeFactory = scopeFactory;

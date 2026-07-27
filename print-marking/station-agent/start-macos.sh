@@ -36,7 +36,7 @@ docker image prune -f 2>/dev/null || true
 # ── 2. Pre-pull native ARM64 infrastructure images ──────────────────────────
 echo "▶ Pre-pulling infrastructure images (native ARM64) one at a time …"
 docker pull --platform linux/arm64 redis:7.4-alpine
-docker pull --platform linux/arm64 rabbitmq:3.13-management-alpine
+docker pull --platform linux/arm64 kafka:3.13-management-alpine
 docker pull --platform linux/arm64 eclipse-mosquitto:2.0
 
 # ── 3. Sequential build (prevents OOM from parallel dotnet publish) ─────────

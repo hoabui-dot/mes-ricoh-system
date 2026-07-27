@@ -18,6 +18,7 @@ import {
   Map,
   Monitor,
   Link2,
+  Printer,
 } from 'lucide-react';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 
@@ -109,6 +110,10 @@ export const Sidebar: React.FC = () => {
           <NavLink to="/master-data/workstations" className={linkClass}>
             <Monitor className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('resourceFoundation.workstations')}</span>
+          </NavLink>
+          <NavLink to="/master-data/print-stations" className={linkClass}>
+            <Printer className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('nav.printStations')}</span>
           </NavLink>
           <NavLink to="/master-data/machines" className={linkClass}>
             <Wrench className="mes-nav-icon h-4 w-4 text-info" />

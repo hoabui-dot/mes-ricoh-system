@@ -20,9 +20,9 @@ public sealed class Printer : Entity
 
     /// <summary>
     /// Driver type used to route print jobs.
-    /// Values: "simulation" (self-hosted TCP in printer-adapter) | "cups" (lpr via CUPS) | "tcp" (raw TCP)
+    /// Values: "cups" (lpr via CUPS) | "tcp" (raw TCP)
     /// </summary>
-    public string DriverType { get; private set; } = "simulation";
+    public string DriverType { get; private set; } = "cups";
 
     /// <summary>
     /// CUPS queue name used when DriverType == "cups".
@@ -59,7 +59,7 @@ public sealed class Printer : Entity
         string protocol,
         string vendor,
         string? groupId = null,
-        string driverType = "simulation",
+        string driverType = "cups",
         string? cupsQueueName = null)
     {
         return new Printer

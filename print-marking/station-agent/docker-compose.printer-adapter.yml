@@ -1,0 +1,43 @@
+name: station-printer-adapter
+
+# Independent deployment. Kafka is intentionally not declared here: the
+# adapter connects to the protected Station Agent broker over TCP/IP.
+services:
+  printer-adapter:
+    image: vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260727
+    container_name: station-printer-adapter
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    environment:
+      ASPNETCORE_URLS: http://+:5003
+      ASPNETCORE_ENVIRONMENT: Production
+      SQLITE_PRINTER_PATH: /data/printer.db
+      CUPS_HEALTH_HOST: host.docker.internal
+      CUPS_HEALTH_PORT: "631"
+      CUPS_QUEUE: Zebra_Technologies_ZTC_GK420t
+      KAFKA_BOOTSTRAP_SERVERS: 100.68.50.41:19092
+      KAFKA_CLIENT_ID: PRINT-ADAPTER-01
+      PRINT_STATION_ID: PRINT-STATION-01
+      PRINTER_ADAPTER_ID: PRINT-ADAPTER-01
+      KAFKA_SECURITY_PROTOCOL: Plaintext
+      KAFKA_CONNECTION_NAME: PRINT-ADAPTER-01
+      PrinterAdapter__HeartbeatIntervalSeconds: "15"
+    volumes:
+      - printer-adapter-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/5003 &&
+          printf "GET /api/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 &&
+          timeout 3 cat <&3 | grep -q '"status":"Healthy"''
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  printer-adapter-data:

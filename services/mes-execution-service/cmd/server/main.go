@@ -147,6 +147,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000009_labor_assignments_and_read_models.up.sql",
 		"migrations/000010_resource_allocations.up.sql",
 		"migrations/000011_machine_group_allocations.up.sql",
+		"migrations/000012_decouple_mbom_read_model.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

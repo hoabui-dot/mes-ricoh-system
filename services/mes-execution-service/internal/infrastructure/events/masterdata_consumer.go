@@ -170,14 +170,13 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 		`, masterID, code, string(nameJSON), revCode, itemType, siteID, status)
 
 	case "MES.MasterData.MBOMReleased.v2":
-		itemRevID, _ := p["item_revision_id"].(string)
 		baseQty, _ := p["base_quantity"].(float64)
 		baseUOM, _ := p["base_uom_id"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_mbom_header (master_id, code, name, item_revision_id, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
-			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, NOW())
+			INSERT INTO rm_mbom_header (master_id, code, name, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, NOW())
 			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, string(nameJSON), itemRevID, siteID, baseQty, baseUOM, status)
+		`, masterID, code, string(nameJSON), siteID, baseQty, baseUOM, status)
 
 	case "MES.MasterData.RoutingReleased.v1":
 		itemRevID, _ := p["item_revision_id"].(string)

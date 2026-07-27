@@ -201,7 +201,7 @@ Goal: Core transaction outbox database for events emitted by the Job Engine serv
 | `aggregate_type` | TEXT | NOT NULL | Emitting aggregate (e.g. `Job`) |
 | `aggregate_id` | TEXT | NOT NULL | ID of target entity |
 | `event_type` | TEXT | NOT NULL | Event name (e.g. `JOB_COMPLETED`) |
-| `routing_key` | TEXT | NOT NULL | RabbitMQ target routing key |
+| `routing_key` | TEXT | NOT NULL | Kafka target routing key |
 | `payload_json` | TEXT | NOT NULL | Event data payload |
 | `status` | TEXT | NOT NULL | Sync status: `PENDING`, `PUBLISHED`, `FAILED` |
 | `retry_count` | INTEGER | NOT NULL | Counter of attempts |

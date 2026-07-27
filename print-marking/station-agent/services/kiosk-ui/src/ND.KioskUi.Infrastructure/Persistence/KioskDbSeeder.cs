@@ -72,16 +72,38 @@ public static class KioskDbSeeder
 
         await context.SaveChangesAsync();
 
-        // 4. Default admin123 user
-        var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin123");
-        if (adminUser == null)
+        // 4. Canonical demo admin and legacy compatibility account.
+        // Keep both accounts idempotent so existing installations can move to
+        // the documented `admin` login without breaking older test fixtures.
+        var defaultAdmins = new[]
         {
-            adminUser = KioskUser.Create("admin123", "Quản trị hệ thống", BCrypt.Net.BCrypt.HashPassword("admin123"));
-            await context.Users.AddAsync(adminUser);
-            await context.SaveChangesAsync();
+            (Username: "admin", FullName: "Quản trị hệ thống"),
+            (Username: "admin123", FullName: "Quản trị hệ thống (Legacy)")
+        };
 
-            // Assign SUPER_ADMIN role to admin123
-            await context.UserRoles.AddAsync(KioskUserRole.Create(adminUser.Id, adminRole.Id, "system"));
+        foreach (var defaultAdmin in defaultAdmins)
+        {
+            var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Username == defaultAdmin.Username);
+            if (adminUser == null)
+            {
+                adminUser = KioskUser.Create(defaultAdmin.Username, defaultAdmin.FullName,
+                    BCrypt.Net.BCrypt.HashPassword("admin123"));
+                await context.Users.AddAsync(adminUser);
+                await context.SaveChangesAsync();
+            }
+            else
+            {
+                if (!adminUser.IsActive) adminUser.Activate();
+                if (!BCrypt.Net.BCrypt.Verify("admin123", adminUser.PasswordHash))
+                    adminUser.UpdatePassword(BCrypt.Net.BCrypt.HashPassword("admin123"));
+                await context.SaveChangesAsync();
+            }
+
+            var hasAdminRole = await context.UserRoles.AnyAsync(ur =>
+                ur.UserId == adminUser.Id && ur.RoleId == adminRole.Id);
+            if (!hasAdminRole)
+                await context.UserRoles.AddAsync(KioskUserRole.Create(adminUser.Id, adminRole.Id, "system"));
+
             await context.SaveChangesAsync();
         }
     }

@@ -195,9 +195,10 @@ export const WorkCentersScreen: React.FC = () => {
 
       {modal && (
         <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-6 z-50">
-          <form onSubmit={save} className="bg-slate-900 border border-slate-800 rounded-lg p-6 w-full max-w-xl space-y-4">
-            <h3 className="font-bold text-lg">{modal.mode === 'edit' ? t('workCenters.edit') : t('workCenters.create')}</h3>
-            <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={save} className="flex max-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900 shadow-2xl">
+            <h3 className="shrink-0 border-b border-slate-800 px-6 py-4 font-bold text-lg">{modal.mode === 'edit' ? t('workCenters.edit') : t('workCenters.create')}</h3>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <input readOnly required value={form.code} placeholder={t('common.code')} className="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-amber-200" />
               <LocalizedTextInput required label={t('common.name')} value={form.name} onChange={(name) => setForm({ ...form, name })} />
               <SelectBase required value={form.site_id} onValueChange={(value) => setForm({ ...form, site_id: value })} options={sites.map((site) => ({ value: site.master_id, label: `${text(site.name) || site.code} (${site.code})` }))} aria-label={t('common.site')} />
@@ -206,6 +207,7 @@ export const WorkCentersScreen: React.FC = () => {
               <SelectBase value={form.work_center_type} onValueChange={(value) => setForm({ ...form, work_center_type: value })} options={WORK_CENTER_TYPES.map((type) => ({ value: type, label: translatedEnum(t, 'workCenters.type', type) }))} aria-label={t('common.type')} />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active_flag} onChange={(e) => setForm({ ...form, active_flag: e.target.checked })} /> {form.active_flag ? t('common.active') : t('common.inactive')}</label>
             </div>
+            <div className="grid items-start gap-4 lg:grid-cols-2">
             <div className="space-y-3 rounded-md border border-border bg-surface-subtle p-4">
               <div><h4 className="font-semibold">{t('workCenters.capabilitiesTitle')}</h4><p className="text-xs text-muted-foreground">{t('workCenters.capabilitiesHelp')}</p></div>
               {(form.capabilities || []).map((capability: any, index: number) => <div key={capability.master_id || index} className="grid grid-cols-[1fr_140px_auto] items-end gap-2">
@@ -220,7 +222,9 @@ export const WorkCentersScreen: React.FC = () => {
               {(form.composition || []).map((entry: any, index: number) => { const selected = workstationCapabilities.filter((capability) => capability.workstation_id === entry.workstation_id); return <div key={index} className="rounded-md border border-border p-3"><div className="flex gap-2"><SelectBase value={entry.workstation_id} onValueChange={(value) => setForm({ ...form, composition: form.composition.map((item: any, itemIndex: number) => itemIndex === index ? { workstation_id: value, operation_ids: [] } : item) })} options={workstations.filter((workstation) => !form.shopfloor_id || workstation.shopfloor_id === form.shopfloor_id).map((workstation) => ({ value: workstation.master_id, label: `${text(workstation.name) || workstation.code} (${workstation.code})` }))} aria-label={t('workCenters.workstation')} /><button type="button" onClick={() => setForm({ ...form, composition: form.composition.filter((_item: any, itemIndex: number) => itemIndex !== index) })} className="rounded-md p-2 text-muted-foreground" aria-label={t('common.remove')}><Trash2 className="h-4 w-4" /></button></div><div className="mt-2 grid gap-2 sm:grid-cols-2">{selected.map((capability) => <label key={capability.operation_id} className="flex items-center gap-2 rounded border border-border p-2 text-sm"><input type="checkbox" checked={(entry.operation_ids || []).includes(capability.operation_id)} onChange={(event) => setForm({ ...form, composition: form.composition.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, operation_ids: event.target.checked ? [...(item.operation_ids || []), capability.operation_id] : (item.operation_ids || []).filter((id: string) => id !== capability.operation_id) } : item) })} />{text(capability.operation_name) || capability.operation_code} <span className="font-mono text-xs text-muted-foreground">{capability.operation_code} · {capability.cycle_time_sec}s</span></label>)}</div>{entry.workstation_id && !selected.length ? <div className="mt-2 text-xs text-danger">{t('workCenters.noSupportedOperations')}</div> : null}</div>; })}
               <button type="button" onClick={() => setForm({ ...form, composition: [...(form.composition || []), { workstation_id: '', operation_ids: [] }] })} className="rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-hover">{t('workCenters.addWorkstation')}</button>
             </div>
-            <div className="flex justify-end gap-3"><button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-slate-800 rounded-lg">{t('common.cancel')}</button><button className="px-5 py-2 bg-action rounded-lg font-semibold">{t('common.save')}</button></div>
+            </div>
+            </div>
+            <div className="flex shrink-0 justify-end gap-3 border-t border-slate-800 bg-slate-900 px-6 py-4"><button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-slate-800 rounded-lg">{t('common.cancel')}</button><button className="px-5 py-2 bg-action rounded-lg font-semibold">{t('common.save')}</button></div>
           </form>
         </div>
       )}

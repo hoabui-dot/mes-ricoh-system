@@ -117,7 +117,7 @@ A WO is valid only when the following are available and released/effective where
 2. Item and Item Revision.
 3. MBOM Header, MBOM Lines, and Substitute definitions when used.
 4. Routing Header and Routing Operations.
-5. Production Version linking Item Revision + MBOM + Routing.
+5. Production Version is the only association linking the independent Item Revision + MBOM + Routing entities.
 6. WorkCenter, Workstation, Equipment, Resource Assignment, Resource Capability, Resource Calendar.
 7. Production Standard and Work Instruction.
 8. Skill definitions and operation skill requirements.

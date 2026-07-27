@@ -1,6 +1,6 @@
 # Realtime Kiosk Architecture — Service Contracts
 
-This document contains contract details and serialized JSON payload schemas for events published to RabbitMQ.
+This document contains contract details and serialized JSON payload schemas for events published to Kafka.
 
 ## 1. MQTT Inbound Contract
 

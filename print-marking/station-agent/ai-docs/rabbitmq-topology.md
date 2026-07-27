@@ -1,4 +1,4 @@
-# Realtime Kiosk Architecture — RabbitMQ Topology
+# Realtime Kiosk Architecture — Kafka Topology
 
 This document details the exchanges, queues, and routing key bindings configured within the station-agent broker.
 

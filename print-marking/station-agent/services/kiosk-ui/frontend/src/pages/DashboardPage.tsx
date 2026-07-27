@@ -52,7 +52,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 
-import { FileText, FlaskConical, ChevronDown, ChevronRight } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import {
   getRetentionLimitStr,
   getTodayStr,
@@ -68,107 +68,20 @@ import {
 
 type KioskTab = 'dashboard' | 'history' | 'traceability' | 'orders' | 'alarms' | 'config' | 'diagnostics' | 'connectivity' | 'rbac' | 'templates' | 'printers'
 
-// ── Simulation device collapsible section ──────────────────────────────────
-function SimulationDeviceSection({ devices: simDevices, relativeTime }: {
-  devices: any[]
-  relativeTime: (iso: string) => string
-}) {
-  const [open, setOpen] = useState(false)
-  if (simDevices.length === 0) return null
-
-  const onlineCount = simDevices.filter((d: any) => d.isOnline).length
-  const offlineCount = simDevices.length - onlineCount
-
-  return (
-    <section className="space-y-3">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2.5 w-full text-left group cursor-pointer"
-      >
-        <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-          <FlaskConical size={14} />
-        </div>
-        <span className="text-sm font-bold text-muted-fg group-hover:text-foreground transition-colors">
-          Thiết bị mô phỏng
-        </span>
-        <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-500/10 text-amber-500">
-          {simDevices.length}
-        </span>
-        {offlineCount > 0 && (
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-red-500/10 text-red-400">
-            {offlineCount} offline
-          </span>
-        )}
-        <span className="ml-auto text-muted-fg group-hover:text-foreground transition-colors">
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </span>
-      </button>
-      {!open && (
-        <p className="text-xs text-muted-fg ml-9 leading-relaxed">
-          {simDevices.length} máy in mô phỏng — {onlineCount} online, {offlineCount} offline. Click để xem chi tiết.
-        </p>
-      )}
-      {open && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in duration-200">
-          {simDevices.map((d: any) => (
-            <div key={d.deviceId}
-              className={`rounded-xl p-4 border flex flex-col gap-2 transition-all duration-300 ${
-                d.isOnline
-                  ? 'border-amber-500/20 bg-amber-500/[0.04]'
-                  : 'border-white/5 bg-white/[0.02] opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  d.isOnline ? 'bg-amber-500/10 text-amber-500' : 'bg-white/5 text-muted-fg'
-                }`}>
-                  <FlaskConical size={15} />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {/* Online/Offline dot badge */}
-                  <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                    d.isOnline
-                      ? 'text-emerald-400 bg-emerald-400/10'
-                      : 'text-red-400 bg-red-400/10'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      d.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'
-                    }`} />
-                    {d.isOnline ? 'Online' : 'Offline'}
-                  </span>
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 uppercase tracking-wider">
-                    Simulation
-                  </span>
-                </div>
-              </div>
-              <p className={`font-extrabold text-sm ${d.isOnline ? 'text-foreground' : 'text-muted-fg'}`}>
-                {d.deviceId.toUpperCase()}
-              </p>
-              <p className="text-[10px] text-muted-fg/60 font-mono">{relativeTime(d.lastSeenAt)}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
 
 export default function DashboardPage() {
-  const stationId = 'STATION-01'
+  const stationId = (import.meta.env.VITE_STATION_ID as string | undefined)?.trim() || ''
   const navigate = useNavigate()
   const { user: currentUser, logout } = useAuth()
   const [signalRAlarm, setSignalRAlarm] = useState<Alarm | null>(null)
   const [alarmBannerCount, setAlarmBannerCount] = useState(0)
-  const { isConnected, production, devices, todayRecords } = useDashboard(stationId, (alarm) => {
+  const { isConnected, production, devices, todayRecords, mesConnection } = useDashboard(stationId, (alarm) => {
     setSignalRAlarm(alarm)
     // Bump banner count when a new active alarm arrives via SignalR
     if (alarm.currentState === 'Active') setAlarmBannerCount(prev => prev + 1)
   })
   const lastExecution = useLastProductionExecution()
   void lastExecution
-  const gatewayDevice = devices.find((d: any) => d.deviceId === 'gateway-01')
-  const isGatewayOnline = gatewayDevice?.isOnline ?? false
   const { historyData, loading: loadingHistory, error: historyError, fetchHistory } = useProductionRecords()
 
   // Fetch active alarm count for the persistent banner
@@ -442,7 +355,7 @@ export default function DashboardPage() {
       work_order: '—',
       workflow: '—',
       operation: '—',
-      station: 'STATION-01',
+      station: stationId || '—',
       team: 'Team A',
       operator: currentUser?.username || 'admin.operator',
       product_name: '—',
@@ -490,7 +403,7 @@ export default function DashboardPage() {
       work_order: activeJobDetails.productSerial || 'N/A',
       workflow: 'Default Workflow',
       operation: activeJobDetails.jobType,
-      station: 'STATION-01',
+      station: stationId || '—',
       team: 'Team A',
       operator: currentUser?.username || 'admin.operator',
       product_name: activeJobDetails.productCode + ' Industrial Part',
@@ -1024,7 +937,7 @@ export default function DashboardPage() {
               work_order: '—',
               workflow: '—',
               operation: '—',
-              station: 'STATION-01',
+              station: stationId || '—',
               team: '—',
               operator: currentUser?.username || '—',
               product_name: '—',
@@ -1544,7 +1457,6 @@ export default function DashboardPage() {
                   PRINTER:       'Máy in nhãn',
                   LASER:         'Máy khắc Laser',
                   VISION_CAMERA: 'Camera kiểm tra',
-                  FactoryGateway:'Cổng Factory Gateway',
                   Printer:       'Máy in nhãn',
                 }
                 const getLabel  = (d: any) => deviceLabel[d.deviceType] ?? d.deviceType
@@ -1640,67 +1552,70 @@ export default function DashboardPage() {
                   return 'bg-emerald-500/10 text-emerald-400'
                 }
 
-                // Separate: real production devices vs simulation printers
+                // The device grid contains only real station devices.
                 const nonGateway   = devices.filter((d: any) => d.deviceType !== 'GATEWAY' && d.deviceType !== 'FactoryGateway')
-                // Simulation printers are PRINTER / Printer type with IDs like Printer-01, Printer-02, printer-01, Printer-03
-                const simIds       = new Set(['printer-01','Printer-01','Printer-02','Printer-03'])
-                const isSimDevice  = (d: any) =>
-                  (d.deviceType === 'PRINTER' || d.deviceType === 'Printer') &&
-                  (simIds.has(d.deviceId) || /^Printer-\d+$/i.test(d.deviceId))
-                const realDevices  = nonGateway.filter((d: any) => !isSimDevice(d))
-                const simDevices   = nonGateway.filter((d: any) => isSimDevice(d))
-                const onlineCount  = realDevices.filter((d: any) => d.isOnline).length
-                const offlineCount = realDevices.filter((d: any) => !d.isOnline).length
+                const realDevices  = nonGateway
 
                 return (
                   <div className="space-y-5 animate-in fade-in duration-200">
 
-                    {/* ── Gateway banner ── */}
+                    {/* ── Direct MES connection status ── */}
                     <div className={`rounded-xl border-2 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${
-                      isGatewayOnline
+                      mesConnection?.status === 'RECENTLY_ACTIVE' || mesConnection?.status === 'IDLE'
                         ? 'border-emerald-500/30 bg-emerald-500/[0.04]'
-                        : 'border-red-500/30 bg-red-500/[0.04]'
+                        : mesConnection?.status === 'DEGRADED'
+                          ? 'border-amber-500/30 bg-amber-500/[0.04]'
+                          : 'border-red-500/30 bg-red-500/[0.04]'
                     }`}>
                       <div className="flex items-center gap-4">
                         <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                          isGatewayOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                          mesConnection?.status === 'DEGRADED' ? 'bg-amber-500/10 text-amber-400'
+                            : mesConnection?.status === 'RECENTLY_ACTIVE' || mesConnection?.status === 'IDLE'
+                              ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
                         }`}>
                           <Flame className="h-5 w-5" />
                         </div>
                         <div>
                           <div className="font-extrabold text-sm text-foreground flex items-center gap-2">
-                            Cổng truyền thông Factory Gateway
+                            Kết nối trực tiếp MES
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              isGatewayOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                              mesConnection?.status === 'DEGRADED' ? 'bg-amber-500/10 text-amber-400'
+                                : mesConnection?.status === 'RECENTLY_ACTIVE' || mesConnection?.status === 'IDLE'
+                                  ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
                             }`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${isGatewayOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-                              {isGatewayOnline ? 'Online' : 'Offline'}
+                              <span className={`h-1.5 w-1.5 rounded-full ${
+                                mesConnection?.status === 'DEGRADED' ? 'bg-amber-400'
+                                  : mesConnection?.status === 'RECENTLY_ACTIVE' || mesConnection?.status === 'IDLE'
+                                    ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'
+                              }`} />
+                              {mesConnection?.status === 'RECENTLY_ACTIVE' ? 'Đang hoạt động'
+                                : mesConnection?.status === 'IDLE' ? 'Sẵn sàng'
+                                  : mesConnection?.status === 'DEGRADED' ? 'Suy giảm'
+                                    : mesConnection?.status === 'OFFLINE' ? 'Ngoại tuyến' : 'Chưa xác định'}
                             </span>
                           </div>
                           <p className="text-xs text-muted-fg mt-0.5">
-                            {isGatewayOnline
-                              ? 'Kết nối MQTT an toàn — nhận lệnh từ ERP nhà máy'
-                              : 'Mất kết nối — không nhận được tín hiệu từ nhà máy'}
+                            HTTP · Station Gateway: {mesConnection?.stationGatewayStatus === 'READY' ? 'Sẵn sàng' : 'Cần kiểm tra'}
                           </p>
-                          {gatewayDevice?.lastSeenAt && (
+                          {mesConnection?.lastSuccessfulMesRequest && (
                             <p className="text-[11px] text-muted-fg/70 mt-0.5 font-mono">
-                              Lần cuối: {relativeTime(gatewayDevice.lastSeenAt)}
+                              MES thành công lần cuối: {relativeTime(mesConnection.lastSuccessfulMesRequest)}
                             </p>
                           )}
                         </div>
                       </div>
                       <div className="flex gap-3 text-center shrink-0">
                         <div className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-xs">
-                          <div className="font-extrabold text-emerald-400 text-lg">{onlineCount}</div>
-                          <div className="text-muted-fg">Online</div>
+                          <div className="font-extrabold text-emerald-400 text-lg">{mesConnection?.successfulRequestsLast24Hours ?? 0}</div>
+                          <div className="text-muted-fg">MES thành công / 24h</div>
                         </div>
                         <div className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-xs">
-                          <div className="font-extrabold text-red-400 text-lg">{offlineCount}</div>
-                          <div className="text-muted-fg">Offline</div>
+                          <div className="font-extrabold text-red-400 text-lg">{mesConnection?.failedRequestsLast24Hours ?? 0}</div>
+                          <div className="text-muted-fg">Lỗi / 24h</div>
                         </div>
                         <div className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-xs">
-                          <div className="font-extrabold text-foreground text-lg">{realDevices.length}</div>
-                          <div className="text-muted-fg">Tổng cộng</div>
+                          <div className="font-extrabold text-foreground text-lg">{mesConnection?.requestsLast24Hours ?? 0}</div>
+                          <div className="text-muted-fg">Yêu cầu MES / 24h</div>
                         </div>
                       </div>
                     </div>
@@ -1772,7 +1687,6 @@ export default function DashboardPage() {
                       </CardContent>
                     </Card>
 
-                    <SimulationDeviceSection devices={simDevices} relativeTime={relativeTime} />
                   </div>
                 )
               })()}

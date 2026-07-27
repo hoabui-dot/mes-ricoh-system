@@ -132,7 +132,7 @@ public sealed class CompleteJobStepHandler
             if (nextStep is not null)
             {
                 var deviceId = nextStep.StepName.ToUpperInvariant() switch {
-                    "PRINT_LABEL" => "printer-01",
+                    "PRINT_LABEL" => job.AssignedPrinter,
                     "LASER_MARK" => "laser-01",
                     "VISION_CHECK" => "camera-01",
                     "PLC_REJECT" => "plc-01",

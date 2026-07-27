@@ -43,9 +43,9 @@ public static class ServiceCollectionExtensions
         // Application handlers
         services.AddScoped<LoginHandler>();
 
-        // RabbitMQ Publisher
-        services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
-        services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+        // Kafka Publisher
+        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
+        services.AddSingleton<IEventPublisher, KafkaPublisher>();
 
         return services;
     }

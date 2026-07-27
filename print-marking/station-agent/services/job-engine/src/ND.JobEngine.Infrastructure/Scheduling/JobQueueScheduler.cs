@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using ND.JobEngine.Application.Interfaces;
 using ND.JobEngine.Domain.Entities;
 using ND.JobEngine.Domain.Enums;
+using ND.JobEngine.Infrastructure.Messaging;
 using ND.SharedKernel.Abstractions;
 using ND.UnifiedContracts.Events;
 
@@ -27,7 +28,7 @@ public record PrinterDetailDto(
 ///   QUEUED/WAITING jobs
 ///     → grouped by Production Order (JobNo)
 ///     → entire PO transitions to PREPARING
-///     → ONE ProductionBatchPrintCommand published to RabbitMQ (command.printer.print.batch)
+///     → ONE ProductionBatchPrintCommand published to Kafka (command.printer.print.batch)
 ///     → Printer Adapter renders ALL ZPL in one pass, sends ONE TCP/CUPS request
 ///
 /// Single-label manual reprints still flow through ProcessJobHandler / command.printer.print.
@@ -134,7 +135,7 @@ public sealed class JobQueueScheduler : BackgroundService
         if (!remainingJobs.Any()) return;
 
         // ── 3. Discover active printers ──────────────────────────────────────────
-        var adapterUrl = _configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
+        var adapterUrl = _configuration["PRINTER_ADAPTER_URL"] ?? "http://100.68.50.41:5003";
         List<PrinterDetailDto>? activePrinters = null;
         try
         {
@@ -265,7 +266,7 @@ public sealed class JobQueueScheduler : BackgroundService
             await outboxRepository.AddAsync(preparingOutbox, cancellationToken);
 
             // c) Determine dispatch target from first job's payload
-            var dispatchTarget = ExtractDispatchTarget(orderJobs[0].PayloadJson) ?? "simulation";
+            var dispatchTarget = ExtractDispatchTarget(orderJobs[0].PayloadJson) ?? "production-printer";
 
             // d) Build label items list (sequence = position in the order)
             var labelItems = orderJobs
@@ -277,7 +278,9 @@ public sealed class JobQueueScheduler : BackgroundService
                 })
                 .ToList();
 
-            // e) Publish ProductionBatchPrintCommand via outbox
+            // e) Persist the command in the Job Engine outbox. The independent
+            // Printer Adapter is the only production consumer; HTTP is reserved
+            // for management/diagnostics and is never called from this path.
             var batchCmd = ProductionBatchPrintCommand.Create(
                 productionOrderNo: jobNo,
                 jobType: orderJobs[0].JobType,
@@ -288,13 +291,12 @@ public sealed class JobQueueScheduler : BackgroundService
                 labelItems: labelItems,
                 batchSize: _chunkSize);
 
-            var batchOutbox = JobEngineOutboxEvent.Create(
+            await outboxRepository.AddAsync(JobEngineOutboxEvent.Create(
                 nameof(ProductionBatchPrintCommand),
-                jobNo,
+                batchCmd.EventId,
                 batchCmd.EventType,
                 JobEventRoutingKeys.BatchPrint,
-                JsonSerializer.Serialize(batchCmd));
-            await outboxRepository.AddAsync(batchOutbox, cancellationToken);
+                JsonSerializer.Serialize(batchCmd)), cancellationToken);
 
             _logger.LogInformation(
                 "Scheduler: ProductionBatchPrintCommand queued for {OrderNo} — {Count} labels → printer {Printer}",

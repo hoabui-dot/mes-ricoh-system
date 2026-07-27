@@ -201,7 +201,7 @@ Mục đích: Outbox truyền thông trung tâm lưu các sự kiện từ Job E
 | `aggregate_type` | TEXT | NOT NULL | Loại thực thể phát sự kiện (ví dụ: `Job`) |
 | `aggregate_id` | TEXT | NOT NULL | ID thực thể phát sự kiện |
 | `event_type` | TEXT | NOT NULL | Tên sự kiện (ví dụ: `JOB_COMPLETED`) |
-| `routing_key` | TEXT | NOT NULL | Khóa định tuyến RabbitMQ đích |
+| `routing_key` | TEXT | NOT NULL | Khóa định tuyến Kafka đích |
 | `payload_json` | TEXT | NOT NULL | Nội dung tin nhắn sự kiện dạng JSON |
 | `status` | TEXT | NOT NULL | Trạng thái: `PENDING`, `PUBLISHED`, `FAILED` |
 | `retry_count` | INTEGER | NOT NULL | Số lần gửi lại sự kiện |

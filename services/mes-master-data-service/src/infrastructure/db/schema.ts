@@ -131,7 +131,6 @@ export const mdMbomHeader = pgTable('md_mbom_header', {
   ...commonMasterColumns(),
   name: jsonb('name').$type<Record<string, string>>().notNull(),
   description: jsonb('description').$type<Record<string, string>>(),
-  itemRevisionId: uuid('item_revision_id').notNull(),
   siteId: uuid('site_id').notNull(),
   businessVersion: varchar('business_version', { length: 30 }).notNull().default('1'),
   purpose: varchar('purpose', { length: 30 }).notNull().default('Standard'),

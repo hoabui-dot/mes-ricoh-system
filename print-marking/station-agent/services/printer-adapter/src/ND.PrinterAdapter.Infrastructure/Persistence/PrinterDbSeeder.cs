@@ -12,22 +12,6 @@ public static class PrinterDbSeeder
         // ── Printers ─────────────────────────────────────────────────────────
         if (!await db.Printers.AnyAsync())
         {
-            var p1 = Printer.Create("Printer-01", "Zebra Industrial A", "localhost", 9100, "ZPL", "ZEBRA", driverType: "simulation");
-            p1.SetOnline();
-            await db.Printers.AddAsync(p1);
-
-            var p2 = Printer.Create("Printer-02", "Zebra Industrial B", "localhost", 9101, "ZPL", "ZEBRA", driverType: "simulation");
-            p2.SetOnline();
-            await db.Printers.AddAsync(p2);
-
-            var p3 = Printer.Create("Printer-03", "Zebra Industrial C", "localhost", 9102, "ZPL", "ZEBRA", driverType: "simulation");
-            p3.SetOnline();
-            await db.Printers.AddAsync(p3);
-
-            var pLegacy = Printer.Create("printer-01", "Zebra Kiosk Printer (Legacy)", "localhost", 9100, "ZPL", "ZEBRA", driverType: "simulation");
-            pLegacy.SetOnline();
-            await db.Printers.AddAsync(pLegacy);
-
             var cupsQueue = Environment.GetEnvironmentVariable("CUPS_QUEUE") ?? "Zebra_Technologies_ZTC_GK420t";
             var cupsHost = Environment.GetEnvironmentVariable("CUPS_HEALTH_HOST") ?? "host.docker.internal";
             var pCups = Printer.Create("Zebra-GK420t-CUPS", "Zebra GK420t (Physical)", cupsHost, 631, "ZPL", "ZEBRA",
@@ -38,20 +22,14 @@ public static class PrinterDbSeeder
         }
         else
         {
-            var existingCups = await db.Printers.FirstOrDefaultAsync(p => p.PrinterCode == "Printer-03");
-            var cupsCode = "Printer-03";
-            var cupsHost = "localhost";
+            var existingCups = await db.Printers.FirstOrDefaultAsync(p => p.PrinterCode == "Zebra-GK420t-CUPS");
             if (existingCups == null)
             {
-                var p3 = Printer.Create(cupsCode, "Zebra Industrial C (CUPS Local)", cupsHost, 9102, "ZPL", "ZEBRA", driverType: "cups", cupsQueueName: "Zebra_ZD420");
-                p3.SetOnline();
-                await db.Printers.AddAsync(p3);
-            }
-            else if (existingCups.IpAddress == "localhost" || existingCups.IpAddress == "127.0.0.1")
-            {
-                await db.Printers
-                    .Where(p => p.PrinterCode == cupsCode)
-                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.IpAddress, cupsHost));
+                var cupsQueue = Environment.GetEnvironmentVariable("CUPS_QUEUE") ?? "Zebra_Technologies_ZTC_GK420t";
+                var cupsHost = Environment.GetEnvironmentVariable("CUPS_HEALTH_HOST") ?? "host.docker.internal";
+                var pCups = Printer.Create("Zebra-GK420t-CUPS", "Zebra GK420t (Physical)", cupsHost, 631, "ZPL", "ZEBRA",
+                    driverType: "cups", cupsQueueName: cupsQueue);
+                await db.Printers.AddAsync(pCups);
             }
         }
 

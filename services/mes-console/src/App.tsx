@@ -29,6 +29,7 @@ import { ResourceFoundationScreen } from './routes/master-data/ResourceFoundatio
 import { SkillManagementScreen } from './routes/master-data/SkillManagementScreen';
 import { PlanningConstraintsScreen } from './routes/master-data/PlanningConstraintsScreen';
 import { OperationCatalogScreen } from './routes/master-data/OperationCatalogScreen';
+import { PrintStationsScreen } from './routes/master-data/PrintStationsScreen';
 import { NotFoundScreen } from './routes/NotFoundScreen';
 
 import { WOListScreen } from './routes/work-orders/WOListScreen';
@@ -59,6 +60,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/mboms/:id" element={<MbomScreen />} />
         <Route path="/master-data/routings" element={<RoutingScreen />} />
         <Route path="/master-data/routings/new" element={<RoutingCreateScreen />} />
+        <Route path="/master-data/routings/:id/edit" element={<RoutingCreateScreen />} />
         <Route path="/master-data/routings/:id/operations" element={<RoutingOperationsScreen />} />
         <Route path="/master-data/production-versions" element={<ProductionVersionScreen />} />
         <Route path="/master-data/production-versions/new" element={<ProductionVersionCrudScreen />} />
@@ -102,6 +104,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/workstations/new" element={<ResourceFoundationScreen entity="workstations" />} />
         <Route path="/master-data/workstations/:id" element={<ResourceFoundationScreen entity="workstations" />} />
         <Route path="/master-data/workstations/:id/edit" element={<ResourceFoundationScreen entity="workstations" />} />
+        <Route path="/master-data/print-stations" element={<PrintStationsScreen />} />
         <Route path="/master-data/resource-assignments" element={<ResourceFoundationScreen entity="resource-assignments" />} />
         <Route path="/master-data/resource-assignments/new" element={<ResourceFoundationScreen entity="resource-assignments" />} />
         <Route path="/master-data/resource-capabilities" element={<PlanningConstraintsScreen entity="resource-capabilities" />} />
