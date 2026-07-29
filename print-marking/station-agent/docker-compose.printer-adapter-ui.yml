@@ -2,7 +2,7 @@ name: printer-adapter-ui
 
 services:
   printer-adapter-ui:
-    image: vanhoadotbui2628/printer-adapter-ui:kafka-monitoring-20260727
+    image: vanhoadotbui2628/printer-adapter-ui:kafka-monitoring-management-routing-filter-v2-20260728-arm64
     container_name: printer-adapter-ui
     restart: unless-stopped
     ports:

@@ -125,8 +125,7 @@ export const templateApi = {
     labelWidth: number; labelHeight: number; templateJson: string
     templateCode?: string; category?: string; orientation?: string; revision?: string
     supportedBarcodeTypes?: string; supportedPrinterModels?: string; compatibleStationTypes?: string
-    // N-Up: only gapMm is adjustable after creation
-    gapMm?: number
+    layoutType?: string; sheetColumns?: number; sheetRows?: number; gapMm?: number
   }) =>
     client.put<any>(`/label-templates/${id}`, data),
   delete: (id: string) => client.delete(`/label-templates/${id}`),
@@ -139,6 +138,8 @@ export const templateApi = {
   getVersions: (id: string) => client.get<any[]>(`/label-templates/${id}/versions`),
   render: (templateJson: string, data: Record<string, string>) =>
     client.post<{ zpl: string; rendererType: string }>('/label-templates/render', { templateJson, data }),
+  renderStored: (id: string, data: Record<string, string>) =>
+    client.post<{ templateId: string; templateVersion: number; zpl: string; rendererType: string }>(`/label-templates/${id}/render-with-data`, { data }),
   printTest: (id: string, data: { printerCode?: string; data?: Record<string, string>; correlationId?: string }) =>
     client.post<any>(`/label-templates/${id}/print-test`, data),
   // Printer assignments
@@ -152,12 +153,12 @@ export const templateApi = {
     client.get<any[]>('/print-history', { params: { page, pageSize } }),
   getPrintHistoryDetail: (id: string) => client.get<any>(`/print-history/${id}`),
   // Printer management (proxied through projection-service → printer-adapter)
-  getPrintersReady: () => client.get<any[]>('/projection/printers/ready'),
-  getPrintersActive: () => client.get<any[]>('/projection/printers/active'),
+  getPrintersReady: () => client.get<any[]>('/printers/ready'),
+  getPrintersActive: () => client.get<any[]>('/printers/active'),
   activatePrinter: (printerCode: string, templateId: string, activatedBy?: string) =>
-    client.post(`/projection/printers/${printerCode}/activate`, { templateId, activatedBy }),
+    client.post(`/printers/${printerCode}/activate`, { templateId, activatedBy }),
   deactivatePrinter: (printerCode: string) =>
-    client.post(`/projection/printers/${printerCode}/deactivate`),
+    client.post(`/printers/${printerCode}/deactivate`),
   getPrinterMaintenance: (printerCode: string) =>
     client.get<any>(`/projection/printers/${printerCode}/maintenance`),
 }

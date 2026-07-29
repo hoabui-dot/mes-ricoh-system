@@ -206,6 +206,15 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 				resolvedSource, _ := op["resolved_source"].(string)
 				workstationID, _ := op["workstation_id"].(string)
 				requiresOutputLabel, _ := op["requires_output_label"].(bool)
+				unitsPerLabel, _ := op["units_per_label"].(float64)
+				labelQuantityMethod, _ := op["label_quantity_method"].(string)
+				copiesPerLabel, _ := op["copies_per_label"].(float64)
+				if labelQuantityMethod == "" {
+					labelQuantityMethod = "CEIL_BY_UNITS_PER_LABEL"
+				}
+				if copiesPerLabel < 1 {
+					copiesPerLabel = 1
+				}
 				seq, _ := op["seq"].(float64)
 				pred, predOK := op["predecessor_seq"].(float64)
 				base, _ := op["resolved_base_quantity"].(float64)
@@ -221,7 +230,7 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 				if predOK {
 					predecessor = int(pred)
 				}
-				_, _ = c.pool.Exec(ctx, `INSERT INTO rm_routing_operation (master_id, routing_header_id, operation_id, operation_code, work_center_id, seq, predecessor_seq, planning_mode, resolved_source, resolved_base_quantity, resolved_setup_time_min, resolved_cycle_time_sec, resolved_required_workers, resolved_efficiency_factor, resolved_standard_yield, requires_output_label, workstation_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NULLIF($17, '')::uuid) ON CONFLICT (master_id) DO UPDATE SET routing_header_id=EXCLUDED.routing_header_id, operation_id=EXCLUDED.operation_id, operation_code=EXCLUDED.operation_code, work_center_id=EXCLUDED.work_center_id, seq=EXCLUDED.seq, predecessor_seq=EXCLUDED.predecessor_seq, planning_mode=EXCLUDED.planning_mode, resolved_source=EXCLUDED.resolved_source, resolved_base_quantity=EXCLUDED.resolved_base_quantity, resolved_setup_time_min=EXCLUDED.resolved_setup_time_min, resolved_cycle_time_sec=EXCLUDED.resolved_cycle_time_sec, resolved_required_workers=EXCLUDED.resolved_required_workers, resolved_efficiency_factor=EXCLUDED.resolved_efficiency_factor, resolved_standard_yield=EXCLUDED.resolved_standard_yield, requires_output_label=EXCLUDED.requires_output_label, workstation_id=EXCLUDED.workstation_id`, operationMasterID, masterID, operationID, operationCode, workCenterID, int(seq), predecessor, planningMode, resolvedSource, base, setup, cycle, int(workers), efficiency, yieldValue, requiresOutputLabel, workstationID)
+				_, _ = c.pool.Exec(ctx, `INSERT INTO rm_routing_operation (master_id, routing_header_id, operation_id, operation_code, work_center_id, seq, predecessor_seq, planning_mode, resolved_source, resolved_base_quantity, resolved_setup_time_min, resolved_cycle_time_sec, resolved_required_workers, resolved_efficiency_factor, resolved_standard_yield, requires_output_label, workstation_id, units_per_label, label_quantity_method, copies_per_label) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NULLIF($17, '')::uuid,NULLIF($18,0),$19,$20) ON CONFLICT (master_id) DO UPDATE SET routing_header_id=EXCLUDED.routing_header_id, operation_id=EXCLUDED.operation_id, operation_code=EXCLUDED.operation_code, work_center_id=EXCLUDED.work_center_id, seq=EXCLUDED.seq, predecessor_seq=EXCLUDED.predecessor_seq, planning_mode=EXCLUDED.planning_mode, resolved_source=EXCLUDED.resolved_source, resolved_base_quantity=EXCLUDED.resolved_base_quantity, resolved_setup_time_min=EXCLUDED.resolved_setup_time_min, resolved_cycle_time_sec=EXCLUDED.resolved_cycle_time_sec, resolved_required_workers=EXCLUDED.resolved_required_workers, resolved_efficiency_factor=EXCLUDED.resolved_efficiency_factor, resolved_standard_yield=EXCLUDED.resolved_standard_yield, requires_output_label=EXCLUDED.requires_output_label, workstation_id=EXCLUDED.workstation_id, units_per_label=EXCLUDED.units_per_label, label_quantity_method=EXCLUDED.label_quantity_method, copies_per_label=EXCLUDED.copies_per_label`, operationMasterID, masterID, operationID, operationCode, workCenterID, int(seq), predecessor, planningMode, resolvedSource, base, setup, cycle, int(workers), efficiency, yieldValue, requiresOutputLabel, workstationID, unitsPerLabel, labelQuantityMethod, int(copiesPerLabel))
 			}
 		}
 

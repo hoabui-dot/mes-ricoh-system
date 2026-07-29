@@ -1,0 +1,26 @@
+{
+  "verified_at": "2026-07-27T18:45:03Z",
+  "work_order": {
+    "id": "e7d5d7f2-b86d-4458-a7cb-78a684e63c71",
+    "code": "WO-20260727-0034",
+    "status_after_approval": "Released",
+    "production_version": "PV-20260727-0022",
+    "shift": "SHIFT-A"
+  },
+  "resource_proposal": {
+    "readiness": "Ready",
+    "candidate": "Eligible",
+    "allocation_count": 3,
+    "allocation_validation": "Valid",
+    "revalidation": "valid"
+  },
+  "approval": {
+    "http_status": 200,
+    "event_type": "MES.Execution.WOApproved.v1",
+    "event_published": true
+  },
+  "limitations": [
+    "No browser automation in this run",
+    "No physical printer claim in this run"
+  ]
+}

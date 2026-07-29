@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using ND.SharedKernel.Abstractions;
+using ND.ProjectionService.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -419,8 +420,8 @@ app.MapPost("/api/projection/alarms/{id}/acknowledge", async (
 
 app.MapGet("/api/projection/diagnostics/health", async (
     ProjectionDbContext db,
-    IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
+    PrinterManagementKafkaClient printerManagement,
     CancellationToken ct) =>
 {
     var report = new Dictionary<string, object>();
@@ -484,25 +485,15 @@ app.MapGet("/api/projection/diagnostics/health", async (
     var mqttPort = 1883;
     report["mqtt"] = await CheckTcpAsync(mqttHost, mqttPort);
 
-    // 4. Printer Adapter is an independent HTTP service.
-    var printerAdapterUrl = configuration["PRINTER_ADAPTER_URL"];
-    if (string.IsNullOrWhiteSpace(printerAdapterUrl))
-    {
-        report["printer"] = new { status = "Unconfigured" };
-    }
-    else
-    {
+    // 4. Remote Printer Adapter health is requested through Kafka.
     try
     {
-        using var client = httpClientFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(2);
-        var response = await client.GetAsync($"{printerAdapterUrl.TrimEnd('/')}/api/health", ct);
-        report["printer"] = new { status = response.IsSuccessStatusCode ? "Healthy" : "Unhealthy", endpoint = printerAdapterUrl };
+        var response = await printerManagement.RequestAsync("GET", "/api/health", null, "", "projection-service", ct);
+        report["printer"] = new { status = response.StatusCode is >= 200 and < 300 ? "Healthy" : "Unhealthy", transport = "Kafka" };
     }
     catch
     {
-        report["printer"] = new { status = "Unhealthy", endpoint = printerAdapterUrl };
-    }
+        report["printer"] = new { status = "Unhealthy", transport = "Kafka" };
     }
 
     // Laser and PLC are not simulated in the production station stack.
@@ -597,13 +588,10 @@ app.MapPut("/api/projection/config/{key}", async (
 async Task<List<JsonObject>> GetCanonicalPrintersAsync(
     bool activeOnly,
     bool readyOnly,
-    IHttpClientFactory httpClientFactory,
-    IConfiguration configuration,
+    PrinterManagementKafkaClient printerManagement,
     ProjectionDbContext db,
     CancellationToken ct)
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"];
-    using var client = httpClientFactory.CreateClient();
     var projected = await db.DeviceStatuses
         .AsNoTracking()
         .Where(d => d.DeviceType.ToUpper() == "PRINTER")
@@ -612,10 +600,9 @@ async Task<List<JsonObject>> GetCanonicalPrintersAsync(
     JsonArray rows;
     try
     {
-        if (string.IsNullOrWhiteSpace(adapterUrl)) throw new InvalidOperationException("PRINTER_ADAPTER_URL is not configured");
-        using var response = await client.GetAsync($"{adapterUrl.TrimEnd('/')}/api/printers", ct);
-        response.EnsureSuccessStatusCode();
-        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+        var response = await printerManagement.RequestAsync("GET", "/api/printers", null, "", "projection-service", ct);
+        if (response.StatusCode < 200 || response.StatusCode >= 300) throw new InvalidOperationException($"Printer Adapter returned HTTP {response.StatusCode}");
+        var payload = JsonNode.Parse(response.Body);
         rows = payload as JsonArray ?? [];
     }
     catch
@@ -673,23 +660,23 @@ async Task<List<JsonObject>> GetCanonicalPrintersAsync(
 }
 
 app.MapGet("/api/projection/printers/ready", async (
-    IHttpClientFactory httpClientFactory, IConfiguration configuration,
+    PrinterManagementKafkaClient printerManagement,
     ProjectionDbContext db, CancellationToken ct) =>
 {
     try
     {
-        return Results.Ok(await GetCanonicalPrintersAsync(false, true, httpClientFactory, configuration, db, ct));
+        return Results.Ok(await GetCanonicalPrintersAsync(false, true, printerManagement, db, ct));
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
 app.MapGet("/api/projection/printers/active", async (
-    IHttpClientFactory httpClientFactory, IConfiguration configuration,
+    PrinterManagementKafkaClient printerManagement,
     ProjectionDbContext db, CancellationToken ct) =>
 {
     try
     {
-        return Results.Ok(await GetCanonicalPrintersAsync(true, false, httpClientFactory, configuration, db, ct));
+        return Results.Ok(await GetCanonicalPrintersAsync(true, false, printerManagement, db, ct));
     }
     catch (Exception ex)
     {
@@ -699,15 +686,12 @@ app.MapGet("/api/projection/printers/active", async (
 
 app.MapGet("/api/projection/printers/{code}/maintenance", async (
     string code,
-    IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
+    PrinterManagementKafkaClient printerManagement, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
-    using var client = httpClientFactory.CreateClient();
     try
     {
-        var res = await client.GetAsync($"{adapterUrl}/api/printers/{code}/maintenance", ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        return Results.Content(body, "application/json", statusCode: (int)res.StatusCode);
+        var res = await printerManagement.RequestAsync("GET", $"/api/printers/{Uri.EscapeDataString(code)}/maintenance", null, "", "projection-service", ct);
+        return Results.Content(res.Body, res.ContentType, statusCode: res.StatusCode);
     }
     catch
     {
@@ -717,30 +701,24 @@ app.MapGet("/api/projection/printers/{code}/maintenance", async (
 
 app.MapPost("/api/projection/printers/{code}/activate", async (
     string code, JsonElement reqBody,
-    IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
+    PrinterManagementKafkaClient printerManagement, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
-    using var client = httpClientFactory.CreateClient();
     try
     {
-        var res = await client.PostAsJsonAsync($"{adapterUrl}/api/printers/{code}/activate", reqBody, ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        return Results.Content(body, "application/json", statusCode: (int)res.StatusCode);
+        var res = await printerManagement.RequestAsync("POST", $"/api/printers/{Uri.EscapeDataString(code)}/activate", null, reqBody.GetRawText(), "projection-service", ct);
+        return Results.Content(res.Body, res.ContentType, statusCode: res.StatusCode);
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
 app.MapPost("/api/projection/printers/{code}/deactivate", async (
     string code,
-    IHttpClientFactory httpClientFactory, IConfiguration configuration, CancellationToken ct) =>
+    PrinterManagementKafkaClient printerManagement, CancellationToken ct) =>
 {
-    var adapterUrl = configuration["PRINTER_ADAPTER_URL"] ?? throw new InvalidOperationException("PRINTER_ADAPTER_URL is required");
-    using var client = httpClientFactory.CreateClient();
     try
     {
-        var res = await client.PostAsync($"{adapterUrl}/api/printers/{code}/deactivate", null, ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        return Results.Content(body, "application/json", statusCode: (int)res.StatusCode);
+        var res = await printerManagement.RequestAsync("POST", $"/api/printers/{Uri.EscapeDataString(code)}/deactivate", null, "", "projection-service", ct);
+        return Results.Content(res.Body, res.ContentType, statusCode: res.StatusCode);
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });

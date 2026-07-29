@@ -441,6 +441,67 @@ for bt in BASE_TEMPLATES:
     })
 
 
+# Canonical demo set. The older BASE_TEMPLATES block above is retained only as
+# historical source context; this assignment is the active seed definition.
+# Zebra GK420t media: 203 DPI, 50 x 30 mm per label cell. A 2-UP template
+# keeps the cell dimensions and lets ZplRenderer apply the grid offset.
+def demo_template(code, name, description, category, layout_type="1UP", is_default=False):
+    multi_up = layout_type == "2UP"
+    layout = {"columns": 2, "rows": 1, "gapMm": 2.0} if multi_up else None
+    if code.startswith("ITEM-BARCODE"):
+        elements = [
+            {"type": "text", "x": 15, "y": 12, "fontSize": 12, "binding": "item_code", "defaultValue": "ITEM-001"},
+            {"type": "barcode", "x": 15, "y": 62, "height": 112, "symbology": "CODE128", "barWidth": 2, "binding": "item_code", "defaultValue": "ITEM-001"},
+        ]
+        bindings = ["item_code"]
+    else:
+        elements = [
+            {"type": "text", "x": 15, "y": 10, "fontSize": 11, "binding": "item_code", "defaultValue": "ITEM-001"},
+            {"type": "text", "x": 15, "y": 38, "fontSize": 9, "binding": "item_name", "defaultValue": "Finished item"},
+            {"type": "text", "x": 15, "y": 62, "fontSize": 7, "binding": "item_description", "defaultValue": "Localized item description"},
+            {"type": "text", "x": 15, "y": 92, "fontSize": 8, "text": "LOT:"},
+            {"type": "text", "x": 62, "y": 92, "fontSize": 8, "binding": "lot_number", "defaultValue": "LOT-001"},
+            {"type": "text", "x": 15, "y": 118, "fontSize": 8, "text": "QTY:"},
+            {"type": "text", "x": 62, "y": 118, "fontSize": 8, "binding": "quantity", "defaultValue": "1 PCS"},
+            {"type": "text", "x": 15, "y": 144, "fontSize": 8, "text": "WO:"},
+            {"type": "text", "x": 62, "y": 144, "fontSize": 8, "binding": "work_order", "defaultValue": "WO-0001"},
+            {"type": "qr", "x": 292, "y": 82, "magnification": 4, "payloadTemplate": '{"item_code":"{item_code}","lot":"{lot_number}","work_order":"{work_order}"}'},
+        ]
+        bindings = ["item_code", "item_name", "item_description", "lot_number", "quantity", "work_order", "qr_payload"]
+    template_json = {"width": 50, "height": 30, "dpi": 203, "bindings": bindings, "elements": elements}
+    if layout:
+        template_json["layout"] = layout
+    return {
+        "template_code": code,
+        "name": name,
+        "description": description,
+        "note": "Zebra GK420t, 203 DPI, 50x30mm label cell; 2-UP uses renderer grid offsets." if multi_up else "Zebra GK420t, 203 DPI, 50x30mm label.",
+        "category": category,
+        "dpi": 203,
+        "label_width": 50.0,
+        "label_height": 30.0,
+        "orientation": "LANDSCAPE",
+        "revision": "A",
+        "supported_barcode_types": json.dumps(["CODE128"] if code.startswith("ITEM-BARCODE") else ["QR"]),
+        "supported_printer_models": json.dumps(["GK420t"]),
+        "compatible_station_types": json.dumps(["PRINT_STATION"]),
+        "is_default": is_default,
+        "layout_type": layout_type,
+        "sheet_columns": 2 if multi_up else 1,
+        "sheet_rows": 1,
+        "gap_mm": 2.0 if multi_up else 0.0,
+        "template_json": template_json,
+    }
+
+
+TEMPLATES = [
+    demo_template("ITEM-BARCODE-1UP", "Item Barcode 1-Up", "One item barcode label per row; item code is printed above the barcode.", "ITEM", is_default=False),
+    demo_template("ITEM-BARCODE-2UP", "Item Barcode 2-Up", "Two identical item barcode labels side by side on a two-column roll.", "ITEM", "2UP"),
+    demo_template("ITEM-DETAIL-1UP", "Item Detail 1-Up", "Detailed item label with localized name, lot, quantity, Work Order, and QR payload.", "ITEM", is_default=True),
+    demo_template("ITEM-DETAIL-2UP", "Item Detail 2-Up", "Two identical detailed item labels side by side on a two-column roll.", "ITEM", "2UP"),
+]
+
+
 # ── Database migration + injection ─────────────────────────────────────────────
 
 def migrate_schema(cursor):
@@ -538,6 +599,20 @@ def inject_templates(cursor, templates):
     inserted = 0
     updated = 0
 
+    desired_codes = tuple(t["template_code"] for t in templates)
+    placeholders = ",".join("?" for _ in desired_codes)
+    # Retire obsolete demo rows without deleting immutable version history.
+    cursor.execute(
+        f"SELECT id FROM label_templates WHERE template_code IS NULL OR template_code NOT IN ({placeholders});",
+        desired_codes,
+    )
+    obsolete_ids = [row[0] for row in cursor.fetchall()]
+    if obsolete_ids:
+        obsolete_placeholders = ",".join("?" for _ in obsolete_ids)
+        cursor.execute(f"UPDATE label_templates SET is_active=0, status='archived', is_default=0, updated_by='system', updated_at=? WHERE id IN ({obsolete_placeholders});", (now, *obsolete_ids))
+        cursor.execute(f"DELETE FROM printer_template_assignments WHERE template_id IN ({obsolete_placeholders});", obsolete_ids)
+        print(f"  Archived {len(obsolete_ids)} obsolete templates; version history retained.")
+
     for t in templates:
         json_str = json.dumps(t["template_json"])
         code = t["template_code"]
@@ -613,6 +688,25 @@ def inject_templates(cursor, templates):
     return inserted, updated
 
 
+def assign_active_zebra(cursor, templates):
+    """Assign the detailed 1-UP template to the real Zebra printer only."""
+    template = next(t for t in templates if t["template_code"] == "ITEM-DETAIL-1UP")
+    cursor.execute("SELECT id, name FROM label_templates WHERE template_code = ? AND status='published' AND is_active=1", (template["template_code"],))
+    row = cursor.fetchone()
+    if not row:
+        raise RuntimeError("ITEM-DETAIL-1UP was not seeded as published")
+    template_id, template_name = row
+    now = datetime.utcnow().isoformat() + "Z"
+    cursor.execute("SELECT printer_code FROM printer_printers WHERE printer_code='Zebra-GK420t-CUPS'")
+    if not cursor.fetchone():
+        print("  warning  Zebra-GK420t-CUPS is not registered in this database; assignment skipped.")
+        return
+    cursor.execute("UPDATE printer_printers SET is_active_for_work=1, active_template_id=?, active_template_name=?, activated_at=?, activated_by='system' WHERE printer_code='Zebra-GK420t-CUPS'", (template_id, template_name, now))
+    cursor.execute("DELETE FROM printer_template_assignments WHERE printer_code='Zebra-GK420t-CUPS'")
+    cursor.execute("INSERT INTO printer_template_assignments (id, printer_code, template_id, template_name, assigned_by, assigned_at, created_at) VALUES (?, 'Zebra-GK420t-CUPS', ?, ?, 'system', ?, ?)", (str(uuid.uuid4()), template_id, template_name, now, now))
+    print(f"  Assigned [{template['template_code']}] to Zebra-GK420t-CUPS")
+
+
 def process_database_local(db_path):
     """Run injection directly against a local SQLite file."""
     print(f"\n{chr(8212)*60}")
@@ -630,6 +724,7 @@ def process_database_local(db_path):
         migrate_schema(cursor)
         print("  Injecting templates...")
         inserted, updated = inject_templates(cursor, TEMPLATES)
+        assign_active_zebra(cursor, TEMPLATES)
         conn.commit()
         conn.close()
         conn2 = sqlite3.connect(db_path)

@@ -158,6 +158,8 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000017_production_version_authoritative_snapshot.up.sql",
 		"migrations/000018_normalize_production_version_read_model_context.up.sql",
 		"migrations/000019_resource_allocation_advisory_approval.up.sql",
+		"migrations/000020_routing_operation_timing_snapshot.up.sql",
+		"migrations/000021_operation_quantities_and_batch_print_policy.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

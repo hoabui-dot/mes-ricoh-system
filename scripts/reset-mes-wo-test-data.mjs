@@ -135,8 +135,10 @@ async function deleteRows(client, tables, ids, codes) {
   const idArray = ids.length ? ids : ['00000000-0000-0000-0000-000000000000'];
   const patterns = [...ids, ...codes].map((value) => `%${value}%`);
   const statements = [
-    ['execution_sessions', 'execution_session', `DELETE FROM execution_session s USING wo_operation o WHERE s.wo_operation_id=o.wo_operation_id AND o.wo_id=ANY($1::uuid[])`],
     ['operation_confirmations', 'operation_confirmation', `DELETE FROM operation_confirmation c USING wo_operation o WHERE c.wo_operation_id=o.wo_operation_id AND o.wo_id=ANY($1::uuid[])`],
+    // Confirmations reference execution_session.session_id, so they must be
+    // removed before the sessions even when both belong to the same WO.
+    ['execution_sessions', 'execution_session', `DELETE FROM execution_session s USING wo_operation o WHERE s.wo_operation_id=o.wo_operation_id AND o.wo_id=ANY($1::uuid[])`],
     ['material_consumption', 'material_consumption', `DELETE FROM material_consumption WHERE wo_id=ANY($1::uuid[]) OR wo_operation_id IN (SELECT wo_operation_id FROM wo_operation WHERE wo_id=ANY($1::uuid[]))`],
     ['print_events', 'wo_print_job_event', `DELETE FROM wo_print_job_event e USING wo_print_job p WHERE e.print_job_id=p.print_job_id AND p.wo_id=ANY($1::uuid[])`],
     ['print_attempts', 'wo_print_job_attempt', `DELETE FROM wo_print_job_attempt a USING wo_print_job p WHERE a.print_job_id=p.print_job_id AND p.wo_id=ANY($1::uuid[])`],
@@ -164,8 +166,8 @@ async function deleteRows(client, tables, ids, codes) {
 
 async function deleteOrphans(client, tables) {
   const statements = [
-    ['orphan_execution_sessions', 'execution_session', `DELETE FROM execution_session s WHERE NOT EXISTS (SELECT 1 FROM wo_operation o WHERE o.wo_operation_id=s.wo_operation_id)`],
     ['orphan_confirmations', 'operation_confirmation', `DELETE FROM operation_confirmation c WHERE NOT EXISTS (SELECT 1 FROM wo_operation o WHERE o.wo_operation_id=c.wo_operation_id)`],
+    ['orphan_execution_sessions', 'execution_session', `DELETE FROM execution_session s WHERE NOT EXISTS (SELECT 1 FROM wo_operation o WHERE o.wo_operation_id=s.wo_operation_id)`],
     ['orphan_material_consumption', 'material_consumption', `DELETE FROM material_consumption m WHERE NOT EXISTS (SELECT 1 FROM wo_header h WHERE h.wo_id=m.wo_id)`],
     ['orphan_print_attempts', 'wo_print_job_attempt', `DELETE FROM wo_print_job_attempt a WHERE NOT EXISTS (SELECT 1 FROM wo_print_job p WHERE p.print_job_id=a.print_job_id)`],
     ['orphan_print_events', 'wo_print_job_event', `DELETE FROM wo_print_job_event e WHERE NOT EXISTS (SELECT 1 FROM wo_print_job p WHERE p.print_job_id=e.print_job_id)`],

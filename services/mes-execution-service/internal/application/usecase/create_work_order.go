@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ type CreateWOInput struct {
 	Quantity            float64
 	UOMID               string
 	SiteID              string
+	ShiftID             string
 	PlannedStartAt      string
 	PlannedEndAt        string
 	UserID              string
@@ -151,11 +153,11 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	var woID, createdBy string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO wo_header (
-			wo_code, production_version_id, production_version_code, production_version_name_i18n, item_revision_id, item_revision_code, item_revision_name_i18n, item_code, item_name, mbom_code, routing_code, planning_snapshot, quantity, uom_id, site_id,
+			wo_code, production_version_id, production_version_code, production_version_name_i18n, item_revision_id, item_revision_code, item_revision_name_i18n, item_code, item_name, mbom_code, routing_code, planning_snapshot, quantity, uom_id, site_id, shift_id,
 			planned_start_at, planned_end_at, status, created_by
-		) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, 'Draft', $18)
+		) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, $18, 'Draft', $19)
 		RETURNING wo_id, created_by
-	`, woCode, pvID, pvCode, string(pvName), input.ItemRevisionID, itemRevisionCode, string(itemName), input.ItemCode, input.ItemName, mbomCode, routingCode, fmt.Sprintf(`{"production_version_id":"%s","production_version_code":"%s","mbom_id":"%s","routing_id":"%s"}`, pvID, pvCode, mbomHeaderID, routingHeaderID), input.Quantity, input.UOMID, input.SiteID, input.PlannedStartAt, input.PlannedEndAt, input.UserID).Scan(&woID, &createdBy)
+	`, woCode, pvID, pvCode, string(pvName), input.ItemRevisionID, itemRevisionCode, string(itemName), input.ItemCode, input.ItemName, mbomCode, routingCode, fmt.Sprintf(`{"production_version_id":"%s","production_version_code":"%s","mbom_id":"%s","routing_id":"%s","shift_id":"%s"}`, pvID, pvCode, mbomHeaderID, routingHeaderID, input.ShiftID), input.Quantity, input.UOMID, input.SiteID, input.ShiftID, input.PlannedStartAt, input.PlannedEndAt, input.UserID).Scan(&woID, &createdBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert wo_header: %w", err)
 	}
@@ -192,7 +194,7 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 			qtyPer, _ := strconv.ParseFloat(l.qtyPerStr, 64)
 			scrapRate, _ := strconv.ParseFloat(l.scrapRateStr, 64)
 
-			reqQty := qtyPer * (input.Quantity / 100.0) * (1.0 + scrapRate)
+			reqQty := qtyPer * input.Quantity * (1.0 + scrapRate)
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO wo_material_requirement (
 					wo_id, component_item_revision_id, component_item_code, required_qty, uom_id, issue_operation_id, backflush_flag, phantom_flag, stock_check_status
@@ -206,7 +208,7 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	// Snapshot Routing Operations
 	opRows, err := tx.Query(ctx, `
 		SELECT ro.master_id, ro.operation_id, ro.operation_code, ro.work_center_id, ro.seq, ro.predecessor_seq,
-		       ro.resolved_setup_time_min, ro.resolved_cycle_time_sec, ro.resolved_efficiency_factor, ro.resolved_base_quantity, ro.resolved_standard_yield, COALESCE(ro.resolved_required_workers, 1), ro.resolved_source, ro.requires_output_label, ro.workstation_id
+		       ro.resolved_setup_time_min, ro.resolved_cycle_time_sec, ro.resolved_efficiency_factor, ro.resolved_base_quantity, ro.resolved_standard_yield, ro.resolved_required_workers, ro.resolved_source, ro.requires_output_label, ro.workstation_id, ro.queue_time_min, ro.move_time_min, ro.units_per_label, ro.label_quantity_method, ro.copies_per_label
 		FROM rm_routing_operation ro
 		WHERE ro.routing_header_id = $1 ORDER BY ro.seq
 	`, routingHeaderID)
@@ -218,19 +220,25 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 			seq                                           int
 			predSeq                                       *int
 			setup, cycle, efficiency, base, standardYield *float64
-			workers                                       int
+			workers                                       *int
 			planningSource                                *string
 			requiresOutputLabel                           bool
 			workstationID                                 *string
+			queueTime, moveTime                           float64
+			unitsPerLabel                                 *float64
+			labelQuantityMethod                           string
+			copiesPerLabel                                int
 		}
 		var ops []opStruct
 		for opRows.Next() {
 			var o opStruct
-			if err := opRows.Scan(&o.masterID, &o.opID, &o.opCode, &o.wcID, &o.seq, &o.predSeq, &o.setup, &o.cycle, &o.efficiency, &o.base, &o.standardYield, &o.workers, &o.planningSource, &o.requiresOutputLabel, &o.workstationID); err != nil {
-				log.Printf("[CreateWO] Scan routing op error: %v", err)
-				continue
+			if err := opRows.Scan(&o.masterID, &o.opID, &o.opCode, &o.wcID, &o.seq, &o.predSeq, &o.setup, &o.cycle, &o.efficiency, &o.base, &o.standardYield, &o.workers, &o.planningSource, &o.requiresOutputLabel, &o.workstationID, &o.queueTime, &o.moveTime, &o.unitsPerLabel, &o.labelQuantityMethod, &o.copiesPerLabel); err != nil {
+				return nil, fmt.Errorf("SQL_SCAN_FAILED: routing operation snapshot: %w", err)
 			}
 			ops = append(ops, o)
+		}
+		if err := opRows.Err(); err != nil {
+			return nil, fmt.Errorf("SQL_SCAN_FAILED: routing operation rows: %w", err)
 		}
 		opRows.Close()
 		if len(ops) == 0 {
@@ -248,37 +256,42 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 				predStr = &s
 			}
 
-			var setupTime, cycleTime, eff float64 = 0, 60.0, 1.0
-			baseQuantity, standardYield := 1.0, 1.0
-			if o.setup != nil {
-				setupTime = *o.setup
+			if o.setup == nil || o.cycle == nil || o.efficiency == nil || o.base == nil || o.standardYield == nil || o.workers == nil || *o.workers < 1 {
+				return nil, fmt.Errorf("WO_PLANNING_SNAPSHOT_INCOMPLETE: routing operation %s has incomplete planning values", opCodeStr)
 			}
-			if o.cycle != nil {
-				cycleTime = *o.cycle
-			}
-			if o.efficiency != nil && *o.efficiency > 0 {
-				eff = *o.efficiency
-			}
-			if o.base != nil && *o.base > 0 {
-				baseQuantity = *o.base
-			}
-			if o.standardYield != nil && *o.standardYield > 0 {
-				standardYield = *o.standardYield
-			}
-			if o.workers < 1 {
-				o.workers = 1
+			setupTime, cycleTime, eff := *o.setup, *o.cycle, *o.efficiency
+			baseQuantity, standardYield := *o.base, *o.standardYield
+			if setupTime < 0 || cycleTime <= 0 || eff <= 0 || baseQuantity <= 0 || standardYield <= 0 || standardYield > 1 {
+				return nil, fmt.Errorf("WO_PLANNING_SNAPSHOT_INVALID: routing operation %s has invalid planning values", opCodeStr)
 			}
 
 			targetType := "KIOSK_DEMO"
 			if o.requiresOutputLabel {
 				targetType = "PRINT_STATION"
 			}
+			if o.copiesPerLabel < 1 {
+				o.copiesPerLabel = 1
+			}
+			labelCount := 0
+			printStatus := "NotRequired"
+			labelPolicyWarning := ""
+			if o.requiresOutputLabel {
+				printStatus = "Pending"
+				unitsPerLabel := baseQuantity
+				if o.unitsPerLabel != nil && *o.unitsPerLabel > 0 {
+					unitsPerLabel = *o.unitsPerLabel
+				} else {
+					labelPolicyWarning = "LABEL_QUANTITY_STANDARD_BASE_FALLBACK"
+				}
+				labelCount = int(math.Ceil(input.Quantity / unitsPerLabel))
+			}
+			planningSnapshot := map[string]interface{}{"planning_source": o.planningSource, "execution_target_type": targetType, "base_quantity": baseQuantity, "setup_time_min": setupTime, "cycle_time_sec": cycleTime, "queue_time_min": o.queueTime, "move_time_min": o.moveTime, "required_workers": *o.workers, "efficiency_factor": eff, "standard_yield": standardYield, "predecessor_seq": predStr, "operation_cycle_count": input.Quantity / baseQuantity, "expected_good_quantity": input.Quantity * standardYield, "units_per_label": o.unitsPerLabel, "label_quantity_method": o.labelQuantityMethod, "copies_per_label": o.copiesPerLabel, "label_count": labelCount, "print_copies": labelCount * o.copiesPerLabel, "label_policy_warning": labelPolicyWarning}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO wo_operation (
-					wo_id, sequence_no, operation_id, routing_operation_id, operation_code, operation_name, work_center_id, predecessor_seq,
-					standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, base_quantity, standard_yield, required_workers, calculation_version, planning_snapshot, execution_target_type, workstation_id, status
-				) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'Pending')
-			`, woID, o.seq, *o.opID, *o.masterID, opCodeStr, localizedOperationName(opCodeStr), *o.wcID, predStr, setupTime, cycleTime, eff, baseQuantity, standardYield, o.workers, "routing-plan-v1", map[string]interface{}{"planning_source": o.planningSource, "execution_target_type": targetType, "base_quantity": baseQuantity, "setup_time_min": setupTime, "cycle_time_sec": cycleTime, "required_workers": o.workers, "efficiency_factor": eff, "standard_yield": standardYield, "predecessor_seq": predStr}, targetType, o.workstationID); err != nil {
+				wo_id, sequence_no, operation_id, routing_operation_id, operation_code, operation_name, work_center_id, predecessor_seq,
+					standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, base_quantity, standard_yield, required_workers, queue_time_min, move_time_min, calculation_version, planning_snapshot, execution_target_type, workstation_id, operation_cycle_count, expected_good_quantity, requires_output_label, units_per_label, label_quantity_method, copies_per_label, label_count, print_copies, print_status, status
+				) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, 'Pending')
+			`, woID, o.seq, *o.opID, *o.masterID, opCodeStr, localizedOperationName(opCodeStr), *o.wcID, predStr, setupTime, cycleTime, eff, baseQuantity, standardYield, *o.workers, o.queueTime, o.moveTime, "routing-plan-v1", planningSnapshot, targetType, o.workstationID, input.Quantity/baseQuantity, input.Quantity*standardYield, o.requiresOutputLabel, o.unitsPerLabel, o.labelQuantityMethod, o.copiesPerLabel, labelCount, labelCount*o.copiesPerLabel, printStatus); err != nil {
 				return nil, fmt.Errorf("failed to insert wo_operation: %w", err)
 			}
 		}

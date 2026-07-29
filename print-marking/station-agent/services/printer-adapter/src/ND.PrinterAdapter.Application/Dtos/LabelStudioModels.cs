@@ -38,7 +38,10 @@ public record UpdateTemplateRequest(
     string? SupportedBarcodeTypes = null,
     string? SupportedPrinterModels = null,
     string? CompatibleStationTypes = null,
-    // N-Up: only gap is adjustable after creation
+    // Layout is part of the template contract and is versioned with the update.
+    string? LayoutType = null,
+    int? SheetColumns = null,
+    int? SheetRows = null,
     double? GapMm = null);
 
 public record RenderRequest(

@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
         services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
         services.AddSingleton<IEventConsumer, KafkaConsumer>();
         services.AddSingleton<IEventPublisher, KafkaPublisher>();
+        services.AddSingleton<PrinterManagementKafkaClient>();
 
         // HttpClient for polling
         services.AddHttpClient();
@@ -46,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<DeviceStatusPoller>();
         services.AddHostedService<StartupAlarmScanService>();
         services.AddHostedService<MesConnectionStatusPoller>();
+        services.AddHostedService(sp => sp.GetRequiredService<PrinterManagementKafkaClient>());
 
         return services;
     }

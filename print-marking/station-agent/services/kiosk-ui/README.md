@@ -67,10 +67,10 @@ npm run logs:print-station
 Kiosk proxies Projection at `PROJECTION_SERVICE_URL` and uses SignalR through
 the Projection `/hubs/production` route for continuous production/device
 updates. It does not poll the Printer Adapter for continuous status. Label
-template and printer management requests are proxied to the independent edge
-Adapter through `PRINTER_ADAPTER_URL`. An unreachable Adapter returns a
-structured HTTP 503 dependency response; configure the remote Mac/edge URL
-before using those management screens.
+template and printer management requests use Kafka request/reply on
+`command.printer.management` and `printer.management.response`. An unreachable
+Adapter returns a structured HTTP 503 dependency response; Kiosk never calls
+the remote Adapter HTTP port directly.
 
 The old `simulation` dispatch target is not supported. Production dispatch uses
 `production-printer` only.

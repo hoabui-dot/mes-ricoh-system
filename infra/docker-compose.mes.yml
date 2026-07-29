@@ -91,6 +91,9 @@ services:
       # Strict policy: every Work Order operation needs a current valid
       # committed resource allocation before approval.
       MES_RESOURCE_ALLOCATION_APPROVAL_REQUIRED: "true"
+      # Temporary demo mode: approval auto-commits a planning view, bypasses
+      # WMS staging/readiness, and queues Kafka print jobs atomically.
+      MES_DEMO_PRINT_ON_APPROVAL: "true"
       DEMO_KIOSK_RECEIVE_ALL_WORKSTATIONS: "true"
       DEMO_KIOSK_TERMINAL_CODE: KIOSK-DEMO-01
       MES_DEMO_PRINT_STATION_CODE: PRINT-STATION-01

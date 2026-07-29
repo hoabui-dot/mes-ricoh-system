@@ -81,6 +81,8 @@ builder.Services.Configure<KafkaOptions>(options =>
 builder.Services.AddSingleton<IEventConsumer, KafkaConsumer>();
 builder.Services.AddSingleton<IEventPublisher, KafkaPublisher>();
 builder.Services.AddHostedService<PrinterCommandConsumer>();
+builder.Services.AddScoped<PrinterManagementService>();
+builder.Services.AddHostedService<PrinterManagementConsumer>();
 builder.Services.AddHostedService<PrinterHeartbeatPublisher>();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -210,7 +212,7 @@ app.MapGet("/api/printers/ready", async (
     CancellationToken ct) =>
 {
     var query = db.Printers
-        .Where(p => p.Status == "ONLINE" || p.Status == "IDLE" || p.Status == "Idle");
+        .Where(p => p.Status.ToUpper() == "ONLINE" || p.Status.ToUpper() == "IDLE");
 
     var printers = await query.Select(p => new
     {
@@ -960,6 +962,7 @@ app.MapPut("/api/label-templates/{id}", async (
         note: req.Note, templateCode: req.TemplateCode, category: req.Category, orientation: req.Orientation,
         revision: req.Revision, supportedBarcodeTypes: req.SupportedBarcodeTypes,
         supportedPrinterModels: req.SupportedPrinterModels, compatibleStationTypes: req.CompatibleStationTypes,
+        layoutType: req.LayoutType, sheetColumns: req.SheetColumns, sheetRows: req.SheetRows,
         gapMm: req.GapMm);
     await repo.UpdateAsync(template, ct);
     await uow.SaveChangesAsync(ct);

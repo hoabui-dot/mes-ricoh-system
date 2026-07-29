@@ -477,6 +477,10 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 		if siteID == "" {
 			siteID = "9f785cbd-98aa-4b2c-98ef-287a189e760c"
 		}
+		shiftID, _ := body["shift_id"].(string)
+		if shiftID == "" {
+			shiftID, _ = body["shiftId"].(string)
+		}
 		// Production Version is authoritative. Resolve the legacy readiness
 		// inputs from it so direct API callers cannot accidentally fall back to
 		// an unrelated Item Revision/Site pair.
@@ -534,6 +538,7 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 			Quantity:            quantity,
 			UOMID:               uomID,
 			SiteID:              siteID,
+			ShiftID:             shiftID,
 			PlannedStartAt:      pStart,
 			PlannedEndAt:        pEnd,
 			UserID:              userID,
@@ -576,25 +581,29 @@ func handleApproveWO(pool *pgxpool.Pool, allocationService *usecase.AllocationSe
 		var body map[string]interface{}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		comment, _ := body["comment"].(string)
-		allocationCheck, allocationErr := allocationService.Revalidate(r.Context(), woID, userID, traceID)
-		if allocationErr != nil {
-			writeAllocationResponse(w, nil, allocationErr)
-			return
-		}
-		if valid, ok := allocationCheck["valid"].(bool); !ok || !valid {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "WO_RESOURCE_ALLOCATION_INVALID", "message": "Every Work Order operation needs a current valid committed resource allocation before release.", "details": allocationCheck})
-			return
+		demoPrint := usecase.DemoPrintOnApprovalEnabled()
+		if !demoPrint {
+			allocationCheck, allocationErr := allocationService.Revalidate(r.Context(), woID, userID, traceID)
+			if allocationErr != nil {
+				writeAllocationResponse(w, nil, allocationErr)
+				return
+			}
+			if valid, ok := allocationCheck["valid"].(bool); !ok || !valid {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusConflict)
+				json.NewEncoder(w).Encode(map[string]interface{}{"error": "WO_RESOURCE_ALLOCATION_INVALID", "message": "Every Work Order operation needs a current valid committed resource allocation before release.", "details": allocationCheck})
+				return
+			}
 		}
 
 		res, err := usecase.ApproveWorkOrder(r.Context(), pool, usecase.ApproveWOInput{
-			WOID:     woID,
-			Action:   "Approve",
-			Comment:  comment,
-			UserID:   userID,
-			RoleCode: roleCode,
-			TraceID:  traceID,
+			WOID:                woID,
+			Action:              "Approve",
+			Comment:             comment,
+			UserID:              userID,
+			RoleCode:            roleCode,
+			TraceID:             traceID,
+			DemoPrintOnApproval: demoPrint,
 		})
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
@@ -681,19 +690,22 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			"row_version":                  rowVersion,
 			"created_by":                   createdBy,
 			"created_at":                   createdAt,
+			"demo_print_on_approval":       usecase.DemoPrintOnApprovalEnabled(),
 		}
 
-		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id, o.status, o.execution_target_type, o.workstation_id, o.print_station_id, o.adapter_id, o.dispatch_event_id, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), a.allocation_id, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id, a.planned_workstation_id, a.planned_equipment_id, a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
+		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id, o.status, o.execution_target_type, o.workstation_id, o.print_station_id, o.adapter_id, o.dispatch_event_id, o.operation_cycle_count, o.expected_good_quantity, o.base_quantity, o.requires_output_label, o.units_per_label, o.label_quantity_method, o.copies_per_label, o.label_count, o.print_copies, o.print_status, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), a.allocation_id, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id, a.planned_workstation_id, a.planned_equipment_id, a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
 		var ops []map[string]interface{}
 		for opRows != nil && opRows.Next() {
-			var opID, opCode, wcID, opStatus, wcCode, executionTarget string
+			var opID, opCode, wcID, opStatus, wcCode, executionTarget, labelQuantityMethod, printStatus string
 			var opNameJSON, wcNameJSON []byte
-			var seq int
+			var seq, copiesPerLabel, labelCount, printCopies int
+			var operationCycleCount, expectedGoodQuantity, baseQuantity, unitsPerLabel *float64
+			var requiresOutputLabel bool
 			var snapshotWorkstationID, printStationID, adapterID, dispatchEventID *string
 			var allocationID, allocationStatus, validationStatus, shiftID, workstationID, equipmentID *string
 			var plannedStart, plannedEnd *time.Time
 			var warningCodes []byte
-			_ = opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &executionTarget, &snapshotWorkstationID, &printStationID, &adapterID, &dispatchEventID, &wcCode, &wcNameJSON, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &warningCodes)
+			_ = opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &executionTarget, &snapshotWorkstationID, &printStationID, &adapterID, &dispatchEventID, &operationCycleCount, &expectedGoodQuantity, &baseQuantity, &requiresOutputLabel, &unitsPerLabel, &labelQuantityMethod, &copiesPerLabel, &labelCount, &printCopies, &printStatus, &wcCode, &wcNameJSON, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &warningCodes)
 			var opName map[string]string
 			if err := json.Unmarshal(opNameJSON, &opName); err != nil {
 				opName = map[string]string{"vi": opCode, "en": opCode, "ja": opCode, "ko": opCode}
@@ -704,7 +716,7 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			if len(warningCodes) > 0 {
 				_ = json.Unmarshal(warningCodes, &warnings)
 			}
-			ops = append(ops, map[string]interface{}{"wo_operation_id": opID, "sequence_no": seq, "operation_code": opCode, "operation_name": opName, "work_center_id": wcID, "work_center_code": wcCode, "work_center_name": wcName, "status": opStatus, "execution_target_type": executionTarget, "workstation_id": snapshotWorkstationID, "print_station_id": printStationID, "adapter_id": adapterID, "dispatch_event_id": dispatchEventID, "resource_allocation": map[string]interface{}{"allocation_id": allocationID, "status": allocationStatus, "validation_status": validationStatus, "planned_start_at": plannedStart, "planned_end_at": plannedEnd, "planned_shift_id": shiftID, "planned_workstation_id": workstationID, "planned_equipment_id": equipmentID, "warning_codes": warnings}})
+			ops = append(ops, map[string]interface{}{"wo_operation_id": opID, "sequence_no": seq, "operation_code": opCode, "operation_name": opName, "work_center_id": wcID, "work_center_code": wcCode, "work_center_name": wcName, "status": opStatus, "execution_target_type": executionTarget, "workstation_id": snapshotWorkstationID, "print_station_id": printStationID, "adapter_id": adapterID, "dispatch_event_id": dispatchEventID, "operation_cycle_count": operationCycleCount, "expected_good_quantity": expectedGoodQuantity, "base_quantity": baseQuantity, "requires_output_label": requiresOutputLabel, "units_per_label": unitsPerLabel, "label_quantity_method": labelQuantityMethod, "copies_per_label": copiesPerLabel, "label_count": labelCount, "print_copies": printCopies, "print_status": printStatus, "resource_allocation": map[string]interface{}{"allocation_id": allocationID, "status": allocationStatus, "validation_status": validationStatus, "planned_start_at": plannedStart, "planned_end_at": plannedEnd, "planned_shift_id": shiftID, "planned_workstation_id": workstationID, "planned_equipment_id": equipmentID, "warning_codes": warnings}})
 		}
 		if opRows != nil {
 			opRows.Close()
@@ -764,22 +776,29 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		printRows, _ := pool.Query(r.Context(), `
 			SELECT print_job_id, job_code, wo_operation_id, status, attempt_count,
 			       command_event_id, idempotency_key, selected_printer_code,
-			       dispatched_at, completed_at, last_error_code, last_error_message
-			FROM wo_print_job
-			WHERE wo_id = $1
+			       dispatched_at, completed_at, last_error_code, last_error_message,
+			       requested_quantity, units_per_label, label_quantity_method, label_count, copies_per_label, total_copies,
+			       COALESCE((SELECT NULLIF(e.payload->>'completed_count','')::int FROM wo_print_job_event e WHERE e.print_job_id=j.print_job_id AND e.event_type IN ('printer.batch.printed','printer.printed') ORDER BY e.received_at DESC LIMIT 1), CASE WHEN j.status='Completed' THEN COALESCE(j.total_copies, 0) ELSE 0 END),
+			       COALESCE((SELECT jsonb_array_length(e.payload->'failed_job_ids') FROM wo_print_job_event e WHERE e.print_job_id=j.print_job_id AND e.event_type IN ('printer.batch.printed','printer.printed') ORDER BY e.received_at DESC LIMIT 1), CASE WHEN j.status='Failed' THEN COALESCE(j.total_copies, 0) ELSE 0 END)
+			FROM wo_print_job j
+			WHERE j.wo_id = $1
 			ORDER BY created_at
 		`, woID)
 		var printJobs []map[string]interface{}
 		for printRows != nil && printRows.Next() {
 			var jobID, jobCode, operationID, status, idempotency string
 			var attemptCount int
-			var commandEventID, printerCode, errorCode, errorMessage *string
+			var commandEventID, printerCode, errorCode, errorMessage, labelQuantityMethod *string
 			var dispatchedAt, completedAt *time.Time
-			_ = printRows.Scan(&jobID, &jobCode, &operationID, &status, &attemptCount, &commandEventID, &idempotency, &printerCode, &dispatchedAt, &completedAt, &errorCode, &errorMessage)
+			var requestedQuantity, unitsPerLabel *float64
+			var labelCount, copiesPerLabel, totalCopies *int
+			var successfulCopies, failedCopies int
+			_ = printRows.Scan(&jobID, &jobCode, &operationID, &status, &attemptCount, &commandEventID, &idempotency, &printerCode, &dispatchedAt, &completedAt, &errorCode, &errorMessage, &requestedQuantity, &unitsPerLabel, &labelQuantityMethod, &labelCount, &copiesPerLabel, &totalCopies, &successfulCopies, &failedCopies)
 			printJobs = append(printJobs, map[string]interface{}{
 				"print_job_id": jobID, "job_code": jobCode, "wo_operation_id": operationID,
 				"status": status, "attempt_count": attemptCount, "command_event_id": commandEventID,
-				"idempotency_key": idempotency, "selected_printer_code": printerCode,
+				"idempotency_key": idempotency, "selected_printer_code": printerCode, "requested_quantity": requestedQuantity, "units_per_label": unitsPerLabel, "label_quantity_method": labelQuantityMethod, "label_count": labelCount, "copies_per_label": copiesPerLabel, "total_copies": totalCopies,
+				"successful_copies": successfulCopies, "failed_copies": failedCopies,
 				"dispatched_at": dispatchedAt, "completed_at": completedAt,
 				"last_error_code": errorCode, "last_error_message": errorMessage,
 			})

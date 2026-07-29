@@ -2,14 +2,20 @@
 # printer-adapter and printer-adapter-ui run in this same Compose project.
 # Container-to-container calls must use the Compose service name, not the host
 # IP and not localhost (localhost inside printer-adapter-ui points back to the
-# UI container). The adapter still reaches the physical Mac CUPS daemon via
-# host.docker.internal. If the adapter is deployed on a different server,
+# UI container).
+#
+# CUPS host on macOS:
+# On Docker Desktop for Mac, host.docker.internal resolves to 192.168.65.254
+# (the Docker Desktop VM gateway), NOT macOS localhost. CUPS on macOS is only
+# reachable from inside containers via the Mac's LAN IP (192.168.2.31).
+# Update CUPS_HEALTH_HOST if the Mac's LAN IP changes.
+# If the adapter is deployed on a different server,
 # use a separate override with the published adapter host and port instead.
 name: print-adapter
 
 services:
   printer-adapter:
-    image: vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260727-cups-remote-fix
+    image: vanhoadotbui2628/printer-adapter:real-printers-no-simulator-management-routing-filter-v2-20260728-arm64
     container_name: printer-adapter
     restart: unless-stopped
     ports:
@@ -18,13 +24,9 @@ services:
       ASPNETCORE_URLS: http://+:5003
       ASPNETCORE_ENVIRONMENT: Production
       SQLITE_PRINTER_PATH: /data/printer.db
-      # Docker Desktop for macOS does not map host.docker.internal to the
-      # macOS network stack. Use the Mac LAN address that exposes CUPS.
       CUPS_HEALTH_HOST: 192.168.2.31
       CUPS_HEALTH_PORT: "631"
-      # lpr and IPP health checks must use the same macOS CUPS endpoint.
       CUPS_SERVER: 192.168.2.31:631
-      # macOS CUPS authorizes remote jobs against this local macOS account.
       CUPS_USER: hoabui
       CUPS_QUEUE: Zebra_Technologies_ZTC_GK420t
       # The adapter is the runtime endpoint for MES Print Station PRINT-STATION-01.
@@ -38,6 +40,8 @@ services:
       PrinterAdapter__HeartbeatIntervalSeconds: "15"
     volumes:
       - printer-adapter-data:/data
+    # extra_hosts not needed: CUPS_HEALTH_HOST uses the Mac LAN IP directly
+    # (host.docker.internal on Docker Desktop Mac ≠ macOS localhost)
     healthcheck:
       test:
         - CMD-SHELL
@@ -51,7 +55,7 @@ services:
       start_period: 20s
 
   printer-adapter-ui:
-    image: vanhoadotbui2628/printer-adapter-ui:kafka-monitoring-20260727
+    image: vanhoadotbui2628/printer-adapter-ui:kafka-monitoring-management-routing-filter-v2-20260728-arm64
     container_name: printer-adapter-ui
     restart: unless-stopped
     ports:
@@ -59,9 +63,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:5010
       ASPNETCORE_ENVIRONMENT: Production
-      # Both services are co-located in this Compose project. Use service DNS;
-      # do not route this internal call through the server's public address.
-      PRINTER_ADAPTER_URL: http://printer-adapter:5003
+      # Monitoring uses Kafka request/reply; it does not call printer-adapter HTTP.
       PROJECTION_SERVICE_URL: http://100.68.50.41:5009
       KAFKA_BOOTSTRAP_SERVERS: 100.68.50.41:19092
       KAFKA_SECURITY_PROTOCOL: Plaintext

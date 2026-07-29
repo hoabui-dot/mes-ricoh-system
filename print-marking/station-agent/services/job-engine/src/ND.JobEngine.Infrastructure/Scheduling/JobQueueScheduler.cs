@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +37,7 @@ public sealed class JobQueueScheduler : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<JobQueueScheduler> _logger;
-    private readonly HttpClient _httpClient;
+    private readonly PrinterManagementKafkaClient _printerManagement;
 
     // Configurable via appsettings PrintBatch:ChunkSize (default 100 labels per ZPL chunk)
     private int _chunkSize = 100;
@@ -46,12 +45,13 @@ public sealed class JobQueueScheduler : BackgroundService
     public JobQueueScheduler(
         IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
-        ILogger<JobQueueScheduler> logger)
+        ILogger<JobQueueScheduler> logger,
+        PrinterManagementKafkaClient printerManagement)
     {
         _scopeFactory = scopeFactory;
         _configuration = configuration;
         _logger = logger;
-        _httpClient = new HttpClient();
+        _printerManagement = printerManagement;
         _chunkSize = configuration.GetValue<int>("PrintBatch:ChunkSize", 100);
     }
 
@@ -135,12 +135,13 @@ public sealed class JobQueueScheduler : BackgroundService
         if (!remainingJobs.Any()) return;
 
         // ── 3. Discover active printers ──────────────────────────────────────────
-        var adapterUrl = _configuration["PRINTER_ADAPTER_URL"] ?? "http://100.68.50.41:5003";
         List<PrinterDetailDto>? activePrinters = null;
         try
         {
-            activePrinters = await _httpClient.GetFromJsonAsync<List<PrinterDetailDto>>(
-                $"{adapterUrl}/api/printers/active", cancellationToken);
+            var response = await _printerManagement.RequestAsync("GET", "/api/printers/active", null, cancellationToken);
+            if (response.StatusCode is >= 200 and < 300)
+                activePrinters = JsonSerializer.Deserialize<List<PrinterDetailDto>>(response.Body,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
         catch (Exception ex)
         {

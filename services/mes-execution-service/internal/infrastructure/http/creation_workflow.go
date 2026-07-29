@@ -159,6 +159,9 @@ func validateCreationRequest(input usecase.CreateWOInput) error {
 	if input.ProductionVersionID == "" {
 		return fmt.Errorf("production_version_id is required")
 	}
+	if input.ShiftID == "" {
+		return fmt.Errorf("SHIFT_REQUIRED")
+	}
 	if input.Quantity <= 0 {
 		return fmt.Errorf("quantity must be greater than zero")
 	}
@@ -412,9 +415,13 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 		}
 	}
 	uomID, _ := body["uom_id"].(string)
-	payload := map[string]interface{}{"item_code": itemCode, "item_revision_id": itemRevisionID, "item_name": itemName, "quantity": quantity, "uom_id": uomID, "site_id": siteID, "planned_start_at": start.Format(time.RFC3339), "planned_end_at": end.Format(time.RFC3339)}
+	shiftID, _ := body["shift_id"].(string)
+	if shiftID == "" {
+		return creationWorkflowRequest{}, fmt.Errorf("SHIFT_REQUIRED")
+	}
+	payload := map[string]interface{}{"item_code": itemCode, "item_revision_id": itemRevisionID, "item_name": itemName, "quantity": quantity, "uom_id": uomID, "site_id": siteID, "shift_id": shiftID, "planned_start_at": start.Format(time.RFC3339), "planned_end_at": end.Format(time.RFC3339)}
 	payload["production_version_id"] = productionVersionID
-	return creationWorkflowRequest{Input: usecase.CreateWOInput{ProductionVersionID: productionVersionID, ItemRevisionID: itemRevisionID, ItemCode: itemCode, ItemName: itemName, Quantity: quantity, UOMID: uomID, SiteID: siteID, PlannedStartAt: start.Format(time.RFC3339), PlannedEndAt: end.Format(time.RFC3339), UserID: userID, TraceID: getHeader(r, "X-Trace-ID", uuid.NewString())}, Payload: payload, UserID: userID, Idempotency: idempotency, RequestHash: requestHash(payload)}, nil
+	return creationWorkflowRequest{Input: usecase.CreateWOInput{ProductionVersionID: productionVersionID, ItemRevisionID: itemRevisionID, ItemCode: itemCode, ItemName: itemName, Quantity: quantity, UOMID: uomID, SiteID: siteID, ShiftID: shiftID, PlannedStartAt: start.Format(time.RFC3339), PlannedEndAt: end.Format(time.RFC3339), UserID: userID, TraceID: getHeader(r, "X-Trace-ID", uuid.NewString())}, Payload: payload, UserID: userID, Idempotency: idempotency, RequestHash: requestHash(payload)}, nil
 }
 
 func (m *creationWorkflowManager) handleStart(w http.ResponseWriter, r *http.Request) {

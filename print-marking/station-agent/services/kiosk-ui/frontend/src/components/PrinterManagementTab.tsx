@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { templateApi, printerApi } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import {
@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   Printer, PlusCircle, XCircle, RefreshCw, CheckCircle2, WifiOff,
-  Layers, Tag, Zap
+  Tag
 } from 'lucide-react'
 
 interface ReadyPrinter {
@@ -57,45 +57,78 @@ function normalizedKey(value: unknown): string {
   return textValue(value).trim().toLowerCase()
 }
 
+function field(row: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null) return row[key]
+  }
+  return undefined
+}
+
 function normalizePrinter(value: unknown): ReadyPrinter | null {
   if (!value || typeof value !== 'object') return null
   const row = value as Record<string, unknown>
-  const printerCode = textValue(row.printerCode).trim()
+  const printerCode = textValue(field(row, 'printerCode', 'PrinterCode')).trim()
   if (!printerCode) return null
 
-  const numericPort = typeof row.port === 'number' ? row.port : Number(row.port)
+  const rawPort = field(row, 'port', 'Port')
+  const numericPort = typeof rawPort === 'number' ? rawPort : Number(rawPort)
   return {
-    id: textValue(row.id, printerCode),
+    id: textValue(field(row, 'id', 'Id'), printerCode),
     printerCode,
-    displayName: textValue(row.displayName, printerCode),
-    ipAddress: textValue(row.ipAddress, '—'),
+    displayName: textValue(field(row, 'displayName', 'DisplayName'), printerCode),
+    ipAddress: textValue(field(row, 'ipAddress', 'IpAddress'), '—'),
     port: Number.isFinite(numericPort) ? numericPort : 0,
-    protocol: textValue(row.protocol, 'ZPL'),
-    vendor: textValue(row.vendor, 'Unknown'),
-    status: textValue(row.status, 'UNKNOWN'),
-    driverType: textValue(row.driverType, 'unknown'),
-    lastHeartbeatAt: typeof row.lastHeartbeatAt === 'string' ? row.lastHeartbeatAt : undefined,
-    isActiveForWork: row.isActiveForWork === true,
-    activeTemplateId: typeof row.activeTemplateId === 'string' ? row.activeTemplateId : undefined,
-    activeTemplateName: typeof row.activeTemplateName === 'string' ? row.activeTemplateName : undefined,
+    protocol: textValue(field(row, 'protocol', 'Protocol'), 'ZPL'),
+    vendor: textValue(field(row, 'vendor', 'Vendor'), 'Unknown'),
+    status: textValue(field(row, 'status', 'Status'), 'UNKNOWN'),
+    driverType: textValue(field(row, 'driverType', 'DriverType'), 'unknown'),
+    lastHeartbeatAt: typeof field(row, 'lastHeartbeatAt', 'LastHeartbeatAt') === 'string'
+      ? field(row, 'lastHeartbeatAt', 'LastHeartbeatAt') as string : undefined,
+    isActiveForWork: field(row, 'isActiveForWork', 'IsActiveForWork') === true,
+    activeTemplateId: typeof field(row, 'activeTemplateId', 'ActiveTemplateId') === 'string'
+      ? field(row, 'activeTemplateId', 'ActiveTemplateId') as string : undefined,
+    activeTemplateName: typeof field(row, 'activeTemplateName', 'ActiveTemplateName') === 'string'
+      ? field(row, 'activeTemplateName', 'ActiveTemplateName') as string : undefined,
+  }
+}
+
+function normalizeTemplate(value: unknown): LabelTemplate | null {
+  if (!value || typeof value !== 'object') return null
+  const row = value as Record<string, unknown>
+  const id = textValue(field(row, 'id', 'Id'))
+  if (!id) return null
+  const numberValue = (...keys: string[]) => {
+    const parsed = Number(field(row, ...keys))
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return {
+    id,
+    name: textValue(field(row, 'name', 'Name'), id),
+    description: textValue(field(row, 'description', 'Description')) || undefined,
+    status: textValue(field(row, 'status', 'Status'), 'published'),
+    dpi: numberValue('dpi', 'Dpi'),
+    labelWidth: numberValue('labelWidth', 'LabelWidth'),
+    labelHeight: numberValue('labelHeight', 'LabelHeight'),
+    version: numberValue('version', 'Version'),
   }
 }
 
 function normalizeLiveStatus(value: unknown): DeviceStatusLive | null {
   if (!value || typeof value !== 'object') return null
   const row = value as Record<string, unknown>
-  const deviceId = textValue(row.deviceId).trim()
+  const deviceId = textValue(field(row, 'deviceId', 'DeviceId')).trim()
   if (!deviceId) return null
+  const isOnline = field(row, 'isOnline', 'IsOnline') === true
   return {
     deviceId,
-    deviceType: textValue(row.deviceType, 'PRINTER'),
-    isOnline: row.isOnline === true,
-    lastSeenAt: textValue(row.lastSeenAt),
-    lifecycleState: textValue(row.lifecycleState, row.isOnline === true ? 'Online' : 'Offline'),
-    serialNumber: typeof row.serialNumber === 'string' ? row.serialNumber : undefined,
-    lifetimePrintCounter: typeof row.lifetimePrintCounter === 'number' ? row.lifetimePrintCounter : undefined,
-    thermalTemp: typeof row.thermalTemp === 'number' ? row.thermalTemp : undefined,
-    connectionDetails: typeof row.connectionDetails === 'string' ? row.connectionDetails : undefined,
+    deviceType: textValue(field(row, 'deviceType', 'DeviceType'), 'PRINTER'),
+    isOnline,
+    lastSeenAt: textValue(field(row, 'lastSeenAt', 'LastSeenAt')),
+    lifecycleState: textValue(field(row, 'lifecycleState', 'LifecycleState'), isOnline ? 'Online' : 'Offline'),
+    serialNumber: typeof field(row, 'serialNumber', 'SerialNumber') === 'string' ? field(row, 'serialNumber', 'SerialNumber') as string : undefined,
+    lifetimePrintCounter: typeof field(row, 'lifetimePrintCounter', 'LifetimePrintCounter') === 'number' ? field(row, 'lifetimePrintCounter', 'LifetimePrintCounter') as number : undefined,
+    thermalTemp: typeof field(row, 'thermalTemp', 'ThermalTemp') === 'number' ? field(row, 'thermalTemp', 'ThermalTemp') as number : undefined,
+    connectionDetails: typeof field(row, 'connectionDetails', 'ConnectionDetails') === 'string' ? field(row, 'connectionDetails', 'ConnectionDetails') as string : undefined,
   }
 }
 
@@ -110,6 +143,12 @@ function resolveLifecycle(printer: ReadyPrinter, live?: DeviceStatusLive): { isO
   const s = (printer.status || '').toUpperCase()
   const isOnline = s === 'ONLINE' || s === 'IDLE'
   return { isOnline, lifecycle: isOnline ? 'Online' : 'Offline' }
+}
+
+function isOnlineForRegistration(printer: ReadyPrinter, live?: DeviceStatusLive): boolean {
+  if (live) return live.isOnline === true
+  const status = normalizedKey(printer.status)
+  return status === 'online' || status === 'idle' || status === 'printing' || status === 'busy' || status === 'waiting' || status === 'warning'
 }
 
 function lifecycleDot(lifecycle: string, isOnline: boolean): string {
@@ -185,29 +224,34 @@ function PrinterCard({
   const border   = cardBorderCls(lifecycle, isOnline, active)
   const topBar   = cardTopBar(lifecycle, isOnline)
 
-  const [retryCountdown, setRetryCountdown] = useState(10)
+  const [retryCountdown, setRetryCountdown] = useState(30)
   const [retrying, setRetrying] = useState(false)
+  const retryInFlight = useRef(false)
 
   const handleRetrySilent = useCallback(async () => {
+    if (retryInFlight.current) return
+    retryInFlight.current = true
     try {
       await printerApi.testConnection(printer.printerCode)
       onRefresh?.()
     } catch {
       // ignore
+    } finally {
+      retryInFlight.current = false
     }
   }, [printer.printerCode, onRefresh])
 
   // Automatic retry countdown when offline
   useEffect(() => {
     if (isOnline) {
-      setRetryCountdown(10)
+      setRetryCountdown(30)
       return
     }
     const timer = setInterval(() => {
       setRetryCountdown(prev => {
         if (prev <= 1) {
           handleRetrySilent()
-          return 10
+          return 30
         }
         return prev - 1
       })
@@ -220,7 +264,7 @@ function PrinterCard({
     try {
       await printerApi.testConnection(printer.printerCode)
       onRefresh?.()
-      setRetryCountdown(10)
+      setRetryCountdown(30)
     } catch (err) {
       console.error("Manual retry failed:", err)
     } finally {
@@ -339,12 +383,21 @@ function PrinterCard({
           Chi tiết
         </button>
         {active ? (
-          <button
-            onClick={() => onDeactivate(printer)}
-            className="flex-1 py-2 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <XCircle size={13} /> Gỡ sản xuất
-          </button>
+          <>
+            <button
+              disabled={!isOnline}
+              onClick={() => onActivate(printer)}
+              className="flex-1 min-w-0 py-2 rounded-lg border border-brand/20 bg-brand/5 hover:bg-brand/10 text-brand-light text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Tag size={13} /> Đổi mẫu
+            </button>
+            <button
+              onClick={() => onDeactivate(printer)}
+              className="flex-1 min-w-0 py-2 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <XCircle size={13} /> Gỡ sản xuất
+            </button>
+          </>
         ) : (
           <button
             disabled={!isOnline}
@@ -407,25 +460,10 @@ export function PrinterManagementTab({ deviceStatuses = [] }: { deviceStatuses?:
     setLoading(true)
     setError(null)
     try {
-      const [readyRes, activeRes] = await Promise.all([
-        templateApi.getPrintersReady(),
-        templateApi.getPrintersActive(),
-      ])
-      const readyArr = (Array.isArray(readyRes.data) ? readyRes.data : [])
+      const allRes = await printerApi.list()
+      const allArr = (Array.isArray(allRes.data) ? allRes.data : [])
         .map((value: unknown) => normalizePrinter(value)).filter((p: ReadyPrinter | null): p is ReadyPrinter => p !== null)
-      const activeArr = (Array.isArray(activeRes.data) ? activeRes.data : [])
-        .map((value: unknown) => normalizePrinter(value)).filter((p: ReadyPrinter | null): p is ReadyPrinter => p !== null)
-
-      // Merge ready + active for production printers
-      const activeMap = new Map<string, ReadyPrinter>()
-      for (const p of activeArr) activeMap.set(normalizedKey(p.printerCode), p)
-      const merged: ReadyPrinter[] = readyArr.map((p: ReadyPrinter) =>
-        activeMap.has(normalizedKey(p.printerCode)) ? activeMap.get(normalizedKey(p.printerCode))! : p,
-      )
-      for (const [code, p] of activeMap.entries()) {
-        if (!merged.find(r => normalizedKey(r.printerCode) === code)) merged.push(p)
-      }
-      setPrinters(merged)
+      setPrinters(allArr)
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } }; message?: string }
       setError(err?.response?.data?.error ?? err?.message ?? 'Không thể tải danh sách máy in')
@@ -437,7 +475,9 @@ export function PrinterManagementTab({ deviceStatuses = [] }: { deviceStatuses?:
   const fetchTemplates = useCallback(async () => {
     try {
       const res = await templateApi.list({ status: 'published' })
-      setTemplates(res.data ?? [])
+      setTemplates((Array.isArray(res.data) ? res.data : [])
+        .map((value: unknown) => normalizeTemplate(value))
+        .filter((template: LabelTemplate | null): template is LabelTemplate => template !== null))
     } catch { /* silent */ }
   }, [])
 
@@ -473,11 +513,14 @@ export function PrinterManagementTab({ deviceStatuses = [] }: { deviceStatuses?:
     }
   }
 
-  const activePrinters  = printers.filter(p => p.isActiveForWork)
-  const readyPrinters   = printers.filter(p => !p.isActiveForWork)
+  const orderedPrinters = [...printers].sort((a, b) => {
+    if (a.isActiveForWork !== b.isActiveForWork) return a.isActiveForWork ? -1 : 1
+    return a.printerCode.localeCompare(b.printerCode)
+  })
+  const onlinePrinters = printers.filter(p => isOnlineForRegistration(p, liveMap.get(normalizedKey(p.printerCode))))
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto rounded-xl border border-border bg-card p-6">
       <style>{"@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}"}</style>
 
       {/* ── Header ── */}
@@ -487,10 +530,10 @@ export function PrinterManagementTab({ deviceStatuses = [] }: { deviceStatuses?:
             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-dark to-brand flex items-center justify-center text-white shrink-0">
               <Printer size={18} />
             </div>
-            Quản lý thiết bị in
+            THIẾT BỊ IN
           </h2>
           <p className="text-xs text-muted-fg mt-1 ml-11 leading-relaxed">
-            Thiết bị sẵn sàng kết nối từ printer-adapter — kích hoạt và gán mẫu nhãn in để đưa vào hoạt động sản xuất.
+            Tất cả máy in được hiển thị tại một nơi. Chỉ máy in đang Online mới có thể thêm vào sản xuất và gán mẫu nhãn.
           </p>
         </div>
         <button
@@ -508,63 +551,35 @@ export function PrinterManagementTab({ deviceStatuses = [] }: { deviceStatuses?:
         </div>
       )}
 
-      {/* ── Active printers ── */}
+      {/* ── Unified printer list ── */}
       <section className="space-y-3">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-            <Zap size={14} />
+            <Printer size={14} />
           </div>
-          <h3 className="text-sm font-bold text-foreground">Máy in đang sản xuất</h3>
+          <h3 className="text-sm font-bold text-foreground">Thiết bị in</h3>
           <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-            activePrinters.length > 0 ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400' : 'bg-muted text-muted-fg'
+            onlinePrinters.length > 0 ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400' : 'bg-muted text-muted-fg'
           }`}>
-            {activePrinters.length}
-          </span>
-        </div>
-        {activePrinters.length === 0 ? (
-          <div className="py-12 text-center rounded-xl border border-dashed border-border text-muted-fg text-sm flex flex-col items-center justify-center gap-2 bg-surface-2/20">
-            <Printer size={32} className="text-muted-fg/30" />
-            <div>
-              <p className="font-medium text-foreground">Chưa có máy in nào được kích hoạt</p>
-              <p className="text-xs mt-1">Kích hoạt thiết bị từ danh sách sẵn sàng bên dưới để bắt đầu nhận lệnh in.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {activePrinters.map(p => (
-              <PrinterCard key={p.printerCode} printer={p} liveStatus={liveMap.get(normalizedKey(p.printerCode))} onActivate={openActivate} onDeactivate={setDeactivatingPrinter} onShowDetails={setDetailedPrinter} onRefresh={fetchData} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ── Ready printers ── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-brand/10 text-brand-light flex items-center justify-center shrink-0">
-            <Layers size={14} />
-          </div>
-          <h3 className="text-sm font-bold text-foreground">Thiết bị sẵn sàng (online)</h3>
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-brand/15 text-brand-light">
-            {readyPrinters.length}
+            {printers.length} · {onlinePrinters.length} online
           </span>
         </div>
         {loading && printers.length === 0 ? (
           <div className="py-12 text-center text-muted-fg text-sm flex flex-col items-center justify-center gap-3">
             <RefreshCw size={24} className="animate-spin text-brand" />
-            <p className="text-xs">Đang quét tìm thiết bị kết nối...</p>
+            <p className="text-xs">Đang tải trạng thái máy in...</p>
           </div>
-        ) : readyPrinters.length === 0 ? (
+        ) : orderedPrinters.length === 0 ? (
           <div className="py-12 text-center rounded-xl border border-dashed border-border text-muted-fg text-sm flex flex-col items-center justify-center gap-2 bg-surface-2/20">
             <WifiOff size={32} className="text-muted-fg/30" />
             <div>
-              <p className="font-medium text-foreground">Không có thiết bị sẵn sàng</p>
-              <p className="text-xs mt-1">Đảm bảo rằng printer-adapter đang chạy và máy in được kết nối mạng.</p>
+              <p className="font-medium text-foreground">Chưa tìm thấy thiết bị in</p>
+              <p className="text-xs mt-1">Kiểm tra kết nối Kafka và trạng thái Printer Adapter.</p>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {readyPrinters.map(p => (
+            {orderedPrinters.map(p => (
               <PrinterCard key={p.printerCode} printer={p} liveStatus={liveMap.get(normalizedKey(p.printerCode))} onActivate={openActivate} onDeactivate={setDeactivatingPrinter} onShowDetails={setDetailedPrinter} onRefresh={fetchData} />
             ))}
           </div>
@@ -640,10 +655,12 @@ export function PrinterManagementTab({ deviceStatuses = [] }: { deviceStatuses?:
           <DialogHeader>
             <DialogTitle className="text-foreground font-bold flex items-center gap-2">
               <CheckCircle2 size={18} className="text-emerald-500" />
-              Xác nhận thêm vào sản xuất
+              {activatingPrinterConfirm?.printer.isActiveForWork ? 'Xác nhận đổi mẫu nhãn' : 'Xác nhận thêm vào sản xuất'}
             </DialogTitle>
             <DialogDescription className="text-muted-fg text-xs leading-relaxed mt-1">
-              Bạn có chắc chắn muốn kích hoạt thiết bị <strong className="text-foreground font-bold">{activatingPrinterConfirm?.printer.displayName}</strong> với mẫu nhãn <strong className="text-brand-light font-bold">{templates.find(t => t.id === activatingPrinterConfirm?.templateId)?.name}</strong>?
+              {activatingPrinterConfirm?.printer.isActiveForWork
+                ? <>Bạn có chắc chắn muốn đổi mẫu nhãn của <strong className="text-foreground font-bold">{activatingPrinterConfirm?.printer.displayName}</strong> sang <strong className="text-brand-light font-bold">{templates.find(t => t.id === activatingPrinterConfirm?.templateId)?.name}</strong>?</>
+                : <>Bạn có chắc chắn muốn kích hoạt thiết bị <strong className="text-foreground font-bold">{activatingPrinterConfirm?.printer.displayName}</strong> với mẫu nhãn <strong className="text-brand-light font-bold">{templates.find(t => t.id === activatingPrinterConfirm?.templateId)?.name}</strong>?</>}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 mt-4">
@@ -677,7 +694,7 @@ export function PrinterManagementTab({ deviceStatuses = [] }: { deviceStatuses?:
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-none"
             >
-              {activateLoading ? 'Đang kích hoạt...' : 'Xác nhận & Thêm'}
+              {activateLoading ? 'Đang xử lý...' : activatingPrinterConfirm?.printer.isActiveForWork ? 'Xác nhận đổi mẫu' : 'Xác nhận & Thêm'}
             </Button>
           </DialogFooter>
         </DialogContent>

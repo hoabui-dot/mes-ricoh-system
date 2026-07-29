@@ -102,6 +102,9 @@ public sealed class LabelTemplate : Entity
         string? supportedBarcodeTypes = null,
         string? supportedPrinterModels = null,
         string? compatibleStationTypes = null,
+        string? layoutType = null,
+        int? sheetColumns = null,
+        int? sheetRows = null,
         double? gapMm = null)
     {
         Name = name;
@@ -119,6 +122,9 @@ public sealed class LabelTemplate : Entity
         SupportedBarcodeTypes = supportedBarcodeTypes;
         SupportedPrinterModels = supportedPrinterModels;
         CompatibleStationTypes = compatibleStationTypes;
+        if (layoutType is not null) LayoutType = layoutType.ToUpperInvariant();
+        if (sheetColumns.HasValue) SheetColumns = Math.Max(1, sheetColumns.Value);
+        if (sheetRows.HasValue) SheetRows = Math.Max(1, sheetRows.Value);
         if (gapMm.HasValue) GapMm = gapMm.Value;
         Version++;
         UpdatedAt = DateTime.UtcNow.ToString("o");
@@ -160,18 +166,17 @@ public sealed class LabelTemplate : Entity
 
     public string GetTemplateJsonWithLayout()
     {
-        if (LayoutType.Equals("1UP", StringComparison.OrdinalIgnoreCase))
-            return TemplateJson;
-
         try
         {
             var root = JsonNode.Parse(TemplateJson);
             if (root is JsonObject obj)
             {
-                obj["layoutType"] = LayoutType;
-                obj["sheetColumns"] = SheetColumns;
-                obj["sheetRows"] = SheetRows;
-                obj["gapMm"] = GapMm;
+                obj["layout"] = new JsonObject
+                {
+                    ["columns"] = SheetColumns,
+                    ["rows"] = SheetRows,
+                    ["gapMm"] = GapMm
+                };
                 return obj.ToJsonString();
             }
         }

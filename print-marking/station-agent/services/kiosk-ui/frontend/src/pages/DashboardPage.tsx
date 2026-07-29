@@ -10,11 +10,11 @@ import { PROTECTED_ADMIN_USERNAME, CREATABLE_ROLES } from '@/constants/roles'
 import { translatePermission, translateRole, translateJobType } from '@/lib/utils'
 import { LabelPreview } from '@/components/LabelPreview'
 import { LabelTemplatesTab } from '@/components/LabelTemplatesTab'
-import { PrinterManagementTab } from '@/components/PrinterManagementTab'
-import type { DeviceStatusLive } from '@/components/PrinterManagementTab'
 import { StationActivityLog } from '@/components/StationActivityLog'
 import { ProductionExecutionDetailModal } from '@/components/ProductionExecutionDetailModal'
 import { AlarmCenterTab } from '@/components/AlarmCenterTab'
+import { PrinterManagementTab } from '@/components/PrinterManagementTab'
+import type { DeviceStatusLive } from '@/components/PrinterManagementTab'
 import { useLastProductionExecution } from '@/stores/lastProductionExecutionStore'
 import type { Alarm } from '@/hooks/useDashboard'
 
@@ -22,10 +22,10 @@ import type { Alarm } from '@/hooks/useDashboard'
 import {
   Users, LayoutDashboard, Key, Trash2, Plus,
   CheckCircle2, ShieldAlert, LogOut, UserCheck, Wifi, WifiOff,
-  Flame, Cpu, Printer as PrinterIcon, Zap, Camera, Clock,
+  Flame, Cpu, Printer as PrinterIcon, Zap, Clock,
   Filter, RefreshCw, History, Database,
   Shield, User, UserX, MoreVertical,
-  Search, Settings, AlertTriangle, LineChart, CheckCircle, Sun, Moon
+  Search, AlertTriangle, Sun, Moon, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react'
 
 // Common Components
@@ -66,7 +66,7 @@ import {
   formatRangeDisplay
 } from '@/lib/dateUtils'
 
-type KioskTab = 'dashboard' | 'history' | 'traceability' | 'orders' | 'alarms' | 'config' | 'diagnostics' | 'connectivity' | 'rbac' | 'templates' | 'printers'
+type KioskTab = 'dashboard' | 'history' | 'traceability' | 'orders' | 'alarms' | 'connectivity' | 'rbac' | 'templates'
 
 
 export default function DashboardPage() {
@@ -99,7 +99,7 @@ export default function DashboardPage() {
   }, [baseProjectionUrl])
 
   const [tab, setTab] = useState<KioskTab>('dashboard')
-  const [connectivitySubTab, setConnectivitySubTab] = useState<'devices' | 'printers' | 'plc' | 'camera'>('devices')
+  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('kiosk-sidebar-open') !== 'false')
   const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
@@ -138,17 +138,6 @@ export default function DashboardPage() {
   const [traceResult, setTraceResult] = useState<any>(null)
   const [traceLoading, setTraceLoading] = useState(false)
   const [traceError, setTraceError] = useState('')
-
-  // Diagnostics / Health / Metrics states
-  const [diagnosticsHealth, setDiagnosticsHealth] = useState<any>(null)
-  const [diagnosticsMetrics, setDiagnosticsMetrics] = useState<any>(null)
-  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false)
-
-  // Configuration settings states
-  const [configParams, setConfigParams] = useState<any[]>([])
-  const [configLoading, setConfigLoading] = useState(false)
-  const [configEditingKey, setConfigEditingKey] = useState<string | null>(null)
-  const [configEditingValue, setConfigEditingValue] = useState('')
 
   // Production Orders states
   const [orders, setOrders] = useState<any[]>([])
@@ -218,44 +207,6 @@ export default function DashboardPage() {
     setSelectedOrder(order)
     setOrderModalOpen(true)
     await fetchOrderItems(order.orderNo)
-  }
-
-  const fetchDiagnostics = async () => {
-    setDiagnosticsLoading(true)
-    try {
-      const [hRes, mRes] = await Promise.all([
-        client.get('/projection/diagnostics/health'),
-        client.get('/projection/diagnostics/metrics')
-      ])
-      setDiagnosticsHealth(hRes.data)
-      setDiagnosticsMetrics(mRes.data)
-    } catch (err) {
-      console.error('Failed to fetch diagnostics:', err)
-    } finally {
-      setDiagnosticsLoading(false)
-    }
-  }
-
-  const fetchConfigParams = async () => {
-    setConfigLoading(true)
-    try {
-      const res = await client.get('/projection/config')
-      setConfigParams(res.data || [])
-    } catch (err) {
-      console.error('Failed to fetch config params:', err)
-    } finally {
-      setConfigLoading(false)
-    }
-  }
-
-  const handleSaveConfig = async (key: string, value: string) => {
-    try {
-      await client.put(`/projection/config/${key}`, { value })
-      setConfigParams(prev => prev.map(c => c.key === key ? { ...c, value } : c))
-      setConfigEditingKey(null)
-    } catch (err) {
-      console.error('Failed to update config parameter:', err)
-    }
   }
 
 
@@ -552,10 +503,12 @@ export default function DashboardPage() {
   }, [currentUser, canViewJobs, tab])
 
   useEffect(() => {
+    localStorage.setItem('kiosk-sidebar-open', String(sidebarOpen))
+  }, [sidebarOpen])
+
+  useEffect(() => {
     if (tab === 'rbac') fetchRbacData()
     if (tab === 'history' && canViewJobs) fetchHistory(historyPage, historyPageSize, historyFilters)
-    if (tab === 'diagnostics') fetchDiagnostics()
-    if (tab === 'config') fetchConfigParams()
     if (tab === 'orders') fetchOrders()
   }, [tab, currentUser, historyPage, historyFilters])
 
@@ -800,8 +753,6 @@ export default function DashboardPage() {
     { key: 'history' as KioskTab, label: 'Lịch sử sản xuất', icon: History, show: canViewJobs },
     { key: 'traceability' as KioskTab, label: 'Truy xuất nguồn gốc', icon: Search, show: canViewJobs },
     { key: 'alarms' as KioskTab, label: 'Trung tâm cảnh báo', icon: AlertTriangle, show: true },
-    { key: 'config' as KioskTab, label: 'Cấu hình thiết bị', icon: Settings, show: isSuperAdmin },
-    { key: 'diagnostics' as KioskTab, label: 'Chẩn đoán hệ thống', icon: LineChart, show: true },
     { key: 'connectivity' as KioskTab, label: 'Kết nối mạng', icon: Cpu, show: true },
     { key: 'rbac' as KioskTab, label: 'Quản lý phân quyền', icon: Users, show: isSuperAdmin },
     { key: 'templates' as KioskTab, label: 'Mẫu nhãn in', icon: FileText, show: true },
@@ -893,10 +844,20 @@ export default function DashboardPage() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── LEFT SIDEBAR NAVIGATION ────────────────── */}
-        <aside className="w-76 border-r border-border bg-card flex flex-col shrink-0 select-none">
+        <aside className={`${sidebarOpen ? 'w-72' : 'w-16'} border-r border-border bg-card flex flex-col shrink-0 select-none transition-[width] duration-200`}>
           {/* Sidebar header label */}
-          <div className="px-5 py-3 border-b border-border">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-fg">Điều hướng</p>
+          <div className={`flex items-center border-b border-border ${sidebarOpen ? 'justify-between px-5' : 'justify-center px-2'} py-3`}>
+            {sidebarOpen && <p className="text-[11px] font-bold uppercase tracking-widest text-muted-fg">Điều hướng</p>}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen((open) => !open)}
+              className="h-9 w-9 shrink-0 text-muted-fg hover:text-foreground hover:bg-surface-2"
+              aria-label={sidebarOpen ? 'Ẩn menu điều hướng' : 'Hiện menu điều hướng'}
+              title={sidebarOpen ? 'Ẩn menu điều hướng' : 'Hiện menu điều hướng'}
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </Button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {tabs.filter((t) => t.show).map(({ key, label, icon: Icon }) => {
@@ -905,8 +866,10 @@ export default function DashboardPage() {
                 <button
                   key={key}
                   onClick={() => setTab(key)}
+                  title={sidebarOpen ? undefined : label}
+                  aria-label={label}
                   className={[
-                    'w-full flex items-center gap-3 px-4 py-3.5 text-[15px] font-semibold rounded-xl border transition-all duration-150 cursor-pointer touch-manipulation text-left',
+                    `w-full flex items-center ${sidebarOpen ? 'gap-3 px-4' : 'justify-center px-2'} py-3.5 text-[15px] font-semibold rounded-xl border transition-all duration-150 cursor-pointer touch-manipulation text-left`,
                     active
                       ? 'border-brand/30 text-brand bg-brand-glow font-bold'
                       : 'border-transparent text-muted-fg hover:text-foreground hover:bg-surface-2 hover:border-border',
@@ -918,7 +881,7 @@ export default function DashboardPage() {
                   ].join(' ')}>
                     <Icon className="h-4.5 w-4.5" />
                   </div>
-                  <span>{label}</span>
+                  {sidebarOpen && <span>{label}</span>}
                 </button>
               )
             })}
@@ -1428,133 +1391,14 @@ export default function DashboardPage() {
           {/* ════ TAB: CONNECTIVITY ══════════════════════════ */}
           {tab === 'connectivity' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              {/* Sub-tabs navigation */}
-              <div className="flex gap-2 border-b border-border mb-4">
-                {[
-                  { key: 'devices', label: 'Mạng lưới thiết bị' },
-                  { key: 'printers', label: 'Thiết bị in' },
-                  { key: 'plc', label: 'Thiết bị PLC' },
-                  { key: 'camera', label: 'Thiết bị Camera' }
-                ].map(sub => (
-                  <button
-                    key={sub.key}
-                    onClick={() => setConnectivitySubTab(sub.key as 'devices' | 'printers' | 'plc' | 'camera')}
-                    className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
-                      connectivitySubTab === sub.key
-                        ? 'border-brand text-brand font-bold'
-                        : 'border-transparent text-muted-fg hover:text-foreground'
-                    }`}
-                  >
-                    {sub.label}
-                  </button>
-                ))}
-              </div>
-
-              {connectivitySubTab === 'devices' && (() => {
-                // ── Device display helpers ──────────────────────────────────────────
-                const deviceLabel: Record<string, string> = {
-                  PLC:           'Bộ điều khiển PLC',
-                  PRINTER:       'Máy in nhãn',
-                  LASER:         'Máy khắc Laser',
-                  VISION_CAMERA: 'Camera kiểm tra',
-                  Printer:       'Máy in nhãn',
-                }
-                const getLabel  = (d: any) => deviceLabel[d.deviceType] ?? d.deviceType
-                const getIcon   = (d: any) => {
-                  switch (d.deviceType) {
-                    case 'PLC':           return <Cpu className="h-5 w-5" />
-                    case 'PRINTER':
-                    case 'Printer':       return <PrinterIcon className="h-5 w-5" />
-                    case 'LASER':         return <Zap className="h-5 w-5" />
-                    case 'VISION_CAMERA': return <Camera className="h-5 w-5" />
-                    default:              return <Cpu className="h-5 w-5" />
-                  }
-                }
-
-                const relativeTime = (iso: string) => {
-                  const diff = Math.round((Date.now() - new Date(iso).getTime()) / 1000)
-                  if (diff < 10)  return 'vừa xong'
-                  if (diff < 60)  return `${diff}s trước`
-                  if (diff < 3600) return `${Math.round(diff / 60)}ph trước`
-                  return new Date(iso).toLocaleTimeString('vi-VN')
-                }
-
-                const lifecycleBadge = (d: any) => {
-                  const s = (d.lifecycleState ?? '').toLowerCase()
-                  if (s === 'printing')   return { label: 'In ấn',     cls: 'bg-indigo-500/10 text-indigo-400' }
-                  if (s === 'busy')       return { label: 'Bận',       cls: 'bg-blue-500/10 text-blue-400' }
-                  if (s === 'waiting')    return { label: 'Chờ hàng',  cls: 'bg-amber-500/10 text-amber-400' }
-                  if (s === 'warning')    return { label: 'Cảnh báo',  cls: 'bg-yellow-500/10 text-yellow-400' }
-                  if (s === 'error')      return { label: 'Lỗi',       cls: 'bg-red-500/10 text-red-400' }
-                  if (s === 'connecting') return { label: 'Đang kết nối', cls: 'bg-slate-500/10 text-slate-400' }
-                  if (s === 'online')     return { label: 'Chờ',       cls: 'bg-emerald-500/10 text-emerald-400' }
-                  if (s === 'idle')       return { label: 'Chờ',       cls: 'bg-emerald-500/10 text-emerald-400' }
-                  if (s === 'offline')    return { label: 'Offline',   cls: 'bg-red-500/10 text-red-400' }
-                  if (s === 'unknown')    return { label: '?',         cls: 'bg-gray-500/10 text-gray-400' }
-                  return null
-                }
-
-                // Helper: map lifecycleState to card accent color classes
-                const deviceCardAccent = (d: any) => {
-                  if (!d.isOnline) return 'border-red-500/15 bg-red-500/[0.02] opacity-75'
-                  const s = (d.lifecycleState ?? '').toLowerCase()
-                  if (s === 'printing' || s === 'busy')  return 'border-indigo-500/20 bg-indigo-500/[0.03] hover:border-indigo-500/40'
-                  if (s === 'waiting')  return 'border-amber-500/20 bg-amber-500/[0.03] hover:border-amber-500/40'
-                  if (s === 'warning')  return 'border-yellow-500/20 bg-yellow-500/[0.03] hover:border-yellow-500/40'
-                  if (s === 'error')    return 'border-red-500/20 bg-red-500/[0.03] hover:border-red-500/40'
-                  if (s === 'connecting') return 'border-slate-500/20 bg-slate-500/[0.02] hover:border-slate-500/30'
-                  return 'border-emerald-500/20 bg-emerald-500/[0.03] hover:border-emerald-500/40'
-                }
-
-                // Helper: map lifecycleState to top-bar gradient
-                const deviceCardBar = (d: any) => {
-                  if (!d.isOnline) return 'from-red-500/40 to-red-400/10'
-                  const s = (d.lifecycleState ?? '').toLowerCase()
-                  if (s === 'printing' || s === 'busy')  return 'from-indigo-500/50 to-indigo-400/20'
-                  if (s === 'waiting')  return 'from-amber-500/50 to-amber-400/20'
-                  if (s === 'warning')  return 'from-yellow-500/50 to-yellow-400/20'
-                  if (s === 'error')    return 'from-red-500/50 to-red-400/20'
-                  return 'from-emerald-500/50 to-emerald-400/20'
-                }
-
-                // Helper: status dot color + animation
-                const statusDot = (d: any) => {
-                  const s = (d.lifecycleState ?? '').toLowerCase()
-                  if (!d.isOnline)      return 'bg-red-400'
-                  if (s === 'printing' || s === 'busy') return 'bg-indigo-400 animate-pulse'
-                  if (s === 'waiting')  return 'bg-amber-400 animate-pulse'
-                  if (s === 'warning')  return 'bg-yellow-400 animate-pulse'
-                  if (s === 'error')    return 'bg-red-400'
-                  if (s === 'connecting') return 'bg-slate-400 animate-pulse'
-                  return 'bg-emerald-400 animate-pulse'
-                }
-
-                const statusLabel = (d: any) => {
-                  const s = (d.lifecycleState ?? '').toLowerCase()
-                  if (!d.isOnline)      return 'Offline'
-                  if (s === 'printing') return 'Printing'
-                  if (s === 'busy')     return 'Busy'
-                  if (s === 'waiting')  return 'Waiting'
-                  if (s === 'warning')  return 'Warning'
-                  if (s === 'error')    return 'Error'
-                  if (s === 'connecting') return 'Connecting'
-                  return 'Online'
-                }
-
-                const statusLabelCls = (d: any) => {
-                  const s = (d.lifecycleState ?? '').toLowerCase()
-                  if (!d.isOnline)      return 'bg-red-500/10 text-red-400'
-                  if (s === 'printing' || s === 'busy') return 'bg-indigo-500/10 text-indigo-400'
-                  if (s === 'waiting')  return 'bg-amber-500/10 text-amber-400'
-                  if (s === 'warning')  return 'bg-yellow-500/10 text-yellow-400'
-                  if (s === 'error')    return 'bg-red-500/10 text-red-400'
-                  if (s === 'connecting') return 'bg-slate-500/10 text-slate-400'
-                  return 'bg-emerald-500/10 text-emerald-400'
-                }
-
-                // The device grid contains only real station devices.
-                const nonGateway   = devices.filter((d: any) => d.deviceType !== 'GATEWAY' && d.deviceType !== 'FactoryGateway')
-                const realDevices  = nonGateway
+              {(() => {
+                // The kiosk network view is intentionally printer-only. PLC,
+                // camera, laser, gateway, and simulator records are not part
+                // of this operator-facing connection surface.
+                const realDevices = devices.filter((d: any) => {
+                  const type = String(d.deviceType ?? '').toUpperCase()
+                  return type === 'PRINTER' || type === 'PRINT'
+                })
 
                 return (
                   <div className="space-y-5 animate-in fade-in duration-200">
@@ -1594,145 +1438,19 @@ export default function DashboardPage() {
                                     : mesConnection?.status === 'OFFLINE' ? 'Ngoại tuyến' : 'Chưa xác định'}
                             </span>
                           </div>
-                          <p className="text-xs text-muted-fg mt-0.5">
-                            HTTP · Station Gateway: {mesConnection?.stationGatewayStatus === 'READY' ? 'Sẵn sàng' : 'Cần kiểm tra'}
-                          </p>
-                          {mesConnection?.lastSuccessfulMesRequest && (
-                            <p className="text-[11px] text-muted-fg/70 mt-0.5 font-mono">
-                              MES thành công lần cuối: {relativeTime(mesConnection.lastSuccessfulMesRequest)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-3 text-center shrink-0">
-                        <div className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-xs">
-                          <div className="font-extrabold text-emerald-400 text-lg">{mesConnection?.successfulRequestsLast24Hours ?? 0}</div>
-                          <div className="text-muted-fg">MES thành công / 24h</div>
-                        </div>
-                        <div className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-xs">
-                          <div className="font-extrabold text-red-400 text-lg">{mesConnection?.failedRequestsLast24Hours ?? 0}</div>
-                          <div className="text-muted-fg">Lỗi / 24h</div>
-                        </div>
-                        <div className="px-4 py-2 rounded-lg bg-surface-2 border border-border text-xs">
-                          <div className="font-extrabold text-foreground text-lg">{mesConnection?.requestsLast24Hours ?? 0}</div>
-                          <div className="text-muted-fg">Yêu cầu MES / 24h</div>
                         </div>
                       </div>
                     </div>
 
-                    {/* ── Device grid ── */}
-                    <Card className="border border-border bg-card">
-                      <CardHeader className="border-b border-border py-4 px-6">
-                        <CardTitle className="text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                          <Cpu className="h-4 w-4 text-brand" />
-                          Mạng lưới thiết bị đầu cuối
-                        </CardTitle>
-                        <CardDescription className="text-sm">Theo dõi thời gian thực — cập nhật qua sự kiện SignalR</CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        {realDevices.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center py-14 text-muted-fg gap-3">
-                            <Cpu className="h-10 w-10 text-muted-fg/20" />
-                            <div className="text-center">
-                              <p className="font-medium text-foreground text-sm">Chưa phát hiện thiết bị nào</p>
-                              <p className="text-xs mt-1">Đảm bảo các adapter (printer-adapter, plc-adapter, laser-adapter) đang chạy và gửi heartbeat.</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {realDevices.map((device: any) => {
-                              const badge = lifecycleBadge(device)
-                              return (
-                                <div
-                                  key={device.deviceId}
-                                  className={`rounded-xl p-4 flex flex-col justify-between gap-3 border transition-all duration-300 relative overflow-hidden ${deviceCardAccent(device)}`}
-                                >
-                                  {/* State accent bar */}
-                                  <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${deviceCardBar(device)}`} />
-
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className={`p-2.5 rounded-lg border shrink-0 ${
-                                      device.isOnline
-                                        ? 'border-emerald-500/10 bg-emerald-500/5 text-emerald-400'
-                                        : 'border-red-500/10 bg-red-500/5 text-red-400'
-                                    }`}>
-                                      {getIcon(device)}
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                      {/* Primary online/state badge */}
-                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${statusLabelCls(device)}`}>
-                                        <span className={`h-1.5 w-1.5 rounded-full ${statusDot(device)}`} />
-                                        {statusLabel(device)}
-                                      </span>
-                                      {/* Secondary lifecycle detail badge */}
-                                      {badge && badge.label !== statusLabel(device) && (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${badge.cls}`}>
-                                          {badge.label}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <p className="font-extrabold text-sm text-foreground leading-tight">{device.deviceId.toUpperCase()}</p>
-                                    <p className="text-[11px] text-muted-fg mt-0.5">{getLabel(device)}</p>
-                                    <p className="text-[10px] text-muted-fg/60 mt-1.5 font-mono">
-                                      {device.isOnline ? '↻ ' : '✕ '}{relativeTime(device.lastSeenAt)}
-                                    </p>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                    {/* One printer section owns runtime status, refresh,
+                        template assignment, and production activation. */}
+                    <PrinterManagementTab deviceStatuses={realDevices as DeviceStatusLive[]} />
 
                   </div>
                 )
               })()}
 
 
-              {connectivitySubTab === 'printers' && (
-                <div className="animate-in fade-in duration-200">
-                  <PrinterManagementTab deviceStatuses={devices as DeviceStatusLive[]} />
-                </div>
-              )}
-
-              {connectivitySubTab === 'plc' && (
-                <div className="space-y-6 animate-in fade-in duration-200">
-                  <Card className="border border-border bg-card">
-                    <CardHeader className="border-b border-border py-4 px-6">
-                      <CardTitle className="text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                        <Cpu className="h-4 w-4 text-brand" />
-                        Trạng thái thiết bị PLC
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="text-muted-fg text-sm">
-                        Kết nối trực tiếp tới máy PLC qua giao thức Modbus TCP/IP (Port: 502). Trạng thái hiện tại hoạt động ổn định.
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {connectivitySubTab === 'camera' && (
-                <div className="space-y-6 animate-in fade-in duration-200">
-                  <Card className="border border-border bg-card">
-                    <CardHeader className="border-b border-border py-4 px-6">
-                      <CardTitle className="text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                        <Camera className="h-4 w-4 text-brand" />
-                        Trạng thái thiết bị Camera ngoại quan
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="text-muted-fg text-sm">
-                        Kết nối camera kiểm tra ngoại quan (Cognex / Keyence). Giao thức TCP/IP. Trạng thái hiện tại sẵn sàng.
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
             </div>
           )}
 
@@ -2085,192 +1803,6 @@ export default function DashboardPage() {
 
           {tab === 'alarms' && (
             <AlarmCenterTab stationId={stationId} signalRAlarm={signalRAlarm} />
-          )}
-
-          {/* ════ TAB: CONFIG ════════════════════════════════ */}
-          {tab === 'config' && isSuperAdmin && (
-            <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200">
-              <Card className="border border-border bg-card">
-                <CardHeader className="py-4 px-6 border-b border-border bg-brand/5">
-                  <CardTitle className="text-base font-bold tracking-wider text-brand uppercase flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    Cấu hình tham số trung tâm (Central Configuration Management)
-                  </CardTitle>
-                  <CardDescription className="text-sm">Quản lý các tham số thiết bị và ngưỡng mô phỏng lưu trong SQLite Store</CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {configLoading ? (
-                    <div className="text-center py-10 text-muted-fg text-sm">Đang tải danh sách tham số cấu hình...</div>
-                  ) : (
-                    <div className="overflow-x-auto border border-border rounded-xl">
-                      <TableEl>
-                        <TableHeader className="bg-muted/40">
-                          <TableRow>
-                            <TableHead className="pl-4 font-bold text-foreground text-xs uppercase tracking-wider">Từ khóa (Key)</TableHead>
-                            <TableHead className="font-bold text-foreground text-xs uppercase tracking-wider">Giá trị</TableHead>
-                            <TableHead className="font-bold text-foreground text-xs uppercase tracking-wider">Mô tả</TableHead>
-                            <TableHead className="pr-4 text-right font-bold text-xs uppercase tracking-wider">Hành động</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {configParams.map((param) => (
-                            <TableRow key={param.key}>
-                              <TableCell className="pl-4 font-mono font-bold text-foreground text-xs">{param.key}</TableCell>
-                              <TableCell>
-                                {configEditingKey === param.key ? (
-                                  <Input
-                                    value={configEditingValue}
-                                    onChange={(e) => setConfigEditingValue(e.target.value)}
-                                    className="h-8 max-w-xs text-xs font-mono font-bold"
-                                  />
-                                ) : (
-                                  <code className="text-brand-light font-mono font-bold bg-brand/5 px-2 py-0.5 rounded border border-brand/10 text-xs">
-                                    {param.value}
-                                  </code>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-muted-fg text-xs">{param.description || '—'}</TableCell>
-                              <TableCell className="pr-4 text-right">
-                                {configEditingKey === param.key ? (
-                                  <div className="flex justify-end gap-1">
-                                    <Button size="sm" className="h-7 text-xs" onClick={() => handleSaveConfig(param.key, configEditingValue)}>
-                                      Lưu
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setConfigEditingKey(null)}>
-                                      Hủy
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-xs"
-                                    onClick={() => {
-                                      setConfigEditingKey(param.key)
-                                      setConfigEditingValue(param.value)
-                                    }}
-                                  >
-                                    Chỉnh sửa
-                                  </Button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                          {configParams.length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center py-10 text-muted-fg text-sm">
-                                Không tìm thấy tham số cấu hình nào.
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </TableEl>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* ════ TAB: DIAGNOSTICS ═══════════════════════════ */}
-          {tab === 'diagnostics' && (
-            <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200">
-              {diagnosticsLoading && (
-                <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-xs font-semibold text-brand-light animate-pulse">
-                  Đang quét kết nối và tổng hợp số liệu hiệu năng hệ thống...
-                </div>
-              )}
-              {/* KPI Cards */}
-              {diagnosticsMetrics && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <Card>
-                    <CardContent className="p-6 flex flex-col justify-between h-28">
-                      <span className="text-xs uppercase text-muted-fg font-semibold">Tốc độ chạy máy (Throughput)</span>
-                      <div className="text-3xl font-extrabold text-brand font-mono tracking-tight">
-                        {diagnosticsMetrics.throughput} <span className="text-sm font-semibold text-muted-fg">sản phẩm/ngày</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-6 flex flex-col justify-between h-28">
-                      <span className="text-xs uppercase text-muted-fg font-semibold">Tỷ lệ đạt (Yield Rate)</span>
-                      <div className="text-3xl font-extrabold text-emerald-400 font-mono tracking-tight">
-                        {diagnosticsMetrics.passRate}%
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-6 flex flex-col justify-between h-28">
-                      <span className="text-xs uppercase text-muted-fg font-semibold">Tỷ lệ lỗi (Defect Rate)</span>
-                      <div className="text-3xl font-extrabold text-red-400 font-mono tracking-tight">
-                        {diagnosticsMetrics.failureRate}%
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Health checklist */}
-                <Card className="lg:col-span-2">
-                  <CardHeader className="py-4 px-6 border-b border-border bg-brand/5">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-brand flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4" />
-                      Danh sách kiểm tra kết nối (Connection Checklist)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-4">
-                    {diagnosticsHealth ? (
-                      <div className="space-y-3">
-                        {Object.entries(diagnosticsHealth).map(([key, val]: [string, any]) => (
-                          <div key={key} className="flex justify-between items-center border-b border-border pb-2.5">
-                            <span className="font-bold text-xs uppercase text-foreground font-mono">{key}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-muted-fg font-mono">{val.latencyMs}ms</span>
-                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold ${val.status === 'Healthy' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                                <span className={`h-1.5 w-1.5 rounded-full ${val.status === 'Healthy' ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
-                                {val.status}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-10 text-muted-fg text-sm">Đang quét cổng kết nối phần cứng...</div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Latency Averages */}
-                <Card>
-                  <CardHeader className="py-4 px-6 border-b border-border bg-brand/5">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-brand flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Độ trễ trung bình (Average Step Latency)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {diagnosticsMetrics && diagnosticsMetrics.stepAverages ? (
-                      <div className="space-y-4">
-                        {Object.entries(diagnosticsMetrics.stepAverages).map(([step, time]: [string, any]) => (
-                          <div key={step} className="space-y-1">
-                            <div className="flex justify-between text-xs font-bold text-foreground">
-                              <span>{step}</span>
-                              <span className="font-mono text-brand-light">{Math.round(time)} ms</span>
-                            </div>
-                            <div className="w-full bg-surface-2 rounded-full h-2">
-                              <div className="bg-brand h-2 rounded-full" style={{ width: `${Math.min((time / 3000) * 100, 100)}%` }}></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-10 text-muted-fg text-sm">Đang biên dịch số liệu độ trễ...</div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
           )}
 
           {/* ════ TAB: LABEL TEMPLATES ═══════════════════════════ */}

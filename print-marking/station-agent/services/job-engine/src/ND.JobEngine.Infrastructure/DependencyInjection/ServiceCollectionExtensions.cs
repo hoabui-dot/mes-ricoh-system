@@ -55,6 +55,7 @@ public static class ServiceCollectionExtensions
         services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
         services.AddSingleton<IEventConsumer, KafkaConsumer>();
         services.AddSingleton<IEventPublisher, KafkaPublisher>();
+        services.AddSingleton<PrinterManagementKafkaClient>();
 
         // Background Workers / Hosted Services
         services.AddHostedService<MqttMessageReceivedConsumer>();
@@ -68,6 +69,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PrinterBatchPrintedConsumer>();
         services.AddHostedService(sp => sp.GetRequiredService<PrinterBatchPrintedConsumer>());
         services.AddHostedService<HeartbeatHostedService>();
+        services.AddHostedService(sp => sp.GetRequiredService<PrinterManagementKafkaClient>());
 
         return services;
     }

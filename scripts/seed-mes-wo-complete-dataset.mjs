@@ -7,13 +7,16 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import pg from 'pg';
 
 const { Client } = pg;
 const masterUrl = process.env.MES_MASTER_DATA_DATABASE_URL || 'postgresql://mes_master_data_user:mes_master_data_pass@localhost:15434/mes_master_data_db';
 const executionUrl = process.env.MES_EXECUTION_DATABASE_URL || 'postgresql://mes_execution_user:mes_execution_pass@localhost:15435/mes_execution_db';
+const traceabilityUrl = process.env.MES_TRACEABILITY_DATABASE_URL || 'postgresql://traceability_user:traceability_pass@localhost:15436/mes_traceability_db';
 const masterBase = (process.env.MES_MASTER_DATA_URL || 'http://localhost:13020/api/mes/master-data').replace(/\/$/, '');
+const executionBase = (process.env.MES_EXECUTION_URL || 'http://localhost:13030/api/mes/execution').replace(/\/$/, '');
 const wmsInventoryUrl = process.env.WMS_INVENTORY_DATABASE_URL || process.env.WMS_INVENTORY_URL || 'postgresql://wms_inventory_owner:wms_inventory_owner_pass@localhost:15439/wms_inventory_db';
 const userId = process.env.MES_SEED_USER_ID || '00000000-0000-0000-0000-000000000001';
 const roleCode = process.env.MES_SEED_ROLE_CODE || 'PLANT_MANAGER';
@@ -23,6 +26,7 @@ const envName = String(process.env.MES_ENV || '').trim().toLowerCase();
 const artifactDir = path.resolve(process.env.ARTIFACT_DIR || `artifacts/mes-reset-seed-verify/${new Date().toISOString().replaceAll(/[:.]/g, '-')}`);
 const master = new Client({ connectionString: masterUrl });
 const execution = new Client({ connectionString: executionUrl });
+const traceability = new Client({ connectionString: traceabilityUrl });
 const names = {
   item: 'E2E-WO-FG-01',
   component: 'SFG-MET-CM01-R1',
@@ -39,11 +43,13 @@ const writeJson = (name, value) => fs.writeFile(path.join(artifactDir, name), js
 function safety() {
   const masterIdentity = new URL(masterUrl);
   const executionIdentity = new URL(executionUrl);
+  const traceabilityIdentity = new URL(traceabilityUrl);
   const reasons = [];
   if (!['development', 'local', 'test', 'staging'].includes(envName)) reasons.push('MES_ENV must be development, local, test, or staging');
   if (!['localhost', '127.0.0.1', '::1'].includes(masterIdentity.hostname) || !['localhost', '127.0.0.1', '::1'].includes(executionIdentity.hostname)) reasons.push('seed database hosts must be local/test hosts');
+  if (!['localhost', '127.0.0.1', '::1'].includes(traceabilityIdentity.hostname)) reasons.push('traceability database host must be local/test host');
   if (mode === 'seed' && process.env.CONFIRM_MASTER_DATA_RESET !== 'YES_RESET_E2E_MASTER_DATA') reasons.push('CONFIRM_MASTER_DATA_RESET must equal YES_RESET_E2E_MASTER_DATA');
-  return { passed: reasons.length === 0, mode, environment: envName || null, reasons, master: { host: masterIdentity.hostname, port: masterIdentity.port, database: masterIdentity.pathname.slice(1), user: masterIdentity.username }, execution: { host: executionIdentity.hostname, port: executionIdentity.port, database: executionIdentity.pathname.slice(1), user: executionIdentity.username } };
+  return { passed: reasons.length === 0, mode, environment: envName || null, reasons, master: { host: masterIdentity.hostname, port: masterIdentity.port, database: masterIdentity.pathname.slice(1), user: masterIdentity.username }, execution: { host: executionIdentity.hostname, port: executionIdentity.port, database: executionIdentity.pathname.slice(1), user: executionIdentity.username }, traceability: { host: traceabilityIdentity.hostname, port: traceabilityIdentity.port, database: traceabilityIdentity.pathname.slice(1), user: traceabilityIdentity.username } };
 }
 
 async function api(pathname, options = {}, allowed = []) {
@@ -57,6 +63,14 @@ async function api(pathname, options = {}, allowed = []) {
 async function data(pathname, options = {}) {
   const result = await api(pathname, options);
   return result.body?.data ?? result.body;
+}
+
+async function executionApi(pathname, options = {}, allowed = []) {
+  const response = await fetch(`${executionBase}${pathname}`, { ...options, headers: { ...headers, ...(options.headers || {}) }, cache: 'no-store' });
+  const text = await response.text();
+  let body; try { body = JSON.parse(text); } catch { body = text; }
+  if (!response.ok && !allowed.includes(response.status)) throw new Error(`${pathname} HTTP ${response.status}: ${typeof body === 'string' ? body : body.error || body.message || JSON.stringify(body)}`);
+  return { status: response.status, body };
 }
 
 async function getContext() {
@@ -184,13 +198,138 @@ async function cleanupWorkOrderSnapshots() {
   return { delegatedTo: 'scripts/reset-mes-wo-test-data.mjs', completed: true };
 }
 
+async function cleanupTraceabilityOwned() {
+  const result = {};
+  await traceability.query('BEGIN');
+  try {
+    const policies = await traceability.query(`SELECT policy_id, item_revision_id FROM md_traceability_policy WHERE operation_code LIKE 'E2E-WO-OP-%'`);
+    const revisionIds = policies.rows.map((row) => row.item_revision_id);
+    result.policies = Number((await traceability.query(`DELETE FROM md_traceability_policy WHERE operation_code LIKE 'E2E-WO-OP-%' OR label_template_id IN (SELECT template_id FROM md_label_template WHERE template_code LIKE 'E2E-WO-%') OR numbering_rule_id IN (SELECT rule_id FROM md_numbering_rule WHERE rule_code LIKE 'E2E-WO-%') OR qr_split_rule_id IN (SELECT split_rule_id FROM md_qr_split_rule WHERE rule_code LIKE 'E2E-WO-%')`)).rowCount || 0);
+    result.labels = Number((await traceability.query(`DELETE FROM label_instance WHERE item_revision_id=ANY($1::uuid[]) OR created_by_operation LIKE 'E2E-WO-OP-%'`, [revisionIds.length ? revisionIds : ['00000000-0000-0000-0000-000000000000']])).rowCount || 0);
+    result.templates = Number((await traceability.query(`DELETE FROM md_label_template WHERE template_code LIKE 'E2E-WO-%'`)).rowCount || 0);
+    result.numberingRules = Number((await traceability.query(`DELETE FROM md_numbering_rule WHERE rule_code LIKE 'E2E-WO-%'`)).rowCount || 0);
+    result.qrSplitRules = Number((await traceability.query(`DELETE FROM md_qr_split_rule WHERE rule_code LIKE 'E2E-WO-%'`)).rowCount || 0);
+    await traceability.query('COMMIT');
+  } catch (error) {
+    await traceability.query('ROLLBACK');
+    throw new Error(`SEED_TRACEABILITY_CLEANUP: ${error.message}`);
+  }
+  return result;
+}
+
+async function seedTraceability(manifest) {
+  const templateId = crypto.randomUUID();
+  const numberingRuleId = crypto.randomUUID();
+  const splitRuleId = crypto.randomUUID();
+  const result = { templateCode: 'E2E-WO-LABEL-TEMPLATE-01', policyCount: 0 };
+  await traceability.query('BEGIN');
+  try {
+    await traceability.query(`INSERT INTO md_label_template (template_id,template_code,template_name,static_text,layout_json) VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb)`, [templateId, result.templateCode, JSON.stringify({ vi: 'Nhãn thành phẩm E2E WO', en: 'E2E WO finished-goods label', ja: 'E2E WO完成品ラベル', ko: 'E2E WO 완제품 라벨' }), JSON.stringify({ vi: 'S-Factory', en: 'S-Factory', ja: 'S-Factory', ko: 'S-Factory' }), JSON.stringify({ width: 100, height: 50, fields: ['wo_code', 'item_code', 'quantity', 'printer_code'] })]);
+    await traceability.query(`INSERT INTO md_numbering_rule (rule_id,rule_code,prefix,date_format,sequence_length,reset_frequency,site_id) VALUES ($1,'E2E-WO-LABEL-NUMBER','E2E','YYYYMMDD',5,'DAILY',$2)`, [numberingRuleId, manifest.site.master_id]);
+    await traceability.query(`INSERT INTO md_qr_split_rule (split_rule_id,rule_code,split_algorithm,default_yield_ratio,target_uom_id,site_id) VALUES ($1,'E2E-WO-LABEL-SPLIT','FIXED_COUNT',1,$2,$3)`, [splitRuleId, manifest.uom.master_id, manifest.site.master_id]);
+    for (const operation of manifest.operations) {
+      await traceability.query(`INSERT INTO md_traceability_policy (policy_id,item_revision_id,operation_code,tracking_type,numbering_rule_id,qr_split_rule_id,label_template_id,site_id) VALUES (gen_random_uuid(),$1,$2,'LOT',$3,$4,$5,$6)`, [manifest.revision.master_id, operation.code, numberingRuleId, splitRuleId, templateId, manifest.site.master_id]);
+      result.policyCount += 1;
+    }
+    await traceability.query('COMMIT');
+  } catch (error) {
+    await traceability.query('ROLLBACK');
+    throw new Error(`SEED_TRACEABILITY: ${error.message}`);
+  }
+  return result;
+}
+
+async function ensurePrintStation(context) {
+  const stationCode = process.env.E2E_PRINT_STATION_CODE || 'PRINT-STATION-01';
+  const stations = await data('/print-stations?limit=500');
+  let station = stations.find((row) => row.code === stationCode);
+  const payload = {
+    code: stationCode,
+    name: { vi: 'Trạm in nhãn E2E WO', en: 'E2E WO Label Print Station', ja: 'E2E WOラベル印刷ステーション', ko: 'E2E WO 라벨 프린트 스테이션' },
+    description: { vi: 'Trạm in vật lý dùng cho demo Work Order E2E.', en: 'Physical print station for the E2E Work Order demo.', ja: 'E2E Work Orderデモ用の物理印刷ステーション。', ko: 'E2E Work Order 데모용 물리 프린트 스테이션.' },
+    site_id: context.site.master_id,
+    gateway_base_url: process.env.PRINT_STATION_GATEWAY_URL || 'http://100.68.50.41:5001',
+    deployment_mode: 'PHYSICAL',
+    capabilities: ['PRINT'],
+  };
+  if (!station) station = await data('/print-stations', { method: 'POST', body: JSON.stringify(payload) });
+  else {
+    if (station.site_id !== context.site.master_id) throw new Error(`SEED_PRINT_STATION: ${stationCode} belongs to another Site`);
+    station = await data(`/print-stations/${station.master_id}`, { method: 'PATCH', body: JSON.stringify({ name: payload.name, description: payload.description, gateway_base_url: payload.gateway_base_url, capabilities: payload.capabilities }) });
+  }
+  const bindings = await data(`/workstations/${context.workstation.master_id}/print-station-bindings`);
+  const activePrimary = bindings.find((row) => row.is_active && row.role === 'PRIMARY' && (!row.effective_to || new Date(row.effective_to) > new Date()));
+  if (activePrimary && activePrimary.print_station_id !== station.master_id) throw new Error('SEED_PRINT_STATION: workstation already has another active PRIMARY binding');
+  if (!activePrimary) await data(`/workstations/${context.workstation.master_id}/print-station-bindings`, { method: 'POST', body: JSON.stringify({ print_station_id: station.master_id, role: 'PRIMARY', allocated_printer_quantity: 1 }) });
+  return { ...station, binding: { workstation_id: context.workstation.master_id, role: 'PRIMARY', allocated_printer_quantity: 1 }, runtimeMustBeVerified: true };
+}
+
 async function seedSupportingData() {
   runCommand('bash', ['scripts/seed-mes-labor-demo.sh'], 'Seeding employees, shifts, skills, and work calendars');
   runCommand('npx', ['tsx', 'scripts/seed-wms-demo.ts'], 'Seeding WMS locations, lots, inventory, inbound, and outbound demo data');
   return { labor: true, wms: true };
 }
 
-async function verifyWmsComponentStock(component, requiredQty = 2) {
+async function ensureDemoMachineGroup(context) {
+  // Resource candidates are production-planning inputs. Only a Released group
+  // may be proposed; a Draft group must never leak into the WO flow.
+  const requestedCode = process.env.E2E_MACHINE_GROUP_CODE || 'MG-20260727-0004';
+  const result = await master.query(`
+    SELECT mg.master_id, mg.code, mg.name, mg.lifecycle_status,
+           COUNT(ra.master_id) FILTER (WHERE ra.effective_to IS NULL)::int AS active_member_count,
+           COUNT(ra.master_id) FILTER (WHERE ra.effective_to IS NULL AND ra.assignment_role = 'Primary')::int AS primary_count
+    FROM md_workstation_machine_group mg
+    LEFT JOIN md_resource_assignment ra ON ra.machine_group_id = mg.master_id
+    WHERE mg.code = $1 AND mg.site_id = $2 AND mg.work_center_id = $3 AND mg.workstation_id = $4
+    GROUP BY mg.master_id`, [requestedCode, context.site.master_id, context.workCenter.master_id, context.workstation.master_id]);
+  const group = result.rows[0];
+  if (!group) throw new Error(`SEED_PLANNING: machine group ${requestedCode} is required for the deterministic demo workstation`);
+  if (Number(group.active_member_count) < 1 || Number(group.primary_count) !== 1) throw new Error(`SEED_PLANNING: machine group ${requestedCode} must have exactly one active primary member`);
+  if (group.lifecycle_status !== 'Released') {
+    await master.query(`UPDATE md_workstation_machine_group SET name=$1::jsonb, lifecycle_status='Released', updated_by=$2, updated_at=NOW(), effective_to=NULL WHERE master_id=$3`, [JSON.stringify({ vi: 'Nhóm máy demo in nhãn', en: 'E2E label printing machine group', ja: 'E2Eラベル印刷マシングループ', ko: 'E2E 라벨 인쇄 머신 그룹' }), userId, group.master_id]);
+  } else {
+    await master.query(`UPDATE md_workstation_machine_group SET name=$1::jsonb, updated_by=$2, updated_at=NOW() WHERE master_id=$3`, [JSON.stringify({ vi: 'Nhóm máy demo in nhãn', en: 'E2E label printing machine group', ja: 'E2Eラベル印刷マシングループ', ko: 'E2E 라벨 인쇄 머신 그룹' }), userId, group.master_id]);
+  }
+  return { id: group.master_id, code: group.code, previous_status: group.lifecycle_status, lifecycle_status: 'Released', active_member_count: Number(group.active_member_count), primary_count: Number(group.primary_count) };
+}
+
+async function seedPlanningMatrix(manifest, context, targetDate) {
+  const result = { capabilities: 0, standards: 0, calendars: 0, worker_requirements: 0 };
+  const shifts = (await master.query(`SELECT master_id, code FROM md_shift WHERE site_id=$1 AND lifecycle_status='Released' ORDER BY code`, [context.site.master_id])).rows;
+  const shift = shifts.find((row) => row.code === 'SHIFT-A');
+  if (!shift) throw new Error('SEED_PLANNING: released SHIFT-A is required');
+  manifest.shift = { master_id: shift.master_id, code: 'SHIFT-A' };
+  const assignment = (await master.query(`SELECT equipment_id FROM md_resource_assignment WHERE site_id=$1 AND work_center_id=$2 AND workstation_id=$3 AND scheduling_flag=TRUE AND effective_to IS NULL ORDER BY equipment_id NULLS LAST LIMIT 1`, [context.site.master_id, context.workCenter.master_id, context.workstation.master_id])).rows[0];
+  const resourceType = assignment?.equipment_id ? 'Equipment' : 'Workstation';
+  const resourceId = assignment?.equipment_id || context.workstation.master_id;
+  const skill = (await master.query(`SELECT master_id FROM md_skill WHERE code='SK-WC-VULCAN-OPERATOR' AND lifecycle_status='Released' LIMIT 1`)).rows[0];
+  const routingOperations = (await master.query(`SELECT master_id, operation_id, seq FROM md_routing_operation WHERE routing_header_id=$1 AND effective_to IS NULL ORDER BY seq`, [manifest.routing.master_id])).rows;
+
+  // Resource planning is evaluated against the selected shift, not merely the
+  // work center or machine group. Seed every released site shift for the demo
+  // date so the UI can safely choose any valid shift without a false blocker.
+  for (const siteShift of shifts) {
+    await master.query(`INSERT INTO md_resource_calendar (code,name,version_no,lifecycle_status,effective_from,created_by,work_center_id,equipment_id,available_from,available_to,capacity_percent,site_id,resource_type,resource_id,workstation_id,calendar_date,shift_id,availability_status,available_minutes,capacity_factor) VALUES ($1,$2,1,'Released',NOW(),$3,$4,$5,NOW(),NOW()+INTERVAL '1 day',1,$6,$7,$8,$9,$10::date,$11,'Available',540,1) ON CONFLICT (resource_type,resource_id,calendar_date,shift_id) DO UPDATE SET lifecycle_status='Released',effective_to=NULL,available_from=NOW(),available_to=NOW()+INTERVAL '1 day',availability_status='Available',available_minutes=540,capacity_factor=1,work_center_id=EXCLUDED.work_center_id,workstation_id=EXCLUDED.workstation_id,equipment_id=EXCLUDED.equipment_id`, [`E2E-WO-CAL-${targetDate.replaceAll('-', '')}-${siteShift.code}`, `E2E WO calendar ${siteShift.code} ${targetDate}`, userId, context.workCenter.master_id, assignment?.equipment_id || null, context.site.master_id, resourceType, resourceId, context.workstation.master_id, targetDate, siteShift.master_id]);
+    result.calendars += 1;
+  }
+
+  for (const [index, operation] of routingOperations.entries()) {
+    const codeSuffix = String(index + 1).padStart(2, '0');
+    const setupTime = 5;
+    const cycleTime = [120, 30, 60][index] || 60;
+    await master.query(`INSERT INTO md_resource_capability (code,name,version_no,lifecycle_status,effective_from,created_by,operation_id,work_center_id,equipment_id,capability_type,active_flag,cycle_time_sec,site_id,product_revision_id,eligibility,priority_no,speed_factor) VALUES ($1,$2,1,'Released',NOW(),$3,$4,$5,$6,'Eligible',TRUE,$7,$8,$9,TRUE,1,1) ON CONFLICT (code,version_no) DO UPDATE SET lifecycle_status='Released',effective_to=NULL,operation_id=EXCLUDED.operation_id,work_center_id=EXCLUDED.work_center_id,equipment_id=EXCLUDED.equipment_id,cycle_time_sec=EXCLUDED.cycle_time_sec,site_id=EXCLUDED.site_id,product_revision_id=EXCLUDED.product_revision_id,active_flag=TRUE`, [`E2E-WO-CAP-${codeSuffix}`, `E2E WO capability ${codeSuffix}`, userId, operation.operation_id, context.workCenter.master_id, assignment?.equipment_id || null, cycleTime, context.site.master_id, manifest.revision.master_id]);
+    result.capabilities += 1;
+    await master.query(`INSERT INTO md_production_standard (code,name,version_no,lifecycle_status,effective_from,created_by,item_revision_id,operation_id,work_center_id,equipment_id,labor_count,skill_id,minimum_level,setup_time_min,cycle_time_sec,efficiency_factor,site_id,routing_operation_id,base_quantity,standard_yield,source_method,valid_from) VALUES ($1,$2,1,'Released',NOW(),$3,$4,$5,$6,$7,1,$8,'L1',$9,$10,$11,$12,$13,$14,$15,'E2E',CURRENT_DATE) ON CONFLICT (code,version_no) DO UPDATE SET lifecycle_status='Released',effective_to=NULL,item_revision_id=EXCLUDED.item_revision_id,operation_id=EXCLUDED.operation_id,work_center_id=EXCLUDED.work_center_id,equipment_id=EXCLUDED.equipment_id,skill_id=EXCLUDED.skill_id,setup_time_min=EXCLUDED.setup_time_min,cycle_time_sec=EXCLUDED.cycle_time_sec,efficiency_factor=EXCLUDED.efficiency_factor,site_id=EXCLUDED.site_id,routing_operation_id=EXCLUDED.routing_operation_id,base_quantity=EXCLUDED.base_quantity,standard_yield=EXCLUDED.standard_yield,valid_from=CURRENT_DATE`, [`E2E-WO-STD-${codeSuffix}`, `E2E WO production standard ${codeSuffix}`, userId, manifest.revision.master_id, operation.operation_id, context.workCenter.master_id, assignment?.equipment_id || null, skill?.master_id || null, setupTime, cycleTime, 1, context.site.master_id, operation.master_id, 1, 1]);
+    result.standards += 1;
+    if (skill) {
+      await master.query(`INSERT INTO md_operation_skill_requirement (code,name,version_no,lifecycle_status,effective_from,created_by,operation_id,skill_id,site_id,routing_operation_id,minimum_level,required_persons,mandatory_flag,active_flag) VALUES ($1,$2,1,'Released',NOW(),$3,$4,$5,$6,$7,'L1',1,TRUE,TRUE) ON CONFLICT (code,version_no) DO UPDATE SET lifecycle_status='Released',effective_to=NULL,operation_id=EXCLUDED.operation_id,skill_id=EXCLUDED.skill_id,site_id=EXCLUDED.site_id,routing_operation_id=EXCLUDED.routing_operation_id,active_flag=TRUE`, [`E2E-WO-REQ-${codeSuffix}`, `E2E WO worker requirement ${codeSuffix}`, userId, operation.operation_id, skill.master_id, context.site.master_id, operation.master_id]);
+      result.worker_requirements += 1;
+    }
+  }
+  return result;
+}
+
+async function verifyWmsComponentStock(component, requiredQty = 2, targetDate) {
   const wms = new Client({ connectionString: wmsInventoryUrl });
   await wms.connect();
   try {
@@ -201,8 +340,8 @@ async function verifyWmsComponentStock(component, requiredQty = 2) {
       JOIN inv_lot l ON l.lot_id=b.lot_id
       WHERE l.item_revision_id=$1
         AND l.status='Active'
-        AND (l.expiry_date IS NULL OR l.expiry_date >= DATE '2026-08-01')
-      ORDER BY l.expiry_date NULLS LAST, l.lot_code, b.location_id`, [component.master_id]);
+        AND (l.expiry_date IS NULL OR l.expiry_date >= $2::date)
+      ORDER BY l.expiry_date NULLS LAST, l.lot_code, b.location_id`, [component.master_id, targetDate]);
     const balances = result.rows;
     const availableQty = balances.reduce((sum, row) => sum + Number(row.on_hand_qty || 0), 0);
     return { mode: 'live', component_revision: component, required_quantity: requiredQty, available_quantity: availableQty, balances, passed: availableQty >= requiredQty };
@@ -231,7 +370,7 @@ async function createScenario(context) {
     await api(`/workstations/${context.workstation.master_id}/operation-capabilities`, { method: 'POST', body: JSON.stringify({ operation_id: op.master_id, cycle_time_sec: spec.cycle, setup_time_min: 5, base_quantity: 1, efficiency_factor: 1, scheduling_mode: 'Finite' }) }, [409]);
   }
   const routing = await data('/routing-headers', { method: 'POST', body: JSON.stringify({ name: { vi: 'Routing E2E WO in nhãn', en: 'E2E WO Label Routing', ja: 'E2E WO ラベルルーティング', ko: 'E2E WO 라우팅' }, description: { vi: 'Routing hoàn chỉnh cho kiểm thử Work Order.', en: 'Complete routing for Work Order testing.', ja: '製造指図テスト用の完全なルーティング。', ko: '작업지시 테스트용 완전한 라우팅.' }, routing_type: 'Standard', business_version: '1' }) });
-  const routingOperations = await data(`/routing-headers/${routing.master_id}/operations`, { method: 'PUT', body: JSON.stringify({ operations: operations.map((op, index) => ({ operation_id: op.master_id, work_center_id: context.workCenter.master_id, seq: (index + 1) * 10, predecessor_seq: index ? index * 10 : null, scheduling_mode: 'Finite', queue_time_min: 2, move_time_min: 1, overlap_allowed: false, transfer_batch_qty: 1, milestone_flag: index === 2, planning_mode: 'ROUTING_OVERRIDE', required_workers: 1, setup_time_min: 5, cycle_time_sec: operationSpecs[index].cycle, efficiency_factor: 1, base_quantity: 1, standard_yield: 1 })) }) });
+  const routingOperations = await data(`/routing-headers/${routing.master_id}/operations`, { method: 'PUT', body: JSON.stringify({ operations: operations.map((op, index) => ({ operation_id: op.master_id, work_center_id: context.workCenter.master_id, seq: (index + 1) * 10, predecessor_seq: index ? index * 10 : null, scheduling_mode: 'Finite', queue_time_min: 2, move_time_min: 1, overlap_allowed: false, transfer_batch_qty: 1, milestone_flag: index === 2, planning_mode: 'ROUTING_OVERRIDE', required_workers: 1, setup_time_min: 5, cycle_time_sec: operationSpecs[index].cycle, efficiency_factor: 1, base_quantity: 1, standard_yield: 1, ...(operationSpecs[index].requires_output_label ? { units_per_label: 1, label_quantity_method: 'CEIL_BY_UNITS_PER_LABEL', copies_per_label: 1 } : {}) })) }) });
   for (const routingOperation of routingOperations) await data(`/routing-operations/${routingOperation.master_id}/release`, { method: 'POST', body: '{}' });
   const releasedRouting = await data(`/routing-headers/${routing.master_id}/release`, { method: 'POST', body: '{}' });
   const mbom = await data('/mbom-headers', { method: 'POST', body: JSON.stringify({ code: names.mbom, name: { vi: 'MBOM E2E WO in nhãn', en: 'E2E WO Label MBOM', ja: 'E2E WO ラベルMBOM', ko: 'E2E WO MBOM' }, site_id: context.site.master_id, base_quantity: 1, base_uom_id: context.pcs.master_id, purpose: 'Standard', business_version: '1' }) });
@@ -252,7 +391,7 @@ async function createScenario(context) {
   return { item: releasedItem, revision: releasedRevision, component, operations, routing: releasedRoutingManifest, mbom: releasedMbom, production_version: releasedProductionVersion, workstation: context.workstation, work_center: context.workCenter, site: context.site, uom: context.pcs };
 }
 
-async function rebuildOwnedReadModel(manifest) {
+async function rebuildOwnedReadModel(manifest, targetDate) {
   const revision = (await master.query(`SELECT r.*, i.code AS item_code FROM md_item_revision r JOIN md_item i ON i.master_id=r.item_id WHERE r.master_id=$1`, [manifest.revision.master_id])).rows[0];
   const mbom = (await master.query(`SELECT * FROM md_mbom_header WHERE master_id=$1`, [manifest.mbom.master_id])).rows[0];
   const mbomLines = (await master.query(`SELECT l.*, i.code AS component_item_code FROM md_mbom_line l JOIN md_item_revision r ON r.master_id=l.component_revision_id JOIN md_item i ON i.master_id=r.item_id WHERE l.mbom_header_id=$1 AND l.effective_to IS NULL`, [manifest.mbom.master_id])).rows;
@@ -261,8 +400,8 @@ async function rebuildOwnedReadModel(manifest) {
     SELECT ro.*, op.code AS operation_code, op.requires_output_label,
       wc.site_id,
       COALESCE(ps.base_quantity, op.default_base_quantity) AS resolved_base_quantity,
-      COALESCE(ps.setup_time_min, op.default_setup_time_min) AS resolved_setup_time_min,
-      COALESCE(ps.cycle_time_sec, op.default_cycle_time_sec) AS resolved_cycle_time_sec,
+      COALESCE(ps.setup_time_min, op.default_setup_time_min, 0) AS resolved_setup_time_min,
+      COALESCE(ps.cycle_time_sec, op.default_cycle_time_sec, 1) AS resolved_cycle_time_sec,
       COALESCE(ps.labor_count, op.default_required_persons) AS resolved_required_workers,
       COALESCE(ps.efficiency_factor, op.default_efficiency_factor) AS resolved_efficiency_factor,
       COALESCE(ps.standard_yield, op.default_yield) AS resolved_standard_yield
@@ -270,6 +409,12 @@ async function rebuildOwnedReadModel(manifest) {
     LEFT JOIN LATERAL (SELECT * FROM md_production_standard p WHERE p.routing_operation_id=ro.master_id AND p.effective_to IS NULL ORDER BY p.valid_from DESC NULLS LAST LIMIT 1) ps ON TRUE
     WHERE ro.routing_header_id=$1 AND ro.lifecycle_status='Released' AND ro.effective_to IS NULL ORDER BY ro.seq`, [manifest.routing.master_id])).rows;
   const pv = (await master.query(`SELECT * FROM md_production_version WHERE master_id=$1`, [manifest.production_version.master_id])).rows[0];
+  const calendars = (await master.query(`SELECT master_id, work_center_id, equipment_id, available_from, available_to, capacity_percent, lifecycle_status FROM md_resource_calendar WHERE site_id=$1 AND calendar_date=$2::date AND lifecycle_status='Released'`, [manifest.site.master_id, targetDate])).rows;
+  const employees = (await master.query(`SELECT master_id, code, name, site_id, default_work_center_id, employee_status, lifecycle_status FROM md_employee WHERE site_id=$1 AND code LIKE 'EMP-%'`, [manifest.site.master_id])).rows;
+  const employeeSkills = (await master.query(`SELECT es.employee_id, es.skill_id, es.level FROM md_employee_skill es JOIN md_employee e ON e.master_id=es.employee_id WHERE e.site_id=$1 AND es.active_flag=TRUE AND es.effective_to IS NULL`, [manifest.site.master_id])).rows;
+  const employeeSchedules = (await master.query(`SELECT s.schedule_id, s.employee_id, s.shift_id, s.work_center_id, s.schedule_date, s.schedule_status FROM md_employee_shift_schedule s JOIN md_employee e ON e.master_id=s.employee_id WHERE e.site_id=$1 AND s.schedule_date=$2::date`, [manifest.site.master_id, targetDate])).rows;
+  const skills = (await master.query(`SELECT DISTINCT s.master_id, s.code, s.name, s.lifecycle_status FROM md_skill s JOIN md_employee_skill es ON es.skill_id=s.master_id JOIN md_employee e ON e.master_id=es.employee_id WHERE e.site_id=$1`, [manifest.site.master_id])).rows;
+  const operationRequirements = (await master.query(`SELECT r.master_id, r.operation_id, r.skill_id, r.minimum_level, r.required_persons, r.mandatory_flag FROM md_operation_skill_requirement r WHERE r.routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id=$1) AND r.active_flag=TRUE AND r.effective_to IS NULL`, [manifest.routing.master_id])).rows;
   await execution.query('BEGIN');
   try {
     await execution.query(`INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, lifecycle_status, updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,revision_code=EXCLUDED.revision_code,item_type=EXCLUDED.item_type,site_id=EXCLUDED.site_id,base_uom_id=EXCLUDED.base_uom_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [revision.master_id, revision.code, JSON.stringify(revision.name), revision.revision_code, 'FG', revision.site_id, revision.base_uom_id, revision.lifecycle_status]);
@@ -278,7 +423,14 @@ async function rebuildOwnedReadModel(manifest) {
     for (const line of mbomLines) await execution.query(`INSERT INTO rm_mbom_line (master_id,mbom_header_id,parent_line_id,seq,component_revision_id,component_item_code,quantity_per,uom_id,scrap_rate,issue_operation_id,backflush_flag,phantom_flag) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, [line.master_id, line.mbom_header_id, line.parent_line_id, line.seq, line.component_revision_id, line.component_item_code, line.quantity_per, line.uom_id, line.scrap_rate, line.issue_operation_id, line.backflush_flag, line.phantom_flag]);
     await execution.query(`INSERT INTO rm_routing_header (master_id,code,item_revision_id,site_id,lifecycle_status,updated_at) VALUES ($1,$2,NULL,$3,$4,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,site_id=EXCLUDED.site_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [routing.master_id, routing.code, contextSiteId(manifest), routing.lifecycle_status]);
     await execution.query(`DELETE FROM rm_routing_operation WHERE routing_header_id=$1`, [routing.master_id]);
-    for (const op of routingOps) await execution.query(`INSERT INTO rm_routing_operation (master_id,routing_header_id,operation_id,operation_code,work_center_id,seq,predecessor_seq,planning_mode,resolved_source,resolved_base_quantity,resolved_setup_time_min,resolved_cycle_time_sec,resolved_required_workers,resolved_efficiency_factor,resolved_standard_yield,requires_output_label,workstation_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'ROUTING_OVERRIDE',$9,$10,$11,$12,$13,$14,$15,$16)`, [op.master_id, op.routing_header_id, op.operation_id, op.operation_code, op.work_center_id, op.seq, op.predecessor_seq, op.planning_mode, op.resolved_base_quantity, op.resolved_setup_time_min, op.resolved_cycle_time_sec, op.resolved_required_workers, op.resolved_efficiency_factor, op.resolved_standard_yield, op.requires_output_label, manifest.workstation.master_id]);
+    for (const op of routingOps) await execution.query(`INSERT INTO rm_routing_operation (master_id,routing_header_id,operation_id,operation_code,work_center_id,seq,predecessor_seq,planning_mode,resolved_source,resolved_base_quantity,resolved_setup_time_min,resolved_cycle_time_sec,resolved_required_workers,resolved_efficiency_factor,resolved_standard_yield,requires_output_label,workstation_id,queue_time_min,move_time_min,units_per_label,label_quantity_method,copies_per_label) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'ROUTING_OVERRIDE',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`, [op.master_id, op.routing_header_id, op.operation_id, op.operation_code, op.work_center_id, op.seq, op.predecessor_seq, op.planning_mode, op.resolved_base_quantity, op.resolved_setup_time_min, op.resolved_cycle_time_sec, op.resolved_required_workers, op.resolved_efficiency_factor, op.resolved_standard_yield, op.requires_output_label, manifest.workstation.master_id, op.queue_time_min, op.move_time_min, op.units_per_label || null, op.label_quantity_method || 'CEIL_BY_UNITS_PER_LABEL', op.copies_per_label || 1]);
+    await execution.query(`DELETE FROM rm_resource_calendar WHERE work_center_id=$1`, [manifest.work_center.master_id]);
+    for (const calendar of calendars) await execution.query(`INSERT INTO rm_resource_calendar (master_id,work_center_id,equipment_id,available_from,available_to,capacity_percent,lifecycle_status) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (master_id) DO UPDATE SET work_center_id=EXCLUDED.work_center_id,equipment_id=EXCLUDED.equipment_id,available_from=EXCLUDED.available_from,available_to=EXCLUDED.available_to,capacity_percent=EXCLUDED.capacity_percent,lifecycle_status=EXCLUDED.lifecycle_status`, [calendar.master_id, calendar.work_center_id || manifest.work_center.master_id, calendar.equipment_id, calendar.available_from, calendar.available_to, calendar.capacity_percent, calendar.lifecycle_status]);
+    for (const skill of skills) await execution.query(`INSERT INTO rm_skill (master_id,code,name,lifecycle_status) VALUES ($1,$2,$3::jsonb,$4) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,lifecycle_status=EXCLUDED.lifecycle_status`, [skill.master_id, skill.code, JSON.stringify(skill.name && typeof skill.name === 'object' ? skill.name : { vi: skill.name, en: skill.name }), skill.lifecycle_status]);
+    for (const employee of employees) await execution.query(`INSERT INTO rm_employee (master_id,code,name,site_id,default_work_center_id,employee_status,lifecycle_status) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,site_id=EXCLUDED.site_id,default_work_center_id=EXCLUDED.default_work_center_id,employee_status=EXCLUDED.employee_status,lifecycle_status=EXCLUDED.lifecycle_status`, [employee.master_id, employee.code, JSON.stringify({ vi: employee.name, en: employee.name }), employee.site_id, employee.default_work_center_id, employee.employee_status, employee.lifecycle_status]);
+    for (const employeeSkill of employeeSkills) await execution.query(`INSERT INTO rm_employee_skill (employee_id,skill_id,level) VALUES ($1,$2,$3) ON CONFLICT (employee_id,skill_id) DO UPDATE SET level=EXCLUDED.level`, [employeeSkill.employee_id, employeeSkill.skill_id, employeeSkill.level]);
+    for (const schedule of employeeSchedules) await execution.query(`INSERT INTO rm_employee_shift_schedule (schedule_id,employee_id,shift_id,work_center_id,schedule_date,schedule_status) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (schedule_id) DO UPDATE SET shift_id=EXCLUDED.shift_id,work_center_id=EXCLUDED.work_center_id,schedule_date=EXCLUDED.schedule_date,schedule_status=EXCLUDED.schedule_status`, [schedule.schedule_id, schedule.employee_id, schedule.shift_id, schedule.work_center_id, schedule.schedule_date, schedule.schedule_status]);
+    for (const requirement of operationRequirements) await execution.query(`INSERT INTO rm_operation_skill_requirement (master_id,operation_id,skill_id,minimum_level,required_persons,mandatory_flag) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (master_id) DO UPDATE SET operation_id=EXCLUDED.operation_id,skill_id=EXCLUDED.skill_id,minimum_level=EXCLUDED.minimum_level,required_persons=EXCLUDED.required_persons,mandatory_flag=EXCLUDED.mandatory_flag`, [requirement.master_id, requirement.operation_id, requirement.skill_id, requirement.minimum_level, requirement.required_persons, requirement.mandatory_flag]);
     await execution.query(`INSERT INTO rm_production_version (master_id,code,name_i18n,item_revision_id,mbom_header_id,routing_header_id,site_id,lifecycle_status,is_default,min_lot_size,max_lot_size,updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,$9,$10,$11,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name_i18n=EXCLUDED.name_i18n,item_revision_id=EXCLUDED.item_revision_id,mbom_header_id=EXCLUDED.mbom_header_id,routing_header_id=EXCLUDED.routing_header_id,site_id=EXCLUDED.site_id,lifecycle_status=EXCLUDED.lifecycle_status,min_lot_size=EXCLUDED.min_lot_size,max_lot_size=EXCLUDED.max_lot_size,updated_at=NOW()`, [pv.master_id, pv.code, JSON.stringify(pv.name_i18n), pv.item_revision_id, pv.mbom_header_id, pv.routing_header_id, pv.site_id, pv.lifecycle_status, pv.is_default, pv.min_lot_size, pv.max_lot_size]);
     await execution.query('COMMIT');
   } catch (error) { await execution.query('ROLLBACK'); throw new Error(`ROUTING_READ_MODEL: ${error.message}`); }
@@ -286,37 +438,111 @@ async function rebuildOwnedReadModel(manifest) {
 
 function contextSiteId(manifest) { return manifest.site.master_id; }
 
-async function preflight(manifest) {
-  const ready = await data('/production-ready-versions?limit=500&planned_date=2026-08-01');
+async function preflight(manifest, targetDate) {
+  const ready = await data(`/production-ready-versions?limit=500&planned_date=${encodeURIComponent(targetDate)}`);
   const candidate = ready.find((row) => row.production_version_code === manifest.production_version.code || row.production_version_id === manifest.production_version.master_id);
   const printReadiness = await data(`/workstations/${manifest.workstation.master_id}/print-station-readiness`);
   return { productionVersionReady: Boolean(candidate?.ready), candidate, printReadiness, expectedOperationCount: 3, operationCodes: manifest.operations.map((row) => row.code), mbomLineCount: 1 };
+}
+
+async function createDemoWorkOrder(manifest, targetDate) {
+  const idempotencyKey = `seed-demo-wo-${manifest.production_version.master_id}-${Date.now()}`;
+  const start = new Date(`${targetDate}T08:00:00.000Z`);
+  const started = await executionApi('/work-order-creation-workflows', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ production_version_id: manifest.production_version.master_id, item_revision_id: manifest.revision.master_id, item_code: manifest.item.code, item_name: manifest.item.name, uom_id: manifest.uom.master_id, site_id: manifest.site.master_id, quantity: 2, target_date: targetDate, shift_id: manifest.shift.master_id }),
+  });
+  const workflowID = started.body.workflow_id;
+  if (!workflowID) throw new Error(`SEED_DEMO_WO: workflow did not return workflow_id: ${JSON.stringify(started.body)}`);
+  let snapshot;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    snapshot = (await executionApi(`/work-order-creation-workflows/${workflowID}`)).body;
+    if (snapshot.status === 'succeeded' || snapshot.status === 'failed') break;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  if (snapshot.status !== 'succeeded' || !snapshot.work_order_id) throw new Error(`SEED_DEMO_WO: workflow did not succeed: ${JSON.stringify(snapshot)}`);
+  const wo = (await executionApi(`/work-orders/${snapshot.work_order_id}`)).body;
+  const compute = (await executionApi(`/work-orders/${snapshot.work_order_id}/compute-check`, { method: 'POST', body: '{}' })).body;
+  const candidates = [];
+  for (const operation of wo.operations || []) candidates.push({ operation_id: operation.wo_operation_id, response: (await executionApi(`/work-orders/${snapshot.work_order_id}/operations/${operation.wo_operation_id}/resource-candidates?shift_id=${encodeURIComponent(manifest.shift.master_id)}`)).body });
+  return { workflow_id: workflowID, work_order_id: snapshot.work_order_id, work_order_code: snapshot.work_order_code, status: wo.header?.status || wo.status, operation_count: wo.operations?.length || 0, material_count: wo.material_requirements?.length || 0, compute_check: { total_estimated_minutes: compute.total_estimated_minutes, labor_assignment_count: compute.labor_assignments?.length || 0 }, candidates: candidates.map((entry) => ({ operation_id: entry.operation_id, status: entry.response.status, candidate_count: entry.response.candidates?.length || 0, blocking_errors: entry.response.blocking_errors || [] })) };
+}
+
+async function verifyPlanningSnapshots(workOrderId) {
+  const result = await execution.query(`
+    SELECT sequence_no, operation_code, standard_setup_time_min,
+           standard_cycle_time_sec, standard_efficiency_factor,
+           base_quantity, standard_yield, planning_snapshot
+    FROM wo_operation
+    WHERE wo_id=$1
+    ORDER BY sequence_no
+  `, [workOrderId]);
+  const invalid = [];
+  for (const row of result.rows) {
+    const values = {
+      setup_time_min: Number(row.standard_setup_time_min),
+      cycle_time_sec: Number(row.standard_cycle_time_sec),
+      efficiency_factor: Number(row.standard_efficiency_factor),
+      base_quantity: Number(row.base_quantity),
+      standard_yield: Number(row.standard_yield),
+    };
+    let snapshot = row.planning_snapshot;
+    if (typeof snapshot === 'string') {
+      try { snapshot = JSON.parse(snapshot); } catch { snapshot = null; }
+    }
+    const valid = Number.isFinite(values.setup_time_min) && values.setup_time_min >= 0
+      && Number.isFinite(values.cycle_time_sec) && values.cycle_time_sec > 0
+      && Number.isFinite(values.efficiency_factor) && values.efficiency_factor > 0
+      && Number.isFinite(values.base_quantity) && values.base_quantity > 0
+      && Number.isFinite(values.standard_yield) && values.standard_yield > 0 && values.standard_yield <= 1
+      && snapshot && typeof snapshot === 'object';
+    if (!valid) invalid.push({ sequence_no: row.sequence_no, operation_code: row.operation_code, values, planning_snapshot: snapshot });
+  }
+  if (result.rowCount === 0 || invalid.length > 0) {
+    throw new Error(`SEED_PLANNING_SNAPSHOT_INVALID: ${JSON.stringify({ operation_count: result.rowCount, invalid })}`);
+  }
+  return { operation_count: result.rowCount, invalid_count: 0, validated: result.rows.map((row) => ({ sequence_no: row.sequence_no, operation_code: row.operation_code })) };
 }
 
 async function main() {
   await fs.mkdir(artifactDir, { recursive: true });
   const guard = safety(); await writeJson('environment.json', guard);
   if (!guard.passed) throw new Error(`ENVIRONMENT_SAFETY: ${guard.reasons.join('; ')}`);
-  await master.connect(); await execution.connect();
+  await master.connect(); await execution.connect(); await traceability.connect();
   const context = await getContext();
+  const targetDate = process.env.E2E_WO_TARGET_DATE || new Date().toISOString().slice(0, 10);
   const plan = { ownedCodes: names, reused: { site: context.site.code, work_center: context.workCenter.code, workstation: context.workstation.code, component_revision: context.component.code, uom: context.pcs.code }, mode };
   await writeJson('seed-plan.json', plan);
   if (mode === 'dry-run') { console.log(json({ success: true, mode, artifactDir, plan })); return; }
   const workOrderCleanup = await cleanupWorkOrderSnapshots();
   const cleanup = await cleanupOwned();
+  const traceabilityCleanup = await cleanupTraceabilityOwned();
   const manifest = await createScenario(context);
+  manifest.print_station = await ensurePrintStation(context);
+  const traceabilitySeed = await seedTraceability(manifest);
   const supportingSeeds = await seedSupportingData();
-  await rebuildOwnedReadModel(manifest);
-  const readiness = await preflight(manifest);
+  const machineGroup = await ensureDemoMachineGroup(context);
+  const planningMatrix = await seedPlanningMatrix(manifest, context, targetDate);
+  await rebuildOwnedReadModel(manifest, targetDate);
+  const readiness = await preflight(manifest, targetDate);
   if (!readiness.productionVersionReady) throw new Error(`PRODUCTION_VERSION_READINESS: ${JSON.stringify(readiness)}`);
-  const wmsReadiness = await verifyWmsComponentStock(context.component, 2);
+  const printReady = readiness.printReadiness && readiness.printReadiness.is_active !== false && readiness.printReadiness.runtime_status === 'ONLINE' && readiness.printReadiness.kafka_status === 'CONNECTED' && Number(readiness.printReadiness.ready_printer_count || 0) > 0;
+  if (!printReady && process.env.ALLOW_PRINT_STATION_OFFLINE !== 'true') throw new Error(`PRINT_STATION_READINESS: ${JSON.stringify(readiness.printReadiness)}`);
+  const wmsReadiness = await verifyWmsComponentStock(context.component, 2, targetDate);
   if (!wmsReadiness.passed) throw new Error(`WMS_COMPONENT_STOCK_READINESS: ${JSON.stringify(wmsReadiness)}`);
   await writeJson('seed-manifest.json', manifest);
   await writeJson('master-data-readiness.json', readiness);
   await writeJson('wms-readiness.json', wmsReadiness);
   await writeJson('labor-wms-seed.json', supportingSeeds);
-  await writeJson('summary.json', { success: true, mode, artifactDir, cleanup, workOrderCleanup, supportingSeeds, readiness, wmsReadiness, manifest });
-  console.log(json({ success: true, mode, artifactDir, cleanup, workOrderCleanup, supportingSeeds, productionVersion: manifest.production_version.code, readiness, wmsReadiness }));
+  await writeJson('planning-matrix-seed.json', { target_date: targetDate, machine_group: machineGroup, ...planningMatrix });
+  const demoWorkOrder = await createDemoWorkOrder(manifest, targetDate);
+  const planningSnapshots = await verifyPlanningSnapshots(demoWorkOrder.work_order_id);
+  await writeJson('traceability-seed.json', traceabilitySeed);
+  await writeJson('demo-work-order.json', { target_date: targetDate, ...demoWorkOrder });
+  await writeJson('planning-snapshot-verification.json', planningSnapshots);
+  await writeJson('summary.json', { success: true, mode, artifactDir, cleanup, workOrderCleanup, traceabilityCleanup, traceabilitySeed, supportingSeeds, machineGroup, planningMatrix, readiness, wmsReadiness, demoWorkOrder, planningSnapshots, manifest });
+  console.log(json({ success: true, mode, artifactDir, cleanup, workOrderCleanup, traceabilityCleanup, traceabilitySeed, supportingSeeds, machineGroup, planningMatrix, productionVersion: manifest.production_version.code, readiness, wmsReadiness, demoWorkOrder, planningSnapshots }));
 }
 
-main().catch((error) => { console.error(error.message); process.exitCode = 1; }).finally(async () => { try { await master.end(); } catch {} try { await execution.end(); } catch {} });
+main().catch((error) => { console.error(error.message); process.exitCode = 1; }).finally(async () => { try { await master.end(); } catch {} try { await execution.end(); } catch {} try { await traceability.end(); } catch {} });

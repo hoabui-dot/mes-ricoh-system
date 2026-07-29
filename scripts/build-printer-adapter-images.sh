@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_CONTEXT="$ROOT_DIR/print-marking/station-agent"
 DOCKERFILE="$BUILD_CONTEXT/services/printer-adapter/docker/Dockerfile"
-RELEASE_TAG="${PRINTER_ADAPTER_RELEASE_TAG:-20260727}"
+RELEASE_TAG="${PRINTER_ADAPTER_RELEASE_TAG:-ready-printer-20260727}"
 IMAGE_BASE="${PRINTER_ADAPTER_IMAGE_BASE:-vanhoadotbui2628/printer-adapter:real-printers-no-simulator-${RELEASE_TAG}}"
 AMD_IMAGE="${PRINTER_ADAPTER_AMD_IMAGE:-${IMAGE_BASE}-amd64}"
 ARM_IMAGE="${PRINTER_ADAPTER_ARM_IMAGE:-${IMAGE_BASE}-arm64}"
@@ -13,7 +13,9 @@ UI_BASE="${PRINTER_ADAPTER_UI_IMAGE_BASE:-vanhoadotbui2628/printer-adapter-ui:ka
 UI_AMD_IMAGE="${PRINTER_ADAPTER_UI_AMD_IMAGE:-${UI_BASE}-amd64}"
 UI_ARM_IMAGE="${PRINTER_ADAPTER_UI_ARM_IMAGE:-${UI_BASE}-arm64}"
 UI_MULTI_IMAGE="${PRINTER_ADAPTER_UI_MULTI_IMAGE:-${UI_BASE}}"
-PUSH_IMAGES="${PRINTER_ADAPTER_PUSH:-true}"
+# Rebuilds are local by default. The package command
+# `build:printer-adapter:both` explicitly enables Docker Hub publishing.
+PUSH_IMAGES="${PRINTER_ADAPTER_PUSH:-false}"
 BUILDER_NAME="${PRINTER_ADAPTER_BUILDER:-station-agent-multiplatform}"
 NO_CACHE="${PRINTER_ADAPTER_NO_CACHE:-true}"
 
@@ -36,6 +38,7 @@ build_image() {
   if [[ "$NO_CACHE" == "true" ]]; then cache_args+=(--no-cache); fi
   printf '[%s] Building %s for %s\n' "$label" "$tag" "$platform"
   if [[ "$PUSH_IMAGES" == "true" ]]; then
+    printf '  Push: Docker Hub -> %s\n' "$tag"
     docker buildx build \
       --builder "$BUILDER_NAME" \
       --platform "$platform" \
@@ -99,7 +102,8 @@ printf 'Printer Adapter UI ARM64: %s\n' "$UI_ARM_IMAGE"
 printf 'Printer Adapter multi-platform: %s\n' "$IMAGE_BASE"
 printf 'Printer Adapter UI multi-platform: %s\n' "$UI_MULTI_IMAGE"
 if [[ "$PUSH_IMAGES" == "true" ]]; then
-  printf 'Registry: Docker Hub push completed for all architecture tags and multi-platform manifests.\n'
+  printf 'Registry: Docker Hub push completed. Published versions:\n'
+  printf '  - %s\n  - %s\n  - %s\n  - %s\n  - %s\n  - %s\n' "$AMD_IMAGE" "$ARM_IMAGE" "$UI_AMD_IMAGE" "$UI_ARM_IMAGE" "$IMAGE_BASE" "$UI_MULTI_IMAGE"
 else
-  printf 'Registry: not pushed (PRINTER_ADAPTER_PUSH=false).\n'
+  printf 'Registry: not pushed (local rebuild mode; PRINTER_ADAPTER_PUSH=false).\n'
 fi

@@ -256,6 +256,9 @@ ${tableSql('md_routing_operation', `
   work_center_id UUID NOT NULL,
   seq INTEGER NOT NULL,
   predecessor_seq INTEGER,
+  units_per_label NUMERIC(18,6),
+  label_quantity_method VARCHAR(40) NOT NULL DEFAULT 'CEIL_BY_UNITS_PER_LABEL',
+  copies_per_label INTEGER NOT NULL DEFAULT 1,
   UNIQUE (routing_header_id, seq)
 `)}
 ${tableSql('md_production_version', `
@@ -2102,6 +2105,24 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
         NOT VALID;
       CREATE INDEX IF NOT EXISTS ix_md_production_version_name_i18n
         ON md_production_version USING GIN (name_i18n);
+    `,
+  },
+  {
+    name: '0044_routing_label_policy',
+    sql: `
+      ALTER TABLE md_routing_operation
+        ADD COLUMN IF NOT EXISTS units_per_label NUMERIC(18,6),
+        ADD COLUMN IF NOT EXISTS label_quantity_method VARCHAR(40) NOT NULL DEFAULT 'CEIL_BY_UNITS_PER_LABEL',
+        ADD COLUMN IF NOT EXISTS copies_per_label INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE md_routing_operation
+        DROP CONSTRAINT IF EXISTS ck_md_routing_operation_label_policy,
+        ADD CONSTRAINT ck_md_routing_operation_label_policy
+        CHECK (units_per_label IS NULL OR units_per_label > 0)
+        NOT VALID;
+      ALTER TABLE md_routing_operation
+        DROP CONSTRAINT IF EXISTS ck_md_routing_operation_copies,
+        ADD CONSTRAINT ck_md_routing_operation_copies CHECK (copies_per_label > 0)
+        NOT VALID;
     `,
   },
 ];

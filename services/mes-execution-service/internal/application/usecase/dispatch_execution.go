@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -72,22 +73,39 @@ func DispatchReadyOperations(ctx context.Context, pool *pgxpool.Pool, woID, user
 	return count, nil
 }
 
-type executionTx interface {
+type ExecutionTx interface {
 	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
+type executionTx = ExecutionTx
+
+// QueueDemoPrintOperationsTx queues every PRINT_STATION operation directly
+// during demo approval. It intentionally ignores predecessor/material gates;
+// the caller owns the transaction so approval and the print outbox are atomic.
+func QueueDemoPrintOperationsTx(ctx context.Context, tx ExecutionTx, woID, userID, traceID string) (int, error) {
+	return queueOperations(ctx, tx, woID, userID, traceID, true)
+}
+
 func queueReadyOperations(ctx context.Context, tx executionTx, woID, userID, traceID string) (int, error) {
-	rows, err := tx.Query(ctx, `
+	return queueOperations(ctx, tx, woID, userID, traceID, false)
+}
+
+func queueOperations(ctx context.Context, tx executionTx, woID, userID, traceID string, printOnly bool) (int, error) {
+	where := `o.status IN ('Pending','Ready') AND (o.predecessor_seq IS NULL OR o.predecessor_seq='' OR NOT EXISTS (
+			SELECT 1 FROM wo_operation p WHERE p.wo_id=o.wo_id AND p.sequence_no = ANY(string_to_array(o.predecessor_seq, ',')::int[]) AND p.status <> 'Finished'))`
+	if printOnly {
+		where = `o.status IN ('Pending','Ready') AND o.execution_target_type='PRINT_STATION'`
+	}
+	rows, err := tx.Query(ctx, fmt.Sprintf(`
 		SELECT o.wo_operation_id, o.operation_id, o.routing_operation_id, o.operation_code, o.operation_name,
 		       o.work_center_id, o.workstation_id, o.execution_target_type, o.sequence_no, o.predecessor_seq,
-		       h.wo_code, h.quantity, h.item_code, h.item_name
+		       h.wo_code, h.quantity, h.item_code, h.item_name, o.requires_output_label,
+		       o.base_quantity, o.units_per_label, o.label_quantity_method, o.copies_per_label, o.label_count, o.print_copies
 		FROM wo_operation o JOIN wo_header h ON h.wo_id=o.wo_id
-		WHERE o.wo_id=$1 AND o.status IN ('Pending','Ready')
-		  AND (o.predecessor_seq IS NULL OR o.predecessor_seq='' OR NOT EXISTS (
-			SELECT 1 FROM wo_operation p WHERE p.wo_id=o.wo_id AND p.sequence_no = ANY(string_to_array(o.predecessor_seq, ',')::int[]) AND p.status <> 'Finished'))
-		ORDER BY o.sequence_no`, woID)
+		WHERE o.wo_id=$1 AND %s
+		ORDER BY o.sequence_no`, where), woID)
 	if err != nil {
 		return 0, err
 	}
@@ -98,11 +116,15 @@ func queueReadyOperations(ctx context.Context, tx executionTx, woID, userID, tra
 		seq                                                                            int
 		pred                                                                           *string
 		quantity                                                                       float64
+		requiresOutputLabel                                                            bool
+		baseQuantity, unitsPerLabel                                                    *float64
+		labelQuantityMethod                                                            string
+		copiesPerLabel, labelCount, printCopies                                        int
 	}
 	var ready []readyOperation
 	for rows.Next() {
 		var op readyOperation
-		if err := rows.Scan(&op.opID, &op.operationID, &op.routingID, &op.opCode, &op.opName, &op.wcID, &op.workstationID, &op.target, &op.seq, &op.pred, &op.woCode, &op.quantity, &op.itemCode, &op.itemName); err != nil {
+		if err := rows.Scan(&op.opID, &op.operationID, &op.routingID, &op.opCode, &op.opName, &op.wcID, &op.workstationID, &op.target, &op.seq, &op.pred, &op.woCode, &op.quantity, &op.itemCode, &op.itemName, &op.requiresOutputLabel, &op.baseQuantity, &op.unitsPerLabel, &op.labelQuantityMethod, &op.copiesPerLabel, &op.labelCount, &op.printCopies); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -138,7 +160,7 @@ func queueReadyOperations(ctx context.Context, tx executionTx, woID, userID, tra
 		var printJobID uuid.UUID
 		printAttemptNo := 1
 		if target == "PRINT_STATION" {
-			eventType = "command.printer.print"
+			eventType = "command.printer.print.batch"
 			stationCode := printStationCode
 			stationID := printStationID
 			adapterID := os.Getenv("MES_DEMO_PRINT_ADAPTER_ID")
@@ -173,6 +195,26 @@ func queueReadyOperations(ctx context.Context, tx executionTx, woID, userID, tra
 				}
 			}
 			printJobID = jobID
+			if op.labelCount < 1 {
+				base := valueOrBase(op.baseQuantity, valueOrBase(op.unitsPerLabel, 0))
+				var quantityErr error
+				op.labelCount, quantityErr = calculateLabelQuantity(quantity, base)
+				if quantityErr != nil {
+					return count, quantityErr
+				}
+			}
+			if op.copiesPerLabel < 1 {
+				op.copiesPerLabel = 1
+			}
+			if op.printCopies < 1 {
+				op.printCopies = op.labelCount * op.copiesPerLabel
+			}
+			labelItems := make([]map[string]interface{}, 0, op.printCopies)
+			for labelNo := 1; labelNo <= op.labelCount; labelNo++ {
+				for copyNo := 1; copyNo <= op.copiesPerLabel; copyNo++ {
+					labelItems = append(labelItems, map[string]interface{}{"job_id": fmt.Sprintf("%s-label-%03d-copy-%02d", jobID, labelNo, copyNo), "product_serial": fmt.Sprintf("%s-%03d", woCode, labelNo), "sequence": labelNo})
+				}
+			}
 			payload = map[string]interface{}{
 				"event_type": eventType, "event_id": commandID.String(), "job_id": jobID.String(), "job_no": woCode,
 				"job_type": "MES_WO_PRINT", "product_code": itemCode, "product_serial": nil, "status": "PROCESSING", "source_system": "mes-execution-service",
@@ -180,7 +222,7 @@ func queueReadyOperations(ctx context.Context, tx executionTx, woID, userID, tra
 				"attempt_no": attemptNo, "payload_json": fmt.Sprintf(`{"workOrderId":"%s","woOperationId":"%s","quantity":%v,"itemName":%q}`, woID, opID, quantity, itemName),
 				"dispatch_target": "production-printer", "target_printer": nil,
 				"printJobId": jobID.String(), "workOrderId": woID, "woOperationId": opID, "printStationId": stationCode, "adapterId": adapterID,
-				"operationCode": opCode, "quantity": quantity, "correlationId": traceID,
+				"operationCode": opCode, "quantity": quantity, "requested_quantity": quantity, "production_standard_base_quantity": valueOrBase(op.baseQuantity, valueOrBase(op.unitsPerLabel, 0)), "calculated_cycles": op.labelCount, "required_labels": op.labelCount, "labels_per_cycle": 1, "units_per_label": op.unitsPerLabel, "label_quantity_method": op.labelQuantityMethod, "label_count": op.labelCount, "copies_per_label": op.copiesPerLabel, "print_copies": op.printCopies, "total_copies": op.printCopies, "demo_mode": DemoPrintOnApprovalEnabled(), "label_items": labelItems, "batch_size": 100, "production_order_no": woCode, "correlationId": traceID,
 			}
 			if _, err := tx.Exec(ctx, `UPDATE wo_operation SET print_station_id=NULLIF($1,'')::uuid, adapter_id=$2 WHERE wo_operation_id=$3`, stationID, adapterID, opID); err != nil {
 				return count, err
@@ -190,7 +232,7 @@ func queueReadyOperations(ctx context.Context, tx executionTx, woID, userID, tra
 		envelope := sharedkernel.CreateEventEnvelope(eventType, "mes-execution-service", traceID, payload)
 		if target == "PRINT_STATION" {
 			commandID, _ := payload["event_id"].(string)
-			if _, err := tx.Exec(ctx, `UPDATE wo_print_job SET command_event_id=$1, status='DispatchQueued', dispatched_at=NOW() WHERE print_job_id=$2`, commandID, printJobID); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE wo_print_job SET command_event_id=$1, status='DispatchQueued', dispatched_at=NOW(), label_count=$3, copies_per_label=$4, total_copies=$5, units_per_label=$6, label_quantity_method=$7 WHERE print_job_id=$2`, commandID, printJobID, op.labelCount, op.copiesPerLabel, op.printCopies, op.unitsPerLabel, op.labelQuantityMethod); err != nil {
 				return count, err
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO wo_print_job_attempt (print_job_id, attempt_no, command_event_id) VALUES ($1,$2,$3) ON CONFLICT (command_event_id) DO NOTHING`, printJobID, printAttemptNo, commandID); err != nil {
@@ -200,12 +242,30 @@ func queueReadyOperations(ctx context.Context, tx executionTx, woID, userID, tra
 		if err := sharedkernel.WriteToOutbox(ctx, tx, eventType, envelope); err != nil {
 			return count, err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE wo_operation SET status=$1, dispatch_event_id=$2, row_version=row_version+1 WHERE wo_operation_id=$3 AND status IN ('Pending','Ready')`, status, envelope.EventID, opID); err != nil {
+		printStatus := "NotRequired"
+		if target == "PRINT_STATION" {
+			printStatus = "Queued"
+		}
+		if _, err := tx.Exec(ctx, `UPDATE wo_operation SET status=$1, print_status=$2, dispatch_event_id=$3, row_version=row_version+1 WHERE wo_operation_id=$4 AND status IN ('Pending','Ready')`, status, printStatus, envelope.EventID, opID); err != nil {
 			return count, err
 		}
 		count++
 	}
 	return count, nil
+}
+
+func calculateLabelQuantity(quantity, base float64) (int, error) {
+	if quantity <= 0 || base <= 0 {
+		return 0, fmt.Errorf("PRINT_QUANTITY_CANNOT_BE_CALCULATED")
+	}
+	return int(math.Ceil(quantity / base)), nil
+}
+
+func valueOrBase(value *float64, fallback float64) float64 {
+	if value != nil && *value > 0 {
+		return *value
+	}
+	return fallback
 }
 
 func resolvePrintStation(ctx context.Context, workstationID *string) (string, string, error) {

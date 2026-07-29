@@ -2,4 +2,14 @@ services:
   printer-adapter:
     # Local verification/runtime override for an AMD64 host. The base compose
     # file remains the ARM64 deployment configuration.
-    image: printer-adapter:local-rabbitmq-amd64
+    # Use the Kafka/CUPS-fix build. The old local-rabbitmq image is retained
+    # only as an historical artifact and must not be used by the station flow.
+    image: local/printer-adapter:cups-remote-fix-amd64
+    networks:
+      - default
+      - platform-net
+
+networks:
+  platform-net:
+    external: true
+    name: platform-net

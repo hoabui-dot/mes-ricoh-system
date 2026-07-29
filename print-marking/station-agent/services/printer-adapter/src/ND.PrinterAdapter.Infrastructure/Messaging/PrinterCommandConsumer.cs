@@ -32,9 +32,11 @@ public sealed class PrinterCommandConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await _consumer.StartConsumingAsync(Exchange, Queue, JobEventRoutingKeys.BatchPrint,
-            HandleMessageAsync, stoppingToken);
-        await _consumer.StartConsumingAsync(Exchange, Queue, JobEventRoutingKeys.Print,
+        // Both command types share one Kafka topic and one durable queue. They
+        // must be handled by one consumer loop; two consumers in the same group
+        // would race for the topic partition and could commit a batch message
+        // from the single-print loop without processing it.
+        await _consumer.StartConsumingAsync(Exchange, Queue, "command.printer.#",
             HandleMessageAsync, stoppingToken);
 
         _logger.LogInformation("Printer command consumer active. queue={Queue}", Queue);
@@ -43,7 +45,19 @@ public sealed class PrinterCommandConsumer : BackgroundService
 
     private async Task HandleMessageAsync(string routingKey, string payloadJson)
     {
+        // The command topic is shared by production print commands and the
+        // Kafka management boundary. The management consumer has its own
+        // queue, but this consumer still receives the topic stream because
+        // the Kafka adapter maps the routing pattern at the consumer layer.
+        // Never deserialize management requests as ProductionBatchPrintCommand.
         var isSingle = string.Equals(routingKey, JobEventRoutingKeys.Print, StringComparison.OrdinalIgnoreCase);
+        var isBatch = string.Equals(routingKey, JobEventRoutingKeys.BatchPrint, StringComparison.OrdinalIgnoreCase);
+        if (!isSingle && !isBatch)
+        {
+            _logger.LogDebug("Ignoring non-print command routing key {RoutingKey}.", routingKey);
+            return;
+        }
+
         var command = isSingle
             ? NormalizeSingleCommand(payloadJson)
             : JsonSerializer.Deserialize<ProductionBatchPrintCommand>(payloadJson, JsonOptions)

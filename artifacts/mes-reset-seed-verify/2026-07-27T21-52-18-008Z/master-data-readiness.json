@@ -1,0 +1,113 @@
+{
+  "productionVersionReady": true,
+  "candidate": {
+    "production_version_name": {
+      "en": "E2E WO Label Production Version",
+      "ja": "E2E WO ラベル生産バージョン",
+      "ko": "E2E WO 라벨 생산 버전",
+      "vi": "Cấu hình E2E WO in nhãn"
+    },
+    "min_lot_size": "1.000000",
+    "max_lot_size": "100.000000",
+    "item_id": "a21387cc-e680-466f-b2d1-c2f59fc30fe3",
+    "item_code": "E2E-WO-FG-01",
+    "item_name": {
+      "en": "E2E WO Label Product",
+      "ja": "E2E WO ラベル製品",
+      "ko": "E2E WO 라벨 제품",
+      "vi": "Sản phẩm E2E WO in nhãn"
+    },
+    "item_revision_id": "2c47340a-289a-4eee-aadd-379685d6c803",
+    "revision_code": "E2E-WO-FG-01-R1",
+    "revision_status": "Released",
+    "revision_effective_from": "2026-07-27T21:52:18.643Z",
+    "revision_effective_to": null,
+    "base_uom_code": "PCS",
+    "base_uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+    "production_version_id": "881e2fcb-905d-4b1d-8afe-0ffe858d2784",
+    "production_version_code": "PV-20260727-0032",
+    "mbom_header_id": "8b20e5b9-cf37-43e8-bc42-fa00db98713a",
+    "mbom_code": "E2E-WO-MBOM-01",
+    "mbom_name": {
+      "en": "E2E WO Label MBOM",
+      "ja": "E2E WO ラベルMBOM",
+      "ko": "E2E WO MBOM",
+      "vi": "MBOM E2E WO in nhãn"
+    },
+    "routing_header_id": "9cbff4db-2216-407f-aacb-7314c12059f7",
+    "routing_code": "RT-20260727-0033",
+    "routing_name": {
+      "en": "E2E WO Label Routing",
+      "ja": "E2E WO ラベルルーティング",
+      "ko": "E2E WO 라우팅",
+      "vi": "Routing E2E WO in nhãn"
+    },
+    "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+    "site_code": "SITE-KZ3",
+    "item_revision": {
+      "id": "2c47340a-289a-4eee-aadd-379685d6c803",
+      "code": "E2E-WO-FG-01-R1",
+      "name": {
+        "en": "E2E WO Label Product",
+        "ja": "E2E WO ラベル製品",
+        "ko": "E2E WO 라벨 제품",
+        "vi": "Sản phẩm E2E WO in nhãn"
+      }
+    },
+    "mbom": {
+      "id": "8b20e5b9-cf37-43e8-bc42-fa00db98713a",
+      "code": "E2E-WO-MBOM-01",
+      "name": {
+        "en": "E2E WO Label MBOM",
+        "ja": "E2E WO ラベルMBOM",
+        "ko": "E2E WO MBOM",
+        "vi": "MBOM E2E WO in nhãn"
+      }
+    },
+    "routing": {
+      "id": "9cbff4db-2216-407f-aacb-7314c12059f7",
+      "code": "RT-20260727-0033",
+      "name": {
+        "en": "E2E WO Label Routing",
+        "ja": "E2E WO ラベルルーティング",
+        "ko": "E2E WO 라우팅",
+        "vi": "Routing E2E WO in nhãn"
+      }
+    },
+    "site": {
+      "id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+      "code": "SITE-KZ3"
+    },
+    "base_uom": {
+      "id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+      "code": "PCS"
+    },
+    "valid_from": "2026-07-27T21:52:18.643Z",
+    "valid_to": null,
+    "ready": true,
+    "warnings": [],
+    "display_code": "E2E-WO-FG-01-E2E-WO-FG-01-R1",
+    "readiness_status": "Ready"
+  },
+  "printReadiness": {
+    "binding_id": "db1b2f58-c2ca-44de-82f5-45eea0569eef",
+    "role": "PRIMARY",
+    "print_station_id": "6f56f652-bc6a-456e-a6b3-6284ab023f2d",
+    "print_station_code": "PRINT-STATION-01",
+    "lifecycle_status": "ONLINE",
+    "is_active": true,
+    "runtime_status": "ONLINE",
+    "kafka_status": "CONNECTED",
+    "ready_printer_count": 1,
+    "active_for_work_printer_count": 1,
+    "allocated_printer_quantity": 1,
+    "last_heartbeat_at": "2026-07-27T21:52:16.969Z"
+  },
+  "expectedOperationCount": 3,
+  "operationCodes": [
+    "OP-20260727-0092",
+    "OP-20260727-0093",
+    "OP-20260727-0094"
+  ],
+  "mbomLineCount": 1
+}

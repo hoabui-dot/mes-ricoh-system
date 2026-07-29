@@ -31,6 +31,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 
 	migrationFiles := []string{
 		"migrations/000001_initial_traceability_schema.up.sql",
+		"migrations/000004_i18n_read_models_and_templates.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

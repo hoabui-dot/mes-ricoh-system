@@ -16,7 +16,12 @@ This is the first file to read before making changes in this repository. It cons
 This document is intentionally long. It is designed to let a new AI agent understand the system without
 needing to rediscover the whole repository from scratch.
 
-## Current Print Adapter Transport Snapshot (2026-07-26)
+## Historical Print Adapter Transport Snapshot (superseded 2026-07-27)
+
+The RabbitMQ details in the following historical section describe the earlier
+transport and must not be used for the current runtime. The authoritative
+Kafka-only transport correction is documented near the end of this file under
+`Printer Adapter transport correction (2026-07-27)`.
 
 The independent Printer Adapter transport was restored from the recent HTTP-only
 refactor. This is the current evidence-based state and supersedes older
@@ -4410,7 +4415,19 @@ Kiosk UI is the service on port `5007`; its database is `sqlite-databases/kiosk.
 
 Implementation report: `implementation/kiosk-label-template-502-upstream-fix.md`.
 
-Kiosk `/api/label-templates/active` is a proxy to Printer Adapter `http://100.68.50.41:5003`. A 502 with `Connection refused` means the Printer Adapter is unavailable; it is not a missing Kiosk route. The stable Printer Adapter Docker Hub tag is ARM64-only, while the current development host is AMD64. Use `docker-compose.print-adapter.local-amd64.yml` with the base compose for local runtime, and use only the base compose on an ARM64 deployment host. After restoring `printer-adapter:local-amd64`, direct and authenticated proxied active-template requests returned HTTP 200 and the default published template.
+Kiosk `/api/label-templates/active` is an authenticated HTTP management proxy to
+the independent Printer Adapter; Kafka remains the production command/result
+transport. A 503 with `Connection refused` means the configured Adapter
+endpoint is unavailable or unreachable from the Kiosk container, not that the
+Kiosk route or template repository is missing. On the current integrated
+development host, the Adapter is attached to `platform-net` and Kiosk and
+Projection use `http://printer-adapter:5003` through Docker DNS. A remote
+deployment must set `PRINT_STATION_PRINTER_ADAPTER_URL` to a reachable remote
+Adapter address. The local AMD64 override uses
+`local/printer-adapter:cups-remote-fix-amd64`; the remote ARM deployment uses
+the dedicated ARM image. On 2026-07-27, direct and authenticated proxied
+active-template requests both returned HTTP 200 and the published default
+template. See `implementation/kiosk-label-template-503-connectivity-fix.md`.
 ## 72. Station Print Architecture Kafka Migration and Edge Runtime (2026-07-27)
 
 This section is authoritative for the current runtime; earlier RabbitMQ
@@ -5334,3 +5351,182 @@ were verified; duplicate and out-of-order behavior passed, and the projection
 test volume was reset to an empty baseline. The remote Adapter endpoint
 `http://100.68.50.41:5003` was unreachable from this host, so this run does not
 claim remote CUPS or physical printing.
+
+## MES Work Order resource proposal completion (2026-07-27)
+
+The current Work Order planning path is strict: a candidate is not eligible
+unless the Work Order has a real Site and Shift, the operation has an effective
+resource capability and Production Standard, the selected resource hierarchy
+is available on the requested date, the calendar has enough working minutes,
+and every operation skill requirement has a qualified scheduled employee.
+The readiness response exposes `calculation`, `calendar`, `capability`,
+`production_standard`, `worker_readiness`, `blocking_errors`, and capacity
+conflicts. Synthetic default capacity is not valid for this flow.
+
+The reusable development command is `npm run reset:seed:mes:wo`. It cleans the
+owned Work Order/snapshot and E2E master-data fixtures before reseeding one
+released Item Revision, MBOM, Routing, Production Version, workstation,
+capability, standard, calendar, shift, employee-skill, WMS stock, and Print
+Station readiness set. The seed's planning matrix includes three capabilities,
+three standards, three calendars, and three operation skill requirements.
+Never run this destructive command against production.
+
+Resource allocation is transactional and authoritative. It checks the planner
+response again, locks the resource scope, supersedes an old allocation,
+creates reservations/audit/outbox records, and commits only after all database
+operations succeed. Empty previous allocation IDs are passed as SQL NULL;
+allocation audit and revalidation errors are no longer ignored. Revalidation
+must return every operation as valid before approval.
+
+The verified runtime fixture on 2026-07-27 was Work Order
+`WO-20260727-0034` (`e7d5d7f2-b86d-4458-a7cb-78a684e63c71`) using Production
+Version `PV-20260727-0022` and `SHIFT-A`. Compute & Check returned 374 minutes
+with operation durations 208/58/108 and labor assignments. Three allocations
+were committed and valid, revalidation returned all three operations valid, and
+approval returned `Released` while publishing
+`MES.Execution.WOApproved.v1`. Evidence is in
+`implementation-fix/mes-wo-resource-proposal-completion.md` and
+`artifacts/mes-resource-proposal-repair/2026-07-27T18-47-00Z/baseline/runtime-evidence.json`.
+
+MES Work Order create/detail screens use the shared `FieldHelpPopover` for
+labels and planning fields. In VI/EN/JA/KO, the `!` circle explains where a
+value comes from and what it controls: backend-generated WO code, authoritative
+Production Version, quantity/target date, Shift, Readiness, item/revision,
+MBOM, Routing, UOM, Site, operation sequence/status, Compute & Check, calendar,
+capacity, worker, and material checks. New Work Order labels must preserve this
+popover convention; do not add unexplained business fields.
+
+The frontend build and MES rebuild passed for this phase. API runtime checks
+were performed against local containers. Browser automation and physical
+remote-printer execution were not part of this phase's evidence and must not be
+reported as verified by this change.
+
+The reusable `reset:seed:mes:wo` command was expanded on 2026-07-27 to be a
+cross-service WO demo baseline, not only a master-data seed. It now reconciles
+the physical `PRINT-STATION-01` record and PRIMARY binding for
+`WS-20260727-0006`, seeds the traceability label template, numbering rule, QR
+split rule, and policies for all generated operations, and creates one Draft
+WO through `/api/mes/execution/work-order-creation-workflows`. Traceability
+migration `000004_i18n_read_models_and_templates.up.sql` is included in the
+service startup migration list; do not seed `static_text` into a database that
+has not applied it.
+
+Latest verified seed baseline artifact:
+`artifacts/mes-reset-seed-verify/2026-07-27T19-00-31-397Z/`.
+It created `WO-20260727-0036` with Item `E2E-WO-FG-01`, revision
+`E2E-WO-FG-01-R1`, quantity `2 PCS`, 3 operations, 1 material requirement at
+`2.000000 PCS`, 3 labor assignments, and operation 20 targeted to
+`PRINT_STATION`. Compute & Check succeeded, all three resource candidate
+requests returned `Ready` with no blockers, WMS had `2038.03 PCS` available,
+and Print Station readiness was `ONLINE`/Kafka `CONNECTED` with one ready
+printer. The material quantity formula is `quantity_per * WO quantity *
+(1 + scrap_rate)`; do not reintroduce the old `/100` scaling.
+
+The command leaves this WO in `Draft` intentionally. Approval, resource
+allocation, material staging, execution, Kafka dispatch, and physical printing
+remain explicit runtime/demo steps. The seed does not fake printer heartbeats
+or mark print jobs complete. This separation is required to keep the demo data
+valid when the remote Printer Adapter is unavailable.
+## Printer Adapter transport correction (2026-07-27)
+
+The canonical remote Printer Adapter integration is Kafka-only for runtime
+communication. Kiosk, Projection Service, Job Engine, and Printer Adapter UI
+use Kafka request/reply (`command.printer.management` ->
+`printer.management.response`) for adapter management/query operations. Print
+commands and printer result/heartbeat/status events use the existing Kafka
+event keys. No canonical MES print-station service may call the adapter through
+`PRINTER_ADAPTER_URL` or local port 5003. Adapter HTTP endpoints remain only
+for local health/diagnostic compatibility. The independent deployment uses
+the ARM64 v2 images and the evidence report
+`implementation/print-adapter-kafka-only-runtime-20260727.md`.
+
+## WO resource-calendar seed correction (2026-07-27)
+
+Resource planning readiness is intentionally blocked when no effective
+calendar matches the selected site, resource, date, and shift. The reusable
+`scripts/seed-mes-wo-complete-dataset.mjs` now creates real `Available` 540
+minute calendars for every Released site shift (`SHIFT-A`, `SHIFT-B`, and
+`SHIFT-C`) on `E2E_WO_TARGET_DATE`. It uses the same target date for calendar
+rows, production readiness, read-model refresh, WMS expiry checks, and WO
+planned start. This prevents a valid machine group from appearing blocked just
+because the seed only prepared one shift.
+
+The production-ready endpoint also treats records released during the selected
+planning date as effective for that date. Comparing a timestamp to midnight
+previously hid a newly released Production Version until the following day.
+
+The 2026-07-27 reset completed with Production Version `PV-20260727-0030` and
+demo WO `WO-20260727-0039`. All three operation candidates were `Ready` and
+`Eligible`, with `Available` 540-minute calendars and no blocking errors. The
+old development WO `WO-20260727-0038` was removed by the reset cleanup; it was
+not individually repaired. Evidence and changed-file details are in
+`implementation/wo-resource-calendar-seed-fix-20260727.md`.
+
+The Print Station Kiosk connectivity UX was simplified on 2026-07-27. Its
+`Kết nối mạng` menu now has one page showing direct MES status and printer-only
+device status; PLC, camera, laser, gateway, simulator, MES 24-hour KPI, system
+diagnostics, and central configuration surfaces were removed from that kiosk
+view. The left navigation uses a shadcn icon toggle with persisted collapsed
+state. The page still includes the existing printer-management workspace for
+ready/active printers, mandatory template selection on activation, and the
+confirmed `Đổi mẫu` action for assigning a new published template. See
+`implementation/kiosk-print-station-connectivity-simplification-20260727.md`.
+
+The Kiosk printer-management view was consolidated on 2026-07-27. The
+`Kết nối mạng` page now renders one `THIẾT BỊ IN` section from the authoritative
+`GET /api/printers` response; the old duplicate device grid and separate online
+list are no longer rendered. The same cards show online and offline printers,
+runtime status, activation, active label template, template reassignment,
+deactivation, and retry actions. Activation is allowed only for an online or
+idle printer and still requires a published template plus confirmation. The
+Kiosk API now proxies `/api/printers/ready`, `/api/printers/active`,
+`POST /api/printers/{code}/activate`, and
+`POST /api/printers/{code}/deactivate`; printer status matching is
+case-insensitive. The repeatable API verification command is
+`npm run test:kiosk:printer-template`; it logs in, selects an online printer
+and published template, activates it, and verifies the persisted assignment.
+The detailed report is
+`implementation/kiosk-unified-printer-list-and-template-activation-20260727.md`.
+
+On 2026-07-27, the Kiosk printer list bug was traced to a response-contract
+case mismatch: the printer-management normalizer only accepted camelCase,
+while the Kiosk API returned PascalCase (`PrinterCode`, `Status`,
+`IsActiveForWork`). The normalizer now accepts both forms for printers,
+templates, and live device status. The physical printer
+`Zebra-GK420t-CUPS` was confirmed through authenticated `GET /api/printers` as
+`ONLINE` and active with the `50x30 QR Label (Default)` template. The Kiosk
+printer list polls every 15 seconds; it does not fetch a separate heartbeat
+endpoint. Offline cards retry `test-connection` every 30 seconds with an
+in-flight guard, while online cards do not retry automatically. Details are in
+`implementation/kiosk-printer-missing-device-mapping-and-polling-audit-20260727.md`.
+
+The MES batch-print E2E flow was completed on 2026-07-27 with a hard maximum of
+three physical copies. The verification script
+`scripts/test-mes-wo-batch-print.mjs` now requires authoritative label policy,
+completes operations before and after the print operation, and passes only when
+the entire Work Order reaches `Completed`. A PostgreSQL type bug in
+`PrinterResultConsumer` was fixed by comparing UUID correlation columns as
+text; previously valid `printer.batch.printed` events failed with `text = uuid`
+before updating MES. Verified WO `WO-20260727-0043` printed two copies on
+`Zebra-GK420t-CUPS`, received the Kafka result, completed all three operations,
+and reached `Completed`. Database evidence is one print job, one attempt, and
+one result event; rerunning the script did not duplicate them. Full details are
+in `implementation/mes-wo-batch-print-e2e-completion-20260727.md`.
+
+The E2E seed now validates newly created operation planning snapshots before
+returning success. It rejects missing snapshots and invalid setup, cycle,
+efficiency, base-quantity, or yield values. After the validation was added,
+reset/seed created `WO-20260727-0044`; Compute Check and all resource-candidate
+requests through Kong returned HTTP 200. The full batch print then completed
+two copies on `Zebra-GK420t`, received `printer.batch.printed`, and completed
+the WO with exactly one job, one attempt, and one result event. Use
+`npm run reset:seed:mes:wo` to recreate the deterministic dataset.
+# Temporary Demo Approval Print Mode (2026-07-27)
+
+The MES execution service supports an explicitly temporary environment flag: `MES_DEMO_PRINT_ON_APPROVAL=true`. When enabled, clicking Approve Work Order is the single demo trigger: MES validates the Work Order/Production Version snapshots, releases the WO, records `DEMO_PRINT_ON_APPROVAL`, creates committed-valid system resource allocations for every operation, bypasses WMS material staging/readiness, and queues print jobs for print operations in the same database transaction. The transactional outbox then publishes the existing Kafka batch-print command to the remote Print Station/Printer Adapter. The browser never calls WMS, Kafka, or a printer directly.
+
+The demo command calculates `ceil(requested_quantity / production_standard.base_quantity)` cycles, with one label per cycle and the configured copies-per-label (default one). Invalid base quantity returns `PRINT_QUANTITY_CANNOT_BE_CALCULATED`. Approval retry is idempotent: once the WO is beyond Draft/PendingApproval, the endpoint returns `idempotent_replay` and does not create another logical job, attempt, or command. The MES Work Order detail API exposes `demo_print_on_approval`; the console hides the manual material-staging button in this mode and renders a translated Print Summary.
+
+The print result consumer persists the Kafka batch result in `wo_print_job_event` and marks the print job completed. The Work Order detail API derives `successful_copies` from `completed_count` and `failed_copies` from `failed_job_ids`, so a successful two-label batch is rendered as `2 / 2` instead of a UI fallback `0 / 2`.
+
+Strict mode remains the default business behaviour when the flag is false: resource allocation validation is required and material/WMS flow is not bypassed. This demo flag must be removed or set false before production use. Full implementation and runtime evidence are recorded in `implementation/demo-approve-wo-print-on-approval-20260727.md`.

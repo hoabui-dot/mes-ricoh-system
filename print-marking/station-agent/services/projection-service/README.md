@@ -16,8 +16,8 @@ npm run logs:print-station
 
 The canonical Compose file is `infra/docker-compose.print-station.yml`. Kafka
 comes from `infra/docker-compose.platform.yml` on `platform-net`. The physical
-Printer Adapter is intentionally remote and is configured with
-`PRINT_STATION_PRINTER_ADAPTER_URL`.
+Printer Adapter is intentionally remote; management requests use Kafka
+request/reply and no Adapter URL is required.
 
 ## Event flow
 

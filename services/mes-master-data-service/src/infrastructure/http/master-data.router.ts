@@ -11,6 +11,47 @@ const IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
 const WORKER_SKILL_LEVELS = new Set(['Basic', 'L1', 'L2', 'L3', 'L4', 'L5']);
 
+async function evaluateWorkerReadiness(pool: Pool, input: { operationId: string; routingOperationId: string; siteId: string; workCenterId: string; shiftId: string; plannedDate: string }): Promise<{ readiness: Array<Record<string, any>>; blockingErrors: Array<Record<string, any>> }> {
+  const requirementsResult = await pool.query(`
+    SELECT r.skill_id, r.minimum_level, r.required_persons, r.mandatory_flag,
+           r.routing_operation_id, s.code AS skill_code
+    FROM md_operation_skill_requirement r
+    JOIN md_skill s ON s.master_id = r.skill_id
+    WHERE r.operation_id = $1 AND r.active_flag = TRUE AND r.lifecycle_status = 'Released'
+      AND r.effective_from < ($2::date + INTERVAL '1 day')
+      AND (r.effective_to IS NULL OR r.effective_to > $2::date)
+      AND (r.site_id IS NULL OR r.site_id = $3)
+      AND (r.routing_operation_id = $4 OR r.routing_operation_id IS NULL)
+    ORDER BY CASE WHEN r.routing_operation_id = $4 THEN 0 ELSE 1 END, r.skill_id`,
+  [input.operationId, input.plannedDate, input.siteId, input.routingOperationId]);
+  const requirements = new Map<string, Record<string, any>>();
+  for (const row of requirementsResult.rows as Array<Record<string, any>>) if (!requirements.has(String(row.skill_id))) requirements.set(String(row.skill_id), row);
+  const readiness: Array<Record<string, any>> = [];
+  const blockingErrors: Array<Record<string, any>> = [];
+  for (const requirement of requirements.values()) {
+    const workersResult = await pool.query(`
+      SELECT DISTINCT e.master_id, e.code, e.name, es.level,
+             COALESCE(schedule.schedule_status, 'Unavailable') AS schedule_status
+      FROM md_employee e
+      JOIN md_employee_skill es ON es.employee_id = e.master_id AND es.skill_id = $1
+        AND es.active_flag = TRUE AND es.qualification_status = 'Active'
+        AND es.effective_from < ($2::date + INTERVAL '1 day')
+        AND (es.effective_to IS NULL OR es.effective_to > $2::date)
+        AND (es.expires_at IS NULL OR es.expires_at::date >= $2::date)
+      LEFT JOIN md_employee_shift_schedule schedule ON schedule.employee_id = e.master_id
+        AND schedule.shift_id = $3 AND schedule.schedule_date = $2::date
+        AND (schedule.work_center_id IS NULL OR schedule.work_center_id = $4)
+      WHERE e.site_id = $5 AND e.employee_status = 'Active' AND e.lifecycle_status = 'Released'`,
+    [requirement.skill_id, input.plannedDate, input.shiftId, input.workCenterId, input.siteId]);
+    const minimumLevel = Number(String(requirement.minimum_level || 'L1').replace(/[^0-9]/g, '')) || 1;
+    const qualified = workersResult.rows.filter((worker: Record<string, any>) => (Number(String(worker.level || '').replace(/[^0-9]/g, '')) || 0) >= minimumLevel && worker.schedule_status === 'Scheduled');
+    const requiredPersons = Math.max(1, Number(requirement.required_persons) || 1);
+    readiness.push({ skill_id: requirement.skill_id, skill_code: requirement.skill_code, minimum_level: requirement.minimum_level, required_persons: requiredPersons, qualified_available_persons: qualified.length, readiness: qualified.length >= requiredPersons ? 'Available' : 'Insufficient', workers: qualified.map((worker: Record<string, any>) => ({ id: worker.master_id, code: worker.code, name: worker.name, level: worker.level })) });
+    if (qualified.length < requiredPersons && requirement.mandatory_flag !== false) blockingErrors.push({ code: 'WORKER_CAPACITY_INSUFFICIENT', skill_code: requirement.skill_code, required_persons: requiredPersons, qualified_available_persons: qualified.length });
+  }
+  return { readiness, blockingErrors };
+}
+
 async function allocateRoutingCode(client: PoolClient): Promise<string> {
   const { rows } = await client.query<{ number_date: string; current_value: string }>(`
     INSERT INTO md_routing_numbering_daily (number_date, current_value)
@@ -67,6 +108,9 @@ type RoutingOperationInput = {
   required_workers: number;
   efficiency_factor: number;
   standard_yield: number;
+  units_per_label: number | null;
+  label_quantity_method: string;
+  copies_per_label: number;
 };
 
 function routingError(code: string, message: string, statusCode = 422): Error & { statusCode: number; code: string } {
@@ -94,6 +138,9 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
     required_workers: row['required_workers'] === undefined || row['required_workers'] === null || row['required_workers'] === '' ? Number.NaN : Number(row['required_workers']),
     efficiency_factor: row['efficiency_factor'] === undefined || row['efficiency_factor'] === null || row['efficiency_factor'] === '' ? Number.NaN : Number(row['efficiency_factor']),
     standard_yield: row['standard_yield'] === undefined || row['standard_yield'] === null || row['standard_yield'] === '' ? Number.NaN : Number(row['standard_yield']),
+    units_per_label: row['units_per_label'] === undefined || row['units_per_label'] === null || row['units_per_label'] === '' ? null : Number(row['units_per_label']),
+    label_quantity_method: String(row['label_quantity_method'] || 'CEIL_BY_UNITS_PER_LABEL'),
+    copies_per_label: Number(row['copies_per_label'] ?? 1),
   }));
   const sequences = new Set<number>();
   const operationIds = new Set<string>();
@@ -104,6 +151,8 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
     if (row.predecessor_seq !== null && (!Number.isInteger(row.predecessor_seq) || row.predecessor_seq === row.seq)) throw routingError('ROUTING_PREDECESSOR_INVALID', 'A predecessor must reference another operation sequence.');
     if (!Number.isFinite(row.queue_time_min) || row.queue_time_min < 0 || !Number.isFinite(row.move_time_min) || row.move_time_min < 0 || (row.transfer_batch_qty !== null && (!Number.isFinite(row.transfer_batch_qty) || row.transfer_batch_qty <= 0))) throw routingError('ROUTING_TIMING_INVALID', 'Queue, move, and transfer-batch values are invalid.');
     if (!['INHERITED', 'ROUTING_OVERRIDE'].includes(row.planning_mode)) throw routingError('ROUTING_PLANNING_MODE_INVALID', 'Planning mode must be INHERITED or ROUTING_OVERRIDE.');
+    if (row.units_per_label !== null && (!Number.isFinite(row.units_per_label) || row.units_per_label <= 0)) throw routingError('LABEL_POLICY_INVALID', 'Units per label must be greater than zero.');
+    if (!['CEIL_BY_UNITS_PER_LABEL', 'ONE_PER_UNIT'].includes(row.label_quantity_method) || !Number.isInteger(row.copies_per_label) || row.copies_per_label < 1) throw routingError('LABEL_POLICY_INVALID', 'Label quantity method and copies per label are invalid.');
     sequences.add(row.seq); operationIds.add(row.operation_id);
   }
   validateRoutingOperationGraph(normalized);
@@ -661,13 +710,16 @@ export function masterDataRouter(pool: Pool): Router {
       const filters = [
         `i.lifecycle_status = 'Released'`,
         `r.lifecycle_status = 'Released'`,
-        `r.effective_from <= $1::DATE AND (r.effective_to IS NULL OR r.effective_to > $1::DATE)`,
+        // Validity is date-based for planning. A revision released at any
+        // time during the selected date is valid for that date's planning
+        // window; comparing a timestamptz to midnight incorrectly hid it.
+        `r.effective_from < ($1::DATE + INTERVAL '1 day') AND (r.effective_to IS NULL OR r.effective_to > $1::DATE)`,
         `pv.lifecycle_status = 'Released'`,
-        `pv.effective_from <= $1::DATE AND (pv.effective_to IS NULL OR pv.effective_to > $1::DATE)`,
+        `pv.effective_from < ($1::DATE + INTERVAL '1 day') AND (pv.effective_to IS NULL OR pv.effective_to > $1::DATE)`,
         `mb.lifecycle_status = 'Released'`,
-        `mb.effective_from <= $1::DATE AND (mb.effective_to IS NULL OR mb.effective_to > $1::DATE)`,
+        `mb.effective_from < ($1::DATE + INTERVAL '1 day') AND (mb.effective_to IS NULL OR mb.effective_to > $1::DATE)`,
         `rt.lifecycle_status = 'Released'`,
-        `rt.effective_from <= $1::DATE AND (rt.effective_to IS NULL OR rt.effective_to > $1::DATE)`,
+        `rt.effective_from < ($1::DATE + INTERVAL '1 day') AND (rt.effective_to IS NULL OR rt.effective_to > $1::DATE)`,
       ];
       if (siteId) { values.push(siteId); filters.push(`pv.site_id = $${values.length}`); }
       if (search) {
@@ -1750,6 +1802,7 @@ export function masterDataRouter(pool: Pool): Router {
       if (context.site_id !== siteId || context.item_revision_id !== productRevisionId || context.work_center_id !== workCenterId || !context.work_center_active) blockingErrors.push({ code: 'ROUTING_CONTEXT_INVALID', message: 'Routing Operation, Production Version, Work Center, and Site must match an active planning context.' });
       const shift = await pool.query('SELECT master_id, code, name, start_time, end_time FROM md_shift WHERE master_id = $1 AND site_id = $2', [shiftId, siteId]);
       if (!shift.rows[0]) blockingErrors.push({ code: 'SHIFT_SITE_INVALID', message: 'Shift does not belong to the requested Site.' });
+      const workerResult = await evaluateWorkerReadiness(pool, { operationId: context.operation_id, routingOperationId, siteId, workCenterId, shiftId, plannedDate });
       const assignments = await pool.query(`
         SELECT ra.master_id AS assignment_id, ra.assignment_role, ra.effective_from, ra.effective_to,
                ws.master_id AS workstation_id, ws.code AS workstation_code, ws.name AS workstation_name, ws.active_flag AS workstation_active,
@@ -1796,8 +1849,8 @@ export function masterDataRouter(pool: Pool): Router {
               OR (c.resource_type = 'WorkCenter' AND c.resource_id = $6))
           ORDER BY CASE c.resource_type WHEN 'Equipment' THEN 1 WHEN 'Workstation' THEN 2 ELSE 3 END LIMIT 1`, [siteId, plannedDate, shiftId, equipmentId, assignment.workstation_id, workCenterId]);
         const calendar = resourceCalendar.rows[0] as Record<string, any> | undefined;
-        if (!calendar) candidateWarnings.push({ code: 'CALENDAR_FALLBACK_DEFAULT_SHIFT' });
-        else if (calendar.availability_status !== 'Available' || Number(calendar.available_minutes) <= 0 || Number(calendar.capacity_factor) <= 0) candidateErrors.push({ code: calendar.availability_status === 'Holiday' ? 'CALENDAR_HOLIDAY' : 'CALENDAR_UNAVAILABLE' });
+        if (!calendar) candidateErrors.push({ code: 'CALENDAR_NOT_CONFIGURED', message: 'No effective resource calendar exists for the requested date and shift.' });
+        else if (calendar.availability_status !== 'Available' || Number(calendar.available_minutes) <= 0 || Number(calendar.capacity_factor) <= 0) candidateErrors.push({ code: calendar.availability_status === 'Holiday' ? 'CALENDAR_HOLIDAY' : calendar.availability_status === 'PlannedDown' ? 'RESOURCE_PLANNED_DOWN' : 'CALENDAR_UNAVAILABLE' });
         const standardResult = await pool.query(`
           SELECT ps.* FROM md_production_standard ps
           WHERE ps.site_id = $1 AND ps.item_revision_id = $2 AND ps.work_center_id = $3
@@ -1814,21 +1867,22 @@ export function masterDataRouter(pool: Pool): Router {
           FROM md_operation_skill_requirement osr JOIN md_skill sk ON sk.master_id = osr.skill_id
           WHERE osr.routing_operation_id = $1 AND osr.active_flag = TRUE AND osr.effective_from < ($2::date + INTERVAL '1 day')
             AND (osr.effective_to IS NULL OR osr.effective_to > $2::date) ORDER BY sk.code`, [routingOperationId, plannedDate]);
-        const calendarMinutes = calendar ? Number(calendar.available_minutes) : 480;
-        const calendarFactor = calendar ? Number(calendar.capacity_factor) : 1;
+        const calendarMinutes = calendar ? Number(calendar.available_minutes) : 0;
+        const calendarFactor = calendar ? Number(calendar.capacity_factor) : 0;
         const standardEfficiency = standard ? Number(standard.efficiency_factor || 1) : 1;
         const capabilitySpeed = capability ? Number(capability.speed_factor || 1) : 1;
         const equipmentEfficiency = Number(assignment.default_efficiency || 1);
         const baseQuantity = standard ? Number(standard.base_quantity || 1) : 1;
-        const adjustedCycleTime = standard ? Number(standard.cycle_time_sec) / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarFactor : null;
+        const adjustedCycleTime = standard && calendarFactor > 0 ? Number(standard.cycle_time_sec) / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarFactor : null;
         const runDuration = adjustedCycleTime === null ? null : (quantity / baseQuantity) * adjustedCycleTime / 60;
         const estimatedDuration = runDuration === null ? null : Number((Number(standard?.setup_time_min || 0) + runDuration + Number(context.queue_time_min || 0) + Number(context.move_time_min || 0)).toFixed(3));
+        if (estimatedDuration !== null && calendar && estimatedDuration > calendarMinutes) candidateErrors.push({ code: 'INSUFFICIENT_CAPACITY', available_minutes: calendarMinutes, required_minutes: estimatedDuration });
         candidates.push({
           workstation: { id: assignment.workstation_id, code: assignment.workstation_code, name: assignment.workstation_name },
           equipment: assignment.equipment_id ? { id: assignment.equipment_id, code: assignment.equipment_code, name: assignment.equipment_name, execution_status: assignment.execution_status } : null,
           assignment: { id: assignment.assignment_id, role: assignment.assignment_role },
           capability: capability ? { id: capability.master_id, code: capability.code, priority_no: capability.priority_no, speed_factor: capability.speed_factor, specificity: capability.equipment_id ? 'Equipment' : 'WorkCenter' } : null,
-          calendar: calendar ? { id: calendar.master_id, resource_type: calendar.resource_type, availability_status: calendar.availability_status, available_minutes: calendar.available_minutes, capacity_factor: calendar.capacity_factor } : { availability_status: 'Fallback', available_minutes: 480, capacity_factor: 1 },
+          calendar: calendar ? { id: calendar.master_id, resource_type: calendar.resource_type, resource_id: calendar.resource_id, source_type: calendar.resource_type, source_id: calendar.resource_id, availability_status: calendar.availability_status, available_minutes: calendar.available_minutes, capacity_factor: calendar.capacity_factor } : null,
           production_standard: standard ? { id: standard.master_id, code: standard.code, level: standard.equipment_id ? 'Equipment' : 'WorkCenter', base_quantity: standard.base_quantity, setup_time_min: standard.setup_time_min, cycle_time_sec: standard.cycle_time_sec, labor_count: standard.labor_count, efficiency_factor: standard.efficiency_factor } : null,
           skill_requirements: skillResult.rows,
           estimated_duration_min: estimatedDuration,
@@ -1838,7 +1892,7 @@ export function masterDataRouter(pool: Pool): Router {
           warnings: candidateWarnings,
         });
       }
-      const groupRows = await pool.query(`SELECT mg.*, ws.code AS workstation_code, ws.name AS workstation_name FROM md_workstation_machine_group mg JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.site_id = $1 AND mg.work_center_id = $2 AND mg.lifecycle_status NOT IN ('Inactive','Obsolete') AND mg.effective_from < ($3::date + INTERVAL '1 day') AND (mg.effective_to IS NULL OR mg.effective_to > $3::date) ORDER BY mg.code`, [siteId, workCenterId, plannedDate]);
+      const groupRows = await pool.query(`SELECT mg.*, ws.code AS workstation_code, ws.name AS workstation_name FROM md_workstation_machine_group mg JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.site_id = $1 AND mg.work_center_id = $2 AND mg.lifecycle_status = 'Released' AND ws.lifecycle_status = 'Released' AND mg.effective_from < ($3::date + INTERVAL '1 day') AND (mg.effective_to IS NULL OR mg.effective_to > $3::date) ORDER BY mg.code`, [siteId, workCenterId, plannedDate]);
       for (const group of groupRows.rows as Array<Record<string, any>>) {
         const memberRows = await pool.query(`SELECT ra.master_id AS assignment_id, ra.assignment_role AS role, ra.requirement_type, ra.effective_from, ra.effective_to, eq.master_id AS machine_id, eq.code AS machine_code, eq.name AS machine_name, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status, eq.planning_resource_flag, eq.default_efficiency, mu.machine_unit_id, mu.code AS machine_unit_code, mu.execution_status AS unit_execution_status FROM md_resource_assignment ra JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id WHERE ra.machine_group_id = $1 AND ra.effective_from < ($2::date + INTERVAL '1 day') AND (ra.effective_to IS NULL OR ra.effective_to > $2::date) ORDER BY ra.sequence_no`, [group.master_id, plannedDate]);
         const members = memberRows.rows as Array<Record<string, any>>;
@@ -1866,7 +1920,7 @@ export function masterDataRouter(pool: Pool): Router {
         if (!capability) candidateErrors.push({ code: 'NO_EFFECTIVE_CAPABILITY' }); else if (!capability.eligibility) candidateErrors.push({ code: 'CAPABILITY_EXPLICIT_DENY' });
         const calendarResult = await pool.query(`SELECT c.* FROM md_resource_calendar c WHERE c.site_id = $1 AND c.calendar_date = $2::date AND c.shift_id = $3 AND ((c.resource_type = 'Equipment' AND c.resource_id = $4) OR (c.resource_type = 'Workstation' AND c.resource_id = $5) OR (c.resource_type = 'WorkCenter' AND c.resource_id = $6)) ORDER BY CASE c.resource_type WHEN 'Equipment' THEN 1 WHEN 'Workstation' THEN 2 ELSE 3 END LIMIT 1`, [siteId, plannedDate, shiftId, primaryId, group.workstation_id, workCenterId]);
         const calendar = calendarResult.rows[0] as Record<string, any> | undefined;
-        if (!calendar) candidateWarnings.push({ code: 'CALENDAR_FALLBACK_DEFAULT_SHIFT' }); else if (calendar.availability_status !== 'Available' || Number(calendar.available_minutes) <= 0 || Number(calendar.capacity_factor) <= 0) candidateErrors.push({ code: 'CALENDAR_UNAVAILABLE' });
+        if (!calendar) candidateErrors.push({ code: 'CALENDAR_NOT_CONFIGURED', message: 'No effective resource calendar exists for the requested date and shift.' }); else if (calendar.availability_status !== 'Available' || Number(calendar.available_minutes) <= 0 || Number(calendar.capacity_factor) <= 0) candidateErrors.push({ code: calendar.availability_status === 'Holiday' ? 'CALENDAR_HOLIDAY' : calendar.availability_status === 'PlannedDown' ? 'RESOURCE_PLANNED_DOWN' : 'CALENDAR_UNAVAILABLE' });
         for (const member of members.filter((item) => item.role === 'Supporting' && item.requirement_type === 'Required')) {
           const memberCalendar = await pool.query(`SELECT 1 FROM md_resource_calendar c WHERE c.site_id = $1 AND c.calendar_date = $2::date AND c.shift_id = $3 AND c.resource_type = 'Equipment' AND c.resource_id = $4 AND c.availability_status = 'Available' AND c.available_minutes > 0 AND c.capacity_factor > 0 LIMIT 1`, [siteId, plannedDate, shiftId, member.machine_id]);
           if (!memberCalendar.rows[0]) candidateErrors.push({ code: 'REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE', machine_code: member.machine_code });
@@ -1875,8 +1929,14 @@ export function masterDataRouter(pool: Pool): Router {
         const standard = standardResult.rows[0] as Record<string, any> | undefined;
         if (!standard) candidateErrors.push({ code: 'NO_EFFECTIVE_PRODUCTION_STANDARD' });
         const standardRow = standard || {};
-        const calendarMinutes = calendar ? Number(calendar.available_minutes) : 480; const calendarFactor = calendar ? Number(calendar.capacity_factor) : 1; const adjustedCycleTime = standard ? Number(standardRow.cycle_time_sec) / Number(capability?.speed_factor || 1) / Number(standardRow.efficiency_factor || 1) / Number(primaryMember.default_efficiency || 1) / calendarFactor : null; const runDuration = adjustedCycleTime === null ? null : (quantity / Number(standardRow.base_quantity || 1)) * adjustedCycleTime / 60; const estimatedDuration = runDuration === null ? null : Number((Number(standardRow.setup_time_min || 0) + runDuration + Number(context.queue_time_min || 0) + Number(context.move_time_min || 0)).toFixed(3));
-        candidates.push({ workstation: { id: group.workstation_id, code: group.workstation_code, name: group.workstation_name }, machine_group: { id: group.master_id, code: group.code, name: group.name, minimum_required_machines: group.minimum_required_machines }, primary_machine: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, unit_id: primaryMember.machine_unit_id, unit_code: primaryMember.machine_unit_code }, supporting_machines: members.filter((member) => member.role === 'Supporting').map((member) => ({ id: member.machine_id, code: member.machine_code, name: member.machine_name, unit_id: member.machine_unit_id, unit_code: member.machine_unit_code, required: member.requirement_type === 'Required', readiness: member.machine_execution_status === 'Available' && member.unit_execution_status === 'Available' ? 'Available' : 'Unavailable' })), equipment: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, execution_status: primaryMember.machine_execution_status }, assignment: { id: primaryMember.assignment_id, role: 'Primary' }, capability: capability ? { id: capability.master_id, code: capability.code, priority_no: capability.priority_no, speed_factor: capability.speed_factor, specificity: capability.equipment_id ? 'Equipment' : 'WorkCenter' } : null, calendar: calendar ? { id: calendar.master_id, resource_type: calendar.resource_type, availability_status: calendar.availability_status, available_minutes: calendar.available_minutes, capacity_factor: calendar.capacity_factor } : { availability_status: 'Fallback', available_minutes: 480, capacity_factor: 1 }, production_standard: standard ? { id: standard.master_id, code: standard.code, level: standard.equipment_id ? 'Equipment' : 'WorkCenter' } : null, estimated_duration_min: estimatedDuration, calculation: { adjusted_cycle_time_sec: adjustedCycleTime, run_duration_min: runDuration, setup_time_min: Number(standard?.setup_time_min || 0), queue_time_min: Number(context.queue_time_min || 0), move_time_min: Number(context.move_time_min || 0), formula: 'group primary standard plus required supporting availability' }, readiness: candidateErrors.length ? 'Blocked' : candidateWarnings.length ? 'ReadyWithWarnings' : 'Eligible', blocking_errors: candidateErrors, warnings: candidateWarnings });
+        const calendarMinutes = calendar ? Number(calendar.available_minutes) : 0; const calendarFactor = calendar ? Number(calendar.capacity_factor) : 0; const adjustedCycleTime = standard && calendarFactor > 0 ? Number(standardRow.cycle_time_sec) / Number(capability?.speed_factor || 1) / Number(standardRow.efficiency_factor || 1) / Number(primaryMember.default_efficiency || 1) / calendarFactor : null; const runDuration = adjustedCycleTime === null ? null : (quantity / Number(standardRow.base_quantity || 1)) * adjustedCycleTime / 60; const estimatedDuration = runDuration === null ? null : Number((Number(standardRow.setup_time_min || 0) + runDuration + Number(context.queue_time_min || 0) + Number(context.move_time_min || 0)).toFixed(3));
+        if (estimatedDuration !== null && calendar && estimatedDuration > calendarMinutes) candidateErrors.push({ code: 'INSUFFICIENT_CAPACITY', available_minutes: calendarMinutes, required_minutes: estimatedDuration });
+        candidates.push({ workstation: { id: group.workstation_id, code: group.workstation_code, name: group.workstation_name }, machine_group: { id: group.master_id, code: group.code, name: group.name, minimum_required_machines: group.minimum_required_machines }, primary_machine: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, unit_id: primaryMember.machine_unit_id, unit_code: primaryMember.machine_unit_code }, supporting_machines: members.filter((member) => member.role === 'Supporting').map((member) => ({ id: member.machine_id, code: member.machine_code, name: member.machine_name, unit_id: member.machine_unit_id, unit_code: member.machine_unit_code, required: member.requirement_type === 'Required', readiness: member.machine_execution_status === 'Available' && member.unit_execution_status === 'Available' ? 'Available' : 'Unavailable' })), equipment: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, execution_status: primaryMember.machine_execution_status }, assignment: { id: primaryMember.assignment_id, role: 'Primary' }, capability: capability ? { id: capability.master_id, code: capability.code, priority_no: capability.priority_no, speed_factor: capability.speed_factor, specificity: capability.equipment_id ? 'Equipment' : 'WorkCenter' } : null, calendar: calendar ? { id: calendar.master_id, resource_type: calendar.resource_type, resource_id: calendar.resource_id, source_type: calendar.resource_type, source_id: calendar.resource_id, availability_status: calendar.availability_status, available_minutes: calendar.available_minutes, capacity_factor: calendar.capacity_factor } : null, production_standard: standard ? { id: standard.master_id, code: standard.code, level: standard.equipment_id ? 'Equipment' : 'WorkCenter' } : null, estimated_duration_min: estimatedDuration, calculation: { adjusted_cycle_time_sec: adjustedCycleTime, run_duration_min: runDuration, setup_time_min: Number(standard?.setup_time_min || 0), queue_time_min: Number(context.queue_time_min || 0), move_time_min: Number(context.move_time_min || 0), formula: 'group primary standard plus required supporting availability' }, readiness: candidateErrors.length ? 'Blocked' : candidateWarnings.length ? 'ReadyWithWarnings' : 'Eligible', blocking_errors: candidateErrors, warnings: candidateWarnings });
+      }
+      for (const candidate of candidates) {
+        candidate.worker_readiness = workerResult.readiness;
+        candidate.blocking_errors = [...(candidate.blocking_errors || []), ...workerResult.blockingErrors];
+        if (workerResult.blockingErrors.length) candidate.readiness = 'Blocked';
       }
       candidates.sort((a, b) => {
         const readinessRank = (value: string) => value === 'Eligible' ? 0 : value === 'ReadyWithWarnings' ? 1 : 2;
@@ -1885,8 +1945,8 @@ export function masterDataRouter(pool: Pool): Router {
       const eligible = candidates.filter((candidate) => candidate.readiness === 'Eligible');
       const warningCandidates = candidates.filter((candidate) => candidate.readiness === 'ReadyWithWarnings');
       if (!assignments.rows.length && !groupRows.rows.length) blockingErrors.push({ code: 'NO_EFFECTIVE_ASSIGNMENT' });
-      const status = blockingErrors.length || (!eligible.length && !warningCandidates.length) ? 'Blocked' : warningCandidates.length ? 'ReadyWithWarnings' : 'Ready';
-      return res.json({ status, work_center: { id: context.work_center_id, code: context.work_center_code, name: context.work_center_name }, operation: { id: routingOperationId, code: context.operation_code, name: context.operation_name, sequence: context.seq }, candidates, blocking_errors: blockingErrors, warnings });
+      const status = blockingErrors.length || workerResult.blockingErrors.length || (!eligible.length && !warningCandidates.length) ? 'Blocked' : warningCandidates.length ? 'ReadyWithWarnings' : 'Ready';
+      return res.json({ status, work_center: { id: context.work_center_id, code: context.work_center_code, name: context.work_center_name }, operation: { id: routingOperationId, code: context.operation_code, name: context.operation_name, sequence: context.seq }, worker_readiness: workerResult.readiness, candidates, blocking_errors: [...blockingErrors, ...workerResult.blockingErrors], warnings });
     } catch (err) { return next(err); }
   });
 
@@ -2414,7 +2474,7 @@ export function masterDataRouter(pool: Pool): Router {
       for (const row of operations) {
         const operation = await client.query(`SELECT code, name FROM md_operation WHERE master_id = $1`, [row.operation_id]);
         const code = `${routing.rows[0].code}-${String(row.seq).padStart(3, '0')}`;
-        const inserted = await client.query(`INSERT INTO md_routing_operation (code, name, version_no, lifecycle_status, effective_from, created_by, routing_header_id, operation_id, work_center_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag, planning_mode) VALUES ($1,$2,1,'Draft',NOW(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING master_id`, [code, operation.rows[0].name || operation.rows[0].code, context.userId, req.params['id'], row.operation_id, row.work_center_id, row.seq, row.predecessor_seq, row.scheduling_mode, row.queue_time_min, row.move_time_min, row.overlap_allowed, row.transfer_batch_qty, row.milestone_flag, row.planning_mode]);
+        const inserted = await client.query(`INSERT INTO md_routing_operation (code, name, version_no, lifecycle_status, effective_from, created_by, routing_header_id, operation_id, work_center_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag, planning_mode, units_per_label, label_quantity_method, copies_per_label) VALUES ($1,$2,1,'Draft',NOW(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING master_id`, [code, operation.rows[0].name || operation.rows[0].code, context.userId, req.params['id'], row.operation_id, row.work_center_id, row.seq, row.predecessor_seq, row.scheduling_mode, row.queue_time_min, row.move_time_min, row.overlap_allowed, row.transfer_batch_qty, row.milestone_flag, row.planning_mode, row.units_per_label || null, row.label_quantity_method || 'CEIL_BY_UNITS_PER_LABEL', row.copies_per_label || 1]);
         const routingSite = await client.query(`SELECT site_id FROM md_work_center WHERE master_id = $1`, [row.work_center_id]);
         if (row.planning_mode === 'ROUTING_OVERRIDE') {
           await client.query(`INSERT INTO md_production_standard (code, name, version_no, lifecycle_status, effective_from, created_by, item_revision_id, operation_id, work_center_id, site_id, routing_operation_id, labor_count, setup_time_min, cycle_time_sec, efficiency_factor, base_quantity, standard_yield, source_method, valid_from) VALUES ($1,$2,1,'Draft',NOW(),$3,NULL,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'Routing',NOW())`, [`${code}-STD`, operation.rows[0].name || operation.rows[0].code, context.userId, row.operation_id, row.work_center_id, routingSite.rows[0]?.site_id, inserted.rows[0].master_id, row.required_workers, row.setup_time_min, row.cycle_time_sec, row.efficiency_factor, row.base_quantity, row.standard_yield]);

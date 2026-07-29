@@ -1,0 +1,45 @@
+{
+  "workOrders": [
+    {
+      "wo_id": "66393c51-1b6a-4e8b-9c37-af8873ccc2da",
+      "wo_code": "WO-20260727-0031",
+      "status": "Draft",
+      "created_at": "2026-07-27T18:33:13.652Z",
+      "production_version_id": "b25a044a-e375-4e1b-aa5d-15eb4f9e0979",
+      "production_version_code": "PV-20260727-0020",
+      "item_revision_code": "E2E-WO-FG-01-R1",
+      "mbom_code": "E2E-WO-MBOM-01",
+      "routing_code": "RT-20260727-0021",
+      "planning_snapshot": {
+        "mbom_id": "fd570450-6b8b-4e89-b5a8-d6cc0321466a",
+        "shift_id": "39c80321-749c-4861-9b4e-c76a45dbfdac",
+        "routing_id": "471081c1-ba54-4598-a7a0-3b9934aed750",
+        "production_version_id": "b25a044a-e375-4e1b-aa5d-15eb4f9e0979",
+        "production_version_code": "PV-20260727-0020"
+      },
+      "operation_count": 3,
+      "material_count": 1,
+      "allocation_count": 0,
+      "print_job_count": 0,
+      "pv_status": "Released",
+      "routing_status": "Released",
+      "mbom_status": "Released",
+      "item_revision_status": "Released",
+      "primary_reason": null,
+      "classification": "VALID",
+      "reasons": []
+    }
+  ],
+  "orphans": {
+    "operation_without_header": 0,
+    "material_without_header": 0,
+    "session_without_operation": 0,
+    "confirmation_without_operation": 0,
+    "print_job_without_header": 0,
+    "print_attempt_without_job": 0,
+    "print_event_without_job": 0,
+    "allocation_without_operation": 0,
+    "reservation_without_allocation": 0,
+    "workflow_without_work_order": 0
+  }
+}

@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE=(docker compose -f "$ROOT_DIR/infra/docker-compose.platform.yml" -f "$ROOT_DIR/infra/docker-compose.print-station.yml")
 
+echo "[print-station] Building Printer Adapter and Printer Adapter UI locally (no Docker Hub push)"
+(cd "$ROOT_DIR" && PRINTER_ADAPTER_PUSH=false bash scripts/build-printer-adapter-images.sh)
+
 echo "[print-station] Ensuring shared Kafka is running and topics exist"
 "${COMPOSE[@]}" up -d kafka
 (cd "$ROOT_DIR" && bash scripts/ensure-mes-print-kafka-topics.sh)

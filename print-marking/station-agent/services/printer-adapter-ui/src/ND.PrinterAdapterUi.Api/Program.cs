@@ -3,16 +3,17 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Serilog;
 using ND.Infrastructure.Observability;
+using ND.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 Log.Logger = SerilogConfiguration.Configure(
     new LoggerConfiguration(), builder.Configuration, "printer-adapter-ui").CreateLogger();
 builder.Host.UseSerilog();
-builder.Services.AddHttpClient("monitor", client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(
-        builder.Configuration.GetValue("MONITOR_HTTP_TIMEOUT_SECONDS", 5));
-});
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
+builder.Services.AddSingleton<IEventConsumer, KafkaConsumer>();
+builder.Services.AddSingleton<IEventPublisher, KafkaPublisher>();
+builder.Services.AddSingleton<PrinterManagementKafkaClient>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PrinterManagementKafkaClient>());
 builder.Services.AddSingleton<MonitoringService>();
 builder.Services.AddOpenApi();
 
@@ -61,20 +62,13 @@ app.Run();
 
 sealed class MonitoringService
 {
-    private readonly IHttpClientFactory _clients;
+    private readonly PrinterManagementKafkaClient _printerManagement;
     private readonly IConfiguration _config;
     private readonly ILogger<MonitoringService> _logger;
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
 
-    public MonitoringService(IHttpClientFactory clients, IConfiguration config, ILogger<MonitoringService> logger)
-    {
-        _clients = clients;
-        _config = config;
-        _logger = logger;
-    }
-
-    private string? AdapterUrl => _config["PRINTER_ADAPTER_URL"]?.TrimEnd('/');
-    private string? ProjectionUrl => _config["PROJECTION_SERVICE_URL"]?.TrimEnd('/');
+    public MonitoringService(PrinterManagementKafkaClient printerManagement, IConfiguration config, ILogger<MonitoringService> logger)
+    { _printerManagement = printerManagement; _config = config; _logger = logger; }
 
     public async Task<object> GetSummaryAsync(CancellationToken ct)
     {
@@ -105,15 +99,14 @@ sealed class MonitoringService
     public async Task<JsonObject> GetPrinterAdapterAsync(CancellationToken ct)
     {
         var started = Stopwatch.GetTimestamp();
-        if (string.IsNullOrWhiteSpace(AdapterUrl)) return Unavailable("Unconfigured");
         try
         {
-            var health = await GetJsonAsync($"{AdapterUrl}/api/health", ct);
+            var health = await GetAdapterJsonAsync("/api/health", null, ct);
             var status = health?["status"]?.GetValue<string>() ?? "Unknown";
             return new JsonObject
             {
                 ["status"] = status.Equals("Healthy", StringComparison.OrdinalIgnoreCase) ? "Online" : "Degraded",
-                ["baseUrl"] = AdapterUrl,
+                ["transport"] = "Kafka",
                 ["responseTimeMs"] = ElapsedMs(started),
                 ["health"] = health,
                 ["lastSuccessfulCheck"] = DateTimeOffset.UtcNow
@@ -122,16 +115,15 @@ sealed class MonitoringService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Printer Adapter monitoring request failed");
-            return new JsonObject { ["status"] = "Offline", ["baseUrl"] = AdapterUrl, ["latestError"] = SafeError(ex) };
+            return new JsonObject { ["status"] = "Offline", ["transport"] = "Kafka", ["latestError"] = SafeError(ex) };
         }
     }
 
     public async Task<List<JsonObject>> GetPrintersAsync(CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(AdapterUrl)) return [];
         try
         {
-            var json = await GetJsonAsync($"{AdapterUrl}/api/printers", ct);
+            var json = await GetAdapterJsonAsync("/api/printers", null, ct);
             return json is JsonArray rows ? rows.OfType<JsonObject>().ToList() : [];
         }
         catch (Exception ex)
@@ -146,7 +138,7 @@ sealed class MonitoringService
         JsonNode? health = null;
         try
         {
-            health = await GetJsonAsync($"{AdapterUrl}/api/health", ct);
+            health = await GetAdapterJsonAsync("/api/health", null, ct);
         }
         catch (Exception ex)
         {
@@ -171,7 +163,7 @@ sealed class MonitoringService
 
     public async Task<JsonObject> GetKafkaAsync(CancellationToken ct)
     {
-        var adapterHealth = await GetJsonAsync($"{AdapterUrl}/api/health", ct);
+        var adapterHealth = await GetAdapterJsonAsync("/api/health", null, ct);
         var connected = string.Equals(adapterHealth?["kafka"]?["status"]?.GetValue<string>(), "Connected", StringComparison.OrdinalIgnoreCase)
             || string.Equals(adapterHealth?["kafka"]?["status"]?.GetValue<string>(), "Healthy", StringComparison.OrdinalIgnoreCase);
         return new JsonObject
@@ -202,10 +194,9 @@ sealed class MonitoringService
 
     public async Task<List<JsonObject>> GetPrintJobsAsync(CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(AdapterUrl)) return [];
         try
         {
-            var json = await GetJsonAsync($"{AdapterUrl}/api/print-history?page=1&pageSize=50", ct);
+            var json = await GetAdapterJsonAsync("/api/print-history", "?page=1&pageSize=50", ct);
             return json is JsonArray rows ? rows.OfType<JsonObject>().ToList() : [];
         }
         catch (Exception ex)
@@ -225,12 +216,11 @@ sealed class MonitoringService
         return errors;
     }
 
-    private async Task<JsonNode?> GetJsonAsync(string? url, CancellationToken ct)
+    private async Task<JsonNode?> GetAdapterJsonAsync(string path, string? query, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(url)) return null;
-        using var response = await _clients.CreateClient("monitor").GetAsync(url, ct);
-        if (!response.IsSuccessStatusCode) return null;
-        return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+        var response = await _printerManagement.RequestAsync("GET", path, query, ct);
+        if (response.StatusCode < 200 || response.StatusCode >= 300) return null;
+        return JsonNode.Parse(response.Body);
     }
 
     private static JsonObject Unavailable(string status) => new() { ["status"] = status };

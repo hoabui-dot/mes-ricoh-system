@@ -5,7 +5,11 @@ Repository: `/home/neurosus/mes-system/print-marking/station-agent`
 Project: ND Station Agent — Industrial Edge Print & Marking Platform
 Audience: AI agents, engineers, architects, and maintainers continuing this codebase.
 
-## Latest Runtime Snapshot (2026-07-26)
+## Historical Runtime Snapshot (superseded 2026-07-27)
+
+The following 2026-07-26 snapshot records the pre-Kafka-management state. The
+authoritative Kafka-only runtime is documented in the final transport override
+section of this file.
 
 The current standalone Printer Adapter deployment is
 `station-agent/docker-compose.printer-adapter.yml` using
@@ -89,6 +93,26 @@ live runtime evidence is recorded in
   queue bindings, projected Zebra state, advancing heartbeat timestamps, and
   Kiosk projection access. The configured physical CUPS queue is currently
   offline, so no physical label was sent.
+
+## Label template editor and preview restoration (2026-07-27)
+
+- `IMPLEMENTED_AND_VERIFIED`: Kiosk `LabelTemplatesTab` now maps camelCase and
+  PascalCase adapter DTOs and displays name, description, dimensions, DPI,
+  layout, version, status, and default state.
+- `IMPLEMENTED_AND_VERIFIED`: Kiosk actions are restored for detail, edit with
+  versioned PUT, publish, preview, printer activation, and physical print test.
+- `IMPLEMENTED_AND_VERIFIED`: Kiosk preview calls the Kafka management boundary
+  for `POST /api/label-templates/{id}/render-with-data`; the adapter uses the
+  stored JSON and the same `ZplRenderer` as production printing.
+- `IMPLEMENTED_AND_VERIFIED`: 2UP preview renders two cells side by side with
+  the configured gap. The canonical demo codes are `ITEM-BARCODE-1UP`,
+  `ITEM-BARCODE-2UP`, `ITEM-DETAIL-1UP`, and `ITEM-DETAIL-2UP`, using 203 DPI
+  and a 50 x 30 mm cell.
+- `IMPLEMENTED_BUT_NOT_TESTED`: the deployed remote adapter database still
+  contains legacy active rows until the new image is deployed and startup
+  seeding is rerun. The seeder archives obsolete rows and preserves template
+  version history and print history.
+- Evidence: `implementation/restore-kiosk-label-template-editor-preview-20260727.md`.
 
 ---
 
@@ -2114,3 +2138,50 @@ requests use `PRINTER_ADAPTER_URL`; an unreachable edge Adapter returns a
 structured 503. The latest local verification passed the control-plane and
 Kafka-to-Projection path, but the configured remote Adapter was unreachable,
 so physical CUPS printing remains an external deployment check.
+## Authoritative runtime override: Kafka-only Printer Adapter transport (2026-07-27)
+
+The remote Printer Adapter is deployed independently on the macOS printer
+server by `docker-compose.print-adapter.yml`. It is not a service dependency
+of the MES host and no MES, Kiosk, Projection, Job Engine, or monitoring
+runtime path may call `PRINTER_ADAPTER_URL` or `printer-adapter:5003`.
+
+Production commands use Kafka topics `command.printer.print` and
+`command.printer.print.batch`; results and runtime state use the existing
+`printer.printed`, `printer.batch.printed`, `printer.status.changed`,
+`printer.heartbeat`, and `printer.error` event keys.
+
+Management/query requests use Kafka request/reply on
+`command.printer.management` and `printer.management.response`, correlated by
+`request_id`. Kiosk label templates/printer actions, Projection canonical
+printer and activation routes, Job Engine active-printer selection, and
+Printer Adapter Monitoring all use this channel. HTTP adapter endpoints are
+local liveness/diagnostic compatibility endpoints only.
+
+Current ARM64 images are:
+
+- `vanhoadotbui2628/printer-adapter:real-printers-no-simulator-kafka-management-20260727-v2-arm64`
+- `vanhoadotbui2628/printer-adapter-ui:kafka-monitoring-kafka-management-20260727-v2-arm64`
+
+See `implementation/print-adapter-kafka-only-runtime-20260727.md` for the
+transport audit, release digests, and verification. The canonical MES
+deployment is `infra/docker-compose.print-station.yml`; legacy compose files
+containing `PRINTER_ADAPTER_URL` are historical and must not be used for the
+production runtime.
+
+## Kiosk connectivity screen simplification (2026-07-27)
+
+The Kiosk `Kết nối mạng` menu is now a single operator-facing page with no
+sub-tabs. It displays the direct MES connection status and one `Thiết bị in`
+section. The device list filters to real printer records only (`PRINTER` or
+`PRINT`); PLC, camera, laser, gateway, and simulator records are intentionally
+excluded from this screen. MES 24-hour success/failure/request KPI cards were
+removed. The separate `Chẩn đoán hệ thống` page and central configuration
+page were removed from the menu and no longer fetch their APIs. The left menu
+can be collapsed or expanded with the shadcn icon button in the sidebar header;
+the state is persisted locally for the kiosk operator. Details are in
+`implementation/kiosk-print-station-connectivity-simplification-20260727.md`.
+
+The same single page retains the existing `PrinterManagementTab` workspace. It
+loads ready printers and active production printers, requires a published
+label template when adding a printer to production, and supports changing the
+template of an already active printer through the confirmed `Đổi mẫu` action.

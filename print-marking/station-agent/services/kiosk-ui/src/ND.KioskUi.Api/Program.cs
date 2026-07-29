@@ -1087,150 +1087,35 @@ app.MapPost("/api/commands/dispatch-order", async (
     }
 }).RequireAuthorization();
 
-// ── Printer Adapter proxy endpoints ──────────────────────────────────────────
-string PrinterAdapterBaseUrl()
-{
-    var configured = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_URL") ?? builder.Configuration["PrinterAdapter:Url"];
-    if (!string.IsNullOrWhiteSpace(configured)) return configured.TrimEnd('/');
-    var host = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_HOST") ?? builder.Configuration["PrinterAdapter:Host"];
-    var port = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_PORT") ?? builder.Configuration["PrinterAdapter:Port"];
-    if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port))
-        throw new InvalidOperationException("PRINTER_ADAPTER_URL or PRINTER_ADAPTER_HOST/PORT is required");
-    return $"http://{host}:{port}";
-}
-
-IResult PrinterAdapterUnavailable(Exception ex)
-{
-    var endpoint = "unconfigured";
-    try { endpoint = PrinterAdapterBaseUrl(); } catch { }
-    return Results.Problem(
-        title: "Printer Adapter unavailable",
-        detail: "The Print Station edge Printer Adapter could not be reached. Check the remote adapter URL and network connectivity.",
-        statusCode: StatusCodes.Status503ServiceUnavailable,
-        extensions: new Dictionary<string, object?>
-        {
-            ["dependency"] = "printer-adapter",
-            ["endpoint"] = endpoint,
-            ["error"] = ex.Message
-        });
-}
-
-async Task<IResult> ProxyPrinterAdapterGetAsync(string relativePath, HttpContext ctx, CancellationToken ct)
+// ── Kafka Printer Adapter management boundary ────────────────────────────────
+async Task<IResult> ProxyPrinterAdapterAsync(string method, string relativePath, HttpContext ctx, CancellationToken ct)
 {
     var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     if (userId is null) return Results.Unauthorized();
-
-    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}{ctx.Request.QueryString.Value}";
-
     try
     {
-        using var httpClient = new HttpClient();
-        var request = new HttpRequestMessage(HttpMethod.Get, targetUrl);
-        var response = await httpClient.SendAsync(request, ct);
-        
-        var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
-        if (contentType.Contains("application/json") || contentType.Contains("text/"))
+        var client = ctx.RequestServices.GetRequiredService<ND.KioskUi.Infrastructure.Messaging.PrinterManagementKafkaClient>();
+        var body = string.Empty;
+        if (HttpMethods.IsPost(method) || HttpMethods.IsPut(method))
         {
-            var content = await response.Content.ReadAsStringAsync(ct);
-            return Results.Content(content, contentType, statusCode: (int)response.StatusCode);
+            using var reader = new StreamReader(ctx.Request.Body, System.Text.Encoding.UTF8, true, 1024, true);
+            body = await reader.ReadToEndAsync(ct);
         }
-        else
-        {
-            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
-            return Results.File(bytes, contentType);
-        }
+        var response = await client.RequestAsync(method, relativePath, ctx.Request.QueryString.Value, body, userId, ct);
+        if (response.IsBase64)
+            return Results.File(Convert.FromBase64String(response.Body), response.ContentType, response.FileName);
+        return Results.Content(response.Body, response.ContentType, statusCode: response.StatusCode);
     }
     catch (Exception ex)
     {
-        return PrinterAdapterUnavailable(ex);
+        return Results.Problem(title: "Printer Adapter unavailable", detail: "The remote Printer Adapter did not answer through Kafka.", statusCode: StatusCodes.Status503ServiceUnavailable, extensions: new Dictionary<string, object?> { ["dependency"] = "printer-adapter-kafka", ["error"] = ex.Message });
     }
 }
 
-async Task<IResult> ProxyPrinterAdapterPostAsync(string relativePath, HttpContext ctx, CancellationToken ct)
-{
-    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-    if (userId is null) return Results.Unauthorized();
-
-    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}";
-
-    try
-    {
-        using var httpClient = new HttpClient();
-        var request = new HttpRequestMessage(HttpMethod.Post, targetUrl);
-        
-        ctx.Request.EnableBuffering();
-        using var reader = new StreamReader(ctx.Request.Body, System.Text.Encoding.UTF8, true, 1024, true);
-        var bodyStr = await reader.ReadToEndAsync(ct);
-        ctx.Request.Body.Position = 0;
-        
-        request.Content = new StringContent(bodyStr, System.Text.Encoding.UTF8, "application/json");
-        
-        var response = await httpClient.SendAsync(request, ct);
-        var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
-        if (contentType.Contains("image/") || contentType.Contains("application/octet-stream"))
-        {
-            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
-            return Results.File(bytes, contentType);
-        }
-        
-        var content = await response.Content.ReadAsStringAsync(ct);
-        return Results.Content(content, contentType, statusCode: (int)response.StatusCode);
-    }
-    catch (Exception ex)
-    {
-        return PrinterAdapterUnavailable(ex);
-    }
-}
-
-async Task<IResult> ProxyPrinterAdapterPutAsync(string relativePath, HttpContext ctx, CancellationToken ct)
-{
-    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-    if (userId is null) return Results.Unauthorized();
-
-    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}";
-
-    try
-    {
-        using var httpClient = new HttpClient();
-        var request = new HttpRequestMessage(HttpMethod.Put, targetUrl);
-        
-        ctx.Request.EnableBuffering();
-        using var reader = new StreamReader(ctx.Request.Body, System.Text.Encoding.UTF8, true, 1024, true);
-        var bodyStr = await reader.ReadToEndAsync(ct);
-        ctx.Request.Body.Position = 0;
-        
-        request.Content = new StringContent(bodyStr, System.Text.Encoding.UTF8, "application/json");
-        
-        var response = await httpClient.SendAsync(request, ct);
-        var content = await response.Content.ReadAsStringAsync(ct);
-        return Results.Content(content, response.Content.Headers.ContentType?.ToString() ?? "application/json", statusCode: (int)response.StatusCode);
-    }
-    catch (Exception ex)
-    {
-        return PrinterAdapterUnavailable(ex);
-    }
-}
-
-async Task<IResult> ProxyPrinterAdapterDeleteAsync(string relativePath, HttpContext ctx, CancellationToken ct)
-{
-    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-    if (userId is null) return Results.Unauthorized();
-
-    var targetUrl = $"{PrinterAdapterBaseUrl()}/{relativePath}";
-
-    try
-    {
-        using var httpClient = new HttpClient();
-        var request = new HttpRequestMessage(HttpMethod.Delete, targetUrl);
-        var response = await httpClient.SendAsync(request, ct);
-        var content = await response.Content.ReadAsStringAsync(ct);
-        return Results.Content(content, response.Content.Headers.ContentType?.ToString() ?? "application/json", statusCode: (int)response.StatusCode);
-    }
-    catch (Exception ex)
-    {
-        return PrinterAdapterUnavailable(ex);
-    }
-}
+Task<IResult> ProxyPrinterAdapterGetAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("GET", relativePath, ctx, ct);
+Task<IResult> ProxyPrinterAdapterPostAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("POST", relativePath, ctx, ct);
+Task<IResult> ProxyPrinterAdapterPutAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("PUT", relativePath, ctx, ct);
+Task<IResult> ProxyPrinterAdapterDeleteAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("DELETE", relativePath, ctx, ct);
 
 app.MapGet("/api/label-templates", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync("api/label-templates", ctx, ct)).RequireAuthorization();
@@ -1246,6 +1131,9 @@ app.MapPost("/api/label-templates/preview", async (HttpContext ctx, Cancellation
 
 app.MapPost("/api/label-templates/render", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterPostAsync("api/label-templates/render", ctx, ct)).RequireAuthorization();
+
+app.MapPost("/api/label-templates/{id}/render-with-data", async (string id, HttpContext ctx, CancellationToken ct) =>
+    await ProxyPrinterAdapterPostAsync($"api/label-templates/{id}/render-with-data", ctx, ct)).RequireAuthorization();
 
 app.MapPost("/api/label-templates", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterPostAsync("api/label-templates", ctx, ct)).RequireAuthorization();
@@ -1310,11 +1198,23 @@ app.MapGet("/api/print-history/{id}", async (string id, HttpContext ctx, Cancell
 app.MapGet("/api/printers", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync("api/printers", ctx, ct)).RequireAuthorization();
 
+app.MapGet("/api/printers/ready", async (HttpContext ctx, CancellationToken ct) =>
+    await ProxyPrinterAdapterGetAsync("api/printers/ready", ctx, ct)).RequireAuthorization();
+
+app.MapGet("/api/printers/active", async (HttpContext ctx, CancellationToken ct) =>
+    await ProxyPrinterAdapterGetAsync("api/printers/active", ctx, ct)).RequireAuthorization();
+
 app.MapGet("/api/printers/discover", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync("api/printers/discover", ctx, ct)).RequireAuthorization();
 
 app.MapGet("/api/printers/{code}/health", async (string code, HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync($"api/printers/{code}/health", ctx, ct)).RequireAuthorization();
+
+app.MapPost("/api/printers/{code}/activate", async (string code, HttpContext ctx, CancellationToken ct) =>
+    await ProxyPrinterAdapterPostAsync($"api/printers/{code}/activate", ctx, ct)).RequireAuthorization();
+
+app.MapPost("/api/printers/{code}/deactivate", async (string code, HttpContext ctx, CancellationToken ct) =>
+    await ProxyPrinterAdapterPostAsync($"api/printers/{code}/deactivate", ctx, ct)).RequireAuthorization();
 
 app.MapPost("/api/printers/{code}/test-connection", async (string code, HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterPostAsync($"api/printers/{code}/test-connection", ctx, ct)).RequireAuthorization();

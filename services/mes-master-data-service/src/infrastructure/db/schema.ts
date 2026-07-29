@@ -220,6 +220,9 @@ export const mdRoutingOperation = pgTable('md_routing_operation', {
   transferBatchQty: numeric('transfer_batch_qty', { precision: 18, scale: 6 }),
   milestoneFlag: boolean('milestone_flag').notNull().default(false),
   planningMode: varchar('planning_mode', { length: 30 }).notNull().default('INHERITED'),
+  unitsPerLabel: numeric('units_per_label', { precision: 18, scale: 6 }),
+  labelQuantityMethod: varchar('label_quantity_method', { length: 40 }).notNull().default('CEIL_BY_UNITS_PER_LABEL'),
+  copiesPerLabel: integer('copies_per_label').notNull().default(1),
 });
 
 export const mdProductionStandard = pgTable('md_production_standard', {

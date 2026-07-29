@@ -41,7 +41,8 @@ public static class PrinterDbSeeder
     {
         var officialCodes = GetOfficialTemplateCodes();
 
-        // Phase 1: Delete all templates NOT in the official list (legacy + old demo)
+        // Phase 1: Archive obsolete demo rows. Never delete template versions or
+        // print history: those records are immutable audit evidence.
         var templatesToDelete = await db.LabelTemplates
             .Where(t => t.TemplateCode == null || !officialCodes.Contains(t.TemplateCode))
             .ToListAsync();
@@ -49,40 +50,89 @@ public static class PrinterDbSeeder
         if (templatesToDelete.Count > 0)
         {
             var idsToDelete = templatesToDelete.Select(t => t.Id).ToList();
-            await db.LabelTemplateVersions
-                .Where(v => idsToDelete.Contains(v.TemplateId))
-                .ExecuteDeleteAsync();
-
-            db.LabelTemplates.RemoveRange(templatesToDelete);
+            var obsoleteAssignments = await db.PrinterTemplateAssignments
+                .Where(a => idsToDelete.Contains(a.TemplateId))
+                .ToListAsync();
+            db.PrinterTemplateAssignments.RemoveRange(obsoleteAssignments);
+            foreach (var template in templatesToDelete)
+                template.Deactivate();
             await db.SaveChangesAsync();
         }
 
-        // Phase 2: Insert official templates (idempotent by template_code)
-        var definitions = GetOfficialTemplateDefinitions();
+        // Phase 2: Insert the four canonical demo templates (idempotent by code).
+        var definitions = GetDemoTemplateDefinitions();
 
         foreach (var def in definitions)
         {
-            // 1-Up (original size)
             await SeedOrUpdateTemplateAsync(db, def.Code, def.Name, def.Description, def.Note, def.Category,
                 def.Dpi, def.WidthMm, def.HeightMm, def.Orientation, def.BarcodeTypes, def.PrinterModels, def.StationTypes,
-                def.TemplateJson, "1UP", 1, 1, 0.0, def.IsDefault);
-
-            // 2-Up (35x22, 2 columns, gap 2.0 => width 72.0)
-            var scaledJson2 = ScaleTemplateJsonTo35x22(def.TemplateJson, def.WidthMm, def.HeightMm);
-            var duplicatedJson2 = DuplicateScaledTemplateJson(scaledJson2, 2, 2.0);
-            await SeedOrUpdateTemplateAsync(db, def.Code + "-2UP", def.Name + " (2-Up)", def.Description, def.Note, def.Category,
-                def.Dpi, 72.0, 22.0, def.Orientation, def.BarcodeTypes, def.PrinterModels, def.StationTypes,
-                duplicatedJson2, "2UP", 2, 1, 2.0, false);
-
-            // 3-Up (35x22, 3 columns, gap 2.0 => width 109.0)
-            var scaledJson3 = ScaleTemplateJsonTo35x22(def.TemplateJson, def.WidthMm, def.HeightMm);
-            var duplicatedJson3 = DuplicateScaledTemplateJson(scaledJson3, 3, 2.0);
-            await SeedOrUpdateTemplateAsync(db, def.Code + "-3UP", def.Name + " (3-Up)", def.Description, def.Note, def.Category,
-                def.Dpi, 109.0, 22.0, def.Orientation, def.BarcodeTypes, def.PrinterModels, def.StationTypes,
-                duplicatedJson3, "3UP", 3, 1, 2.0, false);
+                def.TemplateJson, def.LayoutType, def.SheetColumns, def.SheetRows, def.GapMm, def.IsDefault);
         }
 
+        // Added templates are not visible to a following database query until
+        // they are flushed. This matters on a fresh remote adapter database:
+        // FirstAsync below must resolve the canonical default template instead
+        // of failing with "Sequence contains no elements".
         await db.SaveChangesAsync();
+
+        var defaultTemplate = await db.LabelTemplates
+            .SingleOrDefaultAsync(t => t.TemplateCode == "ITEM-DETAIL-1UP" && t.IsActive);
+        if (defaultTemplate is null)
+            throw new InvalidOperationException("Canonical label template ITEM-DETAIL-1UP was not seeded.");
+        foreach (var printer in await db.Printers.Where(p => p.PrinterCode == "Zebra-GK420t-CUPS").ToListAsync())
+            printer.Activate(defaultTemplate.Id, defaultTemplate.Name, "system");
+
+        var staleAssignments = await db.PrinterTemplateAssignments
+            .Where(a => a.PrinterCode == "Zebra-GK420t-CUPS" && a.TemplateId != defaultTemplate.Id)
+            .ToListAsync();
+        db.PrinterTemplateAssignments.RemoveRange(staleAssignments);
+        var assignment = await db.PrinterTemplateAssignments
+            .FirstOrDefaultAsync(a => a.PrinterCode == "Zebra-GK420t-CUPS");
+        if (assignment is null)
+            await db.PrinterTemplateAssignments.AddAsync(PrinterTemplateAssignment.Create("Zebra-GK420t-CUPS", defaultTemplate.Id, defaultTemplate.Name, "system"));
+        else
+            assignment.Reassign(defaultTemplate.Id, defaultTemplate.Name, "system");
+        await db.SaveChangesAsync();
+    }
+
+    private static IReadOnlyList<TemplateDefinition> GetDemoTemplateDefinitions()
+    {
+        const int dpi = 203;
+        const double width = 50;
+        const double height = 30;
+        const double gap = 2;
+
+        static string Json(double w, double h, int columns, IEnumerable<object> elements)
+            => JsonSerializer.Serialize(new { width = w, height = h, dpi, layout = new { columns, rows = 1, gapMm = columns > 1 ? gap : 0 }, elements });
+        static object Text(int x, int y, int fontSize, string? text = null, string? binding = null, string? defaultValue = null)
+            => new { type = "text", x, y, fontSize, text, binding, defaultValue };
+        static object Barcode(int x, int y, int w, int h, string binding)
+            => new { type = "barcode", x, y, width = w, height = h, symbology = "CODE128", barWidth = 2, binding, defaultValue = "ITEM-0001" };
+        static object Qr(int x, int y, int w, int h, string payload)
+            => new { type = "qr", x, y, width = w, height = h, payloadTemplate = payload };
+
+        var barcode = new object[]
+        {
+            Text(10, 10, 11, "ITEM CODE"), Text(10, 42, 16, binding: "item_code", defaultValue: "ITEM-0001"), Barcode(10, 82, 370, 90, "item_code")
+        };
+        var detail = new object[]
+        {
+            Text(10, 8, 10, binding: "item_code", defaultValue: "ITEM-0001"),
+            Text(10, 34, 10, binding: "item_name", defaultValue: "Demo product"),
+            Text(10, 60, 8, binding: "item_description", defaultValue: "Production label"),
+            Text(10, 88, 8, "LOT", binding: "lot_number", defaultValue: "LOT-20260727"),
+            Text(10, 112, 8, "QTY", binding: "quantity", defaultValue: "1"),
+            Text(10, 136, 8, "WO", binding: "work_order", defaultValue: "WO-DEMO-0001"),
+            Barcode(10, 166, 230, 58, "item_code"), Qr(295, 145, 85, 85, "{item_code}|{lot_number}|{work_order}")
+        };
+
+        return new List<TemplateDefinition>
+        {
+            new("ITEM-BARCODE-1UP", "Item Barcode 1-Up", "One item barcode label per row; item code is printed above the barcode.", "Use for one label per row.", "ITEM", dpi, width, height, "LANDSCAPE", "[\"CODE128\"]", "[\"GK420t\"]", "[\"PRINT_STATION\"]", Json(width, height, 1, barcode)),
+            new("ITEM-BARCODE-2UP", "Item Barcode 2-Up", "Two identical item barcode labels printed side by side on a two-column roll.", "Two labels share one print row.", "ITEM", dpi, width, height, "LANDSCAPE", "[\"CODE128\"]", "[\"GK420t\"]", "[\"PRINT_STATION\"]", Json(width, height, 2, barcode), false, "2UP", 2, 1, gap),
+            new("ITEM-DETAIL-1UP", "Item Detail 1-Up", "Detailed item label with localized name, lot, quantity, Work Order, and QR payload.", "Default production label.", "ITEM", dpi, width, height, "LANDSCAPE", "[\"CODE128\",\"QR\"]", "[\"GK420t\"]", "[\"PRINT_STATION\"]", Json(width, height, 1, detail), true),
+            new("ITEM-DETAIL-2UP", "Item Detail 2-Up", "Two identical detailed item labels printed side by side on a two-column roll.", "Two labels share one print row.", "ITEM", dpi, width, height, "LANDSCAPE", "[\"CODE128\",\"QR\"]", "[\"GK420t\"]", "[\"PRINT_STATION\"]", Json(width, height, 2, detail), false, "2UP", 2, 1, gap)
+        };
     }
 
     private static string DuplicateScaledTemplateJson(string scaledSingleJson, int cols, double gapMm)
@@ -186,6 +236,9 @@ public static class PrinterDbSeeder
                 supportedBarcodeTypes: barcodeTypes,
                 supportedPrinterModels: printerModels,
                 compatibleStationTypes: stationTypes,
+                layoutType: layoutType,
+                sheetColumns: sheetColumns,
+                sheetRows: sheetRows,
                 gapMm: gapMm
             );
             if (isDefault)
@@ -288,31 +341,14 @@ public static class PrinterDbSeeder
 
     private static HashSet<string> GetOfficialTemplateCodes()
     {
-        var codes = new HashSet<string>(StringComparer.Ordinal);
-        var baseCodes = new[] {
-            "LBL-KHO-50x30",
-            "LBL-SAT-100x60",
-            "LBL-TAM-SAT-100x80",
-            "LBL-PALLET-100x150",
-            "LBL-SHEET-LARGE-80x50",
-            "LBL-SHEET-SMALL-50x30",
-            "LBL-WIP-60x40",
-            "LBL-ISSUE-100x60"
-        };
-        foreach (var bc in baseCodes)
-        {
-            codes.Add(bc);
-            codes.Add(bc + "-2UP");
-            codes.Add(bc + "-3UP");
-        }
-        return codes;
+        return new HashSet<string>(new[] { "ITEM-BARCODE-1UP", "ITEM-BARCODE-2UP", "ITEM-DETAIL-1UP", "ITEM-DETAIL-2UP" }, StringComparer.Ordinal);
     }
 
     private record TemplateDefinition(
         string Code, string Name, string Description, string Note, string Category,
         int Dpi, double WidthMm, double HeightMm, string Orientation,
         string BarcodeTypes, string PrinterModels, string StationTypes,
-        string TemplateJson, bool IsDefault = false);
+        string TemplateJson, bool IsDefault = false, string LayoutType = "1UP", int SheetColumns = 1, int SheetRows = 1, double GapMm = 0.0);
 
     private static IReadOnlyList<TemplateDefinition> GetOfficialTemplateDefinitions() =>
         new List<TemplateDefinition>

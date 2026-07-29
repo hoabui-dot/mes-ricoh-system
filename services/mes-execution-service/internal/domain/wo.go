@@ -122,12 +122,29 @@ type LaborAssignment struct {
 }
 
 type ComputedOpResult struct {
-	SequenceNo      int    `json:"sequence_no"`
-	OperationCode   string `json:"operation_code"`
-	WorkCenterID    string `json:"work_center_id"`
-	DurationMinutes int    `json:"duration_minutes"`
-	PlannedStartAt  string `json:"planned_start_at"`
-	PlannedEndAt    string `json:"planned_end_at"`
+	SequenceNo             int      `json:"sequence_no"`
+	OperationCode          string   `json:"operation_code"`
+	WorkCenterID           string   `json:"work_center_id"`
+	DurationMinutes        int      `json:"duration_minutes"`
+	PlannedStartAt         string   `json:"planned_start_at"`
+	PlannedEndAt           string   `json:"planned_end_at"`
+	SetupTimeMinutes       float64  `json:"setup_time_minutes"`
+	CycleTimeSeconds       float64  `json:"cycle_time_seconds"`
+	BaseQuantity           float64  `json:"base_quantity"`
+	WorkOrderQuantity      float64  `json:"work_order_quantity"`
+	StandardYield          float64  `json:"standard_yield"`
+	EfficiencyFactor       float64  `json:"efficiency_factor"`
+	QueueTimeMinutes       float64  `json:"queue_time_minutes"`
+	MoveTimeMinutes        float64  `json:"move_time_minutes"`
+	CalculatedRunMinutes   float64  `json:"calculated_run_minutes"`
+	CalculatedTotalMinutes float64  `json:"calculated_total_minutes"`
+	OperationCycleCount    float64  `json:"operation_cycle_count"`
+	ExpectedGoodQuantity   float64  `json:"expected_good_quantity"`
+	RequiresOutputLabel    bool     `json:"requires_output_label"`
+	UnitsPerLabel          *float64 `json:"units_per_label,omitempty"`
+	LabelCount             int      `json:"label_count,omitempty"`
+	PrintCopies            int      `json:"print_copies,omitempty"`
+	PrintStatus            string   `json:"print_status,omitempty"`
 }
 
 type ExecutionSession struct {

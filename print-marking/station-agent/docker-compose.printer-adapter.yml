@@ -4,7 +4,7 @@ name: station-printer-adapter
 # adapter connects to the protected Station Agent broker over TCP/IP.
 services:
   printer-adapter:
-    image: vanhoadotbui2628/printer-adapter:real-printers-no-simulator-20260727-cups-remote-fix
+    image: vanhoadotbui2628/printer-adapter:real-printers-no-simulator-management-routing-filter-v2-20260728-arm64
     container_name: station-printer-adapter
     restart: unless-stopped
     ports:
