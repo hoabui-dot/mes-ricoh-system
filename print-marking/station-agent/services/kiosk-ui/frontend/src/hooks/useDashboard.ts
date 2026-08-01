@@ -64,6 +64,37 @@ export interface MesConnectionStatus {
   observedAt: string
 }
 
+export interface PrintDashboard {
+  stationId: string
+  workOrderId: string
+  workOrderCode: string
+  workOrderStatus: string
+  productCode: string
+  productName?: string
+  operationCode?: string
+  operationName?: string
+  workstationCode?: string
+  printStationCode?: string
+  printerCode?: string
+  requestedQuantity: number
+  requiredLabelQuantity: number
+  totalLabelCount: number
+  queuedLabelCount: number
+  printedLabelCount: number
+  failedLabelCount: number
+  remainingLabelCount: number
+  printJobId?: string
+  printJobStatus: string
+  batchSize: number
+  totalBatches: number
+  completedBatches: number
+  lastKafkaEventId?: string
+  lastKafkaEventType?: string
+  lastKafkaEventAt?: string
+  lastPrinterResultAt?: string
+  updatedAt: string
+}
+
 interface PrinterRuntimeEvent {
   printerCode: string
   status: string
@@ -223,6 +254,8 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
   const [todayRecords, setTodayRecords] = useState<ProductionRecord[]>([])
   const [mesConnection, setMesConnection] = useState<MesConnectionStatus | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [printDashboard, setPrintDashboard] = useState<PrintDashboard | null>(null)
+  const lastDashboardEventRef = useRef<string>('')
 
   const baseUrl = import.meta.env.VITE_PROJECTION_URL ||
     `${window.location.protocol}//${window.location.host}`
@@ -284,6 +317,14 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
     if (data && typeof data.status === 'string') setMesConnection(data)
   }, [])
 
+  const handlePrintDashboardUpdate = useCallback((data: PrintDashboard) => {
+    if (!data || typeof data.workOrderCode !== 'string') return
+    const eventKey = data.lastKafkaEventId || `${data.workOrderCode}:${data.updatedAt}`
+    if (eventKey === lastDashboardEventRef.current) return
+    lastDashboardEventRef.current = eventKey
+    setPrintDashboard(data)
+  }, [])
+
   // Keep a ref to the connection so we can stop it on cleanup
   const connRef = useRef<signalR.HubConnection | null>(null)
 
@@ -293,7 +334,7 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
     // 1. Initial REST fetch from projection service
     const fetchInitialData = async () => {
       try {
-        const [prodRes, actRes, devRes, todayRecsRes, mesRes] = await Promise.all([
+        const [prodRes, actRes, devRes, todayRecsRes, mesRes, printRes] = await Promise.all([
           stationId
             ? axios.get<ProductionView>(`${baseUrl}/api/projection/production?stationId=${encodeURIComponent(stationId)}`).catch(() => null)
             : Promise.resolve(null),
@@ -303,6 +344,9 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
             `${baseUrl}/api/projection/records/today?page=1&pageSize=100`
           ).catch(() => ({ data: { items: [] as ProductionRecord[], totalCount: 0 } })),
           axios.get<MesConnectionStatus>(`${baseUrl}/api/projection/integrations/mes`).catch(() => null),
+          stationId
+            ? axios.get<PrintDashboard>(`${baseUrl}/api/projection/print-dashboard?stationId=${encodeURIComponent(stationId)}`).catch(() => null)
+            : Promise.resolve(null),
         ])
 
         if (!mounted) return
@@ -320,6 +364,10 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
         }
         if (todayRecsRes?.data?.items) setTodayRecords(todayRecsRes.data.items)
         if (mesRes?.data) setMesConnection(mesRes.data)
+        if (printRes?.data) {
+          lastDashboardEventRef.current = printRes.data.lastKafkaEventId || `${printRes.data.workOrderCode}:${printRes.data.updatedAt}`
+          setPrintDashboard(printRes.data)
+        }
       } catch (err) {
         console.error('[useDashboard] Error fetching initial projection data:', err)
       }
@@ -344,6 +392,7 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
     conn.on('OnPrinterStatusChanged', handlePrinterRuntimeUpdate)
     conn.on('OnAlarmRaised', handleAlarmRaised)
     conn.on('OnMesConnectionStatusChanged', handleMesConnectionStatusChanged)
+    conn.on('OnPrintDashboardUpdate', handlePrintDashboardUpdate)
 
     conn.start()
       .then(async () => {
@@ -357,9 +406,18 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
       })
       .catch(err => console.error('[useDashboard] SignalR connection error:', err))
 
-    conn.onreconnected(() => {
+    conn.onreconnected(async () => {
       if (mounted) setIsConnected(true)
-      conn.invoke('SubscribeToStation', stationId).catch(() => {})
+      try {
+        await conn.invoke('SubscribeToStation', stationId)
+        const response = await axios.get<PrintDashboard>(`${baseUrl}/api/projection/print-dashboard?stationId=${encodeURIComponent(stationId)}`)
+        if (mounted && response.data) {
+          lastDashboardEventRef.current = response.data.lastKafkaEventId || `${response.data.workOrderCode}:${response.data.updatedAt}`
+          setPrintDashboard(response.data)
+        }
+      } catch (err) {
+        console.warn('[useDashboard] Projection refetch after reconnect failed:', err)
+      }
     })
     conn.onclose(() => {
       if (mounted) setIsConnected(false)
@@ -375,11 +433,12 @@ export function useDashboard(stationId: string, onAlarmRaised?: (alarm: Alarm) =
       conn.off('OnPrinterStatusChanged', handlePrinterRuntimeUpdate)
       conn.off('OnAlarmRaised', handleAlarmRaised)
       conn.off('OnMesConnectionStatusChanged', handleMesConnectionStatusChanged)
+      conn.off('OnPrintDashboardUpdate', handlePrintDashboardUpdate)
       conn.stop().catch(() => {})
       connRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stationId, baseUrl])
 
-  return { isConnected, production, activities, devices, todayRecords, mesConnection }
+  return { isConnected, production, activities, devices, todayRecords, mesConnection, printDashboard }
 }

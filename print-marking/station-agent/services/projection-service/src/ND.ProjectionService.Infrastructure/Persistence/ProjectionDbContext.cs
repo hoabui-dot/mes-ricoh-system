@@ -15,6 +15,7 @@ public sealed class ProjectionDbContext : DbContext, IUnitOfWork
     public DbSet<ProductionRecord> ProductionRecords => Set<ProductionRecord>();
     public DbSet<Alarm> Alarms => Set<Alarm>();
     public DbSet<ProductionOrderView> ProductionOrders => Set<ProductionOrderView>();
+    public DbSet<PrintDashboardView> PrintDashboards => Set<PrintDashboardView>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -143,6 +144,42 @@ public sealed class ProjectionDbContext : DbContext, IUnitOfWork
             e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at").IsRequired();
         });
+
+        modelBuilder.Entity<PrintDashboardView>(e =>
+        {
+            e.ToTable("projection_print_dashboard");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.StationId).HasColumnName("station_id").IsRequired();
+            e.HasIndex(x => new { x.StationId, x.WorkOrderId }).IsUnique();
+            e.Property(x => x.WorkOrderId).HasColumnName("work_order_id").IsRequired();
+            e.Property(x => x.WorkOrderCode).HasColumnName("work_order_code").IsRequired();
+            e.Property(x => x.WorkOrderStatus).HasColumnName("work_order_status").IsRequired();
+            e.Property(x => x.ProductCode).HasColumnName("product_code").IsRequired();
+            e.Property(x => x.ProductName).HasColumnName("product_name");
+            e.Property(x => x.OperationCode).HasColumnName("operation_code");
+            e.Property(x => x.OperationName).HasColumnName("operation_name");
+            e.Property(x => x.WorkstationCode).HasColumnName("workstation_code");
+            e.Property(x => x.PrintStationCode).HasColumnName("print_station_code");
+            e.Property(x => x.PrinterCode).HasColumnName("printer_code");
+            e.Property(x => x.RequestedQuantity).HasColumnName("requested_quantity");
+            e.Property(x => x.RequiredLabelQuantity).HasColumnName("required_label_quantity");
+            e.Property(x => x.TotalLabelCount).HasColumnName("total_label_count");
+            e.Property(x => x.QueuedLabelCount).HasColumnName("queued_label_count");
+            e.Property(x => x.PrintedLabelCount).HasColumnName("printed_label_count");
+            e.Property(x => x.FailedLabelCount).HasColumnName("failed_label_count");
+            e.Property(x => x.RemainingLabelCount).HasColumnName("remaining_label_count");
+            e.Property(x => x.PrintJobId).HasColumnName("print_job_id");
+            e.Property(x => x.PrintJobStatus).HasColumnName("print_job_status").IsRequired();
+            e.Property(x => x.BatchSize).HasColumnName("batch_size");
+            e.Property(x => x.TotalBatches).HasColumnName("total_batches");
+            e.Property(x => x.CompletedBatches).HasColumnName("completed_batches");
+            e.Property(x => x.LastKafkaEventId).HasColumnName("last_kafka_event_id");
+            e.Property(x => x.LastKafkaEventType).HasColumnName("last_kafka_event_type");
+            e.Property(x => x.LastKafkaEventAt).HasColumnName("last_kafka_event_at");
+            e.Property(x => x.LastPrinterResultAt).HasColumnName("last_printer_result_at");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
+        });
     }
 }
-

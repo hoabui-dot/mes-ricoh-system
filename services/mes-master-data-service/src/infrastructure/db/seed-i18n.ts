@@ -2,6 +2,7 @@ export type LocalizedSeedText = { vi: string; en: string; ja: string; ko: string
 
 export const LOCALIZED_COLUMNS_BY_TABLE = new Map<string, string[]>([
   ['md_site', ['name']],
+  ['md_uom', ['name', 'description']],
   ['md_item', ['name']],
   ['md_item_revision', ['name']],
   ['md_work_center', ['name']],
@@ -21,6 +22,15 @@ export const LOCALIZED_COLUMNS_BY_TABLE = new Map<string, string[]>([
 const localized = (vi: string, en: string, ja: string, ko: string): LocalizedSeedText => ({ vi, en, ja, ko });
 
 export const SEED_LOCALIZED_TEXT: Record<string, Record<string, Record<string, LocalizedSeedText>>> = {
+  md_uom: {
+    PCS: { name: localized('Cái', 'Piece', '個', '개'), description: localized('Đơn vị đếm sản phẩm', 'Counted piece', '製品の個数単位', '제품 개수 단위') },
+    KG: { name: localized('Kilôgam', 'Kilogram', 'キログラム', '킬로그램'), description: localized('Khối lượng theo kilogram', 'Mass in kilograms', 'キログラム単位の重量', '킬로그램 단위 중량') },
+    G: { name: localized('Gam', 'Gram', 'グラム', '그램'), description: localized('Khối lượng theo gram', 'Mass in grams', 'グラム単位の重量', '그램 단위 중량') },
+    M: { name: localized('Mét', 'Metre', 'メートル', '미터'), description: localized('Chiều dài theo mét', 'Length in metres', 'メートル単位の長さ', '미터 단위 길이') },
+    M2: { name: localized('Mét vuông', 'Square metre', '平方メートル', '제곱미터'), description: localized('Diện tích theo mét vuông', 'Area in square metres', '平方メートル単位の面積', '제곱미터 단위 면적') },
+    L: { name: localized('Lít', 'Litre', 'リットル', '리터'), description: localized('Thể tích theo lít', 'Volume in litres', 'リットル単位の体積', '리터 단위 부피') },
+    MIN: { name: localized('Phút', 'Minute', '分', '분'), description: localized('Thời gian theo phút', 'Duration in minutes', '分単位の時間', '분 단위 시간') },
+  },
   md_site: {
     'SITE-KZ3': {
       name: localized('S-Factory - Kizuna 3', 'S-Factory - Kizuna 3', 'S-Factory - キズナ3', 'S-Factory - 키즈나 3'),

@@ -15,6 +15,7 @@ export const TABLES: TableDefinition[] = [
   { resource: 'shifts', tableName: 'md_shift' },
   { resource: 'reason-codes', tableName: 'md_reason_code' },
   { resource: 'items', tableName: 'md_item' },
+  { resource: 'material-groups', tableName: 'md_material_group' },
   {
     resource: 'item-revisions',
     tableName: 'md_item_revision',

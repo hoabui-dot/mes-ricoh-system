@@ -176,10 +176,34 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 		baseQty, _ := p["base_quantity"].(float64)
 		baseUOM, _ := p["base_uom_id"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_mbom_header (master_id, code, name, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
-			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, NOW())
-			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, string(nameJSON), siteID, baseQty, baseUOM, status)
+			INSERT INTO rm_mbom_header (master_id, code, name, site_id, base_quantity, base_uom_id, lifecycle_status, business_version, structure_version, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, COALESCE($9, 1), NOW())
+			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, base_quantity=EXCLUDED.base_quantity, base_uom_id=EXCLUDED.base_uom_id, lifecycle_status=EXCLUDED.lifecycle_status, business_version=EXCLUDED.business_version, structure_version=EXCLUDED.structure_version, updated_at=NOW()
+		`, masterID, code, string(nameJSON), siteID, baseQty, baseUOM, status, p["business_version"], p["structure_version"])
+		if lines, ok := p["lines"].([]interface{}); ok {
+			_, _ = c.pool.Exec(ctx, `DELETE FROM rm_mbom_line WHERE mbom_header_id = $1`, masterID)
+			for _, raw := range lines {
+				line, ok := raw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				lineID, _ := line["master_id"].(string)
+				parentID, _ := line["parent_line_id"].(string)
+				componentID, _ := line["component_revision_id"].(string)
+				uomID, _ := line["uom_id"].(string)
+				issueOpID, _ := line["issue_operation_id"].(string)
+				seq, _ := line["seq"].(float64)
+				quantity, _ := line["quantity_per"].(float64)
+				scrap, _ := line["scrap_rate"].(float64)
+				optional, _ := line["optional_flag"].(bool)
+				phantom, _ := line["phantom_flag"].(bool)
+				backflush, _ := line["backflush_flag"].(bool)
+				if lineID == "" || componentID == "" || uomID == "" {
+					continue
+				}
+				_, _ = c.pool.Exec(ctx, `INSERT INTO rm_mbom_line (master_id, mbom_header_id, parent_line_id, seq, component_revision_id, component_item_code, quantity_per, uom_id, scrap_rate, issue_operation_id, backflush_flag, phantom_flag, optional_flag) VALUES ($1,$2,NULLIF($3,'')::uuid,$4,$5,NULLIF($6,''),$7,$8,$9,NULLIF($10,'')::uuid,$11,$12,$13) ON CONFLICT (master_id) DO UPDATE SET parent_line_id=EXCLUDED.parent_line_id, seq=EXCLUDED.seq, component_revision_id=EXCLUDED.component_revision_id, component_item_code=EXCLUDED.component_item_code, quantity_per=EXCLUDED.quantity_per, uom_id=EXCLUDED.uom_id, scrap_rate=EXCLUDED.scrap_rate, issue_operation_id=EXCLUDED.issue_operation_id, backflush_flag=EXCLUDED.backflush_flag, phantom_flag=EXCLUDED.phantom_flag, optional_flag=EXCLUDED.optional_flag`, lineID, masterID, parentID, int(seq), componentID, line["component_item_code"], quantity, uomID, scrap, issueOpID, backflush, phantom, optional)
+			}
+		}
 
 	case "MES.MasterData.RoutingReleased.v1":
 		log.Printf("[MasterDataConsumer] Projecting routing master_id=%s code=%s", masterID, code)

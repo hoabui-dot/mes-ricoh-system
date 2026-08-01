@@ -19,6 +19,8 @@ export {
   DialogTitle,
   DialogDescription,
 } from './dialog';
+export { BaseDataTable, type BaseDataTableProps, type BaseDataTableColumn } from '../base/BaseDataTable';
+export { BaseModal, type BaseModalProps, type BaseModalSize, type BaseModalPlacement } from '../base/BaseModal';
 export { Label } from './label';
 export { Checkbox } from './checkbox';
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';

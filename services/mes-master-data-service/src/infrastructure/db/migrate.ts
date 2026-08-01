@@ -2033,6 +2033,7 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
       -- Standards copied by the previous harmonization are redundant when
       -- every value equals the Operation engineering default. End only those
       -- rows; preserve differing values as intentional Routing overrides.
+      ALTER TABLE md_routing_operation DISABLE TRIGGER ALL;
       UPDATE md_routing_operation ro
       SET planning_mode = CASE WHEN EXISTS (
         SELECT 1
@@ -2123,6 +2124,644 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
         DROP CONSTRAINT IF EXISTS ck_md_routing_operation_copies,
         ADD CONSTRAINT ck_md_routing_operation_copies CHECK (copies_per_label > 0)
         NOT VALID;
+    `,
+  },
+  {
+    name: '0045_shopfloor_master_id_default',
+    sql: `
+      ALTER TABLE md_shopfloor
+        ALTER COLUMN master_id SET DEFAULT gen_random_uuid();
+    `,
+  },
+  {
+    name: '0046_centralised_uom_metadata',
+    sql: `
+      ALTER TABLE md_uom
+        ALTER COLUMN name TYPE JSONB
+        USING jsonb_build_object('vi', name, 'en', name, 'ja', name, 'ko', name),
+        ADD COLUMN IF NOT EXISTS allow_fraction BOOLEAN NOT NULL DEFAULT TRUE,
+        ADD COLUMN IF NOT EXISTS description JSONB;
+      ALTER TABLE md_uom_conversion
+        ADD COLUMN IF NOT EXISTS item_id UUID REFERENCES md_item(master_id),
+        ADD COLUMN IF NOT EXISTS rounding_rule VARCHAR(30) NOT NULL DEFAULT 'HALF_UP';
+      UPDATE md_uom SET
+        name = CASE code
+          WHEN 'PCS' THEN '{"vi":"Cái","en":"Piece","ja":"個","ko":"개"}'::jsonb
+          WHEN 'KG' THEN '{"vi":"Kilôgam","en":"Kilogram","ja":"キログラム","ko":"킬로그램"}'::jsonb
+          WHEN 'G' THEN '{"vi":"Gam","en":"Gram","ja":"グラム","ko":"그램"}'::jsonb
+          WHEN 'M' THEN '{"vi":"Mét","en":"Metre","ja":"メートル","ko":"미터"}'::jsonb
+          WHEN 'M2' THEN '{"vi":"Mét vuông","en":"Square metre","ja":"平方メートル","ko":"제곱미터"}'::jsonb
+          WHEN 'L' THEN '{"vi":"Lít","en":"Litre","ja":"リットル","ko":"리터"}'::jsonb
+          WHEN 'MIN' THEN '{"vi":"Phút","en":"Minute","ja":"分","ko":"분"}'::jsonb
+          ELSE name END,
+        allow_fraction = CASE WHEN code = 'PCS' THEN FALSE ELSE TRUE END,
+        decimal_precision = CASE WHEN code = 'PCS' THEN 0 WHEN code = 'M2' THEN 4 WHEN code = 'MIN' THEN 2 ELSE GREATEST(decimal_precision, 3) END;
+      DELETE FROM md_uom_conversion WHERE from_uom_id = to_uom_id;
+      ALTER TABLE md_uom
+        DROP CONSTRAINT IF EXISTS ck_md_uom_class,
+        ADD CONSTRAINT ck_md_uom_class CHECK (uom_class IN ('Count','Length','Area','Weight','Volume','Time')) NOT VALID,
+        DROP CONSTRAINT IF EXISTS ck_md_uom_precision,
+        ADD CONSTRAINT ck_md_uom_precision CHECK (decimal_precision BETWEEN 0 AND 9) NOT VALID;
+    `,
+  },
+  {
+    name: '0047_normalize_legacy_uom_classes',
+    sql: `
+      UPDATE md_uom SET uom_class = 'Count', decimal_precision = CASE WHEN code = 'PCS' THEN 0 ELSE decimal_precision END, allow_fraction = CASE WHEN code = 'PCS' THEN FALSE ELSE allow_fraction END WHERE uom_class = 'Quantity';
+      UPDATE md_uom SET lifecycle_status = 'Inactive', effective_to = COALESCE(effective_to, NOW())
+      WHERE code IN ('DEMO-EA', 'UOM-RACE-1784874860', 'XE')
+        AND NOT EXISTS (SELECT 1 FROM md_item WHERE base_uom_id = md_uom.master_id)
+        AND NOT EXISTS (SELECT 1 FROM md_item_revision WHERE base_uom_id = md_uom.master_id)
+        AND NOT EXISTS (SELECT 1 FROM md_mbom_header WHERE base_uom_id = md_uom.master_id)
+        AND NOT EXISTS (SELECT 1 FROM md_mbom_line WHERE uom_id = md_uom.master_id)
+        AND NOT EXISTS (SELECT 1 FROM md_ebom_line WHERE uom_id = md_uom.master_id);
+    `,
+  },
+  {
+    name: '0048_mbom_structure_and_substitute_controls',
+    sql: `
+      ALTER TABLE md_mbom_line
+        ADD COLUMN IF NOT EXISTS optional_flag BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE md_mbom_line DROP CONSTRAINT IF EXISTS md_mbom_line_mbom_header_id_seq_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_mbom_line_sibling_sequence
+        ON md_mbom_line (mbom_header_id, COALESCE(parent_line_id, '00000000-0000-0000-0000-000000000000'::uuid), seq)
+        WHERE effective_to IS NULL AND lifecycle_status NOT IN ('Inactive', 'Obsolete');
+      ALTER TABLE md_mbom_line
+        DROP CONSTRAINT IF EXISTS ck_md_mbom_line_scrap_rate,
+        ADD CONSTRAINT ck_md_mbom_line_scrap_rate CHECK (scrap_rate >= 0 AND scrap_rate <= 1) NOT VALID;
+      CREATE INDEX IF NOT EXISTS ix_md_mbom_line_header_parent_seq
+        ON md_mbom_line (mbom_header_id, parent_line_id, seq)
+        WHERE effective_to IS NULL AND lifecycle_status NOT IN ('Inactive', 'Obsolete');
+
+      ALTER TABLE md_component_substitute
+        ADD COLUMN IF NOT EXISTS conversion_factor NUMERIC(18,6) NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS max_usage_percent NUMERIC(7,2) NOT NULL DEFAULT 100,
+        ADD COLUMN IF NOT EXISTS requires_approval BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS approval_status VARCHAR(30) NOT NULL DEFAULT 'NotRequired';
+      ALTER TABLE md_component_substitute
+        DROP CONSTRAINT IF EXISTS ck_md_component_substitute_conversion_factor,
+        ADD CONSTRAINT ck_md_component_substitute_conversion_factor CHECK (conversion_factor > 0) NOT VALID,
+        DROP CONSTRAINT IF EXISTS ck_md_component_substitute_max_usage,
+        ADD CONSTRAINT ck_md_component_substitute_max_usage CHECK (max_usage_percent > 0 AND max_usage_percent <= 100) NOT VALID,
+        DROP CONSTRAINT IF EXISTS ck_md_component_substitute_approval_status,
+        ADD CONSTRAINT ck_md_component_substitute_approval_status CHECK (approval_status IN ('NotRequired','Pending','Approved','Rejected')) NOT VALID;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_component_substitute_active_line_revision
+        ON md_component_substitute (mbom_line_id, substitute_revision_id)
+        WHERE effective_to IS NULL AND lifecycle_status NOT IN ('Inactive', 'Obsolete');
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_component_substitute_active_priority
+        ON md_component_substitute (mbom_line_id, priority)
+        WHERE effective_to IS NULL AND lifecycle_status NOT IN ('Inactive', 'Obsolete');
+    `,
+  },
+  {
+    name: '0049_reconcile_released_mbom_line_lifecycle',
+    sql: `
+      -- A Released header with a valid current line is an unambiguous legacy
+      -- lifecycle inconsistency. Promote the current line to Released while
+      -- preserving its identity and history; no component data is changed.
+      UPDATE md_mbom_line l
+      SET lifecycle_status = 'Released', approved_by = COALESCE(l.approved_by, h.approved_by), approved_at = COALESCE(l.approved_at, h.approved_at), updated_at = NOW()
+      FROM md_mbom_header h
+      WHERE h.master_id = l.mbom_header_id
+        AND h.lifecycle_status = 'Released'
+        AND l.effective_to IS NULL
+        AND l.lifecycle_status NOT IN ('Inactive','Obsolete');
+    `,
+  },
+  {
+    name: '0050_mbom_concurrency_and_substitute_audit',
+    sql: `
+      ALTER TABLE md_mbom_header
+        ADD COLUMN IF NOT EXISTS structure_version INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE md_mbom_header
+        DROP CONSTRAINT IF EXISTS ck_md_mbom_header_structure_version,
+        ADD CONSTRAINT ck_md_mbom_header_structure_version CHECK (structure_version > 0) NOT VALID;
+
+      ALTER TABLE md_component_substitute
+        ADD COLUMN IF NOT EXISTS approval_reason TEXT,
+        ADD COLUMN IF NOT EXISTS requested_by UUID,
+        ADD COLUMN IF NOT EXISTS requested_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS rejected_by UUID,
+        ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+        ADD COLUMN IF NOT EXISTS compatibility_exception_approved BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS compatibility_exception_reason TEXT;
+
+      CREATE TABLE IF NOT EXISTS md_component_substitute_approval_audit (
+        audit_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        substitute_id UUID NOT NULL REFERENCES md_component_substitute(master_id),
+        previous_status VARCHAR(30),
+        new_status VARCHAR(30) NOT NULL,
+        reason TEXT,
+        actor_id UUID NOT NULL,
+        occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS ix_md_component_substitute_approval_audit_substitute
+        ON md_component_substitute_approval_audit(substitute_id, occurred_at DESC);
+    `,
+  },
+  {
+    name: '0051_mbom_substitute_effective_dates',
+    sql: `
+      ALTER TABLE md_component_substitute
+        ADD COLUMN IF NOT EXISTS effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS effective_to TIMESTAMPTZ;
+      ALTER TABLE md_component_substitute
+        DROP CONSTRAINT IF EXISTS ck_md_component_substitute_effective_dates,
+        ADD CONSTRAINT ck_md_component_substitute_effective_dates
+          CHECK (effective_to IS NULL OR effective_to > effective_from) NOT VALID;
+      CREATE INDEX IF NOT EXISTS ix_md_component_substitute_effective
+        ON md_component_substitute (mbom_line_id, effective_from, effective_to)
+        WHERE lifecycle_status NOT IN ('Inactive', 'Obsolete');
+    `,
+  },
+  {
+    name: '0052_item_revision_effective_datetime_integrity',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_item_revision_temporal_audit (
+        audit_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        item_id UUID NOT NULL REFERENCES md_item(master_id) ON DELETE CASCADE,
+        revision_id UUID NOT NULL REFERENCES md_item_revision(master_id) ON DELETE CASCADE,
+        old_effective_from TIMESTAMPTZ,
+        new_effective_from TIMESTAMPTZ,
+        old_effective_to TIMESTAMPTZ,
+        new_effective_to TIMESTAMPTZ,
+        change_reason VARCHAR(80) NOT NULL,
+        triggered_by_revision_id UUID REFERENCES md_item_revision(master_id),
+        changed_by UUID NOT NULL,
+        changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        correlation_id VARCHAR(120)
+      );
+      CREATE INDEX IF NOT EXISTS ix_item_revision_temporal_audit_item
+        ON md_item_revision_temporal_audit(item_id, changed_at DESC);
+
+      CREATE TABLE IF NOT EXISTS md_item_revision_temporal_reconciliation (
+        finding_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        item_id UUID NOT NULL REFERENCES md_item(master_id) ON DELETE CASCADE,
+        revision_id UUID NOT NULL REFERENCES md_item_revision(master_id) ON DELETE CASCADE,
+        finding_code VARCHAR(80) NOT NULL,
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      INSERT INTO md_item_revision_temporal_reconciliation (item_id, revision_id, finding_code, details)
+      SELECT item_id, master_id, 'DUPLICATE_EFFECTIVE_FROM', jsonb_build_object('effective_from', effective_from)
+      FROM md_item_revision
+      WHERE master_id IN (
+        SELECT master_id FROM (
+          SELECT master_id, ROW_NUMBER() OVER (PARTITION BY item_id, site_id, effective_from ORDER BY version_no, master_id) AS duplicate_rank
+          FROM md_item_revision
+        ) duplicates WHERE duplicate_rank > 1
+      )
+      ON CONFLICT DO NOTHING;
+      INSERT INTO md_item_revision_temporal_reconciliation (item_id, revision_id, finding_code, details)
+      SELECT item_id, master_id, 'INVALID_EFFECTIVE_RANGE', jsonb_build_object('effective_from', effective_from, 'effective_to', effective_to)
+      FROM md_item_revision
+      WHERE effective_to IS NOT NULL AND effective_to <= effective_from
+      ON CONFLICT DO NOTHING;
+
+      -- Legacy seed data occasionally reused the same start instant. Preserve every
+      -- revision identity, but only normalize an unreferenced duplicate by one
+      -- second; referenced snapshots are never remapped by this migration.
+      ALTER TABLE md_item_revision DISABLE TRIGGER USER;
+      WITH ranked AS (
+        SELECT r.master_id,
+               r.effective_from,
+               ROW_NUMBER() OVER (PARTITION BY r.item_id, r.site_id, r.effective_from ORDER BY r.version_no, r.master_id) AS duplicate_rank
+        FROM md_item_revision r
+      )
+      UPDATE md_item_revision r
+      SET effective_from = ranked.effective_from + ((ranked.duplicate_rank - 1) * INTERVAL '1 second')
+      FROM ranked
+      WHERE ranked.master_id = r.master_id
+        AND ranked.duplicate_rank > 1
+        AND NOT EXISTS (SELECT 1 FROM md_production_version pv WHERE pv.item_revision_id = r.master_id);
+
+      WITH ordered AS (
+        SELECT master_id,
+               LEAD(effective_from) OVER (PARTITION BY item_id, site_id ORDER BY effective_from, version_no, master_id) AS next_effective_from
+        FROM md_item_revision
+      )
+      UPDATE md_item_revision r
+      SET effective_to = ordered.next_effective_from
+      FROM ordered
+      WHERE ordered.master_id = r.master_id;
+      ALTER TABLE md_item_revision ENABLE TRIGGER USER;
+
+      ALTER TABLE md_item_revision
+        DROP CONSTRAINT IF EXISTS ck_md_item_revision_effective_dates,
+        ADD CONSTRAINT ck_md_item_revision_effective_dates
+          CHECK (effective_to IS NULL OR effective_to > effective_from) NOT VALID;
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_item_revision_effective_start
+        ON md_item_revision(item_id, site_id, effective_from);
+      CREATE INDEX IF NOT EXISTS ix_md_item_revision_temporal_resolution
+        ON md_item_revision(item_id, site_id, effective_from, effective_to);
+    `,
+  },
+  {
+    name: '0053_item_revision_legacy_subsecond_boundary_reconciliation',
+    sql: `
+      ALTER TABLE md_item_revision DISABLE TRIGGER USER;
+      UPDATE md_item_revision duplicate_revision
+      SET effective_from = date_trunc('second', duplicate_revision.effective_from) + INTERVAL '1 second'
+      WHERE duplicate_revision.effective_from = date_trunc('second', duplicate_revision.effective_from) + INTERVAL '1 microsecond'
+        AND NOT EXISTS (SELECT 1 FROM md_production_version pv WHERE pv.item_revision_id = duplicate_revision.master_id);
+      WITH ordered AS (
+        SELECT master_id,
+               LEAD(effective_from) OVER (PARTITION BY item_id, site_id ORDER BY effective_from, version_no, master_id) AS next_effective_from
+        FROM md_item_revision
+      )
+      UPDATE md_item_revision r
+      SET effective_to = ordered.next_effective_from
+      FROM ordered
+      WHERE ordered.master_id = r.master_id;
+      ALTER TABLE md_item_revision ENABLE TRIGGER USER;
+    `,
+  },
+  {
+    name: '0054_restore_item_revision_ownership_and_audit_ambiguity',
+    sql: `
+      -- Additive first step of the ownership correction. Existing ambiguous
+      -- structures are never guessed or silently repointed.
+      ALTER TABLE md_mbom_header ADD COLUMN IF NOT EXISTS item_revision_id UUID;
+      ALTER TABLE md_routing_header ADD COLUMN IF NOT EXISTS item_revision_id UUID;
+      ALTER TABLE md_mbom_header DISABLE TRIGGER USER;
+      ALTER TABLE md_routing_header DISABLE TRIGGER USER;
+
+      CREATE TABLE IF NOT EXISTS md_structure_ownership_reconciliation (
+        finding_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        structure_type VARCHAR(20) NOT NULL CHECK (structure_type IN ('EBOM','MBOM','ROUTING')),
+        structure_id UUID NOT NULL,
+        structure_code VARCHAR(120) NOT NULL,
+        finding_code VARCHAR(60) NOT NULL,
+        candidate_item_revision_ids UUID[] NOT NULL DEFAULT ARRAY[]::UUID[],
+        resolved_item_revision_id UUID REFERENCES md_item_revision(master_id),
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (structure_type, structure_id, finding_code)
+      );
+
+      CREATE INDEX IF NOT EXISTS ix_md_structure_owner_mbom
+        ON md_mbom_header(item_revision_id, site_id, lifecycle_status);
+      CREATE INDEX IF NOT EXISTS ix_md_structure_owner_routing
+        ON md_routing_header(item_revision_id, lifecycle_status);
+
+      -- Deterministic backfill only when all PV references agree on one owner.
+      UPDATE md_mbom_header h
+      SET item_revision_id = owners.item_revision_id
+      FROM (
+        SELECT pv.mbom_header_id, (ARRAY_AGG(pv.item_revision_id ORDER BY pv.item_revision_id))[1] AS item_revision_id
+        FROM md_production_version pv
+        GROUP BY pv.mbom_header_id
+        HAVING COUNT(DISTINCT pv.item_revision_id) = 1
+      ) owners
+      WHERE h.master_id = owners.mbom_header_id AND h.item_revision_id IS NULL;
+
+      UPDATE md_routing_header h
+      SET item_revision_id = owners.item_revision_id
+      FROM (
+        SELECT pv.routing_header_id, (ARRAY_AGG(pv.item_revision_id ORDER BY pv.item_revision_id))[1] AS item_revision_id
+        FROM md_production_version pv
+        GROUP BY pv.routing_header_id
+        HAVING COUNT(DISTINCT pv.item_revision_id) = 1
+      ) owners
+      WHERE h.master_id = owners.routing_header_id AND h.item_revision_id IS NULL;
+
+      -- Shared legacy structures are cloned per owner before application
+      -- validation is tightened. Historical WO snapshots are deliberately not
+      -- repointed; only the still-authoritative Production Version is.
+      DO $$
+      DECLARE conflict_row RECORD; pv_row RECORD; new_header_id UUID;
+      BEGIN
+        CREATE TEMP TABLE IF NOT EXISTS tmp_mbom_line_owner_map (old_id UUID, new_id UUID) ON COMMIT DROP;
+        FOR conflict_row IN
+          SELECT h.* FROM md_mbom_header h
+          WHERE h.item_revision_id IS NULL
+            AND EXISTS (SELECT 1 FROM md_production_version p WHERE p.mbom_header_id = h.master_id GROUP BY p.mbom_header_id HAVING COUNT(DISTINCT p.item_revision_id) > 1)
+        LOOP
+          FOR pv_row IN
+            SELECT p.master_id AS pv_id, p.item_revision_id
+            FROM md_production_version p
+            WHERE p.mbom_header_id = conflict_row.master_id
+            ORDER BY p.item_revision_id
+            OFFSET 1
+          LOOP
+            new_header_id := gen_random_uuid();
+            INSERT INTO md_mbom_header
+              (master_id, code, name, description, version_no, lifecycle_status, effective_from, effective_to,
+               created_by, attributes, site_id, base_quantity, base_uom_id, business_version, purpose,
+               change_reason, engineering_note, reference_document, structure_version, item_revision_id)
+            SELECT new_header_id, h.code || '-' || substr(pv_row.item_revision_id::text, 1, 8), h.name, h.description,
+                   h.version_no, h.lifecycle_status, h.effective_from, h.effective_to, h.created_by, h.attributes,
+                   h.site_id, h.base_quantity, h.base_uom_id, h.business_version, h.purpose, h.change_reason,
+                   h.engineering_note, h.reference_document, h.structure_version, pv_row.item_revision_id
+            FROM md_mbom_header h WHERE h.master_id = conflict_row.master_id;
+            DELETE FROM tmp_mbom_line_owner_map;
+            INSERT INTO tmp_mbom_line_owner_map(old_id, new_id)
+              SELECT l.master_id, gen_random_uuid() FROM md_mbom_line l
+              WHERE l.mbom_header_id = conflict_row.master_id AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete');
+            INSERT INTO md_mbom_line
+              (master_id, code, name, version_no, lifecycle_status, effective_from, effective_to, created_by, attributes,
+               mbom_header_id, parent_line_id, seq, component_revision_id, quantity_per, uom_id, scrap_rate,
+               issue_operation_id, backflush_flag, phantom_flag, source_ebom_line_id, optional_flag)
+            SELECT m.new_id, l.code || '-' || substr(pv_row.item_revision_id::text, 1, 8), l.name, l.version_no,
+                   l.lifecycle_status, l.effective_from, l.effective_to, l.created_by, l.attributes, new_header_id,
+                   pm.new_id, l.seq, l.component_revision_id, l.quantity_per, l.uom_id, l.scrap_rate,
+                   l.issue_operation_id, l.backflush_flag, l.phantom_flag, l.source_ebom_line_id, l.optional_flag
+            FROM md_mbom_line l JOIN tmp_mbom_line_owner_map m ON m.old_id = l.master_id
+            LEFT JOIN tmp_mbom_line_owner_map pm ON pm.old_id = l.parent_line_id;
+            INSERT INTO md_component_substitute
+              (master_id, code, name, version_no, lifecycle_status, effective_from, effective_to, created_by, attributes,
+               mbom_line_id, substitute_revision_id, priority, conversion_factor, max_usage_percent, requires_approval, approval_status)
+            SELECT gen_random_uuid(), cs.code || '-' || substr(pv_row.item_revision_id::text, 1, 8), cs.name, cs.version_no,
+                   cs.lifecycle_status, cs.effective_from, cs.effective_to, cs.created_by, cs.attributes, m.new_id,
+                   cs.substitute_revision_id, cs.priority, cs.conversion_factor, cs.max_usage_percent, cs.requires_approval, cs.approval_status
+            FROM md_component_substitute cs JOIN tmp_mbom_line_owner_map m ON m.old_id = cs.mbom_line_id
+            WHERE cs.effective_to IS NULL AND cs.lifecycle_status NOT IN ('Inactive','Obsolete');
+            UPDATE md_production_version SET mbom_header_id = new_header_id WHERE master_id = pv_row.pv_id;
+          END LOOP;
+          UPDATE md_mbom_header h SET item_revision_id = first_owner.item_revision_id
+          FROM (SELECT p.item_revision_id FROM md_production_version p WHERE p.mbom_header_id = conflict_row.master_id ORDER BY p.item_revision_id LIMIT 1) first_owner
+          WHERE h.master_id = conflict_row.master_id;
+        END LOOP;
+
+        CREATE TEMP TABLE IF NOT EXISTS tmp_routing_operation_owner_map (old_id UUID, new_id UUID) ON COMMIT DROP;
+        FOR conflict_row IN
+          SELECT h.* FROM md_routing_header h
+          WHERE h.item_revision_id IS NULL
+            AND EXISTS (SELECT 1 FROM md_production_version p WHERE p.routing_header_id = h.master_id GROUP BY p.routing_header_id HAVING COUNT(DISTINCT p.item_revision_id) > 1)
+        LOOP
+          FOR pv_row IN
+            SELECT p.master_id AS pv_id, p.item_revision_id FROM md_production_version p
+            WHERE p.routing_header_id = conflict_row.master_id ORDER BY p.item_revision_id OFFSET 1
+          LOOP
+            new_header_id := gen_random_uuid();
+            INSERT INTO md_routing_header
+              (master_id, code, name, version_no, lifecycle_status, effective_from, effective_to, created_by, attributes,
+               description, business_version, routing_type, production_purpose, change_reason, engineering_note, reference_document, item_revision_id)
+            SELECT new_header_id, h.code || '-' || substr(pv_row.item_revision_id::text, 1, 8), h.name, h.version_no, h.lifecycle_status,
+                   h.effective_from, h.effective_to, h.created_by, h.attributes, h.description, h.business_version,
+                   h.routing_type, h.production_purpose, h.change_reason, h.engineering_note, h.reference_document, pv_row.item_revision_id
+            FROM md_routing_header h WHERE h.master_id = conflict_row.master_id;
+            DELETE FROM tmp_routing_operation_owner_map;
+            INSERT INTO tmp_routing_operation_owner_map(old_id, new_id)
+              SELECT ro.master_id, gen_random_uuid() FROM md_routing_operation ro
+              WHERE ro.routing_header_id = conflict_row.master_id AND ro.effective_to IS NULL AND ro.lifecycle_status NOT IN ('Inactive','Obsolete');
+            INSERT INTO md_routing_operation
+              (master_id, code, name, version_no, lifecycle_status, effective_from, effective_to, created_by, attributes,
+               routing_header_id, operation_id, work_center_id, seq, predecessor_seq, scheduling_mode, queue_time_min,
+               move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag, planning_mode, units_per_label,
+               label_quantity_method, copies_per_label)
+            SELECT m.new_id, ro.code || '-' || substr(pv_row.item_revision_id::text, 1, 8), ro.name, ro.version_no,
+                   ro.lifecycle_status, ro.effective_from, ro.effective_to, ro.created_by, ro.attributes, new_header_id,
+                   ro.operation_id, ro.work_center_id, ro.seq, ro.predecessor_seq, ro.scheduling_mode, ro.queue_time_min,
+                   ro.move_time_min, ro.overlap_allowed, ro.transfer_batch_qty, ro.milestone_flag, ro.planning_mode,
+                   ro.units_per_label, ro.label_quantity_method, ro.copies_per_label
+            FROM md_routing_operation ro JOIN tmp_routing_operation_owner_map m ON m.old_id = ro.master_id;
+            UPDATE md_production_version SET routing_header_id = new_header_id WHERE master_id = pv_row.pv_id;
+          END LOOP;
+          UPDATE md_routing_header h SET item_revision_id = first_owner.item_revision_id
+          FROM (SELECT p.item_revision_id FROM md_production_version p WHERE p.routing_header_id = conflict_row.master_id ORDER BY p.item_revision_id LIMIT 1) first_owner
+          WHERE h.master_id = conflict_row.master_id;
+        END LOOP;
+      END $$;
+
+      ALTER TABLE md_mbom_header ENABLE TRIGGER USER;
+      ALTER TABLE md_routing_header ENABLE TRIGGER USER;
+
+      INSERT INTO md_structure_ownership_reconciliation
+        (structure_type, structure_id, structure_code, finding_code, candidate_item_revision_ids, details)
+      SELECT 'MBOM', h.master_id, h.code,
+             CASE WHEN COUNT(DISTINCT pv.item_revision_id) > 1 THEN 'CONFLICTING_REFERENCES' ELSE 'UNREFERENCED' END,
+             COALESCE(ARRAY_AGG(DISTINCT pv.item_revision_id) FILTER (WHERE pv.item_revision_id IS NOT NULL), ARRAY[]::UUID[]),
+             jsonb_build_object('lifecycle_status', h.lifecycle_status, 'site_id', h.site_id)
+      FROM md_mbom_header h
+      LEFT JOIN md_production_version pv ON pv.mbom_header_id = h.master_id
+      WHERE h.item_revision_id IS NULL
+      GROUP BY h.master_id, h.code, h.lifecycle_status, h.site_id
+      ON CONFLICT (structure_type, structure_id, finding_code) DO NOTHING;
+
+      INSERT INTO md_structure_ownership_reconciliation
+        (structure_type, structure_id, structure_code, finding_code, candidate_item_revision_ids, details)
+      SELECT 'ROUTING', h.master_id, h.code,
+             CASE WHEN COUNT(DISTINCT pv.item_revision_id) > 1 THEN 'CONFLICTING_REFERENCES' ELSE 'UNREFERENCED' END,
+             COALESCE(ARRAY_AGG(DISTINCT pv.item_revision_id) FILTER (WHERE pv.item_revision_id IS NOT NULL), ARRAY[]::UUID[]),
+             jsonb_build_object('lifecycle_status', h.lifecycle_status)
+      FROM md_routing_header h
+      LEFT JOIN md_production_version pv ON pv.routing_header_id = h.master_id
+      WHERE h.item_revision_id IS NULL
+      GROUP BY h.master_id, h.code, h.lifecycle_status
+      ON CONFLICT (structure_type, structure_id, finding_code) DO NOTHING;
+
+      -- New writes are authoritative even while legacy findings are reviewed.
+      CREATE OR REPLACE FUNCTION fn_require_structure_item_revision()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NEW.item_revision_id IS NULL THEN
+          RAISE EXCEPTION 'STRUCTURE_ITEM_REVISION_REQUIRED';
+        END IF;
+        RETURN NEW;
+      END; $$;
+      DROP TRIGGER IF EXISTS trg_md_mbom_header_require_owner ON md_mbom_header;
+      CREATE TRIGGER trg_md_mbom_header_require_owner
+        BEFORE INSERT OR UPDATE OF item_revision_id ON md_mbom_header
+        FOR EACH ROW EXECUTE FUNCTION fn_require_structure_item_revision();
+      DROP TRIGGER IF EXISTS trg_md_routing_header_require_owner ON md_routing_header;
+      CREATE TRIGGER trg_md_routing_header_require_owner
+        BEFORE INSERT OR UPDATE OF item_revision_id ON md_routing_header
+        FOR EACH ROW EXECUTE FUNCTION fn_require_structure_item_revision();
+    `,
+  },
+  {
+    name: '0055_optional_production_version_ebom_baseline',
+    sql: `
+      ALTER TABLE md_production_version ADD COLUMN IF NOT EXISTS ebom_header_id UUID REFERENCES md_ebom_header(master_id);
+      CREATE INDEX IF NOT EXISTS ix_md_production_version_ebom ON md_production_version(ebom_header_id);
+    `,
+  },
+  {
+    name: '0056_material_group_catalog_and_item_references',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_material_group (
+        master_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code VARCHAR(80) NOT NULL,
+        name JSONB NOT NULL,
+        description JSONB,
+        version_no INTEGER NOT NULL DEFAULT 1,
+        lifecycle_status master_lifecycle_status NOT NULL DEFAULT 'Released',
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        created_by UUID NOT NULL DEFAULT '${SYSTEM_USER_ID}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        approved_by UUID,
+        approved_at TIMESTAMPTZ,
+        row_version INTEGER NOT NULL DEFAULT 1,
+        attributes JSONB NOT NULL DEFAULT '{}'::JSONB
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_material_group_code_ci ON md_material_group (UPPER(code));
+      ALTER TABLE md_item ADD COLUMN IF NOT EXISTS material_group_id UUID;
+      ALTER TABLE md_item_revision ADD COLUMN IF NOT EXISTS material_group_id UUID;
+      INSERT INTO md_material_group (code, name, description, created_by)
+      SELECT DISTINCT normalized.code,
+        jsonb_build_object('vi', normalized.code, 'en', normalized.code, 'ja', normalized.code, 'ko', normalized.code),
+        jsonb_build_object('vi', 'Nhóm vật tư ' || normalized.code, 'en', 'Material group ' || normalized.code, 'ja', '資材グループ ' || normalized.code, 'ko', '자재 그룹 ' || normalized.code),
+        '${SYSTEM_USER_ID}'::uuid
+      FROM (
+        SELECT regexp_replace(trim(COALESCE(item_group, 'General')), '[^A-Za-z0-9_-]+', '_', 'g') AS code FROM md_item
+        UNION
+        SELECT regexp_replace(trim(COALESCE(item_group, 'General')), '[^A-Za-z0-9_-]+', '_', 'g') AS code FROM md_item_revision
+      ) normalized
+      WHERE normalized.code <> ''
+      ON CONFLICT (UPPER(code)) DO NOTHING;
+      ALTER TABLE md_item DISABLE TRIGGER USER;
+      ALTER TABLE md_item_revision DISABLE TRIGGER USER;
+      UPDATE md_item i SET material_group_id = g.master_id
+      FROM md_material_group g
+      WHERE g.code = regexp_replace(trim(COALESCE(i.item_group, 'General')), '[^A-Za-z0-9_-]+', '_', 'g')
+        AND i.material_group_id IS NULL;
+      UPDATE md_item_revision r SET material_group_id = g.master_id
+      FROM md_item i, md_material_group g
+      WHERE i.master_id = r.item_id AND g.code = regexp_replace(trim(COALESCE(r.item_group, i.item_group, 'General')), '[^A-Za-z0-9_-]+', '_', 'g') AND r.material_group_id IS NULL;
+      UPDATE md_item_revision r SET material_group_id = i.material_group_id
+      FROM md_item i WHERE i.master_id = r.item_id AND r.material_group_id IS NULL;
+      UPDATE md_item i SET item_group = g.code
+      FROM md_material_group g WHERE g.master_id = i.material_group_id;
+      UPDATE md_item_revision r SET item_group = g.code
+      FROM md_material_group g WHERE g.master_id = r.material_group_id;
+      ALTER TABLE md_item ENABLE TRIGGER USER;
+      ALTER TABLE md_item_revision ENABLE TRIGGER USER;
+      ALTER TABLE md_item ADD CONSTRAINT fk_md_item_material_group FOREIGN KEY (material_group_id) REFERENCES md_material_group(master_id);
+      ALTER TABLE md_item_revision ADD CONSTRAINT fk_md_item_revision_material_group FOREIGN KEY (material_group_id) REFERENCES md_material_group(master_id);
+      CREATE INDEX IF NOT EXISTS ix_md_item_material_group ON md_item(material_group_id);
+      CREATE INDEX IF NOT EXISTS ix_md_item_revision_material_group ON md_item_revision(material_group_id);
+    `,
+  },
+  {
+    name: '0057_material_group_reference_guard',
+    sql: `
+      CREATE OR REPLACE FUNCTION fn_protect_material_group_references()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM md_item WHERE material_group_id = OLD.master_id)
+           OR EXISTS (SELECT 1 FROM md_item_revision WHERE material_group_id = OLD.master_id) THEN
+          RAISE EXCEPTION 'MATERIAL_GROUP_IN_USE';
+        END IF;
+        RETURN OLD;
+      END; $$;
+      DROP TRIGGER IF EXISTS trg_md_material_group_reference_guard ON md_material_group;
+      CREATE TRIGGER trg_md_material_group_reference_guard
+        BEFORE UPDATE OR DELETE ON md_material_group
+      FOR EACH ROW EXECUTE FUNCTION fn_protect_material_group_references();
+    `,
+  },
+  {
+    name: '0058_normalize_mbom_line_uom_to_item_revision_base',
+    sql: `
+      -- md_mbom_line.uom_id is retained as a compatibility snapshot, but the
+      -- Item Revision base UOM is the single authority for MBOM components.
+      UPDATE md_mbom_line l
+      SET uom_id = r.base_uom_id,
+          updated_at = NOW()
+      FROM md_item_revision r
+      WHERE r.master_id = l.component_revision_id
+        AND l.uom_id IS DISTINCT FROM r.base_uom_id
+        AND l.effective_to IS NULL
+        AND l.lifecycle_status NOT IN ('Inactive', 'Obsolete');
+    `,
+  },
+  {
+    name: '0059_routing_operation_authoritative_workstation',
+    sql: `
+      ALTER TABLE md_routing_operation ADD COLUMN IF NOT EXISTS workstation_id UUID REFERENCES md_workstation(master_id);
+      CREATE INDEX IF NOT EXISTS ix_md_routing_operation_workstation ON md_routing_operation(workstation_id);
+      UPDATE md_routing_operation ro
+      SET workstation_id = (
+        SELECT CASE WHEN COUNT(*) = 1 THEN MIN(ws.master_id) ELSE NULL END
+        FROM md_workstation ws
+        WHERE ws.work_center_id = ro.work_center_id
+          AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND ws.effective_from <= NOW() AND (ws.effective_to IS NULL OR ws.effective_to > NOW())
+          AND (EXISTS (SELECT 1 FROM md_workstation_operation_capability c WHERE c.workstation_id = ws.master_id AND c.operation_id = ro.operation_id AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW()))
+            OR EXISTS (SELECT 1 FROM md_work_center_composition c WHERE c.workstation_id = ws.master_id AND c.work_center_id = ro.work_center_id AND c.operation_id = ro.operation_id AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())))
+      )
+      WHERE ro.workstation_id IS NULL;
+      ALTER TABLE md_routing_operation ENABLE TRIGGER ALL;
+      CREATE INDEX IF NOT EXISTS ix_md_routing_operation_authoritative_target ON md_routing_operation(work_center_id, workstation_id, lifecycle_status, effective_to);
+    `,
+  },
+  {
+    name: '0060_backfill_released_routing_workstations',
+    sql: `
+      ALTER TABLE md_routing_operation DISABLE TRIGGER ALL;
+      UPDATE md_routing_operation ro
+      SET workstation_id = (
+        SELECT CASE WHEN COUNT(*) = 1 THEN MIN(ws.master_id) ELSE NULL END
+        FROM md_workstation ws
+        WHERE ws.work_center_id = ro.work_center_id
+          AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND ws.effective_from <= NOW() AND (ws.effective_to IS NULL OR ws.effective_to > NOW())
+          AND (EXISTS (SELECT 1 FROM md_workstation_operation_capability c WHERE c.workstation_id = ws.master_id AND c.operation_id = ro.operation_id AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW()))
+            OR EXISTS (SELECT 1 FROM md_work_center_composition c WHERE c.workstation_id = ws.master_id AND c.work_center_id = ro.work_center_id AND c.operation_id = ro.operation_id AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())))
+      )
+      WHERE ro.workstation_id IS NULL;
+      ALTER TABLE md_routing_operation ENABLE TRIGGER ALL;
+    `,
+  },
+  {
+    name: '0061_physical_machine_unit_identity_and_readiness',
+    sql: `
+      ALTER TABLE md_machine_unit
+        ADD COLUMN IF NOT EXISTS lifecycle_status VARCHAR(30) NOT NULL DEFAULT 'Draft',
+        ADD COLUMN IF NOT EXISTS physical_identity_status VARCHAR(30) NOT NULL DEFAULT 'PendingIdentification',
+        ADD COLUMN IF NOT EXISTS planning_resource_flag BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE md_machine_unit DROP CONSTRAINT IF EXISTS ck_md_machine_unit_lifecycle_status;
+      ALTER TABLE md_machine_unit ADD CONSTRAINT ck_md_machine_unit_lifecycle_status
+        CHECK (lifecycle_status IN ('Draft','Released','Inactive','Obsolete'));
+      ALTER TABLE md_machine_unit DROP CONSTRAINT IF EXISTS ck_md_machine_unit_identity_status;
+      ALTER TABLE md_machine_unit ADD CONSTRAINT ck_md_machine_unit_identity_status
+        CHECK (physical_identity_status IN ('Identified','PendingIdentification','Ambiguous'));
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_machine_unit_serial
+        ON md_machine_unit(serial_number) WHERE serial_number IS NOT NULL AND BTRIM(serial_number) <> '';
+      UPDATE md_machine_unit mu
+      SET serial_number = eq.serial_number,
+          physical_identity_status = 'Identified',
+          lifecycle_status = CASE WHEN mu.active_flag THEN 'Released' ELSE 'Inactive' END,
+          planning_resource_flag = (eq.planning_resource_flag AND eq.active_flag AND eq.execution_status = 'Available')
+      FROM md_equipment eq
+      WHERE eq.master_id = mu.machine_id AND eq.quantity = 1 AND eq.serial_number IS NOT NULL AND BTRIM(eq.serial_number) <> '';
+      UPDATE md_machine_unit mu
+      SET physical_identity_status = CASE WHEN mu.serial_number IS NULL THEN 'PendingIdentification' ELSE mu.physical_identity_status END,
+          planning_resource_flag = FALSE
+      WHERE mu.serial_number IS NULL;
+      UPDATE md_equipment eq
+      SET serial_number = NULL
+      WHERE eq.quantity = 1 AND eq.serial_number IS NOT NULL
+        AND EXISTS (SELECT 1 FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.serial_number = eq.serial_number);
+      CREATE TABLE IF NOT EXISTS md_machine_unit_migration_reconciliation (
+        reconciliation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        machine_id UUID NOT NULL REFERENCES md_equipment(master_id),
+        declared_quantity INTEGER NOT NULL,
+        existing_unit_count INTEGER NOT NULL,
+        missing_unit_count INTEGER NOT NULL,
+        serial_state VARCHAR(30) NOT NULL,
+        manual_action_required BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (machine_id)
+      );
+      INSERT INTO md_machine_unit_migration_reconciliation
+        (machine_id, declared_quantity, existing_unit_count, missing_unit_count, serial_state, manual_action_required)
+      SELECT eq.master_id, eq.quantity, COUNT(mu.machine_unit_id)::INT,
+        GREATEST(eq.quantity - COUNT(mu.machine_unit_id), 0)::INT,
+        CASE WHEN eq.quantity > 1 AND eq.serial_number IS NOT NULL THEN 'AMBIGUOUS_AGGREGATE_SERIAL'
+             WHEN COUNT(mu.machine_unit_id) < eq.quantity THEN 'MISSING_PHYSICAL_UNITS'
+             ELSE 'REVIEWED' END,
+        (eq.quantity > 1 AND eq.serial_number IS NOT NULL) OR COUNT(mu.machine_unit_id) < eq.quantity
+      FROM md_equipment eq LEFT JOIN md_machine_unit mu ON mu.machine_id = eq.master_id
+      GROUP BY eq.master_id, eq.quantity, eq.serial_number
+      ON CONFLICT (machine_id) DO UPDATE SET declared_quantity = EXCLUDED.declared_quantity,
+        existing_unit_count = EXCLUDED.existing_unit_count, missing_unit_count = EXCLUDED.missing_unit_count,
+        serial_state = EXCLUDED.serial_state, manual_action_required = EXCLUDED.manual_action_required;
     `,
   },
 ];

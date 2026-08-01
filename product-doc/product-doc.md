@@ -400,3 +400,21 @@ Routing Operation must have a copied Production Standard. Use `INHERITED` for
 Operation/Work Center resolution and `ROUTING_OVERRIDE` only for an explicit
 Routing-specific standard. See
 `implementation-expand/correct-planning-value-inheritance-operation-workstation-routing-work-order.md`.
+
+## Item Revision, EBOM, MBOM, Routing and Production Version (2026-07-30)
+
+The authoritative graph is `Item -> Item Revision -> EBOM + MBOM + Routing -> Production Version -> Work Order`. EBOM, MBOM, and Routing are sibling aggregates owned by one output Item Revision through `item_revision_id`; they are not arbitrary independent structures. New structures require an FG/SFG output revision, and Released ownership is immutable.
+
+EBOM is engineering-only: hierarchy, component revisions, quantity, UOM, sequence, and design metadata. It is not used for material explosion, WMS staging, capacity planning, substitutes, issue operations, scrap, phantom, Production Standards, backflush, execution, or Work Order readiness. MBOM remains the manufacturing structure and owns quantity/UOM, scrap, phantom, issue operation, backflush, optional and substitute policies. Routing owns process order, dependencies and resource capabilities. EBOM-to-MBOM conversion creates a new Draft MBOM with the same owner and traceability; it does not synchronize automatically.
+
+Production Version is the authoritative Work Order configuration and validates that Item Revision, MBOM, and Routing ownership match. It may optionally reference `ebom_header_id` as the engineering baseline for audit. If present, the EBOM owner must match the same Item Revision. Work Order execution uses only the selected MBOM and Routing; EBOM is retained for traceability and is never copied into material requirements.
+
+Migrations `0048_mbom_structure_and_substitute_controls` and `0049_reconcile_released_mbom_line_lifecycle` preserve MBOM policy and history. Migration `0054_restore_item_revision_ownership_and_audit_ambiguity` adds deterministic ownership backfill, shared-structure cloning, and an audit table; ambiguous/unreferenced legacy structures are never guessed. Migration `0055_optional_production_version_ebom_baseline` adds the optional engineering baseline reference. Full audit and runtime evidence are recorded in the single consolidated report `implementation-fix/item-revision-ebom-mbom-routing-production-version-work-order-flow-20260730.md`.
+
+## Item Revision Effective Date-Time Contract (2026-07-30)
+
+Item Revision validity uses the half-open interval `[effective_from, effective_to)`. The start is inclusive, the end is exclusive, and adjacent revisions share the exact instant without subtracting a second or millisecond. `effective_to = NULL` means open-ended only; the current revision at a target instant must satisfy `effective_from <= target AND (effective_to IS NULL OR target < effective_to)`.
+
+The owning Site timezone is authoritative. The current configured default is `Asia/Ho_Chi_Minh` (`UTC+07:00`). The MES Console captures local date and `HH:mm:ss`, the API receives an ISO 8601 value with explicit offset/UTC representation, and PostgreSQL persists `TIMESTAMPTZ`. New Revision creation accepts only `effective_from`; the backend calculates `effective_to` and closes the chronological predecessor atomically. Work Order snapshots and Production Version references are not rewritten by later revisions.
+
+Migrations `0052_item_revision_effective_datetime_integrity` and `0053_item_revision_legacy_subsecond_boundary_reconciliation` add temporal audit/reconciliation records, a valid-range check, exact-start uniqueness and resolution indexes. Current/scheduled/historical status is exposed by the Master Data API, and `GET /items/:id/effective-revision` is the point-in-time resolver. Detailed implementation and legacy reconciliation evidence are in `implementation-fix/Item-Revision-Effective-DateTime-Implementation.md`.

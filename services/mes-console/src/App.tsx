@@ -11,6 +11,8 @@ import { Toaster } from 'sonner';
 import { mesConsoleI18n } from './i18n';
 
 import { ItemsScreen } from './routes/master-data/ItemsScreen';
+import { UomManagementScreen } from './routes/master-data/UomManagementScreen';
+import { MaterialGroupManagementScreen } from './routes/master-data/MaterialGroupManagementScreen';
 import { MbomScreen } from './routes/master-data/MbomScreen';
 import { MbomCreateScreen } from './routes/master-data/MbomCreateScreen';
 import { RoutingScreen } from './routes/master-data/RoutingScreen';
@@ -55,6 +57,8 @@ const AppRoutes: React.FC = () => {
 
         {/* Area A: Tier 1 Master Data Admin */}
         <Route path="/master-data/items" element={<ItemsScreen />} />
+        <Route path="/master-data/uoms" element={<UomManagementScreen />} />
+        <Route path="/master-data/material-groups" element={<MaterialGroupManagementScreen />} />
         <Route path="/master-data/mboms" element={<MbomScreen />} />
         <Route path="/master-data/mboms/new" element={<MbomCreateScreen />} />
         <Route path="/master-data/mboms/:id" element={<MbomScreen />} />
@@ -66,6 +70,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/production-versions/new" element={<ProductionVersionCrudScreen />} />
         <Route path="/master-data/production-versions/:id/edit" element={<ProductionVersionCrudScreen />} />
         <Route path="/master-data/eboms" element={<EbomScreen />} />
+        <Route path="/master-data/eboms/:id" element={<EbomScreen />} />
         <Route path="/master-data/operations" element={<OperationCatalogScreen />} />
         <Route path="/master-data/operations/new" element={<OperationCatalogScreen />} />
         <Route path="/master-data/operations/:id" element={<OperationCatalogScreen />} />
@@ -213,11 +218,11 @@ export default function App() {
     <AuthProvider>
       <I18nProvider i18n={mesConsoleI18n}>
         <BrowserRouter>
-          <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
+          <div className="h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground flex flex-col font-sans">
             <Navbar />
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
               <Sidebar />
-              <main className="mes-main flex-1 overflow-y-auto p-4 md:p-6 h-[calc(100vh-4rem)]">
+              <main className="mes-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
                 <div className="mb-4 space-y-3">
                   <RouteHeader />
                   <div className="flex justify-end">
@@ -227,7 +232,7 @@ export default function App() {
                 <AppRoutes />
               </main>
             </div>
-            <Toaster position="top-right" theme="dark" richColors />
+            <Toaster position="top-right" offset={16} theme="dark" richColors toastOptions={{ className: 'mes-toast' }} />
           </div>
         </BrowserRouter>
       </I18nProvider>

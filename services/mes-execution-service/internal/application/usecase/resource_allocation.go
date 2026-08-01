@@ -168,6 +168,22 @@ func (s *AllocationService) addCapacityView(ctx context.Context, c map[string]in
 		}
 	}
 	c["capacity_conflicts"] = conflicts
+	if len(conflicts) > 0 {
+		// Capacity is an execution-owned readiness dimension. Mark the candidate
+		// blocked before it reaches the UI so selection cannot rely on stale data.
+		c["readiness"] = "Blocked"
+		errors, _ := c["blocking_errors"].([]interface{})
+		errors = append(errors, map[string]interface{}{"code": "EQUIPMENT_CAPACITY_CONFLICT"})
+		c["blocking_errors"] = errors
+		if equipment := nested(c, "equipment"); equipment["id"] != nil {
+			if readiness := nested(c, "equipment_readiness"); len(readiness) > 0 {
+				readiness["status"] = "Blocked"
+				readiness["capacity"] = map[string]interface{}{"status": "Conflict", "conflicts": conflicts}
+			}
+		}
+	} else if readiness := nested(c, "equipment_readiness"); len(readiness) > 0 {
+		readiness["capacity"] = map[string]interface{}{"status": "Available"}
+	}
 	duration := asFloat(c["estimated_duration_min"])
 	if duration == 0 {
 		duration = asFloat(nested(c, "calculation")["estimated_duration_min"])

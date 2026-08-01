@@ -83,35 +83,47 @@ async function getContext() {
   if (!workstation) throw new Error('SEED_MASTER_DATA: released physical-print workstation is required');
   const workCenter = workCenters.find((row) => row.master_id === workstation.work_center_id) || workCenters.find((row) => row.code === 'WC-MIXING');
   const pcs = uoms.find((row) => row.code === 'PCS' && row.lifecycle_status === 'Released');
-  const component = revisions.find((row) => row.revision_code === names.component || row.code === names.component);
-  if (!workCenter || !pcs || !component) throw new Error('SEED_MASTER_DATA: work center, PCS UOM, and released component revision are required');
+  const componentCandidate = revisions.find((row) => row.revision_code === names.component || row.code === names.component);
+  const component = componentCandidate && (await master.query(`SELECT r.*, i.code AS item_code, i.lifecycle_status AS item_lifecycle_status FROM md_item_revision r JOIN md_item i ON i.master_id=r.item_id WHERE r.master_id=$1 AND r.lifecycle_status='Released' AND i.lifecycle_status='Released' AND r.effective_from <= NOW() AND (r.effective_to IS NULL OR r.effective_to > NOW())`, [componentCandidate.master_id])).rows[0];
+  if (!workCenter || !pcs || !component) throw new Error('SEED_MASTER_DATA: active released work center, PCS UOM, and effective released component revision are required');
   return { site, workstation, workCenter, pcs, component };
 }
 
 async function cleanupOwned() {
   const result = {};
-  // In the development baseline all PV/MBOM/RT records are disposable test
-  // configuration. FG/SFG/RM items are retained because WMS lots and shared
-  // factory fixtures depend on their released revisions.
+  // Only the E2E fixture identified below is disposable. Shared factory
+  // master data, users, roles, migrations, and historical records remain.
   const owned = {
-    routeCodes: [], routeIds: [], mbomCodes: [], mbomIds: [], pvCodes: [], pvIds: [],
-    itemCodes: [], itemIds: [], itemRevisionIds: [],
+    routeCodes: [], routeIds: [], mbomCodes: [], mbomIds: [], ebomCodes: [], ebomIds: [], pvCodes: [], pvIds: [],
+    itemCodes: [], itemIds: [], itemRevisionIds: [], operationIds: [],
   };
-  const routes = await master.query(`SELECT master_id, code FROM md_routing_header WHERE code LIKE 'RT-%'`);
-  const mboms = await master.query(`SELECT master_id, code FROM md_mbom_header WHERE code LIKE 'MBOM-%' OR code LIKE 'E2E-WO-%'`);
-  const pvs = await master.query(`SELECT master_id, code FROM md_production_version WHERE code LIKE 'PV-%'`);
-  const items = await master.query(`SELECT master_id, code FROM md_item WHERE code LIKE 'DEMO-%' OR code LIKE 'ITEM-%' OR code LIKE 'E2E-WO-%'`);
-  const revisions = await master.query(`SELECT r.master_id, r.code FROM md_item_revision r JOIN md_item i ON i.master_id=r.item_id WHERE i.code LIKE 'DEMO-%' OR i.code LIKE 'ITEM-%' OR i.code LIKE 'E2E-WO-%'`);
+  // Only the explicitly owned E2E fixture is disposable. Shared Released
+  // master data and unrelated historical/demo records are never targeted.
+  const routes = await master.query(`SELECT master_id, code FROM md_routing_header WHERE code LIKE 'E2E-WO-%'`);
+  const mboms = await master.query(`SELECT master_id, code FROM md_mbom_header WHERE code LIKE 'E2E-WO-%'`);
+  const items = await master.query(`SELECT master_id, code FROM md_item WHERE code = $1`, [names.item]);
+  const revisions = await master.query(`SELECT r.master_id, r.code FROM md_item_revision r JOIN md_item i ON i.master_id=r.item_id WHERE i.code = $1`, [names.item]);
+  const eboms = await master.query(`SELECT e.master_id, e.code FROM md_ebom_header e JOIN md_item_revision r ON r.master_id=e.item_revision_id JOIN md_item i ON i.master_id=r.item_id WHERE i.code = $1`, [names.item]);
+  const pvs = await master.query(`SELECT pv.master_id, pv.code
+    FROM md_production_version pv
+    LEFT JOIN md_item_revision r ON r.master_id=pv.item_revision_id
+    LEFT JOIN md_item i ON i.master_id=r.item_id
+    WHERE i.code = $1
+       OR pv.mbom_header_id = ANY($2::uuid[])
+       OR pv.routing_header_id = ANY($3::uuid[])
+       OR pv.ebom_header_id = ANY($4::uuid[])`, [names.item, mboms.rows.map((row) => row.master_id), routes.rows.map((row) => row.master_id), eboms.rows.map((row) => row.master_id)]);
+  const operations = await master.query(`SELECT master_id FROM md_operation WHERE code LIKE $1`, [`${names.operationPrefix}%`]);
   owned.routeCodes = routes.rows.map((row) => row.code); owned.routeIds = routes.rows.map((row) => row.master_id);
   owned.mbomCodes = mboms.rows.map((row) => row.code); owned.mbomIds = mboms.rows.map((row) => row.master_id);
+  owned.ebomCodes = eboms.rows.map((row) => row.code); owned.ebomIds = eboms.rows.map((row) => row.master_id);
   owned.pvCodes = pvs.rows.map((row) => row.code); owned.pvIds = pvs.rows.map((row) => row.master_id);
   owned.itemCodes = items.rows.map((row) => row.code); owned.itemIds = items.rows.map((row) => row.master_id);
   owned.itemRevisionIds = revisions.rows.map((row) => row.master_id);
+  owned.operationIds = operations.rows.map((row) => row.master_id);
   await master.query('BEGIN');
   try {
     await master.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
-    const operationIds = await master.query(`SELECT master_id FROM md_operation WHERE name->>'vi' = ANY($1::text[])`, [ownedOperationNames]);
-    const opList = operationIds.rows.map((row) => row.master_id);
+    const opList = owned.operationIds;
     const routeList = owned.routeIds;
     const mbomList = owned.mbomIds;
     const statements = [
@@ -119,19 +131,19 @@ async function cleanupOwned() {
       ['resource_capabilities', `DELETE FROM md_resource_capability WHERE operation_id=ANY($1::uuid[])`, opList],
       ['operation_skills', `DELETE FROM md_operation_skill_requirement WHERE operation_id=ANY($1::uuid[])`, opList],
       ['production_standards', `DELETE FROM md_production_standard WHERE operation_id=ANY($1::uuid[]) OR routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[]))`, routeList],
+      ['production_versions', `DELETE FROM md_production_version WHERE master_id=ANY($1::uuid[])`, owned.pvIds],
       ['mbom_lines', `DELETE FROM md_mbom_line WHERE mbom_header_id=ANY($1::uuid[])`, mbomList],
       ['routing_operations', `DELETE FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[])`, routeList],
-      ['ebom_lines', `DELETE FROM md_ebom_line WHERE component_revision_id=ANY($1::uuid[]) OR ebom_header_id IN (SELECT master_id FROM md_ebom_header WHERE item_revision_id=ANY($1::uuid[]))`, owned.itemRevisionIds],
-      ['ebom_headers', `DELETE FROM md_ebom_header WHERE item_revision_id=ANY($1::uuid[])`, owned.itemRevisionIds],
-      ['component_substitutes', `DELETE FROM md_component_substitute WHERE substitute_revision_id=ANY($1::uuid[])`, owned.itemRevisionIds],
+      ['ebom_lines', `DELETE FROM md_ebom_line WHERE ebom_header_id=ANY($1::uuid[])`, owned.ebomIds],
+      ['ebom_headers', `DELETE FROM md_ebom_header WHERE master_id=ANY($1::uuid[])`, owned.ebomIds],
+      ['component_substitutes', `DELETE FROM md_component_substitute WHERE mbom_line_id IN (SELECT master_id FROM md_mbom_line WHERE mbom_header_id=ANY($1::uuid[]))`, mbomList],
       ['revision_production_standards', `DELETE FROM md_production_standard WHERE item_revision_id=ANY($1::uuid[])`, owned.itemRevisionIds],
       ['item_revision_numbering', `DELETE FROM md_item_revision_numbering WHERE item_id=ANY($1::uuid[])`, owned.itemIds],
-      ['production_versions', `DELETE FROM md_production_version WHERE master_id=ANY($1::uuid[])`, owned.pvIds],
       ['routing_headers', `DELETE FROM md_routing_header WHERE master_id=ANY($1::uuid[])`, owned.routeIds],
       ['mbom_headers', `DELETE FROM md_mbom_header WHERE master_id=ANY($1::uuid[])`, owned.mbomIds],
       ['item_revisions', `DELETE FROM md_item_revision WHERE master_id=ANY($1::uuid[])`, owned.itemRevisionIds],
       ['items', `DELETE FROM md_item WHERE master_id=ANY($1::uuid[])`, owned.itemIds],
-      ['operations', `DELETE FROM md_operation WHERE name->>'vi' = ANY($1::text[])`, ownedOperationNames],
+      ['operations', `DELETE FROM md_operation WHERE master_id=ANY($1::uuid[]) AND NOT EXISTS (SELECT 1 FROM md_routing_operation WHERE operation_id=md_operation.master_id)`, opList],
       ['outbox_events', `DELETE FROM outbox_events WHERE payload::text LIKE ANY($1::text[])`, [`%${names.item}%`, `%${names.routing}%`, `%${names.mbom}%`, `%${names.pvNameVi}%`]],
     ];
     for (const [name, query, value] of statements) {
@@ -369,14 +381,17 @@ async function createScenario(context) {
     operations.push(released);
     await api(`/workstations/${context.workstation.master_id}/operation-capabilities`, { method: 'POST', body: JSON.stringify({ operation_id: op.master_id, cycle_time_sec: spec.cycle, setup_time_min: 5, base_quantity: 1, efficiency_factor: 1, scheduling_mode: 'Finite' }) }, [409]);
   }
-  const routing = await data('/routing-headers', { method: 'POST', body: JSON.stringify({ name: { vi: 'Routing E2E WO in nhãn', en: 'E2E WO Label Routing', ja: 'E2E WO ラベルルーティング', ko: 'E2E WO 라우팅' }, description: { vi: 'Routing hoàn chỉnh cho kiểm thử Work Order.', en: 'Complete routing for Work Order testing.', ja: '製造指図テスト用の完全なルーティング。', ko: '작업지시 테스트용 완전한 라우팅.' }, routing_type: 'Standard', business_version: '1' }) });
-  const routingOperations = await data(`/routing-headers/${routing.master_id}/operations`, { method: 'PUT', body: JSON.stringify({ operations: operations.map((op, index) => ({ operation_id: op.master_id, work_center_id: context.workCenter.master_id, seq: (index + 1) * 10, predecessor_seq: index ? index * 10 : null, scheduling_mode: 'Finite', queue_time_min: 2, move_time_min: 1, overlap_allowed: false, transfer_batch_qty: 1, milestone_flag: index === 2, planning_mode: 'ROUTING_OVERRIDE', required_workers: 1, setup_time_min: 5, cycle_time_sec: operationSpecs[index].cycle, efficiency_factor: 1, base_quantity: 1, standard_yield: 1, ...(operationSpecs[index].requires_output_label ? { units_per_label: 1, label_quantity_method: 'CEIL_BY_UNITS_PER_LABEL', copies_per_label: 1 } : {}) })) }) });
+  const ebom = await data('/ebom-headers', { method: 'POST', body: JSON.stringify({ name: { vi: 'EBOM E2E WO in nhãn', en: 'E2E WO Label EBOM', ja: 'E2E WO ラベルEBOM', ko: 'E2E WO EBOM' }, description: { vi: 'Cấu trúc kỹ thuật cho kiểm thử Work Order.', en: 'Engineering structure for Work Order testing.', ja: '製造指図テスト用の技術構成。', ko: '작업지시 테스트용 엔지니어링 구성.' }, item_revision_id: revision.master_id }) });
+  await data(`/ebom-headers/${ebom.master_id}/design-tree`, { method: 'PUT', body: JSON.stringify({ lines: [{ line_key: 'E2E-WO-EBOM-L01', seq: 1, component_revision_id: component.master_id, quantity_per: 1, name: 'E2E component' }] }) });
+  await data(`/ebom-headers/${ebom.master_id}/release`, { method: 'POST', body: '{}' });
+  const routing = await data('/routing-headers', { method: 'POST', body: JSON.stringify({ name: { vi: 'Routing E2E WO in nhãn', en: 'E2E WO Label Routing', ja: 'E2E WO ラベルルーティング', ko: 'E2E WO 라우팅' }, description: { vi: 'Routing hoàn chỉnh cho kiểm thử Work Order.', en: 'Complete routing for Work Order testing.', ja: '製造指図テスト用の完全なルーティング。', ko: '작업지시 테스트용 완전한 라우팅.' }, routing_type: 'Standard', business_version: '1', item_revision_id: revision.master_id }) });
+  const routingOperations = await data(`/routing-headers/${routing.master_id}/operations`, { method: 'PUT', body: JSON.stringify({ operations: operations.map((op, index) => ({ operation_id: op.master_id, work_center_id: context.workCenter.master_id, workstation_id: context.workstation.master_id, seq: (index + 1) * 10, predecessor_seq: index ? index * 10 : null, scheduling_mode: 'Finite', queue_time_min: 2, move_time_min: 1, overlap_allowed: false, transfer_batch_qty: 1, milestone_flag: index === 2, planning_mode: 'ROUTING_OVERRIDE', required_workers: 1, setup_time_min: 5, cycle_time_sec: operationSpecs[index].cycle, efficiency_factor: 1, base_quantity: 1, standard_yield: 1, ...(operationSpecs[index].requires_output_label ? { units_per_label: 1, label_quantity_method: 'CEIL_BY_UNITS_PER_LABEL', copies_per_label: 1 } : {}) })) }) });
   for (const routingOperation of routingOperations) await data(`/routing-operations/${routingOperation.master_id}/release`, { method: 'POST', body: '{}' });
   const releasedRouting = await data(`/routing-headers/${routing.master_id}/release`, { method: 'POST', body: '{}' });
-  const mbom = await data('/mbom-headers', { method: 'POST', body: JSON.stringify({ code: names.mbom, name: { vi: 'MBOM E2E WO in nhãn', en: 'E2E WO Label MBOM', ja: 'E2E WO ラベルMBOM', ko: 'E2E WO MBOM' }, site_id: context.site.master_id, base_quantity: 1, base_uom_id: context.pcs.master_id, purpose: 'Standard', business_version: '1' }) });
+  const mbom = await data('/mbom-headers', { method: 'POST', body: JSON.stringify({ code: names.mbom, name: { vi: 'MBOM E2E WO in nhãn', en: 'E2E WO Label MBOM', ja: 'E2E WO ラベルMBOM', ko: 'E2E WO MBOM' }, site_id: context.site.master_id, item_revision_id: revision.master_id, base_quantity: 1, base_uom_id: context.pcs.master_id, purpose: 'Standard', business_version: '1' }) });
   await data('/mbom-lines', { method: 'POST', body: JSON.stringify({ code: 'E2E-WO-MBOM-L01', name: 'E2E metal component', mbom_header_id: mbom.master_id, seq: 10, component_revision_id: component.master_id, quantity_per: 1, uom_id: context.pcs.master_id, scrap_rate: 0, issue_operation_id: operations[0].master_id, backflush_flag: false, phantom_flag: false }) });
   await data(`/mbom-headers/${mbom.master_id}/release`, { method: 'POST', body: '{}' });
-  const pv = await data('/production-versions', { method: 'POST', body: JSON.stringify({ name_i18n: { vi: names.pvNameVi, en: 'E2E WO Label Production Version', ja: 'E2E WO ラベル生産バージョン', ko: 'E2E WO 라벨 생산 버전' }, item_revision_id: revision.master_id, mbom_header_id: mbom.master_id, routing_header_id: routing.master_id, min_lot_size: 1, max_lot_size: 100, is_default: false }) });
+  const pv = await data('/production-versions', { method: 'POST', body: JSON.stringify({ name_i18n: { vi: names.pvNameVi, en: 'E2E WO Label Production Version', ja: 'E2E WO ラベル生産バージョン', ko: 'E2E WO 라벨 생산 버전' }, item_revision_id: revision.master_id, ebom_header_id: ebom.master_id, mbom_header_id: mbom.master_id, routing_header_id: routing.master_id, min_lot_size: 1, max_lot_size: 100, is_default: false }) });
   const validation = await data(`/production-versions/${pv.master_id}/validate`, { method: 'POST', body: '{}' });
   if (!validation.valid) throw new Error(`PRODUCTION_VERSION_READINESS: ${JSON.stringify(validation.failures || validation)}`);
   const releasedPV = await data(`/production-versions/${pv.master_id}/release`, { method: 'POST', body: '{}' });
@@ -385,10 +400,11 @@ async function createScenario(context) {
   // truthful instead of recording a stale Draft status.
   const releasedItem = { ...item, lifecycle_status: 'Released', revision: { ...revision, lifecycle_status: 'Released' } };
   const releasedRevision = { ...revision, lifecycle_status: 'Released' };
+  const releasedEbom = { ...ebom, lifecycle_status: 'Released' };
   const releasedMbom = { ...mbom, lifecycle_status: 'Released' };
   const releasedRoutingManifest = { ...releasedRouting, lifecycle_status: 'Released' };
   const releasedProductionVersion = { ...releasedPV, lifecycle_status: 'Released' };
-  return { item: releasedItem, revision: releasedRevision, component, operations, routing: releasedRoutingManifest, mbom: releasedMbom, production_version: releasedProductionVersion, workstation: context.workstation, work_center: context.workCenter, site: context.site, uom: context.pcs };
+  return { item: releasedItem, revision: releasedRevision, component, operations, ebom: releasedEbom, routing: releasedRoutingManifest, mbom: releasedMbom, production_version: releasedProductionVersion, workstation: context.workstation, work_center: context.workCenter, site: context.site, uom: context.pcs };
 }
 
 async function rebuildOwnedReadModel(manifest, targetDate) {
@@ -443,6 +459,54 @@ async function preflight(manifest, targetDate) {
   const candidate = ready.find((row) => row.production_version_code === manifest.production_version.code || row.production_version_id === manifest.production_version.master_id);
   const printReadiness = await data(`/workstations/${manifest.workstation.master_id}/print-station-readiness`);
   return { productionVersionReady: Boolean(candidate?.ready), candidate, printReadiness, expectedOperationCount: 3, operationCodes: manifest.operations.map((row) => row.code), mbomLineCount: 1 };
+}
+
+async function verifySeededMasterData(manifest) {
+  const result = await master.query(`
+    SELECT pv.master_id AS production_version_id, pv.code AS production_version_code,
+           pv.lifecycle_status AS production_version_status, pv.item_revision_id,
+           pv.ebom_header_id, pv.mbom_header_id, pv.routing_header_id,
+           ir.lifecycle_status AS revision_status, i.lifecycle_status AS item_status,
+           eb.lifecycle_status AS ebom_status, eb.item_revision_id AS ebom_revision_id,
+           mb.lifecycle_status AS mbom_status, mb.item_revision_id AS mbom_revision_id,
+           rh.lifecycle_status AS routing_status, rh.item_revision_id AS routing_revision_id,
+           COUNT(DISTINCT ro.master_id)::int AS routing_operation_count,
+           COUNT(DISTINCT ml.master_id)::int AS mbom_line_count,
+           COUNT(DISTINCT el.master_id)::int AS ebom_line_count
+    FROM md_production_version pv
+    JOIN md_item_revision ir ON ir.master_id = pv.item_revision_id
+    JOIN md_item i ON i.master_id = ir.item_id
+    LEFT JOIN md_ebom_header eb ON eb.master_id = pv.ebom_header_id
+    JOIN md_mbom_header mb ON mb.master_id = pv.mbom_header_id
+    JOIN md_routing_header rh ON rh.master_id = pv.routing_header_id
+    LEFT JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id AND ro.effective_to IS NULL AND ro.lifecycle_status = 'Released'
+    LEFT JOIN md_mbom_line ml ON ml.mbom_header_id = mb.master_id AND ml.effective_to IS NULL AND ml.lifecycle_status = 'Released'
+    LEFT JOIN md_ebom_line el ON el.ebom_header_id = eb.master_id AND el.effective_to IS NULL AND el.lifecycle_status = 'Released'
+    WHERE pv.master_id = $1
+    GROUP BY pv.master_id, ir.master_id, i.master_id, eb.master_id, mb.master_id, rh.master_id
+  `, [manifest.production_version.master_id]);
+  const row = result.rows[0];
+  const issues = [];
+  if (!row) issues.push('PRODUCTION_VERSION_NOT_FOUND');
+  else {
+    if (row.production_version_status !== 'Released') issues.push('PRODUCTION_VERSION_NOT_RELEASED');
+    if (row.item_status !== 'Released' || row.revision_status !== 'Released') issues.push('OUTPUT_ITEM_OR_REVISION_NOT_RELEASED');
+    if (!row.ebom_header_id || row.ebom_status !== 'Released' || String(row.ebom_revision_id) !== String(row.item_revision_id)) issues.push('EBOM_OWNERSHIP_OR_LIFECYCLE_INVALID');
+    if (row.mbom_status !== 'Released' || String(row.mbom_revision_id) !== String(row.item_revision_id)) issues.push('MBOM_OWNERSHIP_OR_LIFECYCLE_INVALID');
+    if (row.routing_status !== 'Released' || String(row.routing_revision_id) !== String(row.item_revision_id)) issues.push('ROUTING_OWNERSHIP_OR_LIFECYCLE_INVALID');
+    if (Number(row.routing_operation_count) !== manifest.operations.length) issues.push('ROUTING_OPERATION_COUNT_INVALID');
+    if (Number(row.mbom_line_count) !== 1 || Number(row.ebom_line_count) !== 1) issues.push('STRUCTURE_LINE_COUNT_INVALID');
+  }
+  const issueMapping = await master.query(`
+    SELECT ml.code AS mbom_line_code, ml.issue_operation_id, COUNT(ro.master_id)::int AS matching_routing_operations
+    FROM md_mbom_line ml
+    JOIN md_routing_header rh ON rh.master_id=$2
+    LEFT JOIN md_routing_operation ro ON ro.routing_header_id=rh.master_id AND ro.operation_id=ml.issue_operation_id AND ro.effective_to IS NULL AND ro.lifecycle_status='Released'
+    WHERE ml.mbom_header_id=$1 AND ml.effective_to IS NULL AND ml.lifecycle_status='Released'
+    GROUP BY ml.code, ml.issue_operation_id`, [manifest.mbom.master_id, manifest.routing.master_id]);
+  for (const mapping of issueMapping.rows) if (Number(mapping.matching_routing_operations) !== 1) issues.push(`ISSUE_OPERATION_MAPPING_INVALID:${mapping.mbom_line_code}`);
+  if (issues.length) throw new Error(`SEEDED_MASTER_DATA_INVALID: ${JSON.stringify({ issues, row, issueMapping: issueMapping.rows })}`);
+  return { passed: true, row, issue_mapping: issueMapping.rows };
 }
 
 async function createDemoWorkOrder(manifest, targetDate) {
@@ -526,13 +590,14 @@ async function main() {
   const planningMatrix = await seedPlanningMatrix(manifest, context, targetDate);
   await rebuildOwnedReadModel(manifest, targetDate);
   const readiness = await preflight(manifest, targetDate);
+  const masterDataVerification = await verifySeededMasterData(manifest);
   if (!readiness.productionVersionReady) throw new Error(`PRODUCTION_VERSION_READINESS: ${JSON.stringify(readiness)}`);
   const printReady = readiness.printReadiness && readiness.printReadiness.is_active !== false && readiness.printReadiness.runtime_status === 'ONLINE' && readiness.printReadiness.kafka_status === 'CONNECTED' && Number(readiness.printReadiness.ready_printer_count || 0) > 0;
   if (!printReady && process.env.ALLOW_PRINT_STATION_OFFLINE !== 'true') throw new Error(`PRINT_STATION_READINESS: ${JSON.stringify(readiness.printReadiness)}`);
   const wmsReadiness = await verifyWmsComponentStock(context.component, 2, targetDate);
   if (!wmsReadiness.passed) throw new Error(`WMS_COMPONENT_STOCK_READINESS: ${JSON.stringify(wmsReadiness)}`);
   await writeJson('seed-manifest.json', manifest);
-  await writeJson('master-data-readiness.json', readiness);
+  await writeJson('master-data-readiness.json', { readiness, masterDataVerification });
   await writeJson('wms-readiness.json', wmsReadiness);
   await writeJson('labor-wms-seed.json', supportingSeeds);
   await writeJson('planning-matrix-seed.json', { target_date: targetDate, machine_group: machineGroup, ...planningMatrix });
@@ -541,8 +606,8 @@ async function main() {
   await writeJson('traceability-seed.json', traceabilitySeed);
   await writeJson('demo-work-order.json', { target_date: targetDate, ...demoWorkOrder });
   await writeJson('planning-snapshot-verification.json', planningSnapshots);
-  await writeJson('summary.json', { success: true, mode, artifactDir, cleanup, workOrderCleanup, traceabilityCleanup, traceabilitySeed, supportingSeeds, machineGroup, planningMatrix, readiness, wmsReadiness, demoWorkOrder, planningSnapshots, manifest });
-  console.log(json({ success: true, mode, artifactDir, cleanup, workOrderCleanup, traceabilityCleanup, traceabilitySeed, supportingSeeds, machineGroup, planningMatrix, productionVersion: manifest.production_version.code, readiness, wmsReadiness, demoWorkOrder, planningSnapshots }));
+  await writeJson('summary.json', { success: true, mode, artifactDir, cleanup, workOrderCleanup, traceabilityCleanup, traceabilitySeed, supportingSeeds, machineGroup, planningMatrix, readiness, masterDataVerification, wmsReadiness, demoWorkOrder, planningSnapshots, manifest });
+  console.log(json({ success: true, mode, artifactDir, cleanup, workOrderCleanup, traceabilityCleanup, traceabilitySeed, supportingSeeds, machineGroup, planningMatrix, productionVersion: manifest.production_version.code, readiness, masterDataVerification, wmsReadiness, demoWorkOrder, planningSnapshots }));
 }
 
 main().catch((error) => { console.error(error.message); process.exitCode = 1; }).finally(async () => { try { await master.end(); } catch {} try { await execution.end(); } catch {} try { await traceability.end(); } catch {} });

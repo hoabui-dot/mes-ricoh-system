@@ -75,7 +75,7 @@ export default function DashboardPage() {
   const { user: currentUser, logout } = useAuth()
   const [signalRAlarm, setSignalRAlarm] = useState<Alarm | null>(null)
   const [alarmBannerCount, setAlarmBannerCount] = useState(0)
-  const { isConnected, production, devices, todayRecords, mesConnection } = useDashboard(stationId, (alarm) => {
+  const { isConnected, production, devices, todayRecords, mesConnection, printDashboard } = useDashboard(stationId, (alarm) => {
     setSignalRAlarm(alarm)
     // Bump banner count when a new active alarm arrives via SignalR
     if (alarm.currentState === 'Active') setAlarmBannerCount(prev => prev + 1)
@@ -933,6 +933,38 @@ export default function DashboardPage() {
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
 
+                {/* Current print execution is projection-owned. Do not derive these
+                    counters from browser history or old job-engine payloads. */}
+                <Card className="lg:col-span-3 border-brand/30 bg-card shadow-sm">
+                  <CardHeader className="py-4 px-6 border-b border-border flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold tracking-wider text-brand uppercase flex items-center gap-2">
+                        <PrinterIcon className="h-4 w-4" />
+                        Giám sát lệnh in hiện tại
+                      </CardTitle>
+                      <CardDescription className="mt-1">Dữ liệu realtime từ Kafka → Projection → SignalR</CardDescription>
+                    </div>
+                    <Badge variant={printDashboard ? 'default' : 'outline'}>
+                      {printDashboard?.printJobStatus || 'Chưa có lệnh in'}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    {printDashboard ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
+                        <div><span className="text-xs text-muted-fg">Work Order</span><div className="font-mono font-bold">{printDashboard.workOrderCode}</div><div className="text-xs text-muted-fg">{printDashboard.workOrderStatus}</div></div>
+                        <div><span className="text-xs text-muted-fg">Sản phẩm</span><div className="font-semibold">{printDashboard.productName || printDashboard.productCode}</div><div className="text-xs font-mono text-muted-fg">{printDashboard.productCode}</div></div>
+                        <div><span className="text-xs text-muted-fg">Công đoạn</span><div className="font-semibold">{printDashboard.operationName || '—'}</div><div className="text-xs font-mono text-muted-fg">{printDashboard.operationCode || '—'}</div></div>
+                        <div><span className="text-xs text-muted-fg">Máy in</span><div className="font-semibold">{printDashboard.printerCode || '—'}</div><div className="text-xs text-muted-fg">{printDashboard.printStationCode || '—'}</div></div>
+                        <div><span className="text-xs text-muted-fg">Số lượng WO</span><div className="font-mono font-bold">{printDashboard.requestedQuantity}</div></div>
+                        <div><span className="text-xs text-muted-fg">Tem yêu cầu</span><div className="font-mono font-bold">{printDashboard.totalLabelCount || printDashboard.requiredLabelQuantity}</div><div className="text-xs text-muted-fg">Queued {printDashboard.queuedLabelCount}</div></div>
+                        <div><span className="text-xs text-muted-fg">Đã in / lỗi</span><div className="font-mono font-bold text-emerald-500">{printDashboard.printedLabelCount} / <span className="text-red-500">{printDashboard.failedLabelCount}</span></div><div className="text-xs text-muted-fg">Còn lại {printDashboard.remainingLabelCount}</div></div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-fg">Chưa nhận được sự kiện in từ MES.</div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* LEFT COLUMN: Panels 1 & 2 */}
                 <div className="lg:col-span-2 space-y-6">
 
@@ -1032,52 +1064,6 @@ export default function DashboardPage() {
                     </CardContent>
                   </Card>
 
-                  {/* PANEL 2: Product Information */}
-                  <Card className="border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="py-4 px-6 border-b border-border bg-teal-900/5 dark:bg-teal-950/20">
-                      <CardTitle className="text-sm font-bold tracking-wider text-teal-500 uppercase flex items-center gap-2">
-                        <Cpu className="h-4 w-4" />
-                        2. Thông tin sản phẩm (Product Detail)
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="grid grid-grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Tên sản phẩm (Product Name)</span>
-                          <div className="text-sm font-bold text-foreground">{resolved.product_name}</div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Mã SKU (Product Code)</span>
-                          <div className="text-sm font-bold font-mono text-foreground">{resolved.product_code}</div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Phiên bản (Revision)</span>
-                          <div className="text-sm font-semibold font-mono text-foreground">{resolved.revision}</div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Nhóm vật liệu (Material / Rubber)</span>
-                          <div className="text-sm font-medium text-foreground">{resolved.material} ({resolved.rubber_type})</div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Độ cứng & Màu sắc (Hardness / Color)</span>
-                          <div className="text-sm font-medium text-foreground">70 Shore A / Đen (Black)</div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Số Lô sản xuất (Lot / Batch)</span>
-                          <div className="text-sm font-bold font-mono text-foreground">{resolved.lot_number} <span className="text-xs text-muted-fg font-normal">({resolved.batch_number})</span></div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Ngày sản xuất / Hết hạn</span>
-                          <div className="text-sm font-semibold font-mono text-foreground">{resolved.manufacture_date} / {resolved.expiry_date}</div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase text-muted-fg font-semibold">Xuất xứ / Khách hàng (OEM)</span>
-                          <div className="text-sm font-medium text-foreground">{resolved.country} / {resolved.customer}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Panel 3 (Traceability) and Panel 6 (Camera Verification) have been
                       removed from the Dashboard per refactor-kiosk-ui.md §7.
                       Both are available in their dedicated tabs. */}
@@ -1109,11 +1095,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Bottom action bar */}
-                <div className="lg:col-span-3 flex justify-between items-center pt-4 border-t border-border/50">
-                  <div className="text-sm font-semibold flex items-center gap-1.5 text-muted-fg">
-                    <span className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                    {isConnected ? 'Kiosk Agent connected to SignalR' : 'Kiosk Agent disconnected'}
-                  </div>
+                <div className="lg:col-span-3 flex justify-end items-center pt-4 border-t border-border/50">
                   <Button
                     onClick={() => {
                       setIsReprintListOpen(true)

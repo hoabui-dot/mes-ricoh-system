@@ -14,6 +14,8 @@
 # Stage 1 — React frontend (always runs on host, JS has no arch dependency)
 FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-build
 WORKDIR /frontend
+ARG VITE_STATION_ID
+ENV VITE_STATION_ID=${VITE_STATION_ID}
 COPY services/kiosk-ui/frontend/package.json ./
 RUN npm install
 COPY services/kiosk-ui/frontend/ ./

@@ -7,6 +7,7 @@ import { MasterDataApiError, authHeaders, fetchResource, masterDataBaseUrl, post
 import { useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum } from '../../lib/i18nLabels';
 import { Modal, SelectBase } from '../../components/ui';
+import { BaseDataTable, type BaseDataTableColumn } from '../../components/base';
 
 const EMPLOYEE_STATUSES = ['Active', 'Inactive', 'OnLeave'] as const;
 const blank = { code: '', name: '', site_id: '', default_work_center_id: '', employee_status: 'Active', hired_date: '' };
@@ -59,6 +60,13 @@ export const EmployeesScreen: React.FC = () => {
 
   const filteredEmployees = useMemo(() => employees.filter((employee) => !filters.status || employee.employee_status === filters.status), [employees, filters.status]);
   const isEmployeeEndpointMissing = error instanceof MasterDataApiError && error.resource === 'employees' && error.status === 404;
+  const employeeColumns: BaseDataTableColumn<any>[] = [
+    { id: 'employee', header: t('nav.employees'), accessorFn: (row) => `${row.code || ''} ${row.name || ''}`, cell: ({ row }) => <><div className="font-mono text-amber-200">{row.original.code}</div><div className="text-foreground">{row.original.name}</div></> },
+    { id: 'workCenter', header: t('nav.workCenters'), accessorFn: (row) => workCenters.find((wc) => wc.master_id === row.default_work_center_id)?.code || '-' },
+    { id: 'status', header: t('common.status'), accessorKey: 'employee_status', cell: ({ row }) => <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs">{translatedEnum(t, 'status.employee', row.original.employee_status)}</span> },
+    { id: 'hired', header: t('employees.hired'), accessorFn: (row) => row.hired_date || '-' },
+    { id: 'actions', header: t('common.actions'), align: 'right', cell: ({ row }) => <div className="text-right"><button onClick={() => openModal(row.original)} className="rounded-md bg-slate-800 p-2" title={t('common.edit')} aria-label={t('common.edit')}><Pencil className="h-4 w-4" /></button></div> },
+  ];
 
   const openModal = (row?: any) => {
     setModal(row || {});
@@ -139,12 +147,7 @@ export const EmployeesScreen: React.FC = () => {
         <SelectBase label={t('common.status')} value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })} className="h-10 w-auto min-w-40" options={[{ value: '', label: `${t('common.all')} ${t('common.status')}` }, ...EMPLOYEE_STATUSES.map((status) => ({ value: status, label: translatedEnum(t, 'status.employee', status) }))]} aria-label={t('common.status')} />
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-slate-950 text-xs uppercase text-slate-400"><tr><th className="px-5 py-3">{t('nav.employees')}</th><th className="px-5 py-3">{t('nav.workCenters')}</th><th className="px-5 py-3">{t('common.status')}</th><th className="px-5 py-3">{t('employees.hired')}</th><th className="px-5 py-3 text-right">{t('common.actions')}</th></tr></thead>
-          <tbody className="divide-y divide-slate-800">{filteredEmployees.map((employee) => <tr key={employee.master_id} className="hover:bg-slate-800/50"><td className="px-5 py-4"><div className="font-mono text-amber-200">{employee.code}</div><div className="text-slate-100">{employee.name}</div></td><td className="px-5 py-4 text-slate-300">{workCenters.find((wc) => wc.master_id === employee.default_work_center_id)?.code || '-'}</td><td className="px-5 py-4"><span className="px-2.5 py-1 rounded-full text-xs border border-slate-700 bg-slate-800">{translatedEnum(t, 'status.employee', employee.employee_status)}</span></td><td className="px-5 py-4 text-slate-400">{employee.hired_date || '-'}</td><td className="px-5 py-4 text-right"><button onClick={() => openModal(employee)} className="p-2 bg-slate-800 rounded-lg"><Pencil className="w-4 h-4" /></button></td></tr>)}</tbody>
-        </table>
-      </div>
+      <BaseDataTable data={filteredEmployees} columns={employeeColumns} loading={loading} getRowId={(row) => row.master_id} onRowClick={openModal} stickyHeader />
 
       {modal && (
         <Modal open title={modal.master_id ? t('common.edit') : t('employees.create')} onClose={() => setModal(null)} footerLeft={<button type="button" onClick={() => setModal(null)} className="rounded-md border border-border bg-surface-subtle px-4 py-2 text-sm font-medium text-foreground hover:bg-hover">{t('common.cancel')}</button>} footer={<button type="submit" form="employee-form" className="rounded-md bg-action px-5 py-2 text-sm font-semibold text-white">{t('common.save')}</button>} className="max-w-2xl">

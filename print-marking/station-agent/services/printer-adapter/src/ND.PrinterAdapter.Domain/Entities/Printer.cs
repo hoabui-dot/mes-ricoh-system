@@ -98,6 +98,18 @@ public sealed class Printer : Entity
         CupsQueueName = cupsQueueName;
     }
 
+    /// <summary>
+    /// Refreshes the endpoint persisted for a managed printer. CUPS deployments
+    /// can move between Docker Desktop hosts while the SQLite volume is kept.
+    /// The runtime health probe remains environment-driven, but management and
+    /// diagnostics must expose the same current endpoint.
+    /// </summary>
+    public void UpdateEndpoint(string ipAddress, int port)
+    {
+        IpAddress = ipAddress;
+        Port = port;
+    }
+
     public void UpdateStatus(string status, string? errorMessage = null)
     {
         Status = status;

@@ -56,3 +56,9 @@ Dưới đây là trình tự backend service đọc dữ liệu Master Data qua
 5. **Bước 5 (Ghi nhận thực thi):** Công nhân Start/Finish job, hệ thống ghi nhận kết quả căn cứ theo cấu hình `MD_OPERATION`, `MD_PRODUCTION_STANDARD`, `MD_REASON_CODE` và hiển thị `MD_WORK_INSTRUCTION`.
 6. **Bước 6 (Quét QR Mẹ):** Tại trạm cắt, hệ thống kiểm tra `MD_TRACEABILITY_POLICY`, `MD_QR_SPLIT_RULE` và `MD_UOM_CONVERSION` để xác thực cuộn/tấm mẹ và kiểm soát hạn mức sai số vật chất.
 7. **Bước 7 (In & Kích hoạt QR Con):** MES sinh chuỗi mã theo `MD_NUMBERING_RULE`, định dạng lệnh in qua `MD_LABEL_TEMPLATE` và gửi tới `PrinterEndpointRef` của Kiosk.
+
+## D4. Current MBOM/WO validation rules (2026-07-29)
+
+`MD_MBOM_HEADER.structure_version` prevents lost structure updates. `MD_MBOM_LINE` is effective-dated and hierarchical; active sibling sequences are unique within a parent. Released MBOMs cannot be edited and create-new-version copies current lines only. Work Order material requirements retain `MBOMHeaderID`, `MBOMVersion`, `MBOMLineID`, `SourceParentLineID`, `QuantityPer`, `ScaledQuantity`, `ScrapRate` and `OptionalFlag`.
+
+The WMS material-request model is still a legacy flat aggregate and is not yet documented as the final parent/line requisition model; it remains an open implementation gap.

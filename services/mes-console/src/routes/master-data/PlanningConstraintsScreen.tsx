@@ -47,7 +47,8 @@ export function PlanningConstraintsScreen({ entity }: { entity: Entity }) {
     try {
       const resources = ['sites', 'item-revisions', 'operations', 'routing-operations', 'work-centers', 'workstations', 'equipment', 'shifts', 'skills', 'reason-codes'];
       const values = await Promise.all(resources.map((resource) => fetchResource(resource, user)));
-      setOptions(Object.fromEntries(resources.map((resource, index) => [resource, values[index]])));
+      const normalizedOptions = Object.fromEntries(resources.map((resource, index) => [resource, resource === 'item-revisions' ? values[index].filter((row: Row) => row.lifecycle_status === 'Released') : values[index]]));
+      setOptions(normalizedOptions);
       if (detail && id) {
         const response = await fetch(`${masterDataBaseUrl()}/${entity}/${id}`, { headers: authHeaders(user) });
         if (!response.ok) throw new Error(t('resourceFoundation.loadFailed'));

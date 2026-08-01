@@ -107,6 +107,30 @@ public sealed class ProjectionEventConsumer : BackgroundService
             onMessage: (routingKey, json) => HandleMesExecutionEventAsync(routingKey, json, stoppingToken),
             cancellationToken: stoppingToken);
 
+        // The MES print command is the authoritative creation event for the
+        // current print dashboard. It is separate from the legacy job queue so
+        // a batch command is projected once as a batch, not once per label.
+        await _consumer.StartConsumingAsync(
+            exchange: Exchange,
+            queue: "projection-service.print-commands",
+            routingKeyPattern: "command.printer.print.#",
+            onMessage: (routingKey, json) => HandlePrintCommandEventAsync(routingKey, json, stoppingToken),
+            cancellationToken: stoppingToken);
+
+        await _consumer.StartConsumingAsync(
+            exchange: Exchange,
+            queue: "projection-service.print-results",
+            routingKeyPattern: "printer.batch.printed",
+            onMessage: (routingKey, json) => HandlePrintResultEventAsync(routingKey, json, stoppingToken),
+            cancellationToken: stoppingToken);
+
+        await _consumer.StartConsumingAsync(
+            exchange: Exchange,
+            queue: "projection-service.print-progress",
+            routingKeyPattern: "printer.printed",
+            onMessage: (routingKey, json) => HandlePrintStartedEventAsync(routingKey, json, stoppingToken),
+            cancellationToken: stoppingToken);
+
         // 5. Consume manual requested events (reprint, re-marking, reprocess)
         await _consumer.StartConsumingAsync(
             exchange: Exchange,
@@ -656,6 +680,9 @@ public sealed class ProjectionEventConsumer : BackgroundService
             var quantity = ReadInt(payload, "quantity", "planned_qty", "plannedQty") ?? 1;
             var status = MesEventStatus(eventType);
 
+            var dashboard = await ApplyMesDashboardEventAsync(
+                db, payload, eventId, eventType, occurredAt, woId, woCode, productCode, status, ct);
+
             // WOCreated creates the durable correlation row. Later events may
             // arrive without wo_code/item_code and resolve through wo_id.
             if (record is null)
@@ -704,6 +731,8 @@ public sealed class ProjectionEventConsumer : BackgroundService
             await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionRecordUpdate", recordDto, ct);
             await _hubContext.Clients.Group(_stationId).SendAsync("OnActivityUpdate", logDto, ct);
             await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionOrderUpdate", new { order.OrderNo, order.ProductCode, order.PlannedQty, order.CompletedQty, order.RemainingQty, order.Status, order.UpdatedAt }, ct);
+            if (dashboard is not null)
+                await SendPrintDashboardAsync(dashboard, ct);
             _logger.LogInformation("Projected MES execution event {EventType} for WO {WorkOrderNo} event_id={EventId}", eventType, woCode, eventId);
         }
         catch (Exception ex)
@@ -748,6 +777,184 @@ public sealed class ProjectionEventConsumer : BackgroundService
         "COMPLETED" or "FINISHED" => 40,
         _ => 0
     };
+
+    private async Task HandlePrintCommandEventAsync(string routingKey, string payloadJson, CancellationToken ct)
+    {
+        if (!routingKey.Equals(JobEventRoutingKeys.BatchPrint, StringComparison.OrdinalIgnoreCase) &&
+            !routingKey.Equals(JobEventRoutingKeys.Print, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        using var document = JsonDocument.Parse(payloadJson);
+        var root = document.RootElement;
+        var payload = PayloadOf(root);
+        var eventId = ReadString(root, "event_id", "eventId", "EventId")
+            ?? ReadString(payload, "event_id", "eventId") ?? Guid.NewGuid().ToString();
+        var eventType = ReadString(root, "event_type", "eventType") ?? routingKey;
+        var eventAt = ReadString(root, "occurred_at", "occurredAt", "timestamp")
+            ?? ReadString(payload, "timestamp", "occurred_at") ?? DateTimeOffset.UtcNow.ToString("o");
+        var workOrderId = ReadString(payload, "work_order_id", "workOrderId", "wo_id", "woId")
+            ?? ReadString(root, "work_order_id", "workOrderId", "wo_id", "woId");
+        var workOrderCode = ReadString(payload, "production_order_no", "productionOrderNo", "work_order_code", "workOrderCode", "wo_code", "woCode")
+            ?? ReadString(root, "production_order_no", "productionOrderNo", "work_order_code", "workOrderCode", "wo_code", "woCode");
+        if (string.IsNullOrWhiteSpace(workOrderId)) workOrderId = workOrderCode;
+        if (string.IsNullOrWhiteSpace(workOrderId) || string.IsNullOrWhiteSpace(workOrderCode))
+            return;
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var claimed = await ClaimEventAsync(db, eventId, eventType, eventAt, ct);
+        if (!claimed) { await tx.RollbackAsync(ct); return; }
+
+        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.Id == $"{_stationId}:{workOrderId}", ct)
+            ?? PrintDashboardView.Create(_stationId, workOrderId, workOrderCode, ReadString(payload, "product_code", "productCode") ?? "MES");
+        var total = ReadDecimal(payload, "total_copies", "totalCopies", "print_copies", "label_count", "required_labels") ?? 0;
+        var required = ReadDecimal(payload, "required_labels", "requiredLabels", "label_count") ?? total;
+        var requested = ReadDecimal(payload, "requested_quantity", "requestedQuantity", "quantity") ?? 0;
+        var batchSize = ReadInt(payload, "batch_size", "batchSize") ?? 0;
+        var totalBatches = batchSize > 0 && total > 0 ? (int)Math.Ceiling(total / batchSize) : 0;
+        view.Apply(workOrderCode, ReadString(payload, "product_code", "productCode") ?? view.ProductCode,
+            ReadString(payload, "operation_code", "operationCode"), ReadString(payload, "operation_name", "operationName"),
+            ReadString(payload, "workstation_code", "workstationCode"), ReadString(payload, "print_station_id", "printStationId"),
+            ReadString(payload, "printer_code", "printerCode", "target_printer"), requestedQuantity: requested,
+            requiredLabelQuantity: required, totalLabelCount: total, queuedLabelCount: total, printedLabelCount: 0,
+            failedLabelCount: 0, remainingLabelCount: total,
+            printJobId: ReadString(payload, "print_job_id", "printJobId", "job_id", "jobId"), printJobStatus: "Queued",
+            batchSize: batchSize, totalBatches: totalBatches, completedBatches: 0,
+            workOrderStatus: "RELEASED", eventId: eventId, eventType: eventType, eventAt: eventAt);
+        if (db.Entry(view).State == EntityState.Detached) db.PrintDashboards.Add(view);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        await SendPrintDashboardAsync(view, ct);
+        _logger.LogInformation("Projected print command {EventId} for WO {WorkOrderCode}", eventId, workOrderCode);
+    }
+
+    private async Task HandlePrintResultEventAsync(string routingKey, string payloadJson, CancellationToken ct)
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        var root = document.RootElement;
+        var payload = PayloadOf(root);
+        var eventId = ReadString(root, "event_id", "eventId") ?? ReadString(payload, "event_id", "eventId") ?? Guid.NewGuid().ToString();
+        var eventType = ReadString(root, "event_type", "eventType") ?? routingKey;
+        var eventAt = ReadString(root, "occurred_at", "occurredAt", "timestamp") ?? DateTimeOffset.UtcNow.ToString("o");
+        var workOrderCode = ReadString(payload, "production_order_no", "productionOrderNo", "work_order_code", "workOrderCode", "wo_code", "woCode");
+        if (string.IsNullOrWhiteSpace(workOrderCode)) return;
+        var succeeded = CountArray(payload, "succeeded_job_ids", "succeededJobIds");
+        var failed = CountArray(payload, "failed_job_ids", "failedJobIds");
+        var completed = ReadDecimal(payload, "completed_count", "completedCount") ?? succeeded;
+        var total = completed + failed;
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        if (!await ClaimEventAsync(db, eventId, eventType, eventAt, ct)) { await tx.RollbackAsync(ct); return; }
+        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.StationId == _stationId && x.WorkOrderCode == workOrderCode, ct);
+        if (view is null)
+        {
+            await tx.RollbackAsync(ct);
+            _logger.LogWarning("Print result {EventId} arrived before command projection for {WorkOrderCode}", eventId, workOrderCode);
+            return;
+        }
+        var finalTotal = view.TotalLabelCount > 0 ? view.TotalLabelCount : total;
+        var status = failed > 0 && completed > 0 ? "PartiallyFailed" : failed > 0 ? "Failed" : "Completed";
+        view.Apply(view.WorkOrderCode, view.ProductCode, view.OperationCode, view.OperationName, view.WorkstationCode,
+            view.PrintStationCode, ReadString(payload, "printer_code", "printerCode") ?? view.PrinterCode,
+            requestedQuantity: view.RequestedQuantity, requiredLabelQuantity: view.RequiredLabelQuantity,
+            totalLabelCount: finalTotal, queuedLabelCount: 0, printedLabelCount: completed,
+            failedLabelCount: failed, remainingLabelCount: Math.Max(0, finalTotal - completed - failed),
+            printJobId: view.PrintJobId, printJobStatus: status, batchSize: view.BatchSize,
+            totalBatches: view.TotalBatches, completedBatches: view.TotalBatches,
+            workOrderStatus: view.WorkOrderStatus, eventId: eventId, eventType: eventType, eventAt: eventAt, printerResultAt: eventAt);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        await SendPrintDashboardAsync(view, ct);
+    }
+
+    private async Task HandlePrintStartedEventAsync(string routingKey, string payloadJson, CancellationToken ct)
+    {
+        var evt = JsonSerializer.Deserialize<PrinterPrintedEvent>(payloadJson, JsonSerializerOptions);
+        if (evt is null) return;
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        if (!await ClaimEventAsync(db, evt.EventId, evt.EventType, evt.Timestamp, ct)) { await tx.RollbackAsync(ct); return; }
+        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.StationId == _stationId &&
+            (x.PrintJobId == evt.JobId || x.WorkOrderCode == evt.JobNo), ct);
+        if (view is null) { await tx.RollbackAsync(ct); return; }
+        view.Apply(view.WorkOrderCode, view.ProductCode, view.OperationCode, view.OperationName, view.WorkstationCode,
+            view.PrintStationCode, evt.PrinterCode, view.RequestedQuantity, view.RequiredLabelQuantity,
+            view.TotalLabelCount, view.QueuedLabelCount, view.PrintedLabelCount, view.FailedLabelCount,
+            view.RemainingLabelCount, view.PrintJobId, evt.Success ? "Printing" : "Failed", view.BatchSize,
+            view.TotalBatches, view.CompletedBatches, view.WorkOrderStatus, evt.EventId, evt.EventType, evt.Timestamp);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        await SendPrintDashboardAsync(view, ct);
+    }
+
+    private async Task<PrintDashboardView?> ApplyMesDashboardEventAsync(
+        ProjectionDbContext db, JsonElement payload, string eventId, string eventType, string eventAt,
+        string workOrderId, string workOrderCode, string productCode, string status, CancellationToken ct)
+    {
+        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.Id == $"{_stationId}:{workOrderId}", ct)
+            ?? PrintDashboardView.Create(_stationId, workOrderId, workOrderCode, productCode);
+        var printStatus = status == "RELEASED" ? view.PrintJobStatus : null;
+        var operationStatus = status == "COMPLETED" ? "Completed" : null;
+        view.Apply(workOrderCode, productCode,
+            ReadString(payload, "operation_code", "operationCode"), ReadString(payload, "operation_name", "operationName"),
+            ReadString(payload, "workstation_code", "workstationCode"), ReadString(payload, "print_station_id", "printStationId"),
+            ReadString(payload, "printer_code", "printerCode"),
+            requestedQuantity: ReadDecimal(payload, "quantity", "planned_qty", "plannedQty"),
+            requiredLabelQuantity: null, totalLabelCount: null, queuedLabelCount: null,
+            printedLabelCount: null, failedLabelCount: null, remainingLabelCount: null,
+            printJobId: ReadString(payload, "print_job_id", "printJobId"), printJobStatus: operationStatus ?? printStatus,
+            batchSize: null, totalBatches: null, completedBatches: null,
+            workOrderStatus: status, eventId: eventId, eventType: eventType, eventAt: eventAt,
+            productName: ReadString(payload, "product_name", "productName"));
+        if (db.Entry(view).State == EntityState.Detached) db.PrintDashboards.Add(view);
+        return view;
+    }
+
+    private async Task SendPrintDashboardAsync(PrintDashboardView view, CancellationToken ct)
+    {
+        var dto = new PrintDashboardDto(view.StationId, view.WorkOrderId, view.WorkOrderCode, view.WorkOrderStatus,
+            view.ProductCode, view.ProductName, view.OperationCode, view.OperationName, view.WorkstationCode,
+            view.PrintStationCode, view.PrinterCode, view.RequestedQuantity, view.RequiredLabelQuantity,
+            view.TotalLabelCount, view.QueuedLabelCount, view.PrintedLabelCount, view.FailedLabelCount,
+            view.RemainingLabelCount, view.PrintJobId, view.PrintJobStatus, view.BatchSize, view.TotalBatches,
+            view.CompletedBatches, view.LastKafkaEventId, view.LastKafkaEventType, view.LastKafkaEventAt,
+            view.LastPrinterResultAt, view.UpdatedAt);
+        await _hubContext.Clients.Group(_stationId).SendAsync("OnPrintDashboardUpdate", dto, ct);
+    }
+
+    private static JsonElement PayloadOf(JsonElement root) =>
+        root.TryGetProperty("payload", out var p) ? p : root.TryGetProperty("Payload", out var upper) ? upper : root;
+
+    private static async Task<bool> ClaimEventAsync(ProjectionDbContext db, string eventId, string eventType, string occurredAt, CancellationToken ct)
+    {
+        var count = await db.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT OR IGNORE INTO projection_event_dedup (event_id, event_type, occurred_at, processed_at)
+            VALUES ({eventId}, {eventType}, {occurredAt}, {DateTimeOffset.UtcNow.ToString("o")});", ct);
+        return count > 0;
+    }
+
+    private static decimal? ReadDecimal(JsonElement value, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!value.TryGetProperty(name, out var property)) continue;
+            if (property.ValueKind == JsonValueKind.Number && property.TryGetDecimal(out var number)) return number;
+            if (property.ValueKind == JsonValueKind.String && decimal.TryParse(property.GetString(), out var text)) return text;
+        }
+        return null;
+    }
+
+    private static int CountArray(JsonElement value, params string[] names)
+    {
+        foreach (var name in names)
+            if (value.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.Array)
+                return property.GetArrayLength();
+        return 0;
+    }
 
     private async Task HandleMqttEventAsync(string routingKey, string payloadJson, CancellationToken cancellationToken)
     {

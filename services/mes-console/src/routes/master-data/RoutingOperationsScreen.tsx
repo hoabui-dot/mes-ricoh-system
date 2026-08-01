@@ -194,6 +194,7 @@ export const RoutingOperationsScreen: React.FC = () => {
     setForm((current) => ({
       ...current,
       operation_id: operationId,
+      work_center_id: "",
       planning_mode: "INHERITED",
       worker_skill_mode: "INHERITED",
       cycle_time_sec: Number(operation?.default_cycle_time_sec ?? 60),

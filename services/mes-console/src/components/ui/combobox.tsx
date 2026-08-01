@@ -27,6 +27,9 @@ export function ComboboxBase({ value, options, onValueChange, onSearchChange, pl
   const [query, setQuery] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value);
+  const filteredOptions = query.trim()
+    ? options.filter((option) => `${option.searchText || ''} ${String(option.label)} ${String(option.description || '')}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+    : options;
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -50,7 +53,7 @@ export function ComboboxBase({ value, options, onValueChange, onSearchChange, pl
           value={open ? query : selected ? String(selected.label) : query}
           onChange={(event) => updateQuery(event.target.value)}
           onFocus={() => setOpen(true)}
-          onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); if (event.key === 'Enter' && options[0]) { event.preventDefault(); onValueChange(options[0].value); setQuery(''); setOpen(false); } }}
+          onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); if (event.key === 'Enter' && filteredOptions[0]) { event.preventDefault(); onValueChange(filteredOptions[0].value); setQuery(''); setOpen(false); } }}
           placeholder={placeholder}
           disabled={disabled}
           aria-label={ariaLabel}
@@ -63,8 +66,8 @@ export function ComboboxBase({ value, options, onValueChange, onSearchChange, pl
       {open && <div role="listbox" className="absolute z-50 mt-1 max-h-80 w-full overflow-auto rounded-md border border-slate-700 bg-slate-900 p-1 text-slate-100 shadow-xl">
         {loading && <div className="flex items-center gap-2 px-3 py-3 text-sm text-slate-300"><Loader2 className="h-4 w-4 animate-spin" />Loading…</div>}
         {!loading && error && <div className="px-3 py-3 text-sm text-rose-300">{error}</div>}
-        {!loading && !error && options.length === 0 && <div className="px-3 py-3 text-sm text-slate-300">{emptyMessage}</div>}
-        {!loading && !error && options.map((option) => <button type="button" role="option" aria-selected={option.value === value} key={option.value} onClick={() => { onValueChange(option.value); setQuery(''); setOpen(false); }} className="flex w-full items-start gap-2 rounded-sm px-3 py-2 text-left hover:bg-slate-800 focus:bg-slate-800 focus:outline-none">
+        {!loading && !error && filteredOptions.length === 0 && <div className="px-3 py-3 text-sm text-slate-300">{emptyMessage}</div>}
+        {!loading && !error && filteredOptions.map((option) => <button type="button" role="option" aria-selected={option.value === value} key={option.value} onClick={() => { onValueChange(option.value); setQuery(''); setOpen(false); }} className="flex w-full items-start gap-2 rounded-sm px-3 py-2 text-left hover:bg-slate-800 focus:bg-slate-800 focus:outline-none">
           <span className="mt-0.5 w-4 shrink-0 text-amber-300">{option.value === value ? <Check className="h-4 w-4" /> : null}</span>
           <span className="min-w-0"><span className="block truncate text-sm font-semibold">{option.label}</span>{option.description && <span className="block truncate text-xs text-slate-400">{option.description}</span>}</span>
         </button>)}

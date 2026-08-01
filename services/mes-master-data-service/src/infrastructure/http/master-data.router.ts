@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { Pool, type PoolClient } from 'pg';
+import { randomUUID } from 'node:crypto';
 import { createEventEnvelope, localizedTextSchema, writeToOutbox } from '@mom-platform/shared-kernel';
 import { TABLE_BY_RESOURCE, type TableDefinition } from '../../domain/table-registry.js';
 import { validateProductionVersion } from '../../application/validation-engine/validation-engine.js';
@@ -10,6 +11,32 @@ const SERVICE_NAME = 'mes-master-data-service';
 const IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
 const WORKER_SKILL_LEVELS = new Set(['Basic', 'L1', 'L2', 'L3', 'L4', 'L5']);
+const UOM_TYPES = new Set(['Count', 'Length', 'Area', 'Weight', 'Volume', 'Time']);
+
+const EXPLICIT_OFFSET_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function parseRevisionEffectiveFrom(value: unknown): Date {
+  const raw = String(value ?? '').trim();
+  if (!EXPLICIT_OFFSET_DATETIME.test(raw)) throw routingError('ITEM_REVISION_EFFECTIVE_FROM_INVALID', 'effective_from must be an ISO 8601 datetime with seconds and an explicit timezone offset.');
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) throw routingError('ITEM_REVISION_EFFECTIVE_FROM_INVALID', 'effective_from is not a valid datetime.');
+  return parsed;
+}
+
+async function getUomUsage(pool: Pool, uomId: string): Promise<{ total: number; byTable: Record<string, number> }> {
+  const { rows } = await pool.query<{ source: string; count: string }>(`
+    SELECT source, SUM(count)::BIGINT AS count FROM (
+      SELECT 'Items' AS source, COUNT(*)::BIGINT AS count FROM md_item WHERE base_uom_id = $1
+      UNION ALL SELECT 'Item Revisions', COUNT(*) FROM md_item_revision WHERE base_uom_id = $1
+      UNION ALL SELECT 'MBOM Headers', COUNT(*) FROM md_mbom_header WHERE base_uom_id = $1
+      UNION ALL SELECT 'MBOM Lines', COUNT(*) FROM md_mbom_line WHERE uom_id = $1
+      UNION ALL SELECT 'EBOM Lines', COUNT(*) FROM md_ebom_line WHERE uom_id = $1
+      UNION ALL SELECT 'Conversions', COUNT(*) FROM md_uom_conversion WHERE from_uom_id = $1 OR to_uom_id = $1
+    ) usage GROUP BY source ORDER BY source`, [uomId]);
+  const byTable: Record<string, number> = {};
+  for (const row of rows) byTable[row.source] = Number(row.count);
+  return { total: Object.values(byTable).reduce((sum, value) => sum + value, 0), byTable };
+}
 
 async function evaluateWorkerReadiness(pool: Pool, input: { operationId: string; routingOperationId: string; siteId: string; workCenterId: string; shiftId: string; plannedDate: string }): Promise<{ readiness: Array<Record<string, any>>; blockingErrors: Array<Record<string, any>> }> {
   const requirementsResult = await pool.query(`
@@ -93,6 +120,7 @@ async function routingCodePreview(pool: Pool): Promise<{ preview_code: string; i
 type RoutingOperationInput = {
   operation_id: string;
   work_center_id: string;
+  workstation_id: string | null;
   seq: number;
   predecessor_seq: number | null;
   scheduling_mode: string;
@@ -123,6 +151,7 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
   const normalized: RoutingOperationInput[] = rows.map((row) => ({
     operation_id: String(row['operation_id'] || ''),
     work_center_id: String(row['work_center_id'] || ''),
+    workstation_id: row['workstation_id'] ? String(row['workstation_id']) : null,
     seq: Number(row['seq']),
     predecessor_seq: row['predecessor_seq'] === null || row['predecessor_seq'] === '' || row['predecessor_seq'] === undefined ? null : Number(row['predecessor_seq']),
     scheduling_mode: String(row['scheduling_mode'] || 'Finite'),
@@ -145,7 +174,7 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
   const sequences = new Set<number>();
   const operationIds = new Set<string>();
   for (const row of normalized) {
-    if (!row.operation_id || !row.work_center_id || !Number.isInteger(row.seq) || row.seq < 1) throw routingError('ROUTING_OPERATION_FIELDS_INVALID', 'Each routing operation requires an active Operation, Work Center, and positive integer sequence.');
+    if (!row.operation_id || !row.work_center_id || !Number.isInteger(row.seq) || row.seq < 1) throw routingError('ROUTING_OPERATION_FIELDS_INVALID', 'Each Routing Operation requires an Operation, Work Center, and positive integer sequence.');
     if (sequences.has(row.seq)) throw routingError('ROUTING_SEQUENCE_DUPLICATE', 'Routing operation sequence numbers must be unique.');
     if (operationIds.has(row.operation_id)) throw routingError('ROUTING_OPERATION_DUPLICATE', 'An Operation may appear only once in a Routing.');
     if (row.predecessor_seq !== null && (!Number.isInteger(row.predecessor_seq) || row.predecessor_seq === row.seq)) throw routingError('ROUTING_PREDECESSOR_INVALID', 'A predecessor must reference another operation sequence.');
@@ -176,7 +205,6 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
   if (workCenters.rowCount !== new Set(normalized.map((row) => row.work_center_id)).size) throw routingError('ROUTING_WORK_CENTER_INVALID', 'All selected Work Centers must be active.');
   const sites = new Set(workCenters.rows.map((row) => String(row.site_id)));
   if (sites.size > 1) throw routingError('ROUTING_WORK_CENTER_SITE_MISMATCH', 'All Routing Work Centers must belong to the same Site.');
-
   const predecessorBySeq = new Map(normalized.map((row) => [row.seq, row.predecessor_seq]));
   for (const start of normalized) {
     const visited = new Set<number>(); let current = start.seq;
@@ -190,21 +218,23 @@ async function validateRoutingOperationReplacement(client: PoolClient, routingId
 
 async function resolveProductionVersionSite(client: PoolClient, itemRevisionId: string, mbomHeaderId: string, routingHeaderId: string): Promise<string> {
   const itemRevision = await client.query(`
-    SELECT master_id FROM md_item_revision
-    WHERE master_id = $1 AND lifecycle_status = 'Released'
-      AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())
+    SELECT r.master_id FROM md_item_revision r
+    JOIN md_item i ON i.master_id = r.item_id
+    WHERE r.master_id = $1 AND r.lifecycle_status = 'Released' AND i.lifecycle_status = 'Released' AND i.item_type IN ('FG', 'SFG')
+      AND r.effective_from <= NOW() AND (r.effective_to IS NULL OR r.effective_to > NOW())
   `, [itemRevisionId]);
   if (!itemRevision.rows[0]) throw Object.assign(new Error('PRODUCTION_VERSION_ITEM_REVISION_INVALID'), { statusCode: 422 });
 
   const mbom = await client.query(`
-    SELECT master_id, site_id FROM md_mbom_header
+    SELECT master_id, site_id, item_revision_id FROM md_mbom_header
     WHERE master_id = $1 AND lifecycle_status = 'Released'
       AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())
   `, [mbomHeaderId]);
   if (!mbom.rows[0]) throw Object.assign(new Error('PRODUCTION_VERSION_MBOM_INVALID'), { statusCode: 422 });
+  if (String(mbom.rows[0].item_revision_id || '') !== itemRevisionId) throw Object.assign(new Error('PRODUCTION_VERSION_MBOM_REVISION_MISMATCH'), { statusCode: 422 });
 
   const routing = await client.query(`
-    SELECT rh.master_id, wc.site_id
+    SELECT rh.master_id, rh.item_revision_id, wc.site_id
     FROM md_routing_header rh
     JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id
     JOIN md_work_center wc ON wc.master_id = ro.work_center_id
@@ -214,6 +244,7 @@ async function resolveProductionVersionSite(client: PoolClient, itemRevisionId: 
   `, [routingHeaderId]);
   const routingSites = new Set(routing.rows.map((row) => String(row.site_id)));
   if (routingSites.size === 0) throw Object.assign(new Error('PRODUCTION_VERSION_ROUTING_INVALID'), { statusCode: 422 });
+  if (String(routing.rows[0]?.item_revision_id || '') !== itemRevisionId) throw Object.assign(new Error('PRODUCTION_VERSION_ROUTING_REVISION_MISMATCH'), { statusCode: 422 });
   const routingSite = [...routingSites][0];
   if (!routingSite || routingSites.size > 1 || String(mbom.rows[0].site_id) !== routingSite) {
     throw Object.assign(new Error('PRODUCTION_VERSION_SITE_MISMATCH'), { statusCode: 422 });
@@ -221,9 +252,23 @@ async function resolveProductionVersionSite(client: PoolClient, itemRevisionId: 
   return routingSite;
 }
 
+async function validateStructureOwner(client: Pick<PoolClient, 'query'>, tableName: string, itemRevisionId: unknown): Promise<void> {
+  if (!itemRevisionId) throw Object.assign(new Error(tableName === 'md_mbom_header' ? 'MBOM_OUTPUT_REVISION_REQUIRED' : 'ROUTING_OUTPUT_REVISION_REQUIRED'), { statusCode: 422 });
+  const result = await client.query(`
+    SELECT r.master_id, i.item_type, r.site_id
+    FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id
+    WHERE r.master_id = $1 AND r.lifecycle_status NOT IN ('Inactive','Obsolete')
+  `, [itemRevisionId]);
+  if (!result.rows[0]) throw Object.assign(new Error('OUTPUT_ITEM_REVISION_INVALID'), { statusCode: 422 });
+  if (!['FG', 'SFG'].includes(String(result.rows[0].item_type))) {
+    throw Object.assign(new Error(tableName === 'md_mbom_header' ? 'MBOM_OUTPUT_RAW_MATERIAL_NOT_ALLOWED' : 'ROUTING_OUTPUT_RAW_MATERIAL_NOT_ALLOWED'), { statusCode: 422 });
+  }
+}
+
 function getContext(req: Request) {
+  const suppliedUserId = (req.headers['x-user-id'] as string | undefined) ?? SYSTEM_USER_ID;
   return {
-    userId: (req.headers['x-user-id'] as string | undefined) ?? SYSTEM_USER_ID,
+    userId: /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(suppliedUserId) ? suppliedUserId : SYSTEM_USER_ID,
     roleCode: (req.headers['x-role-code'] as string | undefined) ?? 'UNKNOWN',
     traceId: (req.headers['x-trace-id'] as string | undefined) ?? 'missing-trace',
   };
@@ -309,7 +354,7 @@ async function resolveMachineUnit(client: PoolClient, machineId: string, request
     ? await client.query(`SELECT mu.*, eq.site_id, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_unit_id = $1 AND mu.machine_id = $2 FOR UPDATE`, [requestedUnitId, machineId])
     : await client.query(`SELECT mu.*, eq.site_id, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_id = $1 AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND eq.active_flag = TRUE AND eq.execution_status = 'Available' ORDER BY mu.unit_sequence LIMIT 1 FOR UPDATE`, [machineId]);
   const unit = result.rows[0];
-  if (!unit || unit.machine_active !== true || unit.active_flag !== true || unit.execution_status !== 'Available' || unit.machine_execution_status !== 'Available') throw Object.assign(new Error('MACHINE_UNIT_NOT_AVAILABLE'), { statusCode: 422 });
+  if (!unit || unit.machine_active !== true || unit.active_flag !== true || unit.execution_status !== 'Available' || unit.machine_execution_status !== 'Available' || unit.physical_identity_status !== 'Identified' || unit.planning_resource_flag !== true) throw Object.assign(new Error('MACHINE_UNIT_NOT_AVAILABLE'), { statusCode: 422 });
   return unit;
 }
 
@@ -343,7 +388,7 @@ async function persistMachineGroups(client: PoolClient, workstationId: string, g
       const machine = await client.query(`SELECT master_id, code, name, site_id, active_flag, execution_status, planning_resource_flag FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [member.machine_id]);
       if (!machine.rows[0] || machine.rows[0].site_id !== ws.site_id || machine.rows[0].active_flag !== true || machine.rows[0].execution_status === 'OutOfService') throw Object.assign(new Error('MACHINE_HIERARCHY_OR_STATUS_INVALID'), { statusCode: 422 });
       const pinned = Array.isArray(member.pinned_machine_unit_ids) ? member.pinned_machine_unit_ids.map(String) : (member.machine_unit_id ? [String(member.machine_unit_id)] : []);
-      const units = await client.query(`SELECT mu.*, eq.site_id, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_id = $1 AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND eq.active_flag = TRUE AND eq.execution_status = 'Available' AND NOT (mu.machine_unit_id = ANY($4::uuid[])) AND NOT EXISTS (SELECT 1 FROM md_resource_assignment ra WHERE ra.machine_unit_id = mu.machine_unit_id AND ra.assignment_role = 'Primary' AND ra.workstation_id IS DISTINCT FROM $5::uuid AND ra.effective_from < $3::timestamptz AND $2::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz)) ORDER BY mu.unit_sequence, mu.code FOR UPDATE`, [member.machine_id, effectiveFrom, effectiveTo || 'infinity', [...selectedUnitIds], workstationId]);
+      const units = await client.query(`SELECT mu.*, eq.site_id, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_id = $1 AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND mu.physical_identity_status = 'Identified' AND mu.planning_resource_flag = TRUE AND eq.active_flag = TRUE AND eq.execution_status = 'Available' AND NOT (mu.machine_unit_id = ANY($4::uuid[])) AND NOT EXISTS (SELECT 1 FROM md_resource_assignment ra WHERE ra.machine_unit_id = mu.machine_unit_id AND ra.assignment_role = 'Primary' AND ra.workstation_id IS DISTINCT FROM $5::uuid AND ra.effective_from < $3::timestamptz AND $2::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz)) ORDER BY mu.unit_sequence, mu.code FOR UPDATE`, [member.machine_id, effectiveFrom, effectiveTo || 'infinity', [...selectedUnitIds], workstationId]);
       const selected = pinned.length ? units.rows.filter((unit) => pinned.includes(String(unit.machine_unit_id))) : units.rows.slice(0, quantity);
       if (selected.length < quantity) {
         const conflicting = await client.query(`SELECT ra.machine_unit_id, mu.code AS machine_unit_code, ws.code AS workstation_code, ws.name AS workstation_name FROM md_resource_assignment ra JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id JOIN md_workstation ws ON ws.master_id = ra.workstation_id WHERE ra.machine_unit_id IN (SELECT machine_unit_id FROM md_machine_unit WHERE machine_id = $1 AND active_flag = TRUE AND execution_status = 'Available') AND ra.assignment_role = 'Primary' AND ra.workstation_id IS DISTINCT FROM $4::uuid AND ra.effective_from < $3::timestamptz AND $2::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz) ORDER BY mu.unit_sequence`, [member.machine_id, effectiveFrom, effectiveTo || 'infinity', workstationId]);
@@ -362,6 +407,27 @@ async function persistMachineGroups(client: PoolClient, workstationId: string, g
     output.push({ ...group.rows[0], requirements: resolved.map((member) => ({ machine_id: member.machine.master_id, machine_code: member.machine.code, machine_name: member.machine.name, required_quantity: member.required_quantity, requirement_type: member.requirement_type, role: member.role, resolved_units: member.units.map((unit: any) => ({ machine_unit_id: unit.machine_unit_id, code: unit.code, execution_status: unit.execution_status })) })) });
   }
   return output;
+}
+
+// A group-member mutation represents both requirement intent and an effective
+// physical assignment. Keep the two records synchronized without making either
+// table a duplicate Workstation-owned machine list.
+async function addMachineGroupRequirementForAssignment(client: PoolClient, group: Record<string, any>, machine: Record<string, any>, unit: Record<string, any>, role: string, requirementType: string, effectiveFrom: string, context: { userId: string }): Promise<void> {
+  const sequence = await client.query(`SELECT COALESCE(MAX(sequence_no), 0)::int + 1 AS next_sequence FROM md_workstation_machine_requirement WHERE machine_group_id = $1 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > $2::timestamptz)`, [group.master_id, effectiveFrom]);
+  await client.query(`INSERT INTO md_workstation_machine_requirement (machine_group_id, machine_id, role, required_quantity, requirement_type, pinned_machine_unit_ids, sequence_no, effective_from, effective_to, created_by) VALUES ($1,$2,$3,1,$4,$5::jsonb,$6,$7,$8,$9)`, [group.master_id, machine.master_id, role, requirementType, JSON.stringify([String(unit.machine_unit_id)]), Number(sequence.rows[0]?.next_sequence || 1), effectiveFrom, group.effective_to || null, context.userId]);
+}
+
+async function endMachineGroupRequirementForAssignment(client: PoolClient, assignment: Record<string, any>, effectiveTo: string, context: { userId: string }): Promise<void> {
+  if (!assignment.machine_group_id || !assignment.equipment_id || !assignment.machine_unit_id) return;
+  const result = await client.query(`SELECT * FROM md_workstation_machine_requirement WHERE machine_group_id = $1 AND machine_id = $2 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > $3::timestamptz) AND pinned_machine_unit_ids @> $4::jsonb ORDER BY sequence_no DESC LIMIT 1 FOR UPDATE`, [assignment.machine_group_id, assignment.equipment_id, effectiveTo, JSON.stringify([String(assignment.machine_unit_id)])]);
+  const requirement = result.rows[0];
+  if (!requirement) return;
+  const pinned = Array.isArray(requirement.pinned_machine_unit_ids) ? requirement.pinned_machine_unit_ids.map(String).filter((id: string) => id !== String(assignment.machine_unit_id)) : [];
+  if (Number(requirement.required_quantity || 1) > 1 && pinned.length > 0) {
+    await client.query(`UPDATE md_workstation_machine_requirement SET required_quantity = required_quantity - 1, pinned_machine_unit_ids = $1::jsonb, updated_by = $2, updated_at = NOW() WHERE requirement_id = $3`, [JSON.stringify(pinned), context.userId, requirement.requirement_id]);
+  } else {
+    await client.query(`UPDATE md_workstation_machine_requirement SET active_flag = FALSE, effective_to = $1, ended_by = $2, ended_at = NOW(), updated_by = $2, updated_at = NOW() WHERE requirement_id = $3`, [effectiveTo, context.userId, requirement.requirement_id]);
+  }
 }
 
 async function syncMachineQuantity(client: PoolClient, machineId: string, requestedQuantity: number): Promise<void> {
@@ -397,6 +463,40 @@ function normalizeBody(body: unknown): Record<string, unknown> {
     }
   }
   return normalized;
+}
+
+function validateUomQuantity(value: unknown, uom: Record<string, any>, options: { positive?: boolean } = {}) {
+  const raw = String(value ?? '').trim();
+  if (!raw || !/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) throw Object.assign(new Error('UOM_QUANTITY_REQUIRED'), { statusCode: 422 });
+  if (options.positive !== false && Number(raw) <= 0) throw Object.assign(new Error('UOM_QUANTITY_MUST_BE_POSITIVE'), { statusCode: 422 });
+  const precision = Number(uom.decimal_precision ?? 0);
+  const normalized = raw.includes('.') ? raw.replace(/0+$/, '').replace(/\.$/, '') : raw;
+  const decimals = normalized.includes('.') ? (normalized.split('.')[1] || '').length : 0;
+  if (uom.allow_fraction === false && decimals > 0) throw Object.assign(new Error('UOM_FRACTION_NOT_ALLOWED'), { statusCode: 422 });
+  if (decimals > (uom.allow_fraction === false ? 0 : precision)) throw Object.assign(new Error('UOM_DECIMAL_PRECISION_EXCEEDED'), { statusCode: 422 });
+}
+
+function normalizeShopfloorPayload(body: Record<string, unknown>): Record<string, unknown> {
+  if (body['status'] !== undefined && body['lifecycle_status'] === undefined) {
+    body['lifecycle_status'] = body['status'];
+  }
+  if (body['active_flag'] === false) body['lifecycle_status'] = 'Inactive';
+
+  // Shopfloor uses the shared master-data lifecycle and hierarchy schema.
+  // These fields belonged to an older resource form and are not columns of
+  // md_shopfloor; accepting them would produce PostgreSQL 42703 at INSERT/UPDATE.
+  for (const field of [
+    'status',
+    'active_flag',
+    'max_concurrent_jobs',
+    'default_efficiency',
+    'execution_status',
+    'planning_resource_flag',
+    'assignment_role',
+    'scheduling_flag',
+    'oee_aggregation_flag',
+  ]) delete body[field];
+  return body;
 }
 
 function translatableColumns(tableName: string): string[] {
@@ -494,13 +594,13 @@ async function defaultProductionVersionName(client: PoolClient, itemRevisionID: 
     lifecycle_status: row['lifecycle_status'],
   };
   if (table.tableName === 'md_mbom_header') {
-    return { ...base, site_id: row['site_id'], base_quantity: row['base_quantity'], base_uom_id: row['base_uom_id'], description: row['description'], business_version: row['business_version'], purpose: row['purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
+    return { ...base, item_revision_id: row['item_revision_id'], site_id: row['site_id'], base_quantity: row['base_quantity'], base_uom_id: row['base_uom_id'], description: row['description'], business_version: row['business_version'], purpose: row['purpose'], structure_version: row['structure_version'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
   }
   if (table.tableName === 'md_routing_header') {
-    return { ...base, description: row['description'], business_version: row['business_version'], routing_type: row['routing_type'], production_purpose: row['production_purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
+    return { ...base, item_revision_id: row['item_revision_id'], description: row['description'], business_version: row['business_version'], routing_type: row['routing_type'], production_purpose: row['production_purpose'], change_reason: row['change_reason'], engineering_note: row['engineering_note'], reference_document: row['reference_document'] };
   }
   if (table.tableName === 'md_production_version') {
-    return { ...base, name_i18n: row['name_i18n'], item_revision_id: row['item_revision_id'], mbom_header_id: row['mbom_header_id'], routing_header_id: row['routing_header_id'], site_id: row['site_id'], min_lot_size: row['min_lot_size'], max_lot_size: row['max_lot_size'] };
+    return { ...base, name_i18n: row['name_i18n'], item_revision_id: row['item_revision_id'], ebom_header_id: row['ebom_header_id'], mbom_header_id: row['mbom_header_id'], routing_header_id: row['routing_header_id'], site_id: row['site_id'], min_lot_size: row['min_lot_size'], max_lot_size: row['max_lot_size'] };
   }
   if (table.tableName === 'md_employee') {
     return { ...base, site_id: row['site_id'], default_work_center_id: row['default_work_center_id'], employee_status: row['employee_status'], preferred_locale: row['preferred_locale'] };
@@ -509,7 +609,7 @@ async function defaultProductionVersionName(client: PoolClient, itemRevisionID: 
     return { ...base, site_id: row['site_id'], start_time: row['start_time'], end_time: row['end_time'], crosses_midnight: row['crosses_midnight'] };
   }
   if (table.tableName === 'md_item_revision') {
-    return { ...base, revision_code: row['revision_code'], item_id: row['item_id'], item_type: row['item_type'], site_id: row['site_id'], effective_from: row['effective_from'], effective_to: row['effective_to'], base_uom_id: row['base_uom_id'], item_group: row['item_group'], planning_strategy: row['planning_strategy'], procurement_type: row['procurement_type'], tracking_level: row['tracking_level'], default_scrap_rate: row['default_scrap_rate'] };
+    return { ...base, revision_code: row['revision_code'], item_id: row['item_id'], item_type: row['item_type'], site_id: row['site_id'], effective_from: row['effective_from'], effective_to: row['effective_to'], base_uom_id: row['base_uom_id'], item_group: row['item_group'], material_group_id: row['material_group_id'], planning_strategy: row['planning_strategy'], procurement_type: row['procurement_type'], tracking_level: row['tracking_level'], default_scrap_rate: row['default_scrap_rate'] };
   }
   return { ...base, site_id: row['site_id'], item_revision_id: row['item_revision_id'], work_center_id: row['work_center_id'], equipment_type: row['equipment_type'] };
 }
@@ -540,6 +640,68 @@ function eachDate(from: string, to: string, daysOfWeek?: number[]): string[] {
 
 export function masterDataRouter(pool: Pool): Router {
   const router = Router();
+
+  router.get('/material-groups', async (req, res, next) => {
+    try {
+      const search = typeof req.query['search'] === 'string' ? `%${String(req.query['search']).trim()}%` : null;
+      const { rows } = await pool.query(`
+        SELECT g.*, (SELECT COUNT(*)::int FROM md_item i WHERE i.material_group_id = g.master_id) AS item_reference_count,
+          (SELECT COUNT(*)::int FROM md_item_revision r WHERE r.material_group_id = g.master_id) AS revision_reference_count
+        FROM md_material_group g
+        WHERE ($1::text IS NULL OR g.code ILIKE $1 OR g.name::text ILIKE $1)
+        ORDER BY g.code LIMIT $2`, [search, Math.min(Number(req.query['limit'] || 500), 500)]);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/material-groups/:id', async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT g.*, (SELECT COUNT(*)::int FROM md_item i WHERE i.material_group_id = g.master_id) AS item_reference_count,
+          (SELECT COUNT(*)::int FROM md_item_revision r WHERE r.material_group_id = g.master_id) AS revision_reference_count
+        FROM md_material_group g WHERE g.master_id = $1`, [req.params['id']]);
+      if (!rows[0]) return res.status(404).json({ error: 'MATERIAL_GROUP_NOT_FOUND' });
+      return res.json({ data: rows[0] });
+    } catch (err) { return next(err); }
+  });
+
+  router.post('/material-groups', async (req, res, next) => {
+    const body = normalizeBody(req.body); const code = String(body['code'] || '').trim().toUpperCase();
+    if (!/^[A-Z0-9][A-Z0-9_-]{1,79}$/.test(code)) return res.status(422).json({ error: 'MATERIAL_GROUP_CODE_INVALID' });
+    if (!localizedTextSchema.safeParse(body['name']).success) return res.status(422).json({ error: 'MATERIAL_GROUP_NAME_INVALID' });
+    try {
+      const { rows } = await pool.query(`INSERT INTO md_material_group (code, name, description, lifecycle_status, created_by) VALUES ($1,$2::jsonb,$3::jsonb,'Released',$4) RETURNING *`, [code, JSON.stringify(body['name']), body['description'] ? JSON.stringify(body['description']) : null, getContext(req).userId]);
+      return res.status(201).json({ data: rows[0] });
+    } catch (err: any) {
+      if (err?.code === '23505') return res.status(409).json({ error: 'MATERIAL_GROUP_CODE_DUPLICATE' });
+      return next(err);
+    }
+  });
+
+  router.put('/material-groups/:id', async (req, res, next) => {
+    const body = normalizeBody(req.body);
+    try {
+      const current = await pool.query(`SELECT * FROM md_material_group WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'MATERIAL_GROUP_NOT_FOUND' });
+      const references = await pool.query(`SELECT (SELECT COUNT(*) FROM md_item WHERE material_group_id = $1) + (SELECT COUNT(*) FROM md_item_revision WHERE material_group_id = $1) AS total`, [req.params['id']]);
+      if (Number(references.rows[0]?.total || 0) > 0) return res.status(409).json({ error: 'MATERIAL_GROUP_IN_USE', usage: Number(references.rows[0].total) });
+      if (body['name'] !== undefined && !localizedTextSchema.safeParse(body['name']).success) return res.status(422).json({ error: 'MATERIAL_GROUP_NAME_INVALID' });
+      const code = body['code'] === undefined ? current.rows[0].code : String(body['code']).trim().toUpperCase();
+      if (!/^[A-Z0-9][A-Z0-9_-]{1,79}$/.test(code)) return res.status(422).json({ error: 'MATERIAL_GROUP_CODE_INVALID' });
+      const { rows } = await pool.query(`UPDATE md_material_group SET code=$1, name=$2::jsonb, description=$3::jsonb, updated_by=$4, updated_at=NOW() WHERE master_id=$5 RETURNING *`, [code, JSON.stringify(body['name'] ?? current.rows[0].name), body['description'] === undefined ? current.rows[0].description : (body['description'] ? JSON.stringify(body['description']) : null), getContext(req).userId, req.params['id']]);
+      return res.json({ data: rows[0] });
+    } catch (err: any) { if (err?.code === '23505') return res.status(409).json({ error: 'MATERIAL_GROUP_CODE_DUPLICATE' }); if (String(err?.message) === 'MATERIAL_GROUP_IN_USE') return res.status(409).json({ error: 'MATERIAL_GROUP_IN_USE' }); return next(err); }
+  });
+
+  router.delete('/material-groups/:id', async (req, res, next) => {
+    try {
+      const references = await pool.query(`SELECT (SELECT COUNT(*) FROM md_item WHERE material_group_id = $1) + (SELECT COUNT(*) FROM md_item_revision WHERE material_group_id = $1) AS total`, [req.params['id']]);
+      if (Number(references.rows[0]?.total || 0) > 0) return res.status(409).json({ error: 'MATERIAL_GROUP_IN_USE', usage: Number(references.rows[0].total) });
+      const { rows } = await pool.query(`DELETE FROM md_material_group WHERE master_id=$1 RETURNING master_id`, [req.params['id']]);
+      if (!rows[0]) return res.status(404).json({ error: 'MATERIAL_GROUP_NOT_FOUND' });
+      return res.json({ deleted: true });
+    } catch (err: any) { if (String(err?.message) === 'MATERIAL_GROUP_IN_USE') return res.status(409).json({ error: 'MATERIAL_GROUP_IN_USE' }); return next(err); }
+  });
 
   router.get('/resources', (_req, res) => {
     res.json({ resources: [...TABLE_BY_RESOURCE.keys()] });
@@ -602,8 +764,8 @@ export function masterDataRouter(pool: Pool): Router {
       const header = await client.query('SELECT * FROM md_ebom_header WHERE master_id = $1 AND lifecycle_status = \'Released\'', [req.params['id']]);
       if (!header.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Released EBOM not found' }); }
       const ebom = header.rows[0];
-      const mbom = await client.query(`INSERT INTO md_mbom_header (code, name, description, site_id, business_version, purpose, base_quantity, base_uom_id, effective_from, created_by)
-        SELECT $1, e.name, e.description, r.site_id, '1', 'Standard', 1, i.base_uom_id, NOW(), $2
+      const mbom = await client.query(`INSERT INTO md_mbom_header (code, name, description, site_id, business_version, purpose, base_quantity, base_uom_id, item_revision_id, effective_from, created_by)
+        SELECT $1, e.name, e.description, r.site_id, '1', 'Standard', 1, i.base_uom_id, e.item_revision_id, NOW(), $2
         FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id
         WHERE e.master_id = $3 RETURNING *`, [`MBOM-FROM-${ebom.code}`, getContext(req).userId, req.params['id']]);
       const mbomRow = mbom.rows[0];
@@ -634,11 +796,22 @@ export function masterDataRouter(pool: Pool): Router {
     } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
   });
 
-  router.get('/ebom-headers', async (_req, res, next) => {
+  router.get('/ebom-headers', async (req, res, next) => {
     try {
-      const { rows } = await pool.query(`SELECT e.*, r.revision_code, i.code AS item_code, i.name AS item_name,
+      const params: unknown[] = [];
+      const filters: string[] = [];
+      if (typeof req.query['item_revision_id'] === 'string' && req.query['item_revision_id']) { params.push(req.query['item_revision_id']); filters.push(`e.item_revision_id = $${params.length}`); }
+      if (typeof req.query['lifecycle_status'] === 'string' && req.query['lifecycle_status']) { params.push(req.query['lifecycle_status']); filters.push(`e.lifecycle_status = $${params.length}`); }
+      if (typeof req.query['effective_at'] === 'string' && req.query['effective_at']) {
+        const at = new Date(String(req.query['effective_at']));
+        if (Number.isNaN(at.getTime())) return res.status(422).json({ error: 'EFFECTIVE_AT_INVALID' });
+        params.push(at.toISOString());
+        filters.push(`e.effective_from <= $${params.length}::timestamptz AND (e.effective_to IS NULL OR $${params.length}::timestamptz < e.effective_to)`);
+      }
+      const { rows } = await pool.query(`SELECT e.*, r.revision_code, r.item_id, i.code AS item_code, i.name AS item_name,
         (SELECT COUNT(*)::int FROM md_ebom_line l WHERE l.ebom_header_id = e.master_id AND l.lifecycle_status NOT IN ('Inactive','Obsolete') AND l.effective_to IS NULL) AS current_line_count
-        FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id ORDER BY e.code, e.version_no`);
+        FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id
+        ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''} ORDER BY e.code, e.version_no`, params);
       return res.json({ data: rows });
     } catch (err) { return next(err); }
   });
@@ -647,7 +820,7 @@ export function masterDataRouter(pool: Pool): Router {
     try {
       const header = await pool.query(`SELECT e.*, r.revision_code, i.code AS item_code, i.name AS item_name FROM md_ebom_header e JOIN md_item_revision r ON r.master_id = e.item_revision_id JOIN md_item i ON i.master_id = r.item_id WHERE e.master_id = $1`, [req.params['id']]);
       if (!header.rows[0]) return res.status(404).json({ error: 'EBOM_NOT_FOUND' });
-      const lines = await pool.query(`SELECT l.*, r.revision_code AS component_revision_code, i.code AS component_item_code, i.name AS component_item_name, u.code AS uom_code
+      const lines = await pool.query(`SELECT l.*, r.item_id AS component_item_id, r.revision_code AS component_revision_code, i.code AS component_item_code, i.name AS component_item_name, u.code AS uom_code, u.name AS uom_name
         FROM md_ebom_line l JOIN md_item_revision r ON r.master_id = l.component_revision_id JOIN md_item i ON i.master_id = r.item_id JOIN md_uom u ON u.master_id = l.uom_id
         WHERE l.ebom_header_id = $1 AND l.lifecycle_status NOT IN ('Inactive','Obsolete') AND l.effective_to IS NULL ORDER BY l.parent_line_id NULLS FIRST, l.seq, l.code`, [req.params['id']]);
       return res.json({ data: { ...header.rows[0], lines: lines.rows, current_line_count: lines.rows.length } });
@@ -655,7 +828,7 @@ export function masterDataRouter(pool: Pool): Router {
   });
 
   router.put('/ebom-headers/:id/design-tree', async (req, res, next) => {
-    const context = getContext(req); const submitted = Array.isArray(req.body?.lines) ? req.body.lines as Record<string, any>[] : []; const client = await pool.connect();
+    const context = getContext(req); const submitted = (Array.isArray(req.body?.lines) ? req.body.lines as Record<string, any>[] : []).map((line) => ({ ...line, parent_line_id: null })) as Record<string, any>[]; const client = await pool.connect();
     try {
       await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
       const header = await client.query(`SELECT master_id, lifecycle_status FROM md_ebom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
@@ -669,7 +842,6 @@ export function masterDataRouter(pool: Pool): Router {
         if (parent && parent === key) throw Object.assign(new Error('EBOM_LINE_SELF_PARENT'), { statusCode: 422 });
         if (parent && !keySet.has(parent)) throw Object.assign(new Error('EBOM_PARENT_LINE_INVALID'), { statusCode: 422 });
         if (!line.component_revision_id) throw Object.assign(new Error('EBOM_COMPONENT_REVISION_REQUIRED'), { statusCode: 422 });
-        if (!line.uom_id) throw Object.assign(new Error('EBOM_UOM_REQUIRED'), { statusCode: 422 });
         if (!Number.isInteger(seq) || seq <= 0) throw Object.assign(new Error('EBOM_SEQUENCE_INVALID'), { statusCode: 422 });
         if (!Number.isFinite(Number(line.quantity_per)) || Number(line.quantity_per) <= 0) throw Object.assign(new Error('EBOM_QUANTITY_INVALID'), { statusCode: 422 });
         const siblingKey = `${parent || '__root__'}:${seq}`; if (siblingSeq.has(siblingKey)) throw Object.assign(new Error('EBOM_SEQUENCE_DUPLICATE'), { statusCode: 422 }); siblingSeq.add(siblingKey);
@@ -677,10 +849,12 @@ export function masterDataRouter(pool: Pool): Router {
       }
       for (const key of keys) { const visited = new Set<string>(); let cursor: string | null = key; while (cursor) { if (visited.has(cursor)) throw Object.assign(new Error('EBOM_HIERARCHY_CYCLE'), { statusCode: 422 }); visited.add(cursor); cursor = parentByKey.get(cursor) || null; } }
       for (const line of submitted) {
-        const revision = await client.query(`SELECT master_id FROM md_item_revision WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [line.component_revision_id]);
-        if (!revision.rows[0]) throw Object.assign(new Error('EBOM_COMPONENT_REVISION_INVALID'), { statusCode: 422 });
-        const uom = await client.query(`SELECT master_id FROM md_uom WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [line.uom_id]);
+        const revision = await client.query(`SELECT r.master_id, r.base_uom_id FROM md_item_revision r WHERE r.master_id = $1 AND r.lifecycle_status NOT IN ('Inactive','Obsolete')`, [line.component_revision_id]);
+        if (!revision.rows[0] || !revision.rows[0].base_uom_id) throw Object.assign(new Error('EBOM_COMPONENT_REVISION_INVALID'), { statusCode: 422 });
+        const derivedUomId = String(revision.rows[0].base_uom_id);
+        const uom = await client.query(`SELECT master_id FROM md_uom WHERE master_id = $1 AND lifecycle_status = 'Released'`, [derivedUomId]);
         if (!uom.rows[0]) throw Object.assign(new Error('EBOM_UOM_INVALID'), { statusCode: 422 });
+        line.uom_id = derivedUomId;
       }
       await client.query(`UPDATE md_ebom_line SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE ebom_header_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NULL`, [req.params['id'], context.userId]);
       const lineIds = new Map<string, string>(); for (const key of keys) { const result = await client.query(`SELECT gen_random_uuid() AS id`); lineIds.set(key, result.rows[0].id); }
@@ -731,7 +905,7 @@ export function masterDataRouter(pool: Pool): Router {
                 i.master_id AS item_id, i.code AS item_code, r.name AS item_name,
                 r.master_id AS item_revision_id, r.revision_code, r.lifecycle_status AS revision_status,
                 r.effective_from AS revision_effective_from, r.effective_to AS revision_effective_to,
-                u.code AS base_uom_code, u.master_id AS base_uom_id,
+                u.code AS base_uom_code, u.master_id AS base_uom_id, u.decimal_precision AS base_uom_decimal_precision, u.allow_fraction AS base_uom_allow_fraction,
                 pv.master_id AS production_version_id, pv.code AS production_version_code,
                 pv.mbom_header_id, mb.code AS mbom_code, mb.name AS mbom_name,
                 pv.routing_header_id, rt.code AS routing_code, rt.name AS routing_name,
@@ -760,7 +934,7 @@ export function masterDataRouter(pool: Pool): Router {
           mbom: { id: candidate['mbom_header_id'], code: candidate['mbom_code'], name: candidate['mbom_name'] },
           routing: { id: candidate['routing_header_id'], code: candidate['routing_code'], name: candidate['routing_name'] },
           site: { id: candidate['site_id'], code: candidate['site_code'] },
-          base_uom: { id: candidate['base_uom_id'], code: candidate['base_uom_code'] },
+          base_uom: { id: candidate['base_uom_id'], code: candidate['base_uom_code'], decimal_precision: candidate['base_uom_decimal_precision'], allow_fraction: candidate['base_uom_allow_fraction'], lifecycle_status: 'Released' },
           valid_from: candidate['revision_effective_from'], valid_to: candidate['revision_effective_to'],
           ready: true, warnings: [], display_code: `${candidate['item_code']}-${candidate['revision_code']}`, readiness_status: 'Ready' });
       }
@@ -1090,28 +1264,34 @@ export function masterDataRouter(pool: Pool): Router {
     const code = String(body['code'] || '').trim();
     const name = body['name'];
     if (!code || !localizedTextSchema.safeParse(name).success) return res.status(400).json({ error: 'code and a localized name with a non-empty vi value are required' });
+    if (!body['base_uom_id']) return res.status(422).json({ error: 'BASE_UOM_REQUIRED' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const materialGroup = await client.query(`SELECT master_id, code FROM md_material_group WHERE master_id = $1 OR UPPER(code) = UPPER($2)`, [body['material_group_id'] || null, body['item_group'] || null]);
+      if (!materialGroup.rows[0]) throw Object.assign(new Error('MATERIAL_GROUP_REQUIRED'), { statusCode: 422 });
+      const materialGroupId = materialGroup.rows[0].master_id; const materialGroupCode = materialGroup.rows[0].code;
+      const uom = await client.query(`SELECT master_id FROM md_uom WHERE master_id = $1 AND lifecycle_status = 'Released'`, [body['base_uom_id']]);
+      if (!uom.rows[0]) throw Object.assign(new Error('UOM_NOT_RELEASED'), { statusCode: 422 });
       const siteResult = await client.query(`SELECT master_id FROM md_site WHERE lifecycle_status = 'Released' ORDER BY code LIMIT 1`);
       const siteId = String(body['site_id'] || siteResult.rows[0]?.master_id || '');
       if (!siteId) throw Object.assign(new Error('A released site is required to create an Item Revision'), { statusCode: 422 });
       const itemResult = await client.query(`
-        INSERT INTO md_item (code, name, item_group, item_type, base_uom_id, effective_from, created_by)
-        VALUES ($1, $2::jsonb, $3, $4, $5, COALESCE($6::timestamptz, NOW()), $7)
+        INSERT INTO md_item (code, name, item_group, material_group_id, item_type, base_uom_id, effective_from, created_by)
+        VALUES ($1, $2::jsonb, $3, $4, $5, $6, COALESCE($7::timestamptz, NOW()), $8)
         RETURNING *
-      `, [code, JSON.stringify(name), body['item_group'] || 'General', body['item_type'] || 'FG', body['base_uom_id'], body['effective_from'] || null, context.userId]);
+      `, [code, JSON.stringify(name), materialGroupCode, materialGroupId, body['item_type'] || 'FG', body['base_uom_id'], body['effective_from'] || null, context.userId]);
       const item = itemResult.rows[0] as Record<string, unknown>;
       const allocation = await allocateItemRevisionCode(client, String(item['master_id']), code);
       const revisionResult = await client.query(`
         INSERT INTO md_item_revision (
           code, name, version_no, lifecycle_status, effective_from, created_by, item_id, revision_code, site_id,
-          is_default, item_group, base_uom_id, planning_strategy, procurement_type, tracking_level, default_scrap_rate,
+          is_default, item_group, material_group_id, base_uom_id, planning_strategy, procurement_type, tracking_level, default_scrap_rate,
           specification_ref, change_reason
-        ) VALUES ($1, $2::jsonb, $3, 'Draft', $4::timestamptz, $5, $6, $7, $8, TRUE, $9, $10, $11, $12, $13, $14, $15, NULL)
+        ) VALUES ($1, $2::jsonb, $3, 'Draft', $4::timestamptz, $5, $6, $7, $8, TRUE, $9, $10, $11, $12, $13, $14, $15, $16, NULL)
         RETURNING *
-      `, [allocation.revisionCode, JSON.stringify(name), allocation.revisionNo, body['effective_from'] || new Date().toISOString(), context.userId, item['master_id'], allocation.revisionCode, siteId, body['item_group'] || 'General', body['base_uom_id'], body['planning_strategy'] || 'MakeToStock', body['procurement_type'] || (body['item_type'] === 'RM' ? 'Buy' : 'Make'), body['tracking_level'] || 'None', body['default_scrap_rate'] || 0, body['specification_ref'] || null]);
+        `, [allocation.revisionCode, JSON.stringify(name), allocation.revisionNo, body['effective_from'] || new Date().toISOString(), context.userId, item['master_id'], allocation.revisionCode, siteId, materialGroupCode, materialGroupId, body['base_uom_id'], body['planning_strategy'] || 'MakeToStock', body['procurement_type'] || (body['item_type'] === 'RM' ? 'Buy' : 'Make'), body['tracking_level'] || 'None', body['default_scrap_rate'] || 0, body['specification_ref'] || null]);
       await client.query('COMMIT');
       return res.status(201).json({ ...item, revision: revisionResult.rows[0] });
     } catch (err: any) {
@@ -1127,25 +1307,63 @@ export function masterDataRouter(pool: Pool): Router {
     const context = getContext(req);
     const body = normalizeBody(req.body);
     const changeReason = String(body['change_reason'] || '').trim();
-    const effectiveFrom = new Date(String(body['effective_from'] || ''));
+    let effectiveFrom: Date;
+    try { effectiveFrom = parseRevisionEffectiveFrom(body['effective_from']); }
+    catch (error: any) { return res.status(422).json({ error: error.code || 'ITEM_REVISION_EFFECTIVE_FROM_INVALID', message: error.message }); }
     if (!changeReason) return res.status(400).json({ error: 'change_reason is required for a successor revision' });
-    if (Number.isNaN(effectiveFrom.getTime()) || effectiveFrom.getTime() < Date.now()) return res.status(422).json({ error: 'effective_from must be now or later' });
+    if (effectiveFrom.getTime() < Date.now()) return res.status(422).json({ error: 'ITEM_REVISION_EFFECTIVE_FROM_PAST', message: 'A new revision cannot start in the past.' });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
-      const currentResult = await client.query(`SELECT r.*, i.code AS item_code FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id WHERE r.item_id = $1 ORDER BY r.version_no DESC LIMIT 1 FOR UPDATE`, [req.params['id']]);
-      const current = currentResult.rows[0] as Record<string, unknown> | undefined;
-      if (!current) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Item not found' }); }
-      const allocation = await allocateItemRevisionCode(client, String(current['item_id']), String(current['item_code']));
+      const itemResult = await client.query(`SELECT master_id, code FROM md_item WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!itemResult.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'ITEM_NOT_FOUND' }); }
+      const existingRevisionResult = await client.query(`SELECT r.*, i.code AS item_code FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id WHERE r.item_id = $1 ORDER BY r.effective_from, r.version_no FOR UPDATE`, [req.params['id']]);
+      const revisions = existingRevisionResult.rows as Array<Record<string, any>>;
+      const current = revisions.find((revision) => {
+        const from = new Date(String(revision.effective_from));
+        const to = revision.effective_to ? new Date(String(revision.effective_to)) : null;
+        return from <= new Date() && (!to || new Date() < to);
+      });
+      if (!current || current.lifecycle_status !== 'Released') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'ITEM_REVISION_SUCCESSOR_REQUIRES_RELEASED_CURRENT' }); }
+      const sameStart = revisions.find((revision) => new Date(String(revision.effective_from)).getTime() === effectiveFrom.getTime());
+      if (sameStart) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'ITEM_REVISION_EFFECTIVE_FROM_CONFLICT', message: 'Another revision already starts at this exact instant.' }); }
+      const previous = [...revisions].reverse().find((revision) => new Date(String(revision.effective_from)) < effectiveFrom);
+      if (body['name'] !== undefined && !localizedTextSchema.safeParse(body['name']).success) { await client.query('ROLLBACK'); return res.status(422).json({ error: 'ITEM_REVISION_NAME_INVALID' }); }
+      if (body['base_uom_id']) {
+        const uom = await client.query(`SELECT master_id FROM md_uom WHERE master_id = $1 AND lifecycle_status = 'Released'`, [body['base_uom_id']]);
+        if (!uom.rows[0]) { await client.query('ROLLBACK'); return res.status(422).json({ error: 'UOM_NOT_RELEASED' }); }
+      }
+      const allocation = await allocateItemRevisionCode(client, String(req.params['id']), String(itemResult.rows[0].code));
+      // Revisions own independent intervals. A new revision must not mutate
+      // the previous revision's explicit effective_to; overlap is valid when
+      // the user intentionally configures it.
       const revisionResult = await client.query(`
-        INSERT INTO md_item_revision (code, name, version_no, lifecycle_status, effective_from, created_by, item_id, revision_code, site_id, is_default, item_group, base_uom_id, planning_strategy, procurement_type, tracking_level, default_scrap_rate, specification_ref, change_reason, previous_revision_id)
-        VALUES ($1, $2::jsonb, $3, 'Draft', $4, $5, $6, $7, $8, FALSE, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        INSERT INTO md_item_revision (code, name, version_no, lifecycle_status, effective_from, effective_to, created_by, item_id, revision_code, site_id, is_default, item_group, material_group_id, base_uom_id, planning_strategy, procurement_type, tracking_level, default_scrap_rate, specification_ref, change_reason, previous_revision_id)
+        VALUES ($1, $2::jsonb, $3, 'Draft', $4, $5, $6, $7, $8, $9, FALSE, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         RETURNING *
-      `, [allocation.revisionCode, JSON.stringify(body['name'] || current['name']), allocation.revisionNo, effectiveFrom.toISOString(), context.userId, current['item_id'], allocation.revisionCode, current['site_id'], body['item_group'] || current['item_group'], body['base_uom_id'] || current['base_uom_id'], body['planning_strategy'] || current['planning_strategy'], body['procurement_type'] || current['procurement_type'], body['tracking_level'] || current['tracking_level'], body['default_scrap_rate'] ?? current['default_scrap_rate'], body['specification_ref'] || current['specification_ref'] || null, changeReason, current['master_id']]);
+      `, [allocation.revisionCode, JSON.stringify(body['name'] || current['name']), allocation.revisionNo, effectiveFrom.toISOString(), null, context.userId, current['item_id'], allocation.revisionCode, current['site_id'], body['item_group'] || current['item_group'], body['material_group_id'] || current['material_group_id'], body['base_uom_id'] || current['base_uom_id'], body['planning_strategy'] || current['planning_strategy'], body['procurement_type'] || current['procurement_type'], body['tracking_level'] || current['tracking_level'], body['default_scrap_rate'] ?? current['default_scrap_rate'], body['specification_ref'] || current['specification_ref'] || null, changeReason, previous?.master_id || null]);
+      await client.query(`INSERT INTO md_item_revision_temporal_audit (item_id, revision_id, old_effective_from, new_effective_from, old_effective_to, new_effective_to, change_reason, triggered_by_revision_id, changed_by, correlation_id) VALUES ($1,$2,NULL,$3,NULL,$4,'REVISION_CREATED',$5,$6,$7)`, [current['item_id'], revisionResult.rows[0].master_id, effectiveFrom.toISOString(), null, previous?.master_id || null, context.userId, context.traceId]);
       await client.query('COMMIT');
-      return res.status(201).json({ data: revisionResult.rows[0], previous_revision_id: current['master_id'] });
-    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+      return res.status(201).json({ data: revisionResult.rows[0], previous_revision_id: previous?.master_id || null, next_revision_id: null });
+    } catch (err: any) { await client.query('ROLLBACK'); if (err?.code === '23505') return res.status(409).json({ error: 'ITEM_REVISION_EFFECTIVE_FROM_CONFLICT' }); return next(err); } finally { client.release(); }
+  });
+
+  router.get('/items/:id/effective-revision', async (req, res, next) => {
+    try {
+      const atRaw = req.query['at'] ? String(req.query['at']) : new Date().toISOString();
+      const at = new Date(atRaw);
+      if (Number.isNaN(at.getTime())) return res.status(422).json({ error: 'ITEM_REVISION_EFFECTIVE_FROM_INVALID' });
+      const result = await pool.query(`SELECT r.*, s.timezone AS site_timezone, i.code AS item_code, i.name AS item_name,
+        CASE WHEN r.effective_from > $2::timestamptz THEN 'Scheduled'
+             WHEN r.effective_to IS NOT NULL AND r.effective_to <= $2::timestamptz THEN 'Historical'
+             ELSE 'Current' END AS temporal_status
+        FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id LEFT JOIN md_site s ON s.master_id = r.site_id
+        WHERE r.item_id = $1 AND r.effective_from <= $2::timestamptz AND (r.effective_to IS NULL OR $2::timestamptz < r.effective_to)`, [req.params['id'], atRaw]);
+      if (result.rows.length > 1) return res.status(500).json({ error: 'ITEM_REVISION_OVERLAP_DETECTED' });
+      if (!result.rows[0]) return res.status(404).json({ error: 'ITEM_REVISION_NOT_EFFECTIVE' });
+      return res.json({ data: result.rows[0], effective_at: atRaw });
+    } catch (err) { return next(err); }
   });
 
   router.get('/resource-assignments', async (req, res, next) => {
@@ -1178,9 +1396,120 @@ export function masterDataRouter(pool: Pool): Router {
 
   router.get('/machines/:id/units', async (req, res, next) => {
     try {
-      const { rows } = await pool.query(`SELECT mu.*, eq.code AS machine_code, eq.name AS machine_name FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_id = $1 ORDER BY mu.unit_sequence`, [req.params['id']]);
+      const { rows } = await pool.query(`SELECT mu.*, eq.code AS machine_code, eq.name AS machine_name,
+        ra.master_id AS current_assignment_id, ra.work_center_id AS current_work_center_id,
+        ra.workstation_id AS current_workstation_id, wc.code AS current_work_center_code,
+        ws.code AS current_workstation_code,
+        (SELECT COUNT(*)::INT FROM md_resource_assignment history_ra WHERE history_ra.machine_unit_id = mu.machine_unit_id) AS assignment_count,
+        (SELECT COUNT(*)::INT FROM md_workstation_machine_requirement requirement
+          WHERE requirement.pinned_machine_unit_ids @> jsonb_build_array(mu.machine_unit_id::text)) AS workstation_requirement_count
+        FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id
+        LEFT JOIN md_resource_assignment ra ON ra.machine_unit_id = mu.machine_unit_id
+          AND ra.effective_from <= NOW() AND (ra.effective_to IS NULL OR ra.effective_to > NOW())
+          AND ra.lifecycle_status NOT IN ('Inactive','Obsolete')
+        LEFT JOIN md_work_center wc ON wc.master_id = ra.work_center_id
+        LEFT JOIN md_workstation ws ON ws.master_id = ra.workstation_id
+        WHERE mu.machine_id = $1 ORDER BY mu.unit_sequence`, [req.params['id']]);
+      for (const row of rows) row.can_delete = Number(row.assignment_count || 0) === 0 && Number(row.workstation_requirement_count || 0) === 0;
       return res.json({ data: rows });
     } catch (err) { return next(err); }
+  });
+
+  router.post('/machines/:id/units', async (req, res, next) => {
+    const context = getContext(req);
+    const serial = String(req.body?.serial_number || '').trim();
+    if (!serial) return res.status(422).json({ error: 'MACHINE_UNIT_IDENTITY_REQUIRED' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const machine = await client.query(`SELECT master_id, code, site_id, active_flag, planning_resource_flag, execution_status FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!machine.rows[0]) throw Object.assign(new Error('MACHINE_NOT_FOUND'), { statusCode: 404 });
+      const sequence = Number(req.body?.unit_sequence || (await client.query(`SELECT COALESCE(MAX(unit_sequence),0)+1 AS next_sequence FROM md_machine_unit WHERE machine_id = $1`, [req.params['id']])).rows[0].next_sequence);
+      if (!Number.isInteger(sequence) || sequence < 1) throw Object.assign(new Error('MACHINE_UNIT_SEQUENCE_INVALID'), { statusCode: 422 });
+      const code = String(req.body?.code || `${machine.rows[0].code}-${String(sequence).padStart(2, '0')}`);
+      const unit = await client.query(`INSERT INTO md_machine_unit (machine_id, code, unit_sequence, serial_number, lifecycle_status, physical_identity_status, planning_resource_flag, execution_status, active_flag) VALUES ($1,$2,$3,$4,'Released','Identified',$5,'Available',TRUE) RETURNING *`, [req.params['id'], code, sequence, serial, machine.rows[0].planning_resource_flag === true && machine.rows[0].active_flag === true && machine.rows[0].execution_status === 'Available']);
+      await client.query(`UPDATE md_equipment SET quantity = GREATEST(quantity, $1), serial_number = NULL, updated_by = $2, updated_at = NOW() WHERE master_id = $3`, [sequence, context.userId, req.params['id']]);
+      await client.query('COMMIT');
+      return res.status(201).json({ data: unit.rows[0] });
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      if (err?.code === '23505') return res.status(409).json({ error: 'MACHINE_UNIT_IDENTITY_DUPLICATE', message: 'Unit code, sequence, or serial number is already used.' });
+      return res.status(err?.statusCode || 500).json({ error: err?.message || 'MACHINE_UNIT_CREATE_FAILED' });
+    } finally { client.release(); }
+  });
+
+  router.get('/machine-units/:id', async (req, res, next) => {
+    try {
+      const unit = await pool.query(`SELECT mu.*, eq.code AS machine_code, eq.name AS machine_name, eq.site_id,
+        ra.master_id AS current_assignment_id, ra.work_center_id AS current_work_center_id, ra.workstation_id AS current_workstation_id,
+        wc.code AS current_work_center_code, ws.code AS current_workstation_code
+        FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id
+        LEFT JOIN md_resource_assignment ra ON ra.machine_unit_id = mu.machine_unit_id AND ra.effective_from <= NOW() AND (ra.effective_to IS NULL OR ra.effective_to > NOW()) AND ra.lifecycle_status NOT IN ('Inactive','Obsolete')
+        LEFT JOIN md_work_center wc ON wc.master_id = ra.work_center_id LEFT JOIN md_workstation ws ON ws.master_id = ra.workstation_id WHERE mu.machine_unit_id = $1`, [req.params['id']]);
+      if (!unit.rows[0]) return res.status(404).json({ error: 'MACHINE_UNIT_NOT_FOUND' });
+      const history = await pool.query(`SELECT ra.*, wc.code AS work_center_code, ws.code AS workstation_code FROM md_resource_assignment ra LEFT JOIN md_work_center wc ON wc.master_id = ra.work_center_id LEFT JOIN md_workstation ws ON ws.master_id = ra.workstation_id WHERE ra.machine_unit_id = $1 ORDER BY ra.effective_from DESC`, [req.params['id']]);
+      return res.json({ data: { ...unit.rows[0], assignment_history: history.rows } });
+    } catch (err) { return next(err); }
+  });
+
+  router.delete('/machine-units/:id', async (req, res, next) => {
+    const context = getContext(req);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const unit = await client.query(`SELECT machine_unit_id FROM md_machine_unit WHERE machine_unit_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!unit.rows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'MACHINE_UNIT_NOT_FOUND' });
+      }
+      const blockers = await client.query(`SELECT
+        (SELECT COUNT(*)::INT FROM md_resource_assignment WHERE machine_unit_id = $1) AS assignment_count,
+        (SELECT COUNT(*)::INT FROM md_workstation_machine_requirement WHERE pinned_machine_unit_ids @> jsonb_build_array($1::text)) AS workstation_requirement_count`, [req.params['id']]);
+      const blocker = blockers.rows[0];
+      if (Number(blocker.assignment_count) > 0 || Number(blocker.workstation_requirement_count) > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'MACHINE_UNIT_DELETE_DEPENDENCY_EXISTS', details: { assignment_count: Number(blocker.assignment_count), workstation_requirement_count: Number(blocker.workstation_requirement_count) } });
+      }
+      await client.query(`DELETE FROM md_machine_unit WHERE machine_unit_id = $1`, [req.params['id']]);
+      await client.query('COMMIT');
+      return res.json({ deleted: true, machine_unit_id: req.params['id'] });
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      if (err?.code === '23503') return res.status(409).json({ error: 'MACHINE_UNIT_DELETE_DEPENDENCY_EXISTS' });
+      return next(err);
+    } finally { client.release(); }
+  });
+
+  router.put('/machine-units/:id', async (req, res, next) => {
+    const body = normalizeBody(req.body);
+    try {
+      const current = await pool.query(`SELECT mu.*, eq.active_flag AS machine_active, eq.planning_resource_flag AS machine_planning_resource FROM md_machine_unit mu JOIN md_equipment eq ON eq.master_id = mu.machine_id WHERE mu.machine_unit_id = $1`, [req.params['id']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'MACHINE_UNIT_NOT_FOUND' });
+      const allowed = ['code', 'serial_number', 'execution_status', 'active_flag', 'lifecycle_status'];
+      const updates = allowed.filter((column) => body[column] !== undefined);
+      if (body.serial_number !== undefined && !String(body.serial_number).trim()) return res.status(422).json({ error: 'MACHINE_UNIT_IDENTITY_REQUIRED' });
+      if (body.execution_status && !['Available','Maintenance','OutOfService'].includes(String(body.execution_status))) return res.status(422).json({ error: 'MACHINE_UNIT_STATUS_INVALID' });
+      if (body.lifecycle_status && !['Draft','Released','Inactive','Obsolete'].includes(String(body.lifecycle_status))) return res.status(422).json({ error: 'MACHINE_UNIT_LIFECYCLE_INVALID' });
+      if (!updates.length) return res.status(400).json({ error: 'MACHINE_UNIT_NO_UPDATE' });
+      if ((body.execution_status && body.execution_status !== 'Available') || body.active_flag === false || body.lifecycle_status === 'Inactive') {
+        const activeAssignment = await pool.query(`SELECT 1 FROM md_resource_assignment WHERE machine_unit_id = $1 AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW()) AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['id']]);
+        if (activeAssignment.rows[0]) return res.status(409).json({ error: 'MACHINE_UNIT_ACTIVE_ASSIGNMENT' });
+      }
+      const values = updates.map((column) => body[column]);
+      const nextSerial = body.serial_number !== undefined ? String(body.serial_number).trim() : String(current.rows[0].serial_number || '').trim();
+      const nextActive = body.active_flag !== undefined ? body.active_flag === true : current.rows[0].active_flag === true;
+      const nextExecutionStatus = String(body.execution_status ?? current.rows[0].execution_status);
+      const nextLifecycleStatus = String(body.lifecycle_status ?? current.rows[0].lifecycle_status);
+      const nextPlanning = Boolean(nextSerial && nextActive && nextExecutionStatus === 'Available' && nextLifecycleStatus === 'Released' && current.rows[0].machine_active === true && current.rows[0].machine_planning_resource === true);
+      const sets = updates.map((column, index) => `${column} = $${index + 1}`);
+      sets.push(`physical_identity_status = $${updates.length + 1}`, `planning_resource_flag = $${updates.length + 2}`, 'updated_at = NOW()');
+      const { rows } = await pool.query(`UPDATE md_machine_unit SET ${sets.join(', ')} WHERE machine_unit_id = $${updates.length + 3} RETURNING *`, [...values, nextSerial ? 'Identified' : 'PendingIdentification', nextPlanning, req.params['id']]);
+      return res.json({ data: rows[0] });
+    } catch (err: any) {
+      if (err?.code === '23505') return res.status(409).json({ error: 'MACHINE_UNIT_IDENTITY_DUPLICATE', message: 'Unit code or serial number is already used.' });
+      return next(err);
+    }
   });
 
   router.get('/workstations/:id/machine-groups', async (req, res, next) => {
@@ -1362,11 +1691,9 @@ export function masterDataRouter(pool: Pool): Router {
       for (const entry of entries) {
         const ws = await client.query(`SELECT master_id FROM md_workstation WHERE master_id = $1 AND work_center_id = $2 AND shopfloor_id = $3 AND active_flag = TRUE FOR UPDATE`, [entry['workstation_id'], req.params['id'], wc.rows[0].shopfloor_id]);
         if (!ws.rows[0]) throw Object.assign(new Error('WORKSTATION_NOT_IN_WORK_CENTER_HIERARCHY'), { statusCode: 422 });
-        const operationIds = [...new Set((entry['operation_ids'] as unknown[]).map(String))];
-        for (const operationId of operationIds) {
-          const capability = await client.query(`SELECT 1 FROM md_workstation_operation_capability WHERE workstation_id = $1 AND operation_id = $2 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW())`, [entry['workstation_id'], operationId]);
-          if (!capability.rows[0]) throw Object.assign(new Error('WORKSTATION_OPERATION_NOT_SUPPORTED'), { statusCode: 422 });
-        }
+        // Composition records describe the Work Center hierarchy only. The
+        // Routing Operation owns the authoritative Operation -> Workstation
+        // assignment, so composition must not require a legacy capability row.
       }
       await client.query(`UPDATE md_work_center_composition SET active_flag = FALSE, effective_to = NOW(), ended_by = $2, ended_at = NOW(), updated_by = $2, updated_at = NOW() WHERE work_center_id = $1 AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id'], context.userId]);
       const created: Record<string, any>[] = [];
@@ -1409,11 +1736,6 @@ export function masterDataRouter(pool: Pool): Router {
           ON ws.work_center_id = wc.master_id
          AND ws.active_flag = TRUE
          AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
-        JOIN md_workstation_operation_capability capability
-          ON capability.workstation_id = ws.master_id
-         AND capability.operation_id = $1
-         AND capability.active_flag = TRUE
-         AND (capability.effective_to IS NULL OR capability.effective_to > NOW())
         WHERE wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')
         GROUP BY wc.master_id, wc.code, wc.name, sf.code, sf.name, s.code, s.name
         ORDER BY wc.code`, [req.params['operationId']]);
@@ -1576,20 +1898,23 @@ export function masterDataRouter(pool: Pool): Router {
       const role = body['role'] === 'Primary' ? 'Primary' : 'Supporting';
       if (role === 'Primary') { const primary = await client.query(`SELECT 1 FROM md_resource_assignment WHERE machine_group_id = $1 AND assignment_role = 'Primary' AND effective_to IS NULL`, [req.params['groupId']]); if (primary.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_MULTIPLE_PRIMARY'), { statusCode: 422 }); }
       const count = await client.query(`SELECT COUNT(*)::int AS count FROM md_resource_assignment WHERE machine_group_id = $1 AND effective_to IS NULL`, [req.params['groupId']]);
-      const row = await client.query(`INSERT INTO md_resource_assignment (code, name, site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id, assignment_type, assignment_role, requirement_type, sequence_no, scheduling_flag, oee_aggregation_flag, effective_from, created_by) VALUES ($1,$2::jsonb,$3,$4,$5,$6,$7,$8,'MachineGroupMember',$9,$10,$11,TRUE,$12,$13,$14) RETURNING *`, [`RA-${group.rows[0].code}-${Number(count.rows[0].count) + 1}`, JSON.stringify({ vi: 'Thành viên nhóm máy', en: 'Machine group member' }), group.rows[0].site_id, group.rows[0].work_center_id, group.rows[0].workstation_id, body['machine_id'], req.params['groupId'], unit.machine_unit_id, role, body['requirement_type'] === 'Optional' ? 'Optional' : 'Required', Number(count.rows[0].count) + 1, role === 'Primary' || body['requirement_type'] !== 'Optional', new Date(String(body['effective_from'] || new Date().toISOString())).toISOString(), context.userId]);
+      const effectiveFrom = new Date(String(body['effective_from'] || new Date().toISOString())).toISOString();
+      const requirementType = body['requirement_type'] === 'Optional' ? 'Optional' : 'Required';
+      const row = await client.query(`INSERT INTO md_resource_assignment (code, name, site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id, assignment_type, assignment_role, requirement_type, sequence_no, scheduling_flag, oee_aggregation_flag, effective_from, effective_to, created_by) VALUES ($1,$2::jsonb,$3,$4,$5,$6,$7,$8,'MachineGroupMember',$9,$10,$11,TRUE,$12,$13,$14,$15) RETURNING *`, [`RA-${group.rows[0].code}-${Number(count.rows[0].count) + 1}`, JSON.stringify({ vi: 'Thành viên nhóm máy', en: 'Machine group member' }), group.rows[0].site_id, group.rows[0].work_center_id, group.rows[0].workstation_id, body['machine_id'], req.params['groupId'], unit.machine_unit_id, role, requirementType, Number(count.rows[0].count) + 1, role === 'Primary' || requirementType !== 'Optional', effectiveFrom, group.rows[0].effective_to || null, context.userId]);
+      await addMachineGroupRequirementForAssignment(client, group.rows[0], machine.rows[0], unit, role, requirementType, effectiveFrom, context);
       await client.query('COMMIT'); return res.status(201).json({ data: { ...row.rows[0], machine_unit_code: unit.code, machine_code: machine.rows[0].code, machine_name: machine.rows[0].name } });
     } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
   });
 
   router.post('/workstations/:id/machine-groups/:groupId/members/:memberId/end', async (req, res, next) => {
     const effectiveTo = new Date(String(req.body?.effective_to || new Date().toISOString())); const client = await pool.connect();
-    try { await client.query('BEGIN'); const group = await client.query(`SELECT COUNT(*)::int AS count FROM md_resource_assignment WHERE machine_group_id = $1 AND effective_to IS NULL AND master_id <> $2`, [req.params['groupId'], req.params['memberId']]); if (Number(group.rows[0]?.count || 0) < 1) throw Object.assign(new Error('MACHINE_GROUP_MEMBER_REQUIRED'), { statusCode: 422 }); const row = await client.query(`UPDATE md_resource_assignment SET effective_to = $1 WHERE master_id = $2 AND machine_group_id = $3 AND (effective_to IS NULL OR effective_to > $1) RETURNING *`, [effectiveTo.toISOString(), req.params['memberId'], req.params['groupId']]); if (!row.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_MEMBER_NOT_FOUND'), { statusCode: 404 }); await client.query('COMMIT'); return res.json({ data: row.rows[0] }); }
+    try { await client.query('BEGIN'); const group = await client.query(`SELECT COUNT(*)::int AS count FROM md_resource_assignment WHERE machine_group_id = $1 AND effective_to IS NULL AND master_id <> $2`, [req.params['groupId'], req.params['memberId']]); if (Number(group.rows[0]?.count || 0) < 1) throw Object.assign(new Error('MACHINE_GROUP_MEMBER_REQUIRED'), { statusCode: 422 }); const current = await client.query(`SELECT * FROM md_resource_assignment WHERE master_id = $1 AND machine_group_id = $2 AND (effective_to IS NULL OR effective_to > $3) FOR UPDATE`, [req.params['memberId'], req.params['groupId'], effectiveTo.toISOString()]); if (!current.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_MEMBER_NOT_FOUND'), { statusCode: 404 }); const row = await client.query(`UPDATE md_resource_assignment SET effective_to = $1, updated_at = NOW() WHERE master_id = $2 AND machine_group_id = $3 AND (effective_to IS NULL OR effective_to > $1) RETURNING *`, [effectiveTo.toISOString(), req.params['memberId'], req.params['groupId']]); if (!row.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_MEMBER_NOT_FOUND'), { statusCode: 404 }); await endMachineGroupRequirementForAssignment(client, current.rows[0], effectiveTo.toISOString(), { userId: getContext(req).userId }); await client.query('COMMIT'); return res.json({ data: row.rows[0] }); }
     catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
   });
 
   router.post('/workstations/:id/machine-groups/:groupId/replace-primary', async (req, res, next) => {
     const context = getContext(req); const body = normalizeBody(req.body); const client = await pool.connect();
-    try { await client.query('BEGIN'); const current = await client.query(`SELECT master_id FROM md_resource_assignment WHERE machine_group_id = $1 AND assignment_role = 'Primary' AND effective_to IS NULL FOR UPDATE`, [req.params['groupId']]); if (!current.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_NO_PRIMARY'), { statusCode: 422 }); const end = new Date(String(body['effective_from'] || new Date().toISOString())); const group = await client.query(`SELECT * FROM md_workstation_machine_group WHERE master_id = $1 AND workstation_id = $2 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['groupId'], req.params['id']]); if (!group.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_NOT_FOUND'), { statusCode: 404 }); if (!body['machine_id']) throw Object.assign(new Error('MACHINE_GROUP_MACHINE_REQUIRED'), { statusCode: 422 }); const machine = await client.query(`SELECT master_id, code, name, site_id, active_flag, execution_status FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [body['machine_id']]); if (!machine.rows[0] || machine.rows[0].site_id !== group.rows[0].site_id || machine.rows[0].active_flag !== true || machine.rows[0].execution_status !== 'Available') throw Object.assign(new Error('MACHINE_HIERARCHY_OR_STATUS_INVALID'), { statusCode: 422 }); const unit = await resolveMachineUnit(client, String(body['machine_id']), body['machine_unit_id'] as string | undefined); await client.query(`UPDATE md_resource_assignment SET effective_to = $1 WHERE master_id = $2`, [end.toISOString(), current.rows[0].master_id]); const next = await client.query(`INSERT INTO md_resource_assignment (code, name, site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id, assignment_type, assignment_role, requirement_type, sequence_no, scheduling_flag, oee_aggregation_flag, effective_from, created_by) VALUES ($1,$2::jsonb,$3,$4,$5,$6,$7,$8,'MachineGroupMember','Primary','Required',1,TRUE,TRUE,$9,$10) RETURNING *`, [`RA-${group.rows[0].code}-${Date.now()}`, JSON.stringify({ vi: 'Thay máy chính', en: 'Replace primary machine', ja: '主機械を交換', ko: '주 머신 교체' }), group.rows[0].site_id, group.rows[0].work_center_id, group.rows[0].workstation_id, machine.rows[0].master_id, group.rows[0].master_id, unit.machine_unit_id, end.toISOString(), context.userId]); await client.query('COMMIT'); return res.status(201).json({ data: { ...next.rows[0], machine_code: machine.rows[0].code, machine_name: machine.rows[0].name, machine_unit_code: unit.code }, replaced_member_id: current.rows[0].master_id }); }
+    try { await client.query('BEGIN'); const current = await client.query(`SELECT * FROM md_resource_assignment WHERE machine_group_id = $1 AND assignment_role = 'Primary' AND effective_to IS NULL FOR UPDATE`, [req.params['groupId']]); if (!current.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_NO_PRIMARY'), { statusCode: 422 }); const end = new Date(String(body['effective_from'] || new Date().toISOString())); const group = await client.query(`SELECT * FROM md_workstation_machine_group WHERE master_id = $1 AND workstation_id = $2 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['groupId'], req.params['id']]); if (!group.rows[0]) throw Object.assign(new Error('MACHINE_GROUP_NOT_FOUND'), { statusCode: 404 }); if (!body['machine_id']) throw Object.assign(new Error('MACHINE_GROUP_MACHINE_REQUIRED'), { statusCode: 422 }); const machine = await client.query(`SELECT master_id, code, name, site_id, active_flag, execution_status FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [body['machine_id']]); if (!machine.rows[0] || machine.rows[0].site_id !== group.rows[0].site_id || machine.rows[0].active_flag !== true || machine.rows[0].execution_status !== 'Available') throw Object.assign(new Error('MACHINE_HIERARCHY_OR_STATUS_INVALID'), { statusCode: 422 }); const unit = await resolveMachineUnit(client, String(body['machine_id']), body['machine_unit_id'] as string | undefined); await client.query(`UPDATE md_resource_assignment SET effective_to = $1 WHERE master_id = $2`, [end.toISOString(), current.rows[0].master_id]); await endMachineGroupRequirementForAssignment(client, current.rows[0], end.toISOString(), context); const next = await client.query(`INSERT INTO md_resource_assignment (code, name, site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id, assignment_type, assignment_role, requirement_type, sequence_no, scheduling_flag, oee_aggregation_flag, effective_from, created_by) VALUES ($1,$2::jsonb,$3,$4,$5,$6,$7,$8,'MachineGroupMember','Primary','Required',1,TRUE,TRUE,$9,$10) RETURNING *`, [`RA-${group.rows[0].code}-${Date.now()}`, JSON.stringify({ vi: 'Thay máy chính', en: 'Replace primary machine', ja: '主機械を交換', ko: '주 머신 교체' }), group.rows[0].site_id, group.rows[0].work_center_id, group.rows[0].workstation_id, machine.rows[0].master_id, group.rows[0].master_id, unit.machine_unit_id, end.toISOString(), context.userId]); await addMachineGroupRequirementForAssignment(client, group.rows[0], machine.rows[0], unit, 'Primary', 'Required', end.toISOString(), context); await client.query('COMMIT'); return res.status(201).json({ data: { ...next.rows[0], machine_code: machine.rows[0].code, machine_name: machine.rows[0].name, machine_unit_code: unit.code }, replaced_member_id: current.rows[0].master_id }); }
     catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
   });
 
@@ -1607,6 +1932,23 @@ export function masterDataRouter(pool: Pool): Router {
       const start = new Date(String(body['effective_from']));
       const end = body['effective_to'] ? new Date(String(body['effective_to'])) : null;
       if (Number.isNaN(start.getTime()) || (end && (Number.isNaN(end.getTime()) || end <= start))) throw Object.assign(new Error('effective_to must be after effective_from'), { statusCode: 422 });
+      const workstation = await client.query(`SELECT master_id, site_id, work_center_id, active_flag FROM md_workstation WHERE master_id = $1 FOR UPDATE`, [body['workstation_id']]);
+      if (!workstation.rows[0] || workstation.rows[0].active_flag !== true) throw Object.assign(new Error('RESOURCE_ASSIGNMENT_WORKSTATION_MISMATCH'), { statusCode: 422 });
+      if (String(body['site_id']) !== String(workstation.rows[0].site_id) || String(body['work_center_id']) !== String(workstation.rows[0].work_center_id)) throw Object.assign(new Error('RESOURCE_ASSIGNMENT_WORKSTATION_MISMATCH'), { statusCode: 422 });
+      if (body['machine_group_id']) {
+        const group = await client.query(`SELECT master_id, workstation_id, site_id, work_center_id, lifecycle_status FROM md_workstation_machine_group WHERE master_id = $1 FOR UPDATE`, [body['machine_group_id']]);
+        if (!group.rows[0] || String(group.rows[0].workstation_id) !== String(body['workstation_id']) || String(group.rows[0].site_id) !== String(body['site_id']) || String(group.rows[0].work_center_id) !== String(body['work_center_id']) || ['Inactive', 'Obsolete'].includes(String(group.rows[0].lifecycle_status))) throw Object.assign(new Error('RESOURCE_ASSIGNMENT_WORKSTATION_MISMATCH'), { statusCode: 422 });
+      }
+      if (body['equipment_id']) {
+        const equipment = await client.query(`SELECT master_id, site_id, active_flag, execution_status FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [body['equipment_id']]);
+        if (!equipment.rows[0] || String(equipment.rows[0].site_id) !== String(body['site_id']) || equipment.rows[0].active_flag !== true || equipment.rows[0].execution_status === 'OutOfService') throw Object.assign(new Error('RESOURCE_ASSIGNMENT_EQUIPMENT_INVALID'), { statusCode: 422 });
+        if (body['machine_unit_id']) {
+          const unit = await client.query(`SELECT machine_unit_id, machine_id, active_flag, execution_status FROM md_machine_unit WHERE machine_unit_id = $1 FOR UPDATE`, [body['machine_unit_id']]);
+          if (!unit.rows[0] || String(unit.rows[0].machine_id) !== String(body['equipment_id']) || unit.rows[0].active_flag !== true || unit.rows[0].execution_status !== 'Available') throw Object.assign(new Error('RESOURCE_ASSIGNMENT_MACHINE_UNIT_INVALID'), { statusCode: 422 });
+        }
+      } else if (body['machine_unit_id']) {
+        throw Object.assign(new Error('RESOURCE_ASSIGNMENT_MACHINE_UNIT_INVALID'), { statusCode: 422 });
+      }
       const record = await client.query(`
         INSERT INTO md_resource_assignment
           (code, name, site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id, assignment_type, assignment_role, requirement_type, sequence_no,
@@ -1662,18 +2004,30 @@ export function masterDataRouter(pool: Pool): Router {
       const current = currentResult.rows[0] as Record<string, any> | undefined;
       if (!current) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Assignment not found' }); }
       if (effectiveFrom <= new Date(current['effective_from'])) { await client.query('ROLLBACK'); return res.status(422).json({ error: 'effective_from must be after the current assignment start' }); }
+      const nextWorkstationId = body['workstation_id'] || current['workstation_id'];
+      const nextWorkCenterId = body['work_center_id'] || current['work_center_id'];
+      const nextSiteId = body['site_id'] || current['site_id'];
+      const nextEquipmentId = body['equipment_id'] === undefined ? current['equipment_id'] : (body['equipment_id'] || null);
+      const workstation = await client.query(`SELECT site_id, work_center_id, active_flag FROM md_workstation WHERE master_id = $1 FOR UPDATE`, [nextWorkstationId]);
+      if (!workstation.rows[0] || workstation.rows[0].active_flag !== true || String(workstation.rows[0].site_id) !== String(nextSiteId) || String(workstation.rows[0].work_center_id) !== String(nextWorkCenterId)) throw Object.assign(new Error('RESOURCE_ASSIGNMENT_WORKSTATION_MISMATCH'), { statusCode: 422 });
+      if (nextEquipmentId) {
+        const equipment = await client.query(`SELECT site_id, active_flag, execution_status FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [nextEquipmentId]);
+        if (!equipment.rows[0] || String(equipment.rows[0].site_id) !== String(nextSiteId) || equipment.rows[0].active_flag !== true || equipment.rows[0].execution_status === 'OutOfService') throw Object.assign(new Error('RESOURCE_ASSIGNMENT_EQUIPMENT_INVALID'), { statusCode: 422 });
+      }
+      if (current['machine_unit_id']) {
+        const unit = await client.query(`SELECT machine_id, active_flag, execution_status FROM md_machine_unit WHERE machine_unit_id = $1 FOR UPDATE`, [current['machine_unit_id']]);
+        if (!unit.rows[0] || String(unit.rows[0].machine_id) !== String(nextEquipmentId) || unit.rows[0].active_flag !== true || unit.rows[0].execution_status !== 'Available') throw Object.assign(new Error('RESOURCE_ASSIGNMENT_MACHINE_UNIT_INVALID'), { statusCode: 422 });
+      }
       const closed = await client.query('UPDATE md_resource_assignment SET effective_to = $1 WHERE master_id = $2 RETURNING *', [effectiveFrom.toISOString(), current['master_id']]);
       const next = await client.query(`
         INSERT INTO md_resource_assignment
-          (code, name, site_id, work_center_id, workstation_id, equipment_id, assignment_type, assignment_role,
-           scheduling_flag, oee_aggregation_flag, effective_from, effective_to, created_by)
-        VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          (code, name, site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id,
+           assignment_type, assignment_role, requirement_type, sequence_no, scheduling_flag, oee_aggregation_flag, effective_from, effective_to, created_by)
+        VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *`, [
         body['code'] || `MOVE-${String(current['code']).slice(0, 24)}-${effectiveFrom.getTime()}`,
-        JSON.stringify(body['name'] || current['name']), body['site_id'] || current['site_id'],
-        body['work_center_id'] || current['work_center_id'], body['workstation_id'] || current['workstation_id'],
-        body['equipment_id'] === undefined ? current['equipment_id'] : (body['equipment_id'] || null),
-        current['assignment_type'], current['assignment_role'], current['scheduling_flag'], current['oee_aggregation_flag'],
+        JSON.stringify(body['name'] || current['name']), nextSiteId, nextWorkCenterId, nextWorkstationId, nextEquipmentId,
+        current['machine_group_id'], current['machine_unit_id'], current['assignment_type'], current['assignment_role'], current['requirement_type'], current['sequence_no'], current['scheduling_flag'], current['oee_aggregation_flag'],
         effectiveFrom.toISOString(), body['effective_to'] ? new Date(String(body['effective_to'])).toISOString() : current['effective_to'], context.userId,
       ]);
       const endedType = 'MES.MasterData.ResourceAssignmentEnded.v1';
@@ -1710,7 +2064,7 @@ export function masterDataRouter(pool: Pool): Router {
       const { rows } = await pool.query(`
         SELECT eq.master_id AS machine_id, eq.code, eq.name, eq.quantity,
                COUNT(mu.machine_unit_id) FILTER (WHERE mu.active_flag = TRUE) AS total_units,
-               COUNT(mu.machine_unit_id) FILTER (WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available'
+               COUNT(mu.machine_unit_id) FILTER (WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available' AND mu.physical_identity_status = 'Identified' AND mu.planning_resource_flag = TRUE
                  AND NOT EXISTS (
                    SELECT 1 FROM md_resource_assignment ra
                    WHERE ra.machine_unit_id = mu.machine_unit_id
@@ -1719,7 +2073,7 @@ export function masterDataRouter(pool: Pool): Router {
                      AND ra.effective_from < $2::timestamptz
                      AND $1::timestamptz < COALESCE(ra.effective_to, 'infinity'::timestamptz)
                  )) AS available_unit_count,
-               COALESCE(jsonb_agg(jsonb_build_object('machine_unit_id', mu.machine_unit_id, 'code', mu.code, 'execution_status', mu.execution_status)) FILTER (WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available'
+               COALESCE(jsonb_agg(jsonb_build_object('machine_unit_id', mu.machine_unit_id, 'code', mu.code, 'execution_status', mu.execution_status, 'serial_number', mu.serial_number)) FILTER (WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available' AND mu.physical_identity_status = 'Identified' AND mu.planning_resource_flag = TRUE
                  AND NOT EXISTS (
                    SELECT 1 FROM md_resource_assignment ra
                    WHERE ra.machine_unit_id = mu.machine_unit_id
@@ -1743,7 +2097,6 @@ export function masterDataRouter(pool: Pool): Router {
       if (!detail.rows[0]) return res.status(404).json({ error: 'Not Found' });
       const assignments = await pool.query(`SELECT ra.*, wc.code AS work_center_code, wc.name AS work_center_name, eq.code AS equipment_code, eq.name AS equipment_name, mu.code AS machine_unit_code, mg.code AS machine_group_code FROM md_resource_assignment ra JOIN md_work_center wc ON wc.master_id = ra.work_center_id LEFT JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id LEFT JOIN md_workstation_machine_group mg ON mg.master_id = ra.machine_group_id WHERE ra.workstation_id = $1 ORDER BY ra.effective_from DESC`, [req.params['id']]);
       const groups = await pool.query(`SELECT mg.*, s.code AS site_code, sf.code AS shopfloor_code, wc.code AS work_center_code, ws.code AS workstation_code FROM md_workstation_machine_group mg JOIN md_site s ON s.master_id = mg.site_id JOIN md_shopfloor sf ON sf.master_id = mg.shopfloor_id JOIN md_work_center wc ON wc.master_id = mg.work_center_id JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.workstation_id = $1 AND mg.lifecycle_status NOT IN ('Inactive','Obsolete') AND (mg.effective_to IS NULL OR mg.effective_to > NOW()) ORDER BY mg.code`, [req.params['id']]);
-      const capabilities = await pool.query(`SELECT c.*, o.code AS operation_code, o.name AS operation_name FROM md_workstation_operation_capability c JOIN md_operation o ON o.master_id = c.operation_id WHERE c.workstation_id = $1 AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW()) ORDER BY c.effective_from DESC, o.code`, [req.params['id']]);
       const printStationIntegration = await pool.query(`SELECT b.binding_id, b.allocated_printer_quantity, ps.master_id AS print_station_id, ps.code AS print_station_code, ps.name AS print_station_name, ps.status AS lifecycle_status,
         rt.adapter_id, rt.runtime_status, rt.kafka_status, rt.registered_printer_count, rt.ready_printer_count, rt.active_for_work_printer_count, rt.last_heartbeat_at, rt.last_error,
         COALESCE(rt.printer_snapshot, '[]'::jsonb) AS printers,
@@ -1756,7 +2109,7 @@ export function masterDataRouter(pool: Pool): Router {
         const requirements = await pool.query(`SELECT r.*, eq.code AS machine_code, eq.name AS machine_name FROM md_workstation_machine_requirement r JOIN md_equipment eq ON eq.master_id = r.machine_id WHERE r.machine_group_id = $1 ORDER BY r.sequence_no`, [group.master_id]);
         group.requirements = requirements.rows;
       }
-      return res.json({ data: { ...detail.rows[0], assignments: assignments.rows, machine_groups: groups.rows, operation_capabilities: capabilities.rows, print_station_integration: printStationIntegration.rows[0] ?? null } });
+      return res.json({ data: { ...detail.rows[0], assignments: assignments.rows, machine_groups: groups.rows, print_station_integration: printStationIntegration.rows[0] ?? null } });
     } catch (err) { return next(err); }
   });
 
@@ -1767,7 +2120,39 @@ export function masterDataRouter(pool: Pool): Router {
       const assignments = await pool.query(`SELECT ra.*, wc.code AS work_center_code, wc.name AS work_center_name, ws.code AS workstation_code, ws.name AS workstation_name, mg.code AS machine_group_code, mu.code AS machine_unit_code FROM md_resource_assignment ra JOIN md_work_center wc ON wc.master_id = ra.work_center_id LEFT JOIN md_workstation ws ON ws.master_id = ra.workstation_id LEFT JOIN md_workstation_machine_group mg ON mg.master_id = ra.machine_group_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id WHERE ra.equipment_id = $1 ORDER BY ra.effective_from DESC`, [req.params['id']]);
       const units = await pool.query(`SELECT * FROM md_machine_unit WHERE machine_id = $1 ORDER BY unit_sequence`, [req.params['id']]);
       const skills = await pool.query(`SELECT rsa.assignment_id, rsa.minimum_level, rsa.required_flag, rsa.effective_from, rsa.effective_to, s.code AS skill_code, s.name AS skill_name, s.scope AS skill_scope FROM md_resource_skill_assignment rsa JOIN md_skill s ON s.master_id = rsa.skill_id WHERE rsa.resource_type = 'Machine' AND rsa.resource_id = $1 AND rsa.active_flag = TRUE AND rsa.effective_to IS NULL ORDER BY s.code`, [req.params['id']]);
-      return res.json({ data: { ...detail.rows[0], assignments: assignments.rows, units: units.rows, skills: skills.rows, available_unit_count: units.rows.filter((unit) => unit.active_flag && unit.execution_status === 'Available').length } });
+      const capabilities = await pool.query(`SELECT rc.master_id AS capability_id, rc.code, rc.operation_id, op.code AS operation_code, op.name AS operation_name,
+          rc.product_revision_id, r.revision_code, i.code AS item_code, i.name AS item_name, rc.item_group, rc.eligibility, rc.priority_no,
+          rc.speed_factor, rc.min_lot_size, rc.max_lot_size, rc.effective_from, rc.effective_to
+        FROM md_resource_capability rc LEFT JOIN md_operation op ON op.master_id = rc.operation_id
+        LEFT JOIN md_item_revision r ON r.master_id = rc.product_revision_id LEFT JOIN md_item i ON i.master_id = r.item_id
+        WHERE rc.equipment_id = $1 AND rc.active_flag = TRUE AND rc.effective_to IS NULL ORDER BY op.code, rc.priority_no`, [req.params['id']]);
+      const calendars = await pool.query(`SELECT c.master_id AS calendar_id, c.calendar_date, c.shift_id, sh.code AS shift_code, sh.name AS shift_name,
+          c.resource_type, c.availability_status, c.available_minutes, c.capacity_factor, c.available_from, c.available_to
+        FROM md_resource_calendar c LEFT JOIN md_shift sh ON sh.master_id = c.shift_id
+        WHERE c.equipment_id = $1 OR (c.resource_type = 'Equipment' AND c.resource_id = $1)
+        ORDER BY c.calendar_date DESC NULLS LAST, c.available_from DESC LIMIT 50`, [req.params['id']]);
+      const equipment = detail.rows[0];
+      const availableUnitCount = units.rows.filter((unit) => unit.active_flag && unit.execution_status === 'Available').length;
+      const activeAssignments = assignments.rows.filter((assignment) => assignment.active_flag !== false && (!assignment.effective_to || new Date(assignment.effective_to) > new Date()));
+      const blockingErrors: Array<Record<string, any>> = [];
+      const warnings: Array<Record<string, any>> = [];
+      if (equipment.active_flag !== true) blockingErrors.push({ code: 'EQUIPMENT_INACTIVE' });
+      if (equipment.execution_status === 'OutOfService') blockingErrors.push({ code: 'EQUIPMENT_OUT_OF_SERVICE' });
+      if (equipment.planning_resource_flag !== true) warnings.push({ code: 'EQUIPMENT_NOT_PLANNING_RESOURCE' });
+      if (!availableUnitCount) blockingErrors.push({ code: 'EQUIPMENT_MACHINE_UNIT_UNAVAILABLE' });
+      if (!activeAssignments.length) warnings.push({ code: 'EQUIPMENT_ASSIGNMENT_INVALID' });
+      return res.json({ data: { ...equipment, assignments: assignments.rows, units: units.rows, skills: skills.rows, capabilities: capabilities.rows, calendars: calendars.rows, available_unit_count: availableUnitCount, readiness: {
+        status: blockingErrors.length ? 'Blocked' : 'Unknown', evaluated_at: new Date().toISOString(),
+        equipment: { id: equipment.master_id, code: equipment.code, name: equipment.name, lifecycle_status: equipment.lifecycle_status, active_flag: equipment.active_flag, execution_status: equipment.execution_status, planning_resource_flag: equipment.planning_resource_flag },
+        machine_unit: { status: availableUnitCount > 0 ? 'Available' : 'Unavailable', available: availableUnitCount, total: units.rows.length },
+        assignment: { status: activeAssignments.length ? 'Valid' : 'Unknown', active_count: activeAssignments.length },
+        capability: { status: capabilities.rows.length ? 'Configured' : 'Unknown', count: capabilities.rows.length },
+        calendar: { status: calendars.rows.length ? 'Configured' : 'Unknown', count: calendars.rows.length },
+        capacity: { status: 'Unknown', reason: 'Capacity reservations are owned by MES Execution and require a Work Order context.' },
+        maintenance: { status: 'Unknown', reason: 'No authoritative CMMS maintenance projection is configured.' }, calibration: { status: 'Unknown', reason: 'No authoritative calibration projection is configured.' },
+        operational_state: { status: equipment.execution_status || 'Unknown', state_source: 'md_equipment', observed_at: equipment.updated_at || null, freshness: 'Unknown' },
+        blocking_errors: blockingErrors, warnings: [...warnings, { code: 'EQUIPMENT_READINESS_UNKNOWN' }, { code: 'EQUIPMENT_STATE_STALE' }],
+      } } });
     } catch (err) { return next(err); }
   });
 
@@ -1807,14 +2192,21 @@ export function masterDataRouter(pool: Pool): Router {
         SELECT ra.master_id AS assignment_id, ra.assignment_role, ra.effective_from, ra.effective_to,
                ws.master_id AS workstation_id, ws.code AS workstation_code, ws.name AS workstation_name, ws.active_flag AS workstation_active,
                eq.master_id AS equipment_id, eq.code AS equipment_code, eq.name AS equipment_name, eq.active_flag AS equipment_active,
-               eq.execution_status, eq.planning_resource_flag, eq.default_efficiency
+               eq.lifecycle_status AS equipment_lifecycle_status, eq.site_id AS equipment_site_id, eq.work_center_id AS equipment_work_center_id,
+               eq.execution_status, eq.planning_resource_flag, eq.default_efficiency,
+               COUNT(mu.machine_unit_id) FILTER (WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available' AND mu.physical_identity_status = 'Identified' AND mu.planning_resource_flag = TRUE)::INT AS available_unit_count,
+               COUNT(mu.machine_unit_id)::INT AS machine_unit_count
         FROM md_resource_assignment ra
         JOIN md_workstation ws ON ws.master_id = ra.workstation_id
         LEFT JOIN md_equipment eq ON eq.master_id = ra.equipment_id
+        LEFT JOIN md_machine_unit mu ON mu.machine_id = eq.master_id
         WHERE ra.site_id = $1 AND ra.work_center_id = $2 AND ra.scheduling_flag = TRUE
+          AND ra.lifecycle_status NOT IN ('Inactive','Obsolete')
           AND ra.machine_group_id IS NULL
           AND ra.effective_from < ($3::date + INTERVAL '1 day') AND (ra.effective_to IS NULL OR ra.effective_to > $3::date)
-          ORDER BY COALESCE(eq.code, ''), ws.code, ra.master_id`, [siteId, workCenterId, plannedDate]);
+        GROUP BY ra.master_id, ra.assignment_role, ra.effective_from, ra.effective_to, ws.master_id, ws.code, ws.name, ws.active_flag,
+          eq.master_id, eq.code, eq.name, eq.active_flag, eq.lifecycle_status, eq.site_id, eq.work_center_id, eq.execution_status, eq.planning_resource_flag, eq.default_efficiency
+        ORDER BY COALESCE(eq.code, ''), ws.code, ra.master_id`, [siteId, workCenterId, plannedDate]);
       const candidates: Array<Record<string, any>> = [];
       for (const assignment of assignments.rows as Array<Record<string, any>>) {
         const equipmentId = assignment.equipment_id || null;
@@ -1832,6 +2224,9 @@ export function masterDataRouter(pool: Pool): Router {
         const capability = capabilityResult.rows[0] as Record<string, any> | undefined;
         const candidateWarnings: Array<Record<string, any>> = [];
         const candidateErrors: Array<Record<string, any>> = [];
+        if (assignment.equipment_id) {
+          candidateWarnings.push({ code: 'EQUIPMENT_MAINTENANCE_STATE_UNKNOWN' }, { code: 'EQUIPMENT_CALIBRATION_STATE_UNKNOWN' }, { code: 'EQUIPMENT_STATE_STALE' });
+        }
         if (!capability) candidateErrors.push({ code: 'NO_EFFECTIVE_CAPABILITY' });
         else if (!capability.eligibility) candidateErrors.push({ code: 'CAPABILITY_EXPLICIT_DENY' });
         else {
@@ -1839,7 +2234,11 @@ export function masterDataRouter(pool: Pool): Router {
           if (capability.max_lot_size !== null && quantity > Number(capability.max_lot_size)) candidateErrors.push({ code: 'LOT_SIZE_ABOVE_MAXIMUM', max_lot_size: capability.max_lot_size });
         }
         if (!assignment.workstation_active) candidateErrors.push({ code: 'WORKSTATION_INACTIVE' });
+        if (assignment.equipment_id && assignment.equipment_site_id !== siteId) candidateErrors.push({ code: 'EQUIPMENT_ASSIGNMENT_INVALID', reason: 'Equipment site does not match the planning site.' });
+        if (assignment.equipment_id && assignment.equipment_work_center_id && assignment.equipment_work_center_id !== workCenterId) candidateErrors.push({ code: 'EQUIPMENT_ASSIGNMENT_INVALID', reason: 'Equipment Work Center does not match the planning Work Center.' });
+        if (assignment.equipment_id && ['Inactive', 'Obsolete'].includes(assignment.equipment_lifecycle_status)) candidateErrors.push({ code: 'EQUIPMENT_INACTIVE' });
         if (assignment.equipment_id && (!assignment.equipment_active || assignment.execution_status !== 'Available')) candidateErrors.push({ code: assignment.execution_status === 'OutOfService' ? 'EQUIPMENT_OUT_OF_SERVICE' : 'EQUIPMENT_NOT_AVAILABLE' });
+        if (assignment.equipment_id && Number(assignment.available_unit_count || 0) < 1) candidateErrors.push({ code: 'EQUIPMENT_MACHINE_UNIT_UNAVAILABLE', available: Number(assignment.available_unit_count || 0), total: Number(assignment.machine_unit_count || 0) });
         if (assignment.equipment_id && !assignment.planning_resource_flag) candidateErrors.push({ code: 'EQUIPMENT_NOT_PLANNING_RESOURCE' });
         const resourceCalendar = await pool.query(`
           SELECT c.* FROM md_resource_calendar c
@@ -1887,18 +2286,51 @@ export function masterDataRouter(pool: Pool): Router {
           skill_requirements: skillResult.rows,
           estimated_duration_min: estimatedDuration,
           calculation: { adjusted_cycle_time_sec: adjustedCycleTime, run_duration_min: runDuration, setup_time_min: Number(standard?.setup_time_min || 0), queue_time_min: Number(context.queue_time_min || 0), move_time_min: Number(context.move_time_min || 0), formula: 'setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move' },
-          readiness: candidateErrors.length ? 'Blocked' : candidateWarnings.length ? 'ReadyWithWarnings' : 'Eligible',
+          readiness: candidateErrors.length ? 'Blocked' : candidateWarnings.length ? 'ReadyWithWarnings' : 'Ready',
+          equipment_readiness: {
+            status: candidateErrors.length ? 'Blocked' : 'ReadyWithWarnings', evaluated_at: new Date().toISOString(),
+            equipment: assignment.equipment_id ? { id: assignment.equipment_id, code: assignment.equipment_code, name: assignment.equipment_name, lifecycle_status: assignment.equipment_lifecycle_status, execution_status: assignment.execution_status } : null,
+            machine_unit: assignment.equipment_id ? { status: Number(assignment.available_unit_count || 0) > 0 ? 'Available' : 'Unavailable', available: Number(assignment.available_unit_count || 0), total: Number(assignment.machine_unit_count || 0) } : { status: 'NotApplicable' },
+            assignment: { status: 'Valid', id: assignment.assignment_id, role: assignment.assignment_role }, capability: { status: capability ? (capability.eligibility ? 'Matched' : 'Denied') : 'Missing', id: capability?.master_id || null },
+            calendar: { status: calendar && calendar.availability_status === 'Available' && Number(calendar.available_minutes) > 0 ? 'Available' : calendar ? 'Unavailable' : 'Missing', id: calendar?.master_id || null }, capacity: { status: 'PendingExecutionCheck' },
+            maintenance: { status: 'Unknown' }, calibration: { status: 'Unknown' }, operational_state: { status: assignment.execution_status || 'Unknown', state_source: 'md_equipment', freshness: 'Unknown' },
+            blocking_errors: candidateErrors, warnings: [...candidateWarnings, { code: 'EQUIPMENT_MAINTENANCE_STATE_UNKNOWN' }, { code: 'EQUIPMENT_CALIBRATION_STATE_UNKNOWN' }, { code: 'EQUIPMENT_STATE_STALE' }],
+          },
           blocking_errors: candidateErrors,
           warnings: candidateWarnings,
         });
       }
       const groupRows = await pool.query(`SELECT mg.*, ws.code AS workstation_code, ws.name AS workstation_name FROM md_workstation_machine_group mg JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.site_id = $1 AND mg.work_center_id = $2 AND mg.lifecycle_status = 'Released' AND ws.lifecycle_status = 'Released' AND mg.effective_from < ($3::date + INTERVAL '1 day') AND (mg.effective_to IS NULL OR mg.effective_to > $3::date) ORDER BY mg.code`, [siteId, workCenterId, plannedDate]);
       for (const group of groupRows.rows as Array<Record<string, any>>) {
-        const memberRows = await pool.query(`SELECT ra.master_id AS assignment_id, ra.assignment_role AS role, ra.requirement_type, ra.effective_from, ra.effective_to, eq.master_id AS machine_id, eq.code AS machine_code, eq.name AS machine_name, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status, eq.planning_resource_flag, eq.default_efficiency, mu.machine_unit_id, mu.code AS machine_unit_code, mu.execution_status AS unit_execution_status FROM md_resource_assignment ra JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id WHERE ra.machine_group_id = $1 AND ra.effective_from < ($2::date + INTERVAL '1 day') AND (ra.effective_to IS NULL OR ra.effective_to > $2::date) ORDER BY ra.sequence_no`, [group.master_id, plannedDate]);
+        const [memberRows, requirementRows] = await Promise.all([
+          pool.query(`SELECT ra.master_id AS assignment_id, ra.assignment_role AS role, ra.requirement_type, ra.effective_from, ra.effective_to, eq.master_id AS machine_id, eq.code AS machine_code, eq.name AS machine_name, eq.active_flag AS machine_active, eq.execution_status AS machine_execution_status, eq.planning_resource_flag, eq.default_efficiency, mu.machine_unit_id, mu.code AS machine_unit_code, mu.execution_status AS unit_execution_status FROM md_resource_assignment ra JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id WHERE ra.machine_group_id = $1 AND ra.lifecycle_status NOT IN ('Inactive','Obsolete') AND ra.effective_from < ($2::date + INTERVAL '1 day') AND (ra.effective_to IS NULL OR ra.effective_to > $2::date) ORDER BY ra.sequence_no`, [group.master_id, plannedDate]),
+          pool.query(`SELECT requirement_id, machine_id, role, required_quantity, requirement_type, pinned_machine_unit_ids FROM md_workstation_machine_requirement WHERE machine_group_id = $1 AND active_flag = TRUE AND effective_from < ($2::date + INTERVAL '1 day') AND (effective_to IS NULL OR effective_to > $2::date) ORDER BY sequence_no`, [group.master_id, plannedDate]),
+        ]);
         const members = memberRows.rows as Array<Record<string, any>>;
+        const requirements = requirementRows.rows as Array<Record<string, any>>;
         const primary = members.filter((member) => member.role === 'Primary');
         const candidateErrors: Array<Record<string, any>> = [];
         const candidateWarnings: Array<Record<string, any>> = [];
+        candidateWarnings.push({ code: 'EQUIPMENT_MAINTENANCE_STATE_UNKNOWN' }, { code: 'EQUIPMENT_CALIBRATION_STATE_UNKNOWN' }, { code: 'EQUIPMENT_STATE_STALE' });
+        if (!requirements.length) candidateErrors.push({ code: 'WORKSTATION_MACHINE_REQUIREMENT_UNSATISFIED', message: 'No active machine requirement is configured for this machine group.' });
+        const assignedUnitIds = new Set<string>();
+        for (const member of members) {
+          if (member.machine_unit_id && assignedUnitIds.has(String(member.machine_unit_id))) candidateErrors.push({ code: 'MACHINE_UNIT_ALREADY_RESERVED', machine_unit_code: member.machine_unit_code });
+          if (member.machine_unit_id) assignedUnitIds.add(String(member.machine_unit_id));
+        }
+        for (const requirement of requirements) {
+          const matching = members.filter((member) => String(member.machine_id) === String(requirement.machine_id) && member.role === requirement.role);
+          const requiredQuantity = Number(requirement.required_quantity || 1);
+          if (matching.length < requiredQuantity) {
+            const code = requirement.role === 'Primary' ? 'WORKSTATION_PRIMARY_MACHINE_MISSING' : requirement.requirement_type === 'Optional' ? 'WORKSTATION_SUPPORTING_MACHINE_MISSING' : 'WORKSTATION_MACHINE_QUANTITY_INSUFFICIENT';
+            if (requirement.requirement_type === 'Optional' && requirement.role !== 'Primary') candidateWarnings.push({ code, machine_id: requirement.machine_id, required_quantity: requiredQuantity, assigned_quantity: matching.length });
+            else candidateErrors.push({ code, machine_id: requirement.machine_id, required_quantity: requiredQuantity, assigned_quantity: matching.length });
+          }
+          const pinned = Array.isArray(requirement.pinned_machine_unit_ids) ? requirement.pinned_machine_unit_ids.map(String) : [];
+          const assignedPinned = matching.map((member) => String(member.machine_unit_id || '')).filter(Boolean);
+          const missingPinned = pinned.filter((unitId: string) => !assignedPinned.includes(unitId));
+          if (missingPinned.length) candidateErrors.push({ code: 'MACHINE_UNIT_UNAVAILABLE', machine_id: requirement.machine_id, machine_unit_ids: missingPinned });
+        }
         if (!members.length) candidateErrors.push({ code: 'MACHINE_GROUP_INSUFFICIENT_ACTIVE_MEMBERS' });
         if (primary.length === 0) candidateErrors.push({ code: 'MACHINE_GROUP_NO_PRIMARY' });
         if (primary.length > 1) candidateErrors.push({ code: 'MACHINE_GROUP_MULTIPLE_PRIMARY' });
@@ -1911,7 +2343,7 @@ export function masterDataRouter(pool: Pool): Router {
           if (unavailable && member.requirement_type === 'Optional') candidateWarnings.push({ code: 'OPTIONAL_SUPPORTING_MACHINE_UNAVAILABLE', machine_code: member.machine_code });
         }
         if (!primaryMember) {
-          candidates.push({ workstation: { id: group.workstation_id, code: null, name: null }, machine_group: { id: group.master_id, code: group.code, name: group.name }, primary_machine: null, supporting_machines: [], equipment: null, readiness: 'Blocked', blocking_errors: candidateErrors, warnings: candidateWarnings });
+          candidates.push({ workstation: { id: group.workstation_id, code: null, name: null }, machine_group: { id: group.master_id, code: group.code, name: group.name }, machine_requirements: requirements, primary_machine: null, supporting_machines: [], equipment: null, readiness: 'Blocked', blocking_errors: candidateErrors, warnings: candidateWarnings });
           continue;
         }
         const primaryId = primaryMember.machine_id;
@@ -1931,7 +2363,7 @@ export function masterDataRouter(pool: Pool): Router {
         const standardRow = standard || {};
         const calendarMinutes = calendar ? Number(calendar.available_minutes) : 0; const calendarFactor = calendar ? Number(calendar.capacity_factor) : 0; const adjustedCycleTime = standard && calendarFactor > 0 ? Number(standardRow.cycle_time_sec) / Number(capability?.speed_factor || 1) / Number(standardRow.efficiency_factor || 1) / Number(primaryMember.default_efficiency || 1) / calendarFactor : null; const runDuration = adjustedCycleTime === null ? null : (quantity / Number(standardRow.base_quantity || 1)) * adjustedCycleTime / 60; const estimatedDuration = runDuration === null ? null : Number((Number(standardRow.setup_time_min || 0) + runDuration + Number(context.queue_time_min || 0) + Number(context.move_time_min || 0)).toFixed(3));
         if (estimatedDuration !== null && calendar && estimatedDuration > calendarMinutes) candidateErrors.push({ code: 'INSUFFICIENT_CAPACITY', available_minutes: calendarMinutes, required_minutes: estimatedDuration });
-        candidates.push({ workstation: { id: group.workstation_id, code: group.workstation_code, name: group.workstation_name }, machine_group: { id: group.master_id, code: group.code, name: group.name, minimum_required_machines: group.minimum_required_machines }, primary_machine: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, unit_id: primaryMember.machine_unit_id, unit_code: primaryMember.machine_unit_code }, supporting_machines: members.filter((member) => member.role === 'Supporting').map((member) => ({ id: member.machine_id, code: member.machine_code, name: member.machine_name, unit_id: member.machine_unit_id, unit_code: member.machine_unit_code, required: member.requirement_type === 'Required', readiness: member.machine_execution_status === 'Available' && member.unit_execution_status === 'Available' ? 'Available' : 'Unavailable' })), equipment: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, execution_status: primaryMember.machine_execution_status }, assignment: { id: primaryMember.assignment_id, role: 'Primary' }, capability: capability ? { id: capability.master_id, code: capability.code, priority_no: capability.priority_no, speed_factor: capability.speed_factor, specificity: capability.equipment_id ? 'Equipment' : 'WorkCenter' } : null, calendar: calendar ? { id: calendar.master_id, resource_type: calendar.resource_type, resource_id: calendar.resource_id, source_type: calendar.resource_type, source_id: calendar.resource_id, availability_status: calendar.availability_status, available_minutes: calendar.available_minutes, capacity_factor: calendar.capacity_factor } : null, production_standard: standard ? { id: standard.master_id, code: standard.code, level: standard.equipment_id ? 'Equipment' : 'WorkCenter' } : null, estimated_duration_min: estimatedDuration, calculation: { adjusted_cycle_time_sec: adjustedCycleTime, run_duration_min: runDuration, setup_time_min: Number(standard?.setup_time_min || 0), queue_time_min: Number(context.queue_time_min || 0), move_time_min: Number(context.move_time_min || 0), formula: 'group primary standard plus required supporting availability' }, readiness: candidateErrors.length ? 'Blocked' : candidateWarnings.length ? 'ReadyWithWarnings' : 'Eligible', blocking_errors: candidateErrors, warnings: candidateWarnings });
+        candidates.push({ workstation: { id: group.workstation_id, code: group.workstation_code, name: group.workstation_name }, machine_group: { id: group.master_id, code: group.code, name: group.name, minimum_required_machines: group.minimum_required_machines }, primary_machine: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, unit_id: primaryMember.machine_unit_id, unit_code: primaryMember.machine_unit_code }, supporting_machines: members.filter((member) => member.role === 'Supporting').map((member) => ({ id: member.machine_id, code: member.machine_code, name: member.machine_name, unit_id: member.machine_unit_id, unit_code: member.machine_unit_code, required: member.requirement_type === 'Required', readiness: member.machine_execution_status === 'Available' && member.unit_execution_status === 'Available' ? 'Available' : 'Unavailable' })), equipment: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, execution_status: primaryMember.machine_execution_status }, assignment: { id: primaryMember.assignment_id, role: 'Primary' }, capability: capability ? { id: capability.master_id, code: capability.code, priority_no: capability.priority_no, speed_factor: capability.speed_factor, specificity: capability.equipment_id ? 'Equipment' : 'WorkCenter' } : null, calendar: calendar ? { id: calendar.master_id, resource_type: calendar.resource_type, resource_id: calendar.resource_id, source_type: calendar.resource_type, source_id: calendar.resource_id, availability_status: calendar.availability_status, available_minutes: calendar.available_minutes, capacity_factor: calendar.capacity_factor } : null, production_standard: standard ? { id: standard.master_id, code: standard.code, level: standard.equipment_id ? 'Equipment' : 'WorkCenter' } : null, estimated_duration_min: estimatedDuration, calculation: { adjusted_cycle_time_sec: adjustedCycleTime, run_duration_min: runDuration, setup_time_min: Number(standard?.setup_time_min || 0), queue_time_min: Number(context.queue_time_min || 0), formula: 'group primary standard plus required supporting availability' }, readiness: candidateErrors.length ? 'Blocked' : candidateWarnings.length ? 'ReadyWithWarnings' : 'Ready', equipment_readiness: { status: candidateErrors.length ? 'Blocked' : 'ReadyWithWarnings', evaluated_at: new Date().toISOString(), equipment: { id: primaryMember.machine_id, code: primaryMember.machine_code, name: primaryMember.machine_name, execution_status: primaryMember.machine_execution_status }, machine_unit: { status: primaryMember.unit_execution_status === 'Available' ? 'Available' : 'Unavailable', unit_id: primaryMember.machine_unit_id, unit_code: primaryMember.machine_unit_code }, assignment: { status: 'Valid', id: primaryMember.assignment_id, role: 'Primary' }, capability: { status: capability ? (capability.eligibility ? 'Matched' : 'Denied') : 'Missing' }, calendar: { status: calendar?.availability_status === 'Available' ? 'Available' : calendar ? 'Unavailable' : 'Missing' }, capacity: { status: 'PendingExecutionCheck' }, maintenance: { status: 'Unknown' }, calibration: { status: 'Unknown' }, operational_state: { status: primaryMember.machine_execution_status || 'Unknown', state_source: 'md_equipment', freshness: 'Unknown' }, blocking_errors: candidateErrors, warnings: [...candidateWarnings, { code: 'EQUIPMENT_MAINTENANCE_STATE_UNKNOWN' }, { code: 'EQUIPMENT_CALIBRATION_STATE_UNKNOWN' }, { code: 'EQUIPMENT_STATE_STALE' }] }, blocking_errors: candidateErrors, warnings: candidateWarnings });
       }
       for (const candidate of candidates) {
         candidate.worker_readiness = workerResult.readiness;
@@ -1939,10 +2371,10 @@ export function masterDataRouter(pool: Pool): Router {
         if (workerResult.blockingErrors.length) candidate.readiness = 'Blocked';
       }
       candidates.sort((a, b) => {
-        const readinessRank = (value: string) => value === 'Eligible' ? 0 : value === 'ReadyWithWarnings' ? 1 : 2;
+        const readinessRank = (value: string) => value === 'Ready' || value === 'Eligible' ? 0 : value === 'ReadyWithWarnings' ? 1 : 2;
         return readinessRank(a.readiness) - readinessRank(b.readiness) || Number(a.capability?.priority_no || 999999) - Number(b.capability?.priority_no || 999999) || Number(b.capability?.speed_factor || 0) - Number(a.capability?.speed_factor || 0) || String(a.equipment?.code || a.workstation?.code || '').localeCompare(String(b.equipment?.code || b.workstation?.code || ''));
       });
-      const eligible = candidates.filter((candidate) => candidate.readiness === 'Eligible');
+      const eligible = candidates.filter((candidate) => candidate.readiness === 'Ready' || candidate.readiness === 'Eligible');
       const warningCandidates = candidates.filter((candidate) => candidate.readiness === 'ReadyWithWarnings');
       if (!assignments.rows.length && !groupRows.rows.length) blockingErrors.push({ code: 'NO_EFFECTIVE_ASSIGNMENT' });
       const status = blockingErrors.length || workerResult.blockingErrors.length || (!eligible.length && !warningCandidates.length) ? 'Blocked' : warningCandidates.length ? 'ReadyWithWarnings' : 'Ready';
@@ -2292,6 +2724,85 @@ export function masterDataRouter(pool: Pool): Router {
     } catch (err) { return next(err); }
   });
 
+  router.get('/uoms', async (req, res, next) => {
+    try {
+      const params: unknown[] = [];
+      const filters: string[] = [];
+      if (typeof req.query['status'] === 'string' && req.query['status']) { params.push(req.query['status']); filters.push(`u.lifecycle_status = $${params.length}`); }
+      if (typeof req.query['type'] === 'string' && req.query['type']) { params.push(req.query['type']); filters.push(`u.uom_class = $${params.length}`); }
+      if (typeof req.query['search'] === 'string' && req.query['search']) { params.push(`%${req.query['search']}%`); filters.push(`(u.code ILIKE $${params.length} OR u.name->>'vi' ILIKE $${params.length} OR u.name->>'en' ILIKE $${params.length})`); }
+      const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      const { rows } = await pool.query(`
+        SELECT u.*, (
+          SELECT COUNT(*)::INT FROM md_item i WHERE i.base_uom_id = u.master_id
+        ) + (
+          SELECT COUNT(*)::INT FROM md_item_revision r WHERE r.base_uom_id = u.master_id
+        ) + (
+          SELECT COUNT(*)::INT FROM md_mbom_header h WHERE h.base_uom_id = u.master_id
+        ) + (
+          SELECT COUNT(*)::INT FROM md_mbom_line l WHERE l.uom_id = u.master_id
+        ) + (
+          SELECT COUNT(*)::INT FROM md_ebom_line e WHERE e.uom_id = u.master_id
+        ) + (
+          SELECT COUNT(*)::INT FROM md_uom_conversion c WHERE c.from_uom_id = u.master_id OR c.to_uom_id = u.master_id
+        ) AS usage_count
+        FROM md_uom u ${where} ORDER BY u.code`, params);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/uoms/:id/usage', async (req, res, next) => {
+    try {
+      const record = await pool.query('SELECT master_id, code, name, uom_class, lifecycle_status FROM md_uom WHERE master_id = $1', [req.params['id']]);
+      if (!record.rows[0]) return res.status(404).json({ error: 'UOM_NOT_FOUND' });
+      return res.json({ data: { uom: record.rows[0], usage: await getUomUsage(pool, req.params['id']) } });
+    } catch (err) { return next(err); }
+  });
+
+  const validateUomPayload = (input: Record<string, unknown>, partial = false) => {
+    const body = { ...input };
+    if (body['code'] !== undefined) {
+      body['code'] = String(body['code']).trim().toUpperCase();
+      if (!/^[A-Z0-9][A-Z0-9_-]{0,49}$/.test(String(body['code']))) throw Object.assign(new Error('UOM_CODE_INVALID'), { statusCode: 422 });
+    } else if (!partial) throw Object.assign(new Error('UOM_CODE_REQUIRED'), { statusCode: 422 });
+    if (typeof body['name'] === 'string') body['name'] = { vi: body['name'] };
+    if (body['name'] !== undefined && !localizedTextSchema.safeParse(body['name']).success) throw Object.assign(new Error('UOM_NAME_INVALID'), { statusCode: 422 });
+    const type = body['uom_type'] ?? body['uom_class'];
+    if (type !== undefined) {
+      if (!UOM_TYPES.has(String(type))) throw Object.assign(new Error('UOM_TYPE_INVALID'), { statusCode: 422 });
+      body['uom_class'] = type;
+      delete body['uom_type'];
+    } else if (!partial) throw Object.assign(new Error('UOM_TYPE_REQUIRED'), { statusCode: 422 });
+    if (body['decimal_precision'] !== undefined) {
+      const precision = Number(body['decimal_precision']);
+      if (!Number.isInteger(precision) || precision < 0 || precision > 9) throw Object.assign(new Error('UOM_PRECISION_INVALID'), { statusCode: 422 });
+      body['decimal_precision'] = precision;
+    }
+    if (body['allow_fraction'] !== undefined) body['allow_fraction'] = body['allow_fraction'] === true || body['allow_fraction'] === 'true';
+    if (body['allow_fraction'] === false && body['decimal_precision'] !== undefined && body['decimal_precision'] !== 0) throw Object.assign(new Error('UOM_FRACTION_POLICY_INVALID'), { statusCode: 422 });
+    if (!partial && body['allow_fraction'] === false && body['decimal_precision'] === undefined) body['decimal_precision'] = 0;
+    if (body['description'] !== undefined) {
+      if (typeof body['description'] === 'string') body['description'] = { vi: body['description'] };
+      if (!localizedTextSchema.safeParse(body['description']).success) throw Object.assign(new Error('UOM_DESCRIPTION_INVALID'), { statusCode: 422 });
+    }
+    return body;
+  };
+
+  router.post('/uoms', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const body = validateUomPayload(normalizeBody(req.body));
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+        const { rows } = await client.query(`INSERT INTO md_uom (code, name, description, version_no, lifecycle_status, effective_from, created_by, uom_class, decimal_precision, allow_fraction) VALUES ($1,$2::jsonb,$3::jsonb,1,$4,NOW(),$5,$6,$7,$8) RETURNING *`, [body['code'], JSON.stringify(body['name']), body['description'] ? JSON.stringify(body['description']) : null, body['lifecycle_status'] || 'Draft', context.userId, body['uom_class'], body['decimal_precision'] ?? 3, body['allow_fraction'] ?? true]);
+        await client.query('COMMIT');
+        return res.status(201).json(rows[0]);
+      } catch (err: any) { await client.query('ROLLBACK'); if (err?.code === '23505') return res.status(409).json({ error: 'UOM_CODE_DUPLICATE' }); throw err; } finally { client.release(); }
+    } catch (err) { return next(err); }
+  });
+
   router.get('/:resource', async (req, res, next) => {
     try {
       const table = requireTable(req.params['resource'] ?? '');
@@ -2306,11 +2817,19 @@ export function masterDataRouter(pool: Pool): Router {
         params.push(req.query['work_center_id']);
         where = `WHERE md_resource_capability.work_center_id = $2`;
       }
-      if (['md_production_version', 'md_mbom_header', 'md_routing_header'].includes(table.tableName)) {
+      if (['md_item_revision', 'md_production_version', 'md_ebom_header', 'md_mbom_header', 'md_routing_header'].includes(table.tableName)) {
         const filters: string[] = [];
-        if (!['md_routing_header', 'md_mbom_header'].includes(table.tableName) && typeof req.query['item_revision_id'] === 'string' && req.query['item_revision_id']) { params.push(req.query['item_revision_id']); filters.push(`${table.tableName}.item_revision_id = $${params.length}`); }
-        if (table.tableName !== 'md_routing_header' && typeof req.query['site_id'] === 'string' && req.query['site_id']) { params.push(req.query['site_id']); filters.push(`${table.tableName}.site_id = $${params.length}`); }
+        if (table.tableName === 'md_item_revision' && typeof req.query['item_id'] === 'string' && req.query['item_id']) { params.push(req.query['item_id']); filters.push(`md_item_revision.item_id = $${params.length}`); }
+        if (table.tableName !== 'md_item_revision' && typeof req.query['item_revision_id'] === 'string' && req.query['item_revision_id']) { params.push(req.query['item_revision_id']); filters.push(`${table.tableName}.item_revision_id = $${params.length}`); }
+        if (table.tableName !== 'md_item_revision' && table.tableName !== 'md_routing_header' && typeof req.query['site_id'] === 'string' && req.query['site_id']) { params.push(req.query['site_id']); filters.push(`${table.tableName}.site_id = $${params.length}`); }
         if (typeof req.query['lifecycle_status'] === 'string' && req.query['lifecycle_status']) { params.push(req.query['lifecycle_status']); filters.push(`${table.tableName}.lifecycle_status = $${params.length}`); }
+        if (['md_item_revision', 'md_ebom_header', 'md_mbom_header', 'md_routing_header'].includes(table.tableName) && typeof req.query['effective_at'] === 'string' && req.query['effective_at']) {
+          const effectiveAt = new Date(String(req.query['effective_at']));
+          if (Number.isNaN(effectiveAt.getTime())) return res.status(422).json({ error: 'EFFECTIVE_AT_INVALID' });
+          params.push(effectiveAt.toISOString());
+          filters.push(`${table.tableName}.effective_from <= $${params.length}::timestamptz AND (${table.tableName}.effective_to IS NULL OR $${params.length}::timestamptz < ${table.tableName}.effective_to)`);
+        }
+        if (table.tableName === 'md_item_revision') filters.push(`md_item_revision.item_id IN (SELECT master_id FROM md_item WHERE item_type IN ('FG','SFG'))`);
         if (filters.length) where = `WHERE ${filters.join(' AND ')}`;
       }
       let query = `SELECT * FROM ${table.tableName} ${where} ORDER BY code, version_no LIMIT $1`;
@@ -2325,7 +2844,7 @@ export function masterDataRouter(pool: Pool): Router {
       } else if (table.tableName === 'md_workstation_machine_requirement') {
         query = `SELECT r.*, mg.code AS machine_group_code, eq.code AS machine_code, eq.name AS machine_name FROM md_workstation_machine_requirement r JOIN md_workstation_machine_group mg ON mg.master_id = r.machine_group_id JOIN md_equipment eq ON eq.master_id = r.machine_id ORDER BY mg.code, r.sequence_no LIMIT $1`;
       } else if (table.tableName === 'md_production_version') {
-        query = `SELECT pv.*, mb.code AS mbom_code, mb.name AS mbom_name,
+        query = `SELECT pv.*, r.item_id, mb.code AS mbom_code, mb.name AS mbom_name,
                         rt.code AS routing_code, rt.name AS routing_name, s.code AS site_code,
                         r.revision_code, i.code AS item_code, i.name AS item_name
                  FROM md_production_version pv
@@ -2336,18 +2855,30 @@ export function masterDataRouter(pool: Pool): Router {
                  LEFT JOIN md_item i ON i.master_id = r.item_id
                  ${where.replaceAll('md_production_version.', 'pv.')} ORDER BY pv.code, pv.version_no LIMIT $1`;
       } else if (table.tableName === 'md_routing_header') {
-        query = `SELECT rt.*,
+        query = `SELECT rt.*, r.revision_code, i.code AS item_code, i.name AS item_name,
                         (SELECT COUNT(*)::INT FROM md_routing_operation ro WHERE ro.routing_header_id = rt.master_id) AS operation_count,
                         (SELECT COUNT(DISTINCT wc.site_id)::INT FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.routing_header_id = rt.master_id) AS factory_count
                  FROM md_routing_header rt
+                 LEFT JOIN md_item_revision r ON r.master_id = rt.item_revision_id
+                 LEFT JOIN md_item i ON i.master_id = r.item_id
                  ${where.replaceAll('md_routing_header.', 'rt.')} ORDER BY rt.code, rt.version_no LIMIT $1`;
       } else if (table.tableName === 'md_mbom_header') {
-        query = `SELECT mb.*, s.code AS site_code,
-                        u.code AS base_uom_code
+        query = `SELECT mb.*, s.code AS site_code, r.revision_code, i.code AS item_code, i.name AS item_name,
+                        u.code AS base_uom_code,
+                        (SELECT COUNT(*)::INT FROM md_mbom_line l WHERE l.mbom_header_id = mb.master_id AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete')) AS line_count
                  FROM md_mbom_header mb
                  LEFT JOIN md_site s ON s.master_id = mb.site_id
                  LEFT JOIN md_uom u ON u.master_id = mb.base_uom_id
+                 LEFT JOIN md_item_revision r ON r.master_id = mb.item_revision_id
+                 LEFT JOIN md_item i ON i.master_id = r.item_id
                  ${where.replaceAll('md_mbom_header.', 'mb.')} ORDER BY mb.code, mb.version_no LIMIT $1`;
+      } else if (table.tableName === 'md_ebom_header') {
+        query = `SELECT eb.*, r.revision_code, r.item_id, i.code AS item_code, i.name AS item_name,
+                        (SELECT COUNT(*)::INT FROM md_ebom_line l WHERE l.ebom_header_id = eb.master_id AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete')) AS line_count
+                 FROM md_ebom_header eb
+                 LEFT JOIN md_item_revision r ON r.master_id = eb.item_revision_id
+                 LEFT JOIN md_item i ON i.master_id = r.item_id
+                 ${where.replaceAll('md_ebom_header.', 'eb.')} ORDER BY eb.code, eb.version_no LIMIT $1`;
       } else if (table.tableName === 'md_routing_operation') {
         query = `SELECT ro.*, op.code AS operation_code, op.name AS operation_name, op.description AS operation_description,
                         op.operation_type, op.confirmation_mode, op.quantity_reporting,
@@ -2435,21 +2966,40 @@ export function masterDataRouter(pool: Pool): Router {
                  ORDER BY ws.code, ws.version_no LIMIT $1`;
       } else if (table.tableName === 'md_equipment') {
         query = `SELECT eq.*, s.code AS site_code, s.name AS site_name, wc.code AS work_center_code, wc.name AS work_center_name,
-                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND NOT EXISTS (SELECT 1 FROM md_resource_assignment ra WHERE ra.machine_unit_id = mu.machine_unit_id AND ra.assignment_role = 'Primary' AND ra.effective_from < NOW() AND NOW() < COALESCE(ra.effective_to, 'infinity'::timestamptz))) AS available_unit_count,
-                        (SELECT COUNT(*)::INT FROM md_resource_assignment ra WHERE ra.equipment_id = eq.master_id AND (ra.effective_to IS NULL OR ra.effective_to > NOW())) AS active_assignment_count
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id) AS total_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.physical_identity_status = 'Identified') AS identified_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.physical_identity_status IN ('PendingIdentification','Ambiguous')) AS pending_identification_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND mu.physical_identity_status = 'Identified' AND mu.planning_resource_flag = TRUE AND NOT EXISTS (SELECT 1 FROM md_resource_assignment ra WHERE ra.machine_unit_id = mu.machine_unit_id AND ra.effective_from < NOW() AND NOW() < COALESCE(ra.effective_to, 'infinity'::timestamptz) AND ra.lifecycle_status NOT IN ('Inactive','Obsolete'))) AS available_unit_count,
+                        (SELECT COUNT(DISTINCT ra.machine_unit_id)::INT FROM md_resource_assignment ra JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id WHERE ra.equipment_id = eq.master_id AND ra.machine_unit_id IS NOT NULL AND ra.effective_from < NOW() AND NOW() < COALESCE(ra.effective_to, 'infinity'::timestamptz) AND ra.lifecycle_status NOT IN ('Inactive','Obsolete')) AS assigned_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.execution_status = 'Maintenance') AS maintenance_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.execution_status = 'OutOfService') AS out_of_service_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.active_flag = TRUE AND mu.physical_identity_status = 'Identified' AND mu.planning_resource_flag = TRUE) AS planning_eligible_unit_count,
+                        NULL::INT AS reserved_unit_count,
+                        (SELECT COUNT(*)::INT FROM md_resource_assignment ra WHERE ra.equipment_id = eq.master_id AND ra.lifecycle_status NOT IN ('Inactive','Obsolete') AND (ra.effective_to IS NULL OR ra.effective_to > NOW())) AS active_assignment_count,
+                        (SELECT COUNT(*)::INT FROM md_resource_capability rc WHERE rc.equipment_id = eq.master_id AND rc.active_flag = TRUE AND (rc.effective_to IS NULL OR rc.effective_to > NOW())) AS active_capability_count,
+                        CASE WHEN eq.active_flag = FALSE OR eq.lifecycle_status IN ('Inactive','Obsolete') THEN 'Blocked'
+                             WHEN eq.execution_status = 'OutOfService' THEN 'Blocked'
+                             WHEN NOT EXISTS (SELECT 1 FROM md_machine_unit mu WHERE mu.machine_id = eq.master_id AND mu.active_flag = TRUE AND mu.execution_status = 'Available' AND mu.physical_identity_status = 'Identified' AND mu.planning_resource_flag = TRUE) THEN 'Blocked'
+                             ELSE 'Ready' END AS readiness_status
                  FROM md_equipment eq JOIN md_site s ON s.master_id = eq.site_id LEFT JOIN md_work_center wc ON wc.master_id = eq.work_center_id
                  ORDER BY eq.code, eq.version_no LIMIT $1`;
       } else if (table.tableName === 'md_item_revision') {
-        query = `SELECT r.*, i.code AS item_code, i.name AS item_name,
+        query = `SELECT r.*, i.code AS item_code, i.name AS item_name, mg.code AS material_group_code, mg.name AS material_group_name,
+                    s.timezone AS site_timezone,
+                    CASE WHEN r.effective_from > NOW() THEN 'Scheduled'
+                         WHEN r.effective_to IS NOT NULL AND r.effective_to <= NOW() THEN 'Historical'
+                         ELSE 'Current' END AS temporal_status,
                     EXISTS (SELECT 1 FROM md_production_version pv WHERE pv.item_revision_id = r.master_id AND pv.lifecycle_status = 'Released') AS has_production_configuration
                  FROM md_item_revision r
                  LEFT JOIN md_item i ON i.master_id = r.item_id
+                 LEFT JOIN md_material_group mg ON mg.master_id = r.material_group_id
+                 LEFT JOIN md_site s ON s.master_id = r.site_id
                  ${where.replaceAll('md_item_revision.', 'r.')} ORDER BY r.code, r.version_no LIMIT $1`;
       }
       const { rows } = await pool.query(query, params);
       res.json({ data: rows });
     } catch (err) {
-      next(err);
+      return next(err);
     }
   });
 
@@ -2474,7 +3024,7 @@ export function masterDataRouter(pool: Pool): Router {
       for (const row of operations) {
         const operation = await client.query(`SELECT code, name FROM md_operation WHERE master_id = $1`, [row.operation_id]);
         const code = `${routing.rows[0].code}-${String(row.seq).padStart(3, '0')}`;
-        const inserted = await client.query(`INSERT INTO md_routing_operation (code, name, version_no, lifecycle_status, effective_from, created_by, routing_header_id, operation_id, work_center_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag, planning_mode, units_per_label, label_quantity_method, copies_per_label) VALUES ($1,$2,1,'Draft',NOW(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING master_id`, [code, operation.rows[0].name || operation.rows[0].code, context.userId, req.params['id'], row.operation_id, row.work_center_id, row.seq, row.predecessor_seq, row.scheduling_mode, row.queue_time_min, row.move_time_min, row.overlap_allowed, row.transfer_batch_qty, row.milestone_flag, row.planning_mode, row.units_per_label || null, row.label_quantity_method || 'CEIL_BY_UNITS_PER_LABEL', row.copies_per_label || 1]);
+        const inserted = await client.query(`INSERT INTO md_routing_operation (code, name, version_no, lifecycle_status, effective_from, created_by, routing_header_id, operation_id, work_center_id, workstation_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, overlap_allowed, transfer_batch_qty, milestone_flag, planning_mode, units_per_label, label_quantity_method, copies_per_label) VALUES ($1,$2,1,'Draft',NOW(),$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING master_id`, [code, operation.rows[0].name || operation.rows[0].code, context.userId, req.params['id'], row.operation_id, row.work_center_id, row.workstation_id, row.seq, row.predecessor_seq, row.scheduling_mode, row.queue_time_min, row.move_time_min, row.overlap_allowed, row.transfer_batch_qty, row.milestone_flag, row.planning_mode, row.units_per_label || null, row.label_quantity_method || 'CEIL_BY_UNITS_PER_LABEL', row.copies_per_label || 1]);
         const routingSite = await client.query(`SELECT site_id FROM md_work_center WHERE master_id = $1`, [row.work_center_id]);
         if (row.planning_mode === 'ROUTING_OVERRIDE') {
           await client.query(`INSERT INTO md_production_standard (code, name, version_no, lifecycle_status, effective_from, created_by, item_revision_id, operation_id, work_center_id, site_id, routing_operation_id, labor_count, setup_time_min, cycle_time_sec, efficiency_factor, base_quantity, standard_yield, source_method, valid_from) VALUES ($1,$2,1,'Draft',NOW(),$3,NULL,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'Routing',NOW())`, [`${code}-STD`, operation.rows[0].name || operation.rows[0].code, context.userId, row.operation_id, row.work_center_id, routingSite.rows[0]?.site_id, inserted.rows[0].master_id, row.required_workers, row.setup_time_min, row.cycle_time_sec, row.efficiency_factor, row.base_quantity, row.standard_yield]);
@@ -2489,12 +3039,18 @@ export function masterDataRouter(pool: Pool): Router {
         COALESCE(rps.efficiency_factor, wps.efficiency_factor, op.default_efficiency_factor) AS resolved_efficiency_factor,
         COALESCE(rps.standard_yield, wps.standard_yield, op.default_yield) AS resolved_standard_yield,
         COALESCE(rps.master_id, NULL) AS routing_standard_id,
-        COALESCE(cap.supported_workstation_count, 0) AS supported_workstation_count,
-        cap.minimum_cycle_time_sec, cap.maximum_cycle_time_sec
+        COALESCE(cap.candidate_workstation_count, 0) AS candidate_workstation_count,
+        COALESCE(cap.candidate_workstation_count, 0) AS supported_workstation_count
         FROM md_routing_operation ro JOIN md_operation op ON op.master_id = ro.operation_id JOIN md_work_center wc ON wc.master_id = ro.work_center_id
         LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id = ro.master_id AND ps0.item_revision_id IS NULL AND ps0.effective_to IS NULL AND ps0.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) rps ON TRUE
         LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id IS NULL AND ps0.item_revision_id IS NULL AND ps0.operation_id = ro.operation_id AND ps0.work_center_id = ro.work_center_id AND ps0.site_id = wc.site_id AND ps0.source_method = 'WorkCenter' AND ps0.lifecycle_status = 'Released' AND ps0.effective_to IS NULL ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) wps ON TRUE
-        LEFT JOIN LATERAL (SELECT COUNT(DISTINCT ws.master_id)::INT AS supported_workstation_count, MIN(c.cycle_time_sec) AS minimum_cycle_time_sec, MAX(c.cycle_time_sec) AS maximum_cycle_time_sec FROM md_workstation_operation_capability c JOIN md_workstation ws ON ws.master_id = c.workstation_id WHERE c.operation_id = ro.operation_id AND ws.work_center_id = ro.work_center_id AND c.active_flag = TRUE AND c.effective_to IS NULL AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive','Obsolete')) cap ON TRUE
+        LEFT JOIN LATERAL (SELECT COUNT(*)::INT AS candidate_workstation_count
+          FROM md_workstation candidate
+          WHERE candidate.work_center_id = ro.work_center_id
+            AND candidate.active_flag = TRUE
+            AND candidate.lifecycle_status NOT IN ('Inactive','Obsolete')
+            AND candidate.effective_from <= NOW()
+            AND (candidate.effective_to IS NULL OR candidate.effective_to > NOW())) cap ON TRUE
         WHERE ro.routing_header_id = $1 AND ro.effective_to IS NULL AND ro.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY ro.seq`, [req.params['id']]);
       await client.query('COMMIT');
       return res.json({ data: result.rows });
@@ -2513,6 +3069,436 @@ export function masterDataRouter(pool: Pool): Router {
       await client.query('COMMIT');
       return res.status(201).json({ data: reservation });
     } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.get('/mbom-headers/:id', async (req, res, next) => {
+    try {
+      const header = await pool.query(`
+        SELECT mb.*, s.code AS site_code, s.name AS site_name, u.code AS base_uom_code,
+               r.revision_code AS output_revision_code, i.code AS output_item_code, i.name AS output_item_name,
+               (SELECT COUNT(*)::INT FROM md_mbom_line l WHERE l.mbom_header_id = mb.master_id AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete')) AS line_count
+        FROM md_mbom_header mb
+        LEFT JOIN md_site s ON s.master_id = mb.site_id
+        LEFT JOIN md_uom u ON u.master_id = mb.base_uom_id
+        LEFT JOIN md_item_revision r ON r.master_id = mb.item_revision_id
+        LEFT JOIN md_item i ON i.master_id = r.item_id
+        WHERE mb.master_id = $1`, [req.params['id']]);
+      if (!header.rows[0]) return res.status(404).json({ error: 'MBOM_NOT_FOUND' });
+      const lines = await pool.query(`
+        SELECT l.*, r.revision_code AS component_revision_code, i.code AS component_item_code, i.name AS component_item_name,
+               i.item_type AS component_item_type, u.code AS uom_code, op.code AS issue_operation_code, op.name AS issue_operation_name
+        FROM md_mbom_line l
+        JOIN md_item_revision r ON r.master_id = l.component_revision_id
+        JOIN md_item i ON i.master_id = r.item_id
+        JOIN md_uom u ON u.master_id = l.uom_id
+        LEFT JOIN md_operation op ON op.master_id = l.issue_operation_id
+        WHERE l.mbom_header_id = $1 AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete')
+        ORDER BY l.parent_line_id NULLS FIRST, l.seq, l.code`, [req.params['id']]);
+      const substitutes = await pool.query(`
+        SELECT cs.*, r.revision_code AS substitute_revision_code, i.code AS substitute_item_code, i.name AS substitute_item_name
+        FROM md_component_substitute cs
+        JOIN md_item_revision r ON r.master_id = cs.substitute_revision_id
+        JOIN md_item i ON i.master_id = r.item_id
+        JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id
+        WHERE l.mbom_header_id = $1 AND cs.effective_to IS NULL AND cs.lifecycle_status NOT IN ('Inactive','Obsolete')
+        ORDER BY cs.mbom_line_id, cs.priority`, [req.params['id']]);
+      return res.json({ data: { ...header.rows[0], lines: lines.rows, substitutes: substitutes.rows } });
+    } catch (err) { return next(err); }
+  });
+
+  // A released MBOM is immutable. This endpoint creates a new independent
+  // draft version and copies only the current structure, never historical rows.
+  router.post('/mbom-headers/:id/create-new-version', async (req, res, next) => {
+    const context = getContext(req); const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const source = await client.query(`SELECT * FROM md_mbom_header WHERE master_id = $1 FOR SHARE`, [req.params['id']]);
+      if (!source.rows[0]) throw Object.assign(new Error('MBOM_NOT_FOUND'), { statusCode: 404 });
+      if (source.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_NEW_VERSION_REQUIRES_RELEASED_SOURCE'), { statusCode: 409 });
+      const header = source.rows[0];
+      const code = String(req.body?.code || `${header.code}-V${Number(header.version_no || 1) + 1}`);
+      const name = req.body?.name || header.name;
+      const inserted = await client.query(`
+        INSERT INTO md_mbom_header
+          (master_id, code, name, description, version_no, lifecycle_status, effective_from, effective_to,
+           created_by, attributes, site_id, business_version, purpose, base_quantity, base_uom_id,
+           change_reason, engineering_note, reference_document, structure_version)
+        VALUES (gen_random_uuid(), $1, $2::jsonb, $3::jsonb, $4, 'Draft', NOW(), NULL, $5, $6::jsonb,
+                $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14, 1)
+        RETURNING *`, [
+        code, JSON.stringify(name), JSON.stringify(header.description || null), Number(header.version_no || 1) + 1,
+        context.userId, JSON.stringify(header.attributes || {}), header.site_id, header.business_version, header.purpose,
+        header.base_quantity, header.base_uom_id, JSON.stringify(header.change_reason || null),
+        JSON.stringify(header.engineering_note || null), header.reference_document,
+      ]);
+      const lines = await client.query(`SELECT * FROM md_mbom_line WHERE mbom_header_id = $1 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY parent_line_id NULLS FIRST, seq`, [req.params['id']]);
+      const lineMap = new Map<string, string>();
+      for (const line of lines.rows) lineMap.set(line.master_id, randomUUID());
+      for (const line of lines.rows) {
+        await client.query(`INSERT INTO md_mbom_line (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, attributes, mbom_header_id, parent_line_id, seq, component_revision_id, quantity_per, uom_id, scrap_rate, issue_operation_id, backflush_flag, phantom_flag, optional_flag) VALUES ($1,$2,$3,1,'Draft',NOW(),$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, [
+          lineMap.get(line.master_id), line.code, line.name, context.userId, JSON.stringify(line.attributes || {}), inserted.rows[0].master_id,
+          line.parent_line_id ? lineMap.get(line.parent_line_id) : null, line.seq, line.component_revision_id, line.quantity_per, line.uom_id,
+          line.scrap_rate, line.issue_operation_id, line.backflush_flag, line.phantom_flag, line.optional_flag,
+        ]);
+      }
+      const substitutes = await client.query(`SELECT cs.* FROM md_component_substitute cs JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id WHERE l.mbom_header_id = $1 AND cs.effective_to IS NULL AND cs.lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['id']]);
+      for (const substitute of substitutes.rows) {
+        await client.query(`INSERT INTO md_component_substitute (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, attributes, mbom_line_id, substitute_revision_id, priority, conversion_factor, max_usage_percent, requires_approval, approval_status) VALUES ($1,$2,$3,1,'Draft',NOW(),$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12)`, [
+          randomUUID(), substitute.code, substitute.name, context.userId, JSON.stringify(substitute.attributes || {}), lineMap.get(substitute.mbom_line_id), substitute.substitute_revision_id,
+          substitute.priority, substitute.conversion_factor, substitute.max_usage_percent, substitute.requires_approval, substitute.requires_approval ? 'Pending' : 'NotRequired',
+        ]);
+      }
+      await client.query('COMMIT');
+      return res.status(201).json({ data: { ...inserted.rows[0], copied_line_count: lines.rows.length, copied_substitute_count: substitutes.rows.length } });
+    } catch (err: any) { await client.query('ROLLBACK'); return res.status(err?.statusCode || 500).json({ error: err?.message || 'MBOM_NEW_VERSION_FAILED' }); } finally { client.release(); }
+  });
+
+  router.get('/mbom-headers/:id/lines', async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(`SELECT l.*, r.revision_code AS component_revision_code, i.code AS component_item_code, i.name AS component_item_name, i.item_type AS component_item_type, u.code AS uom_code FROM md_mbom_line l JOIN md_item_revision r ON r.master_id = l.component_revision_id JOIN md_item i ON i.master_id = r.item_id JOIN md_uom u ON u.master_id = l.uom_id WHERE l.mbom_header_id = $1 AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY l.parent_line_id NULLS FIRST, l.seq, l.code`, [req.params['id']]);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.get('/mbom-lines/:lineId/substitutes', async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(`SELECT cs.*, r.revision_code AS substitute_revision_code, i.code AS substitute_item_code, i.name AS substitute_item_name FROM md_component_substitute cs JOIN md_item_revision r ON r.master_id = cs.substitute_revision_id JOIN md_item i ON i.master_id = r.item_id WHERE cs.mbom_line_id = $1 AND cs.effective_to IS NULL AND cs.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY cs.priority`, [req.params['lineId']]);
+      return res.json({ data: rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.post('/mbom-lines/:lineId/substitutes', async (req, res, next) => {
+    const context = getContext(req); const body = normalizeBody(req.body); const client = await pool.connect();
+    try {
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const source = await client.query(`SELECT l.component_revision_id, l.uom_id, source_uom.code AS component_uom_code, h.lifecycle_status, i.item_group AS component_group FROM md_mbom_line l JOIN md_mbom_header h ON h.master_id = l.mbom_header_id JOIN md_item_revision cr ON cr.master_id = l.component_revision_id JOIN md_item i ON i.master_id = cr.item_id JOIN md_uom source_uom ON source_uom.master_id = l.uom_id WHERE l.master_id = $1 FOR SHARE`, [req.params['lineId']]);
+      if (!source.rows[0]) throw Object.assign(new Error('MBOM_LINE_NOT_FOUND'), { statusCode: 404 });
+      if (source.rows[0].lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_RELEASED_IMMUTABLE'), { statusCode: 409 });
+      if (String(source.rows[0].component_revision_id) === String(body['substitute_revision_id'])) throw Object.assign(new Error('MBOM_SUBSTITUTE_SAME_AS_COMPONENT'), { statusCode: 422 });
+      if (!body['substitute_revision_id'] || Number(body['priority'] || 1) <= 0 || Number(body['conversion_factor'] ?? 1) <= 0 || Number(body['max_usage_percent'] ?? 100) <= 0 || Number(body['max_usage_percent'] ?? 100) > 100) throw Object.assign(new Error('MBOM_SUBSTITUTE_PAYLOAD_INVALID'), { statusCode: 422 });
+      const effectiveFrom = body['effective_from'] ? new Date(String(body['effective_from'])) : new Date();
+      const effectiveTo = body['effective_to'] ? new Date(String(body['effective_to'])) : null;
+      if (Number.isNaN(effectiveFrom.getTime()) || (effectiveTo && Number.isNaN(effectiveTo.getTime())) || (effectiveTo && effectiveTo <= effectiveFrom)) throw Object.assign(new Error('MBOM_SUBSTITUTE_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+      const substitute = await client.query(`SELECT lifecycle_status, effective_from, effective_to, revision_code FROM md_item_revision WHERE master_id = $1`, [body['substitute_revision_id']]);
+      const revision = substitute.rows[0];
+      const now = new Date();
+      const outsideWindow = revision && (new Date(revision.effective_from) > now || (revision.effective_to && new Date(revision.effective_to) <= now));
+      if (!revision || revision.lifecycle_status !== 'Released' || outsideWindow) {
+        const reason = !revision ? 'NOT_FOUND' : revision.lifecycle_status !== 'Released' ? 'NOT_RELEASED' : 'OUTSIDE_EFFECTIVE_WINDOW';
+        throw Object.assign(new Error('MBOM_SUBSTITUTE_REVISION_INVALID'), { statusCode: 422, details: [{ code: 'MBOM_SUBSTITUTE_REVISION_INVALID', reason, revision_code: revision?.revision_code || null, lifecycle_status: revision?.lifecycle_status || null, effective_from: revision?.effective_from || null, effective_to: revision?.effective_to || null }] });
+      }
+      const substituteContext = await client.query(`SELECT i.item_group, r.base_uom_id, substitute_uom.code AS substitute_uom_code FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id JOIN md_uom substitute_uom ON substitute_uom.master_id = r.base_uom_id WHERE r.master_id = $1 AND r.effective_from <= NOW() AND (r.effective_to IS NULL OR r.effective_to > NOW())`, [body['substitute_revision_id']]);
+      const requestedException = body['compatibility_exception_approved'] === true;
+      const sameGroup = substituteContext.rows[0]?.item_group === source.rows[0].component_group;
+      const sameUom = substituteContext.rows[0]?.base_uom_id === source.rows[0].uom_id;
+      const conversion = await client.query(`SELECT 1 FROM md_uom_conversion WHERE ((from_uom_id = $1 AND to_uom_id = $2) OR (from_uom_id = $2 AND to_uom_id = $1)) AND lifecycle_status = 'Released' AND effective_to IS NULL`, [source.rows[0].uom_id, substituteContext.rows[0]?.base_uom_id]);
+      const compatibilityDetails = [];
+      if (!sameGroup) compatibilityDetails.push({ code: 'MBOM_SUBSTITUTE_ITEM_GROUP_MISMATCH', expected_group: source.rows[0].component_group, actual_group: substituteContext.rows[0]?.item_group || null });
+      if (!sameUom && !conversion.rows[0]) compatibilityDetails.push({ code: 'MBOM_SUBSTITUTE_UOM_CONVERSION_MISSING', component_uom_code: source.rows[0].component_uom_code, substitute_uom_code: substituteContext.rows[0]?.substitute_uom_code || null });
+      if (compatibilityDetails.length && !(requestedException && String(body['compatibility_exception_reason'] || '').trim())) {
+        throw Object.assign(new Error('MBOM_SUBSTITUTE_COMPATIBILITY_INVALID'), { statusCode: 422, details: compatibilityDetails });
+      }
+      const requiresApproval = body['requires_approval'] === true || requestedException;
+      const { rows } = await client.query(`INSERT INTO md_component_substitute (master_id, code, name, mbom_line_id, substitute_revision_id, priority, conversion_factor, max_usage_percent, requires_approval, approval_status, compatibility_exception_approved, compatibility_exception_reason, requested_by, requested_at, lifecycle_status, effective_from, effective_to, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),'Draft',$14,$15,$16) RETURNING *`, [randomUUID(), body['code'] || `SUB-${Date.now()}`, body['name'] || 'Component substitute', req.params['lineId'], body['substitute_revision_id'], Number(body['priority'] || 1), body['conversion_factor'] ?? 1, body['max_usage_percent'] ?? 100, requiresApproval, requiresApproval ? 'Pending' : 'NotRequired', requestedException, body['compatibility_exception_reason'] || null, context.userId, effectiveFrom, effectiveTo, context.userId]);
+      await client.query(`INSERT INTO md_component_substitute_approval_audit (substitute_id, previous_status, new_status, reason, actor_id) VALUES ($1, NULL, $2, $3, $4)`, [rows[0].master_id, rows[0].approval_status, body['compatibility_exception_reason'] || null, context.userId]);
+      await client.query('COMMIT'); return res.status(201).json({ data: rows[0] });
+    } catch (err: any) { await client.query('ROLLBACK'); if (err?.code === '23505') return res.status(409).json({ error: 'MBOM_SUBSTITUTE_DUPLICATE' }); return res.status(err?.statusCode || 500).json({ error: err?.message || 'MBOM_SUBSTITUTE_CREATE_FAILED', details: err?.details }); } finally { client.release(); }
+  });
+
+  router.put('/mbom-lines/:lineId/substitutes/replace', async (req, res, next) => {
+    const context = getContext(req); const requested = Array.isArray(req.body?.substitutes) ? req.body.substitutes as Array<Record<string, any>> : []; const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const source = await client.query(`SELECT l.component_revision_id, l.uom_id, source_uom.code AS component_uom_code, h.lifecycle_status, i.item_group AS component_group FROM md_mbom_line l JOIN md_mbom_header h ON h.master_id = l.mbom_header_id JOIN md_item_revision cr ON cr.master_id = l.component_revision_id JOIN md_item i ON i.master_id = cr.item_id JOIN md_uom source_uom ON source_uom.master_id = l.uom_id WHERE l.master_id = $1 FOR UPDATE`, [req.params['lineId']]);
+      if (!source.rows[0]) throw Object.assign(new Error('MBOM_LINE_NOT_FOUND'), { statusCode: 404 });
+      if (source.rows[0].lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_SUBSTITUTE_RELEASED_MBOM_IMMUTABLE'), { statusCode: 409 });
+      const active = await client.query(`SELECT cs.master_id, cs.approval_status, cs.lifecycle_status FROM md_component_substitute cs WHERE cs.mbom_line_id = $1 AND cs.effective_to IS NULL AND cs.lifecycle_status NOT IN ('Inactive','Obsolete') FOR UPDATE`, [req.params['lineId']]);
+      for (const row of active.rows) {
+        const protectedHistory = await client.query(`SELECT 1 FROM md_component_substitute_approval_audit WHERE substitute_id = $1 AND new_status IN ('Approved','Rejected','Ended') LIMIT 1`, [row.master_id]);
+        if (row.approval_status === 'Approved' || row.lifecycle_status === 'Released' || protectedHistory.rows[0]) throw Object.assign(new Error('MBOM_SUBSTITUTE_REPLACEMENT_HISTORY_EXISTS'), { statusCode: 409 });
+      }
+      await client.query(`UPDATE md_component_substitute SET lifecycle_status = 'Inactive', effective_to = COALESCE(effective_to, NOW()), updated_by = $1, updated_at = NOW() WHERE mbom_line_id = $2 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['lineId']]);
+      const revisions = new Set<string>(); const priorities = new Set<number>();
+      for (const [index, item] of requested.entries()) {
+        const revisionId = String(item.substitute_revision_id || ''); const priority = Number(item.priority || 0);
+        if (!revisionId || revisionId === String(source.rows[0].component_revision_id) || priority <= 0 || revisions.has(revisionId) || priorities.has(priority)) throw Object.assign(new Error('MBOM_SUBSTITUTE_PAYLOAD_INVALID'), { statusCode: 422 });
+        revisions.add(revisionId); priorities.add(priority);
+        if (Number(item.conversion_factor ?? 1) <= 0 || Number(item.max_usage_percent ?? 100) <= 0 || Number(item.max_usage_percent ?? 100) > 100) throw Object.assign(new Error('MBOM_SUBSTITUTE_PAYLOAD_INVALID'), { statusCode: 422 });
+        const effectiveFrom = item.effective_from ? new Date(String(item.effective_from)) : new Date(); const effectiveTo = item.effective_to ? new Date(String(item.effective_to)) : null;
+        if (Number.isNaN(effectiveFrom.getTime()) || (effectiveTo && Number.isNaN(effectiveTo.getTime())) || (effectiveTo && effectiveTo <= effectiveFrom)) throw Object.assign(new Error('MBOM_SUBSTITUTE_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+        const revision = await client.query(`SELECT lifecycle_status, effective_from, effective_to FROM md_item_revision WHERE master_id = $1`, [revisionId]);
+        const current = new Date(); const rev = revision.rows[0];
+        if (!rev || rev.lifecycle_status !== 'Released' || new Date(rev.effective_from) > current || (rev.effective_to && new Date(rev.effective_to) <= current)) throw Object.assign(new Error('MBOM_SUBSTITUTE_REVISION_INVALID'), { statusCode: 422 });
+        const substituteContext = await client.query(`SELECT i.item_group, r.base_uom_id, substitute_uom.code AS substitute_uom_code FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id JOIN md_uom substitute_uom ON substitute_uom.master_id = r.base_uom_id WHERE r.master_id = $1`, [revisionId]);
+        const sameGroup = substituteContext.rows[0]?.item_group === source.rows[0].component_group; const sameUom = substituteContext.rows[0]?.base_uom_id === source.rows[0].uom_id;
+        const conversion = await client.query(`SELECT 1 FROM md_uom_conversion WHERE ((from_uom_id = $1 AND to_uom_id = $2) OR (from_uom_id = $2 AND to_uom_id = $1)) AND lifecycle_status = 'Released' AND effective_to IS NULL`, [source.rows[0].uom_id, substituteContext.rows[0]?.base_uom_id]);
+        const details: any[] = []; if (!sameGroup) details.push({ code: 'MBOM_SUBSTITUTE_ITEM_GROUP_MISMATCH', expected_group: source.rows[0].component_group, actual_group: substituteContext.rows[0]?.item_group || null }); if (!sameUom && !conversion.rows[0]) details.push({ code: 'MBOM_SUBSTITUTE_UOM_CONVERSION_MISSING', component_uom_code: source.rows[0].component_uom_code, substitute_uom_code: substituteContext.rows[0]?.substitute_uom_code || null });
+        if (details.length && !(item.compatibility_exception_approved === true && String(item.compatibility_exception_reason || '').trim())) throw Object.assign(new Error('MBOM_SUBSTITUTE_COMPATIBILITY_INVALID'), { statusCode: 422, details });
+        const requiresApproval = item.requires_approval === true || item.compatibility_exception_approved === true;
+        await client.query(`INSERT INTO md_component_substitute (master_id, code, name, version_no, mbom_line_id, substitute_revision_id, priority, conversion_factor, max_usage_percent, requires_approval, approval_status, compatibility_exception_approved, compatibility_exception_reason, requested_by, requested_at, lifecycle_status, effective_from, effective_to, created_by) VALUES ($1,$2,$3,1,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),'Draft',$14,$15,$16)`, [randomUUID(), `SUB-${Date.now()}-${index + 1}`, 'Component substitute', req.params['lineId'], revisionId, priority, item.conversion_factor ?? 1, item.max_usage_percent ?? 100, requiresApproval, requiresApproval ? 'Pending' : 'NotRequired', item.compatibility_exception_approved === true, item.compatibility_exception_reason || null, context.userId, effectiveFrom, effectiveTo, context.userId]);
+      }
+      await client.query('COMMIT'); return res.json({ data: { line_id: req.params['lineId'], substitute_count: requested.length }, replaced: true });
+    } catch (err: any) { await client.query('ROLLBACK'); return res.status(err?.statusCode || 500).json({ error: err?.message || 'MBOM_SUBSTITUTE_REPLACEMENT_FAILED', details: err?.details }); } finally { client.release(); }
+  });
+
+  router.post('/mbom-lines/:lineId/substitutes/:substituteId/approve', async (req, res, next) => {
+    const context = getContext(req); const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const previous = await client.query(`SELECT cs.approval_status, h.lifecycle_status AS header_lifecycle_status FROM md_component_substitute cs JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id JOIN md_mbom_header h ON h.master_id = l.mbom_header_id WHERE cs.master_id = $1 AND cs.mbom_line_id = $2 AND cs.effective_to IS NULL FOR UPDATE`, [req.params['substituteId'], req.params['lineId']]);
+      if (previous.rows[0]?.header_lifecycle_status === 'Released') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'MBOM_SUBSTITUTE_RELEASED_MBOM_IMMUTABLE' }); }
+      const { rows } = await client.query(`UPDATE md_component_substitute SET approval_status = 'Approved', approved_by = $1, approved_at = NOW(), lifecycle_status = 'Released', updated_by = $1, updated_at = NOW() WHERE master_id = $2 AND mbom_line_id = $3 AND effective_to IS NULL RETURNING *`, [context.userId, req.params['substituteId'], req.params['lineId']]);
+      if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'MBOM_SUBSTITUTE_NOT_FOUND' }); }
+      await client.query(`INSERT INTO md_component_substitute_approval_audit (substitute_id, previous_status, new_status, reason, actor_id) VALUES ($1, $2, 'Approved', $3, $4)`, [rows[0].master_id, previous.rows[0]?.approval_status || null, req.body?.reason || rows[0].approval_reason || null, context.userId]);
+      await client.query('COMMIT');
+      return res.json({ data: rows[0] });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.post('/mbom-lines/:lineId/substitutes/:substituteId/reject', async (req, res, next) => {
+    const context = getContext(req); const client = await pool.connect();
+    try {
+      const reason = String(req.body?.reason || '').trim();
+      if (!reason) return res.status(422).json({ error: 'MBOM_SUBSTITUTE_REJECTION_REASON_REQUIRED' });
+      await client.query('BEGIN');
+      const guard = await client.query(`SELECT h.lifecycle_status FROM md_component_substitute cs JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id JOIN md_mbom_header h ON h.master_id = l.mbom_header_id WHERE cs.master_id = $1 AND cs.mbom_line_id = $2 AND cs.effective_to IS NULL FOR UPDATE`, [req.params['substituteId'], req.params['lineId']]);
+      if (guard.rows[0]?.lifecycle_status === 'Released') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'MBOM_SUBSTITUTE_RELEASED_MBOM_IMMUTABLE' }); }
+      const { rows } = await client.query(`UPDATE md_component_substitute SET approval_status = 'Rejected', rejection_reason = $1, rejected_by = $2, rejected_at = NOW(), lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $2, updated_at = NOW() WHERE master_id = $3 AND mbom_line_id = $4 AND effective_to IS NULL RETURNING *`, [reason, context.userId, req.params['substituteId'], req.params['lineId']]);
+      if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'MBOM_SUBSTITUTE_NOT_FOUND' }); }
+      await client.query(`INSERT INTO md_component_substitute_approval_audit (substitute_id, previous_status, new_status, reason, actor_id) VALUES ($1, $2, 'Rejected', $3, $4)`, [rows[0].master_id, rows[0].approval_status, reason, context.userId]);
+      await client.query('COMMIT'); return res.json({ data: rows[0] });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.put('/mbom-lines/:lineId/substitutes/:substituteId', async (req, res, next) => {
+    const context = getContext(req); const body = normalizeBody(req.body);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const ownership = await client.query(`SELECT cs.*, h.lifecycle_status AS header_lifecycle_status FROM md_component_substitute cs JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id JOIN md_mbom_header h ON h.master_id = l.mbom_header_id WHERE cs.master_id = $1 AND cs.mbom_line_id = $2 FOR UPDATE`, [req.params['substituteId'], req.params['lineId']]);
+      if (!ownership.rows[0]) throw Object.assign(new Error('MBOM_SUBSTITUTE_NOT_FOUND'), { statusCode: 404 });
+      if (ownership.rows[0].header_lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_SUBSTITUTE_RELEASED_MBOM_IMMUTABLE'), { statusCode: 409 });
+      const audit = await client.query(`SELECT 1 FROM md_component_substitute_approval_audit WHERE substitute_id = $1 AND new_status IN ('Approved','Rejected','Ended') LIMIT 1`, [req.params['substituteId']]);
+      if (ownership.rows[0].approval_status === 'Approved' || ownership.rows[0].lifecycle_status === 'Released' || audit.rows[0]) throw Object.assign(new Error('MBOM_SUBSTITUTE_APPROVAL_HISTORY_EXISTS'), { statusCode: 409 });
+      if (body['conversion_factor'] !== undefined && Number(body['conversion_factor']) <= 0) throw Object.assign(new Error('MBOM_SUBSTITUTE_CONVERSION_INVALID'), { statusCode: 422 });
+      if (body['max_usage_percent'] !== undefined && (Number(body['max_usage_percent']) <= 0 || Number(body['max_usage_percent']) > 100)) throw Object.assign(new Error('MBOM_SUBSTITUTE_MAX_USAGE_INVALID'), { statusCode: 422 });
+      const effectiveFrom = body['effective_from'] === undefined ? null : new Date(String(body['effective_from']));
+      const effectiveTo = body['effective_to'] === undefined || body['effective_to'] === null || body['effective_to'] === '' ? null : new Date(String(body['effective_to']));
+      if ((effectiveFrom && Number.isNaN(effectiveFrom.getTime())) || (effectiveTo && Number.isNaN(effectiveTo.getTime()))) throw Object.assign(new Error('MBOM_SUBSTITUTE_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+      if (effectiveFrom && effectiveTo && effectiveTo <= effectiveFrom) throw Object.assign(new Error('MBOM_SUBSTITUTE_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+      const allowed = ['name', 'priority', 'conversion_factor', 'max_usage_percent', 'requires_approval', 'effective_from', 'effective_to'];
+      const columns = allowed.filter((column) => body[column] !== undefined);
+      if (!columns.length) throw Object.assign(new Error('MBOM_SUBSTITUTE_UPDATE_FIELDS_REQUIRED'), { statusCode: 400 });
+      const sets = columns.map((column, index) => `${column} = $${index + 1}`);
+      const { rows } = await client.query(`UPDATE md_component_substitute SET ${sets.join(', ')}, updated_by = $${columns.length + 1}, updated_at = NOW() WHERE master_id = $${columns.length + 2} AND mbom_line_id = $${columns.length + 3} AND effective_to IS NULL RETURNING *`, [...columns.map((column) => body[column]), context.userId, req.params['substituteId'], req.params['lineId']]);
+      await client.query('COMMIT'); return res.json({ data: rows[0] });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.delete('/mbom-lines/:lineId/substitutes/:substituteId', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const ownership = await pool.query(`SELECT cs.*, h.lifecycle_status AS header_lifecycle_status FROM md_component_substitute cs JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id JOIN md_mbom_header h ON h.master_id = l.mbom_header_id WHERE cs.master_id = $1 AND cs.mbom_line_id = $2`, [req.params['substituteId'], req.params['lineId']]);
+      if (!ownership.rows[0]) return res.status(404).json({ error: 'MBOM_SUBSTITUTE_NOT_FOUND' });
+      if (ownership.rows[0].header_lifecycle_status === 'Released') return res.status(409).json({ error: 'MBOM_SUBSTITUTE_RELEASED_MBOM_IMMUTABLE' });
+      const audit = await pool.query(`SELECT 1 FROM md_component_substitute_approval_audit WHERE substitute_id = $1 AND new_status IN ('Approved','Rejected','Ended') LIMIT 1`, [req.params['substituteId']]);
+      if (ownership.rows[0].approval_status === 'Approved' || audit.rows[0]) return res.status(409).json({ error: 'MBOM_SUBSTITUTE_DELETE_NOT_ALLOWED' });
+      const { rows } = await pool.query(`DELETE FROM md_component_substitute WHERE master_id = $1 AND mbom_line_id = $2 AND effective_to IS NULL AND lifecycle_status = 'Draft' RETURNING master_id`, [req.params['substituteId'], req.params['lineId']]);
+      return res.json({ deleted: Boolean(rows[0]), master_id: req.params['substituteId'] });
+    } catch (err) { return next(err); }
+  });
+
+  router.post('/mbom-lines/:lineId/substitutes/:substituteId/end-effectivity', async (req, res, next) => {
+    const context = getContext(req); const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const ownership = await client.query(`SELECT cs.*, h.lifecycle_status AS header_lifecycle_status FROM md_component_substitute cs JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id JOIN md_mbom_header h ON h.master_id = l.mbom_header_id WHERE cs.master_id = $1 AND cs.mbom_line_id = $2 FOR UPDATE`, [req.params['substituteId'], req.params['lineId']]);
+      if (!ownership.rows[0]) throw Object.assign(new Error('MBOM_SUBSTITUTE_NOT_FOUND'), { statusCode: 404 });
+      const row = ownership.rows[0];
+      if (row.header_lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_SUBSTITUTE_RELEASED_MBOM_IMMUTABLE'), { statusCode: 409 });
+      if (row.effective_to || ['Inactive', 'Obsolete'].includes(row.lifecycle_status)) throw Object.assign(new Error('MBOM_SUBSTITUTE_ALREADY_ENDED'), { statusCode: 409 });
+      const boundary = req.body?.effective_to ? new Date(String(req.body.effective_to)) : new Date();
+      if (Number.isNaN(boundary.getTime()) || boundary <= new Date(row.effective_from)) throw Object.assign(new Error('MBOM_SUBSTITUTE_EFFECTIVE_DATE_INVALID'), { statusCode: 422 });
+      const updated = await client.query(`UPDATE md_component_substitute SET effective_to = $1, lifecycle_status = 'Inactive', updated_by = $2, updated_at = NOW() WHERE master_id = $3 AND mbom_line_id = $4 RETURNING *`, [boundary, context.userId, req.params['substituteId'], req.params['lineId']]);
+      await client.query(`INSERT INTO md_component_substitute_approval_audit (substitute_id, previous_status, new_status, reason, actor_id) VALUES ($1, $2, 'Ended', $3, $4)`, [req.params['substituteId'], row.approval_status, 'Effectivity ended', context.userId]);
+      await client.query('COMMIT'); return res.json({ data: updated.rows[0] });
+    } catch (err: any) { await client.query('ROLLBACK'); return res.status(err?.statusCode || 500).json({ error: err?.message || 'MBOM_SUBSTITUTE_END_EFFECTIVITY_FAILED' }); } finally { client.release(); }
+  });
+
+  router.get('/mbom-lines/:lineId/substitutes/:substituteId/audit', async (req, res, next) => {
+    try {
+      const result = await pool.query(`SELECT a.* FROM md_component_substitute_approval_audit a JOIN md_component_substitute cs ON cs.master_id = a.substitute_id WHERE cs.master_id = $1 AND cs.mbom_line_id = $2 ORDER BY a.occurred_at DESC`, [req.params['substituteId'], req.params['lineId']]);
+      return res.json({ data: result.rows });
+    } catch (err) { return next(err); }
+  });
+
+  router.put('/mbom-headers/:id/lines/:lineId([0-9a-fA-F-]{36})', async (req, res, next) => {
+    const context = getContext(req); const body = normalizeBody(req.body); const client = await pool.connect();
+    try {
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const current = await client.query(`SELECT l.*, h.lifecycle_status AS header_status FROM md_mbom_line l JOIN md_mbom_header h ON h.master_id = l.mbom_header_id WHERE l.master_id = $1 AND l.mbom_header_id = $2 FOR UPDATE`, [req.params['lineId'], req.params['id']]);
+      if (!current.rows[0]) throw Object.assign(new Error('MBOM_LINE_NOT_FOUND'), { statusCode: 404 });
+      if (current.rows[0].header_status === 'Released') throw Object.assign(new Error('MBOM_RELEASED_IMMUTABLE'), { statusCode: 409 });
+      const next = { ...current.rows[0], ...body };
+      if (!Number.isInteger(Number(next.seq)) || Number(next.seq) <= 0 || Number(next.quantity_per) <= 0) throw Object.assign(new Error('MBOM_LINE_NUMERIC_INVALID'), { statusCode: 422 });
+      if (next.parent_line_id) {
+        const parent = await client.query(`SELECT mbom_header_id FROM md_mbom_line WHERE master_id = $1 AND master_id <> $2 AND effective_to IS NULL`, [next.parent_line_id, req.params['lineId']]);
+        if (!parent.rows[0] || parent.rows[0].mbom_header_id !== req.params['id']) throw Object.assign(new Error('MBOM_PARENT_LINE_INVALID'), { statusCode: 422 });
+        const cycle = await client.query(`WITH RECURSIVE ancestors AS (
+          SELECT master_id, parent_line_id FROM md_mbom_line WHERE master_id = $1
+          UNION ALL
+          SELECT line.master_id, line.parent_line_id
+          FROM md_mbom_line line JOIN ancestors a ON line.master_id = a.parent_line_id
+        ) SELECT 1 FROM ancestors WHERE master_id = $2 LIMIT 1`, [next.parent_line_id, req.params['lineId']]);
+        if (cycle.rows[0]) throw Object.assign(new Error('MBOM_PARENT_LINE_INVALID'), { statusCode: 422 });
+      }
+      const component = await client.query(`SELECT lifecycle_status, base_uom_id FROM md_item_revision WHERE master_id = $1 AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [next.component_revision_id]);
+      if (!component.rows[0] || component.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_COMPONENT_REVISION_INVALID'), { statusCode: 422 });
+      next.uom_id = component.rows[0].base_uom_id;
+      body['uom_id'] = component.rows[0].base_uom_id;
+      const uom = await client.query(`SELECT lifecycle_status, allow_fraction, decimal_precision FROM md_uom WHERE master_id = $1`, [next.uom_id]);
+      if (!uom.rows[0] || uom.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_LINE_UOM_NOT_RELEASED'), { statusCode: 422 });
+      validateUomQuantity(next.quantity_per, uom.rows[0]);
+      if (next.issue_operation_id) {
+        const operation = await client.query(`SELECT lifecycle_status FROM md_operation WHERE master_id = $1`, [next.issue_operation_id]);
+        if (!operation.rows[0] || ['Inactive', 'Obsolete'].includes(String(operation.rows[0].lifecycle_status))) throw Object.assign(new Error('MBOM_ISSUE_OPERATION_INVALID'), { statusCode: 422 });
+      }
+      const effectiveFrom = body['effective_from'] === undefined ? null : new Date(String(body['effective_from']));
+      const effectiveTo = body['effective_to'] === undefined || body['effective_to'] === null || body['effective_to'] === '' ? null : new Date(String(body['effective_to']));
+      if ((effectiveFrom && Number.isNaN(effectiveFrom.getTime())) || (effectiveTo && Number.isNaN(effectiveTo.getTime())) || (effectiveFrom && effectiveTo && effectiveTo <= effectiveFrom)) throw Object.assign(new Error('MBOM_LINE_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+      const allowed = ['parent_line_id', 'seq', 'component_revision_id', 'quantity_per', 'uom_id', 'scrap_rate', 'issue_operation_id', 'backflush_flag', 'phantom_flag', 'optional_flag', 'effective_from', 'effective_to'];
+      const columns = allowed.filter((column) => body[column] !== undefined);
+      if (!columns.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No update fields provided' });
+      }
+      const values = columns.map((column) => {
+        if (column === 'parent_line_id' && body[column] === '') return null;
+        if (column === 'effective_to' && (body[column] === '' || body[column] === null)) return null;
+        return body[column];
+      });
+      const sets = columns.map((column, index) => `${column} = $${index + 1}`);
+      const { rows } = await client.query(`UPDATE md_mbom_line SET ${sets.join(', ')}, updated_by = $${columns.length + 1}, updated_at = NOW() WHERE master_id = $${columns.length + 2} RETURNING *`, [...values, context.userId, req.params['lineId']]);
+      await client.query(`UPDATE md_mbom_header SET structure_version = structure_version + 1, updated_by = $1, updated_at = NOW() WHERE master_id = $2`, [context.userId, req.params['id']]);
+      await client.query('COMMIT'); return res.json({ data: rows[0] });
+    } catch (err: any) { await client.query('ROLLBACK'); return res.status(err?.statusCode || 500).json({ error: err?.message || 'MBOM_LINE_UPDATE_FAILED' }); } finally { client.release(); }
+  });
+
+  router.delete('/mbom-headers/:id/lines/:lineId([0-9a-fA-F-]{36})', async (req, res, next) => {
+    const context = getContext(req); const client = await pool.connect();
+    try {
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const current = await client.query(`SELECT l.master_id, h.lifecycle_status AS header_status FROM md_mbom_line l JOIN md_mbom_header h ON h.master_id = l.mbom_header_id WHERE l.master_id = $1 AND l.mbom_header_id = $2 FOR UPDATE`, [req.params['lineId'], req.params['id']]);
+      if (!current.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'MBOM_LINE_NOT_FOUND' }); }
+      if (current.rows[0].header_status === 'Released') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'MBOM_RELEASED_IMMUTABLE' }); }
+      await client.query(`UPDATE md_component_substitute SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $1, updated_at = NOW() WHERE mbom_line_id = $2 AND effective_to IS NULL`, [context.userId, req.params['lineId']]);
+      await client.query(`UPDATE md_mbom_line SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $1, updated_at = NOW() WHERE master_id = $2`, [context.userId, req.params['lineId']]);
+      await client.query(`UPDATE md_mbom_header SET structure_version = structure_version + 1, updated_by = $1, updated_at = NOW() WHERE master_id = $2`, [context.userId, req.params['id']]);
+      await client.query('COMMIT'); return res.json({ deleted: true, master_id: req.params['lineId'] });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.post('/mbom-headers/:id/lines/reorder', async (req, res, next) => {
+    const context = getContext(req); const submitted = Array.isArray(req.body?.lines) ? req.body.lines as Array<Record<string, any>> : []; const client = await pool.connect();
+    try {
+      await client.query('BEGIN'); await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const header = await client.query(`SELECT lifecycle_status, structure_version FROM md_mbom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!header.rows[0]) throw Object.assign(new Error('MBOM_NOT_FOUND'), { statusCode: 404 });
+      if (header.rows[0].lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_RELEASED_IMMUTABLE'), { statusCode: 409 });
+      const ids = submitted.map((line) => String(line.line_id));
+      const current = await client.query(`SELECT master_id FROM md_mbom_line WHERE mbom_header_id = $1 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['id']]);
+      if (ids.length !== current.rows.length || ids.some((id) => !current.rows.some((row) => row.master_id === id))) throw Object.assign(new Error('MBOM_REORDER_LINES_INVALID'), { statusCode: 422 });
+      const siblings = new Set<string>();
+      for (const line of submitted) { const key = `${line.parent_line_id || 'root'}:${Number(line.seq)}`; if (siblings.has(key) || !Number.isInteger(Number(line.seq)) || Number(line.seq) <= 0) throw Object.assign(new Error('MBOM_SEQUENCE_DUPLICATE'), { statusCode: 422 }); siblings.add(key); }
+      await client.query(`UPDATE md_mbom_line SET seq = -seq, updated_by = $1, updated_at = NOW() WHERE mbom_header_id = $2 AND effective_to IS NULL`, [context.userId, req.params['id']]);
+      for (const line of submitted) await client.query(`UPDATE md_mbom_line SET parent_line_id = $1, seq = $2, updated_by = $3, updated_at = NOW() WHERE master_id = $4`, [line.parent_line_id || null, Number(line.seq), context.userId, line.line_id]);
+      await client.query(`UPDATE md_mbom_header SET structure_version = structure_version + 1, updated_by = $1, updated_at = NOW() WHERE master_id = $2`, [context.userId, req.params['id']]);
+      await client.query('COMMIT'); return res.json({ data: submitted, reordered: true });
+    } catch (err: any) { await client.query('ROLLBACK'); return res.status(err?.statusCode || 500).json({ error: err?.message || 'MBOM_REORDER_FAILED' }); } finally { client.release(); }
+  });
+
+  router.post('/mbom-headers/:id/validate', async (req, res, next) => {
+    try {
+      const errors: Array<Record<string, string>> = [];
+      const header = await pool.query(`SELECT master_id, site_id, base_quantity, base_uom_id, lifecycle_status FROM md_mbom_header WHERE master_id = $1`, [req.params['id']]);
+      if (!header.rows[0]) return res.status(404).json({ error: 'MBOM_NOT_FOUND' });
+      if (Number(header.rows[0].base_quantity) <= 0) errors.push({ code: 'MBOM_BASE_QUANTITY_INVALID', path: 'base_quantity', message: 'Base quantity must be greater than zero.' });
+      const headerUom = await pool.query(`SELECT lifecycle_status, allow_fraction, decimal_precision FROM md_uom WHERE master_id = $1`, [header.rows[0].base_uom_id]);
+      if (!headerUom.rows[0] || headerUom.rows[0].lifecycle_status !== 'Released') errors.push({ code: 'MBOM_BASE_UOM_NOT_RELEASED', path: 'base_uom_id', message: 'Base UOM must be Released.' });
+      else { try { validateUomQuantity(header.rows[0].base_quantity, headerUom.rows[0]); } catch (error: any) { errors.push({ code: error.message, path: 'base_quantity', message: 'Base quantity does not match the selected UOM.' }); } }
+      // A line UOM is a persisted compatibility snapshot. The authoritative
+      // UOM is always the selected Item Revision base UOM.
+      const lines = await pool.query(`SELECT l.*, r.lifecycle_status AS component_status, r.base_uom_id AS component_base_uom_id, u.lifecycle_status AS uom_status, u.allow_fraction, u.decimal_precision FROM md_mbom_line l JOIN md_item_revision r ON r.master_id = l.component_revision_id JOIN md_uom u ON u.master_id = r.base_uom_id WHERE l.mbom_header_id = $1 AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['id']]);
+      if (!lines.rows.length) errors.push({ code: 'MBOM_NO_LINES', path: 'lines', message: 'At least one active MBOM line is required.' });
+      const keys = new Set<string>();
+      for (const line of lines.rows) {
+        const sibling = `${line.parent_line_id || 'root'}:${line.seq}`;
+        if (keys.has(sibling)) errors.push({ code: 'MBOM_SEQUENCE_DUPLICATE', path: `lines.${line.master_id}.seq`, message: 'Sibling sequence must be unique.' });
+        keys.add(sibling);
+        if (Number(line.quantity_per) <= 0) errors.push({ code: 'MBOM_LINE_QUANTITY_INVALID', path: `lines.${line.master_id}.quantity_per`, message: 'Quantity per must be greater than zero.' });
+        try { validateUomQuantity(line.quantity_per, line); } catch (error: any) { errors.push({ code: error.message, path: `lines.${line.master_id}.quantity_per`, message: 'Quantity does not match the selected UOM.' }); }
+        if (line.component_status !== 'Released') errors.push({ code: 'MBOM_COMPONENT_REVISION_INVALID', path: `lines.${line.master_id}.component_revision_id`, message: 'Component Revision must be Released.' });
+        if (line.uom_status !== 'Released') errors.push({ code: 'MBOM_LINE_UOM_NOT_RELEASED', path: `lines.${line.master_id}.uom_id`, message: 'Line UOM must be Released.' });
+        if (line.parent_line_id && !lines.rows.some((parent: any) => parent.master_id === line.parent_line_id)) errors.push({ code: 'MBOM_PARENT_LINE_INVALID', path: `lines.${line.master_id}.parent_line_id`, message: 'Parent line must belong to the same active MBOM.' });
+      }
+      if (errors.length) return res.status(422).json({ valid: false, errors, warnings: [] });
+      return res.json({ valid: true, errors: [], warnings: [] });
+    } catch (err) { return next(err); }
+  });
+
+  router.put('/mbom-headers/:id/lines/replace', async (req, res, next) => {
+    const context = getContext(req); const submitted = Array.isArray(req.body?.lines) ? req.body.lines as Array<Record<string, any>> : [];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const header = await client.query(`SELECT master_id, lifecycle_status, structure_version FROM md_mbom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!header.rows[0]) throw Object.assign(new Error('MBOM_NOT_FOUND'), { statusCode: 404 });
+      if (header.rows[0].lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_RELEASED_IMMUTABLE'), { statusCode: 409 });
+      const expectedVersion = Number(req.body?.expected_structure_version);
+      if (!Number.isInteger(expectedVersion) || expectedVersion < 1) throw Object.assign(new Error('MBOM_STRUCTURE_VERSION_REQUIRED'), { statusCode: 400 });
+      if (expectedVersion !== Number(header.rows[0].structure_version)) {
+        throw Object.assign(new Error(`MBOM_STRUCTURE_VERSION_CONFLICT:${header.rows[0].structure_version}`), { statusCode: 409 });
+      }
+      const currentLines = await client.query(`SELECT master_id, code, version_no FROM md_mbom_line WHERE mbom_header_id = $1 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [req.params['id']]);
+      const currentById = new Map(currentLines.rows.map((line: any) => [String(line.master_id), line]));
+      const keyByInput = new Map<string, string>();
+      const seenSibling = new Set<string>();
+      for (const [index, line] of submitted.entries()) {
+        const key = String(line.line_key || `line-${index + 1}`);
+        const parentKey = line.parent_line_key ? String(line.parent_line_key) : '';
+        const sibling = `${parentKey || 'root'}:${Number(line.seq)}`;
+        if (seenSibling.has(sibling)) throw Object.assign(new Error('MBOM_SEQUENCE_DUPLICATE'), { statusCode: 422 });
+        seenSibling.add(sibling); keyByInput.set(key, randomUUID());
+      }
+      await client.query(`UPDATE md_component_substitute SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $1, updated_at = NOW() WHERE mbom_line_id IN (SELECT master_id FROM md_mbom_line WHERE mbom_header_id = $2 AND effective_to IS NULL) AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
+      await client.query(`UPDATE md_mbom_line SET lifecycle_status = 'Inactive', effective_to = NOW(), updated_by = $1, updated_at = NOW() WHERE mbom_header_id = $2 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
+      for (const [index, line] of submitted.entries()) {
+        const key = String(line.line_key || `line-${index + 1}`); const parentKey = line.parent_line_key ? String(line.parent_line_key) : null;
+        if (parentKey && !keyByInput.has(parentKey)) throw Object.assign(new Error('MBOM_PARENT_LINE_INVALID'), { statusCode: 422 });
+        const component = await client.query(`SELECT lifecycle_status, base_uom_id FROM md_item_revision WHERE master_id = $1`, [line.component_revision_id]);
+        if (!component.rows[0] || component.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_COMPONENT_REVISION_INVALID'), { statusCode: 422 });
+        const canonicalUomId = component.rows[0].base_uom_id;
+        const uom = await client.query(`SELECT lifecycle_status, allow_fraction FROM md_uom WHERE master_id = $1`, [canonicalUomId]);
+        if (!uom.rows[0] || uom.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_LINE_UOM_NOT_RELEASED'), { statusCode: 422 });
+        if (!Number.isInteger(Number(line.seq)) || Number(line.seq) <= 0 || Number(line.quantity_per) <= 0) throw Object.assign(new Error('MBOM_LINE_NUMERIC_INVALID'), { statusCode: 422 });
+        if (uom.rows[0].allow_fraction === false && !Number.isInteger(Number(line.quantity_per))) throw Object.assign(new Error('MBOM_LINE_FRACTION_NOT_ALLOWED'), { statusCode: 422 });
+        if (Number(line.scrap_rate ?? 0) < 0 || Number(line.scrap_rate ?? 0) > 1) throw Object.assign(new Error('MBOM_LINE_SCRAP_INVALID'), { statusCode: 422 });
+        const previous = currentById.get(key);
+        const code = String(line.code || previous?.code || `MBOM-LINE-${index + 1}`);
+        const nextVersion = Number(previous?.version_no || 0) + 1;
+        const version = previous ? nextVersion : Number((await client.query(`SELECT COALESCE(MAX(version_no), 0) + 1 AS next_version FROM md_mbom_line WHERE code = $1`, [code])).rows[0].next_version);
+        await client.query(`INSERT INTO md_mbom_line (master_id, code, name, version_no, mbom_header_id, parent_line_id, seq, component_revision_id, quantity_per, uom_id, scrap_rate, issue_operation_id, backflush_flag, phantom_flag, optional_flag, lifecycle_status, effective_from, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'Draft',NOW(),$16)`, [keyByInput.get(key), code, line.name || 'MBOM component', version, req.params['id'], parentKey ? keyByInput.get(parentKey) : null, Number(line.seq), line.component_revision_id, line.quantity_per, canonicalUomId, line.scrap_rate ?? 0, line.issue_operation_id || null, line.backflush_flag === true, line.phantom_flag === true, line.optional_flag === true, context.userId]);
+      }
+      await client.query(`UPDATE md_mbom_header SET structure_version = structure_version + 1, updated_by = $1, updated_at = NOW() WHERE master_id = $2`, [context.userId, req.params['id']]);
+      await client.query('COMMIT');
+      return res.json({ data: { mbom_id: req.params['id'], line_count: submitted.length, structure_version: Number(header.rows[0].structure_version) + 1 }, replaced: true });
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      const message = String(err?.message || 'MBOM_LINE_REPLACEMENT_FAILED');
+      if (message.startsWith('MBOM_STRUCTURE_VERSION_CONFLICT:')) return res.status(409).json({ error: 'MBOM_STRUCTURE_VERSION_CONFLICT', latest_structure_version: Number(message.split(':')[1]) });
+      return res.status(err?.statusCode || 500).json({ error: message });
+    } finally { client.release(); }
   });
 
   router.get('/:resource/:id', async (req, res, next) => {
@@ -2582,11 +3568,22 @@ export function masterDataRouter(pool: Pool): Router {
     const table = requireTable(req.params['resource'] ?? '');
     const context = getContext(req);
     const body = normalizeLocalizedFields(table, normalizeBody(req.body));
+    if (table.tableName === 'md_shopfloor') normalizeShopfloorPayload(body);
+    if (table.tableName === 'md_item_revision' && (body['material_group_id'] !== undefined || body['item_group'] !== undefined)) {
+      const materialGroup = await pool.query(`SELECT master_id, code FROM md_material_group WHERE master_id = $1 OR UPPER(code) = UPPER($2)`, [body['material_group_id'] || null, body['item_group'] || null]);
+      if (!materialGroup.rows[0]) return res.status(422).json({ error: 'MATERIAL_GROUP_REQUIRED' });
+      body['material_group_id'] = materialGroup.rows[0].master_id;
+      body['item_group'] = materialGroup.rows[0].code;
+    }
     validateEngineeringMetadata(table, body, true);
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      if (['md_item', 'md_item_revision'].includes(table.tableName) && body['base_uom_id']) {
+        const uom = await client.query(`SELECT master_id FROM md_uom WHERE master_id = $1 AND lifecycle_status = 'Released'`, [body['base_uom_id']]);
+        if (!uom.rows[0]) throw Object.assign(new Error('UOM_NOT_RELEASED'), { statusCode: 422 });
+      }
       if (table.tableName === 'md_site') body['code'] = await consumeBusinessCode(client, body['code_reservation_id'], 'Factory', context);
       if (table.tableName === 'md_shopfloor') body['code'] = await consumeBusinessCode(client, body['code_reservation_id'], 'Shopfloor', context);
       if (table.tableName === 'md_work_center') {
@@ -2615,9 +3612,93 @@ export function masterDataRouter(pool: Pool): Router {
         if (nameI18n !== undefined && !isProductionVersionNameValid(nameI18n)) throw Object.assign(new Error('PRODUCTION_VERSION_NAME_INVALID'), { statusCode: 422 });
         body['name_i18n'] = nameI18n || await defaultProductionVersionName(client, String(body['item_revision_id'] || ''), String(body['code']));
         body['name'] = String((body['name_i18n'] as Record<string, unknown>).en || (body['name_i18n'] as Record<string, unknown>).vi || body['code']);
+        const outputItem = await client.query(`SELECT i.item_type, i.lifecycle_status AS item_lifecycle_status, r.lifecycle_status AS revision_lifecycle_status FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id WHERE r.master_id = $1`, [body['item_revision_id']]);
+        if (!outputItem.rows[0] || outputItem.rows[0].item_lifecycle_status !== 'Released' || outputItem.rows[0].revision_lifecycle_status !== 'Released') throw Object.assign(new Error('PRODUCTION_VERSION_ITEM_REVISION_INVALID'), { statusCode: 422 });
+        if (outputItem.rows[0].item_type === 'RM') throw Object.assign(new Error('MBOM_OUTPUT_RAW_MATERIAL'), { statusCode: 422 });
         if (body['min_lot_size'] !== undefined && Number(body['min_lot_size']) <= 0) throw Object.assign(new Error('PRODUCTION_VERSION_LOT_SIZE_INVALID'), { statusCode: 422 });
         if (body['max_lot_size'] !== undefined && body['max_lot_size'] !== null && Number(body['max_lot_size']) < Number(body['min_lot_size'] || 0)) throw Object.assign(new Error('PRODUCTION_VERSION_LOT_SIZE_INVALID'), { statusCode: 422 });
+        if (body['ebom_header_id']) {
+          const ebom = await client.query(`SELECT item_revision_id, lifecycle_status FROM md_ebom_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [body['ebom_header_id']]);
+          if (!ebom.rows[0]) throw Object.assign(new Error('PRODUCTION_VERSION_EBOM_INVALID'), { statusCode: 422 });
+          if (String(ebom.rows[0].item_revision_id) !== String(body['item_revision_id'])) throw Object.assign(new Error('PRODUCTION_VERSION_EBOM_REVISION_MISMATCH'), { statusCode: 422 });
+        }
         body['site_id'] = await resolveProductionVersionSite(client, String(body['item_revision_id'] || ''), String(body['mbom_header_id'] || ''), String(body['routing_header_id'] || ''));
+      }
+
+      if (table.tableName === 'md_mbom_header') {
+        await validateStructureOwner(client, table.tableName, body['item_revision_id']);
+        if (!localizedTextSchema.safeParse(body['name']).success) throw Object.assign(new Error('MBOM_NAME_REQUIRED'), { statusCode: 422 });
+        if (!body['site_id']) throw Object.assign(new Error('MBOM_SITE_REQUIRED'), { statusCode: 422 });
+        if (!body['base_uom_id']) throw Object.assign(new Error('MBOM_BASE_UOM_REQUIRED'), { statusCode: 422 });
+        if (!Number.isFinite(Number(body['base_quantity'])) || Number(body['base_quantity']) <= 0) throw Object.assign(new Error('MBOM_BASE_QUANTITY_INVALID'), { statusCode: 422 });
+        const site = await client.query(`SELECT 1 FROM md_site WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [body['site_id']]);
+        if (!site.rows[0]) throw Object.assign(new Error('MBOM_SITE_INVALID'), { statusCode: 422 });
+        const uom = await client.query(`SELECT master_id, lifecycle_status, allow_fraction, decimal_precision FROM md_uom WHERE master_id = $1`, [body['base_uom_id']]);
+        if (!uom.rows[0]) throw Object.assign(new Error('MBOM_BASE_UOM_NOT_RELEASED'), { statusCode: 422 });
+        if (uom.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_BASE_UOM_NOT_RELEASED'), { statusCode: 422 });
+        validateUomQuantity(body['base_quantity'], uom.rows[0]);
+      }
+      if (table.tableName === 'md_routing_header') {
+        await validateStructureOwner(client, table.tableName, body['item_revision_id']);
+      }
+      if (table.tableName === 'md_mbom_line') {
+        // Line codes are backend-owned. The editor does not expose this
+        // technical identity, so never pass a missing form value through to
+        // the NOT NULL database column.
+        body['code'] = body['code'] || await allocateResourceCode(client, 'MBOM-LINE');
+        // The current console derives the display name from the component
+        // revision and intentionally does not ask the user for a second name.
+        // Keep the persisted technical name non-null for legacy schema
+        // compatibility while preserving an explicitly supplied value.
+        body['name'] = body['name'] || body['code'];
+        const missingRequiredFields = ['mbom_header_id', 'component_revision_id'].filter((field) => body[field] === undefined || body[field] === null || String(body[field]).trim() === '');
+        if (missingRequiredFields.length) throw Object.assign(new Error(`MBOM_LINE_REQUIRED_FIELDS:${missingRequiredFields.join(',')}`), { statusCode: 422 });
+        if (!Number.isInteger(Number(body['seq'])) || Number(body['seq']) <= 0) throw Object.assign(new Error('MBOM_LINE_SEQUENCE_INVALID'), { statusCode: 422 });
+        if (!Number.isFinite(Number(body['quantity_per'])) || Number(body['quantity_per']) <= 0) throw Object.assign(new Error('MBOM_LINE_QUANTITY_INVALID'), { statusCode: 422 });
+        if (Number(body['scrap_rate'] ?? 0) < 0 || Number(body['scrap_rate'] ?? 0) > 1) throw Object.assign(new Error('MBOM_LINE_SCRAP_INVALID'), { statusCode: 422 });
+        if ((body['effective_from'] && Number.isNaN(new Date(String(body['effective_from'])).getTime())) || (body['effective_to'] && Number.isNaN(new Date(String(body['effective_to'])).getTime())) || (body['effective_from'] && body['effective_to'] && new Date(String(body['effective_to'])) <= new Date(String(body['effective_from'])))) throw Object.assign(new Error('MBOM_LINE_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
+        const header = await client.query(`SELECT lifecycle_status FROM md_mbom_header WHERE master_id = $1 FOR SHARE`, [body['mbom_header_id']]);
+        if (!header.rows[0]) throw Object.assign(new Error('MBOM_NOT_FOUND'), { statusCode: 404 });
+        if (header.rows[0].lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_RELEASED_IMMUTABLE'), { statusCode: 409 });
+        const component = await client.query(`SELECT lifecycle_status, base_uom_id FROM md_item_revision WHERE master_id = $1 AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [body['component_revision_id']]);
+        if (!component.rows[0] || component.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_COMPONENT_REVISION_INVALID'), { statusCode: 422 });
+        body['uom_id'] = component.rows[0].base_uom_id;
+        const uom = await client.query(`SELECT lifecycle_status, allow_fraction, decimal_precision FROM md_uom WHERE master_id = $1`, [body['uom_id']]);
+        if (!uom.rows[0] || uom.rows[0].lifecycle_status !== 'Released') throw Object.assign(new Error('MBOM_LINE_UOM_NOT_RELEASED'), { statusCode: 422 });
+        validateUomQuantity(body['quantity_per'], uom.rows[0]);
+        if (body['parent_line_id']) {
+          const parent = await client.query(`SELECT mbom_header_id FROM md_mbom_line WHERE master_id = $1 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [body['parent_line_id']]);
+          if (!parent.rows[0] || parent.rows[0].mbom_header_id !== body['mbom_header_id']) throw Object.assign(new Error('MBOM_PARENT_LINE_INVALID'), { statusCode: 422 });
+          if (String(body['parent_line_id']) === String(body['master_id'] || '')) throw Object.assign(new Error('MBOM_LINE_SELF_PARENT'), { statusCode: 422 });
+        }
+        if (body['issue_operation_id']) {
+          const operation = await client.query(`SELECT lifecycle_status FROM md_operation WHERE master_id = $1`, [body['issue_operation_id']]);
+          if (!operation.rows[0] || ['Inactive', 'Obsolete'].includes(String(operation.rows[0].lifecycle_status))) throw Object.assign(new Error('MBOM_ISSUE_OPERATION_INVALID'), { statusCode: 422 });
+        }
+        body['optional_flag'] = body['optional_flag'] === true;
+      }
+      if (table.tableName === 'md_component_substitute') {
+        if (!body['mbom_line_id'] || !body['substitute_revision_id']) throw Object.assign(new Error('MBOM_SUBSTITUTE_REQUIRED_FIELDS'), { statusCode: 422 });
+        if (Number(body['priority'] ?? 1) <= 0 || !Number.isInteger(Number(body['priority'] ?? 1))) throw Object.assign(new Error('MBOM_SUBSTITUTE_PRIORITY_INVALID'), { statusCode: 422 });
+        if (Number(body['conversion_factor'] ?? 1) <= 0) throw Object.assign(new Error('MBOM_SUBSTITUTE_CONVERSION_INVALID'), { statusCode: 422 });
+        if (Number(body['max_usage_percent'] ?? 100) <= 0 || Number(body['max_usage_percent'] ?? 100) > 100) throw Object.assign(new Error('MBOM_SUBSTITUTE_MAX_USAGE_INVALID'), { statusCode: 422 });
+        const source = await client.query(`SELECT l.component_revision_id, l.uom_id, h.lifecycle_status, i.item_group AS component_group FROM md_mbom_line l JOIN md_mbom_header h ON h.master_id = l.mbom_header_id JOIN md_item_revision cr ON cr.master_id = l.component_revision_id JOIN md_item i ON i.master_id = cr.item_id WHERE l.master_id = $1`, [body['mbom_line_id']]);
+        if (!source.rows[0]) throw Object.assign(new Error('MBOM_LINE_NOT_FOUND'), { statusCode: 404 });
+        if (source.rows[0].lifecycle_status === 'Released') throw Object.assign(new Error('MBOM_RELEASED_IMMUTABLE'), { statusCode: 409 });
+        if (String(source.rows[0].component_revision_id) === String(body['substitute_revision_id'])) throw Object.assign(new Error('MBOM_SUBSTITUTE_SAME_AS_COMPONENT'), { statusCode: 422 });
+        const substitute = await client.query(`SELECT lifecycle_status FROM md_item_revision WHERE master_id = $1 AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [body['substitute_revision_id']]);
+        if (!substitute.rows[0] || ['Inactive', 'Obsolete'].includes(String(substitute.rows[0].lifecycle_status))) throw Object.assign(new Error('MBOM_SUBSTITUTE_REVISION_INVALID'), { statusCode: 422 });
+        const substituteContext = await client.query(`SELECT i.item_group, r.base_uom_id FROM md_item_revision r JOIN md_item i ON i.master_id = r.item_id WHERE r.master_id = $1`, [body['substitute_revision_id']]);
+        const sameGroup = substituteContext.rows[0]?.item_group === source.rows[0].component_group;
+        const sameUom = substituteContext.rows[0]?.base_uom_id === source.rows[0].uom_id;
+        const conversion = await client.query(`SELECT 1 FROM md_uom_conversion WHERE ((from_uom_id = $1 AND to_uom_id = $2) OR (from_uom_id = $2 AND to_uom_id = $1)) AND lifecycle_status = 'Released' AND effective_to IS NULL`, [source.rows[0].uom_id, substituteContext.rows[0]?.base_uom_id]);
+        const exception = body['compatibility_exception_approved'] === true && String(body['compatibility_exception_reason'] || '').trim();
+        if ((!sameGroup || (!sameUom && !conversion.rows[0])) && !exception) throw Object.assign(new Error('MBOM_SUBSTITUTE_COMPATIBILITY_INVALID'), { statusCode: 422 });
+        body['conversion_factor'] = body['conversion_factor'] ?? 1;
+        body['max_usage_percent'] = body['max_usage_percent'] ?? 100;
+        body['requires_approval'] = body['requires_approval'] === true;
+        body['compatibility_exception_approved'] = Boolean(exception);
+        body['approval_status'] = body['requires_approval'] ? 'Pending' : 'NotRequired';
       }
 
       if (table.tableName === 'md_equipment') {
@@ -2701,33 +3782,24 @@ export function masterDataRouter(pool: Pool): Router {
         body['site_id'] = body['site_id'] || operation.rows[0].site_id;
         if (Number(body['required_persons'] || 1) <= 0) throw Object.assign(new Error('OPERATION_SKILL_REQUIRED_PERSONS_INVALID'), { statusCode: 422 });
       }
-      if (table.tableName === 'md_routing_header') {
-        delete body['item_revision_id'];
-        delete body['site_id'];
-      }
-      if (table.tableName === 'md_mbom_header') delete body['item_revision_id'];
       if (table.tableName === 'md_routing_operation') {
         const operation = await client.query(`SELECT lifecycle_status FROM md_operation WHERE master_id = $1`, [body['operation_id']]);
         if (!operation.rows[0] || ['Inactive', 'Obsolete'].includes(String(operation.rows[0].lifecycle_status))) throw Object.assign(new Error('ROUTING_OPERATION_INACTIVE'), { statusCode: 422 });
-        const exposed = await client.query(`
-          SELECT 1 FROM md_work_center wc
-          JOIN md_work_center_composition c ON c.work_center_id = wc.master_id
-            AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())
-          JOIN md_workstation ws ON ws.master_id = c.workstation_id
-            AND ws.work_center_id = wc.master_id AND ws.active_flag = TRUE
-            AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
-          JOIN md_workstation_operation_capability capability ON capability.workstation_id = ws.master_id
-            AND capability.operation_id = $2 AND capability.active_flag = TRUE
-            AND (capability.effective_to IS NULL OR capability.effective_to > NOW())
-          WHERE wc.master_id = $1 AND wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')
-          LIMIT 1`, [body['work_center_id'], body['operation_id']]);
-        if (!exposed.rows[0]) throw Object.assign(new Error('WORKCENTER_OPERATION_NOT_SUPPORTED'), { statusCode: 422 });
+        const workCenter = await client.query(`SELECT 1 FROM md_work_center WHERE master_id = $1 AND active_flag = TRUE AND lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [body['work_center_id']]);
+        if (!workCenter.rows[0]) throw Object.assign(new Error('ROUTING_WORK_CENTER_INVALID'), { statusCode: 422 });
       }
       const record: Record<string, unknown> = {
         ...body,
         effective_from: body['effective_from'] ?? new Date(),
         created_by: context.userId,
       };
+      // HTML date inputs submit an empty optional date as "". PostgreSQL
+      // timestamptz columns require NULL for an open-ended effective period.
+      for (const dateColumn of ['effective_to', 'valid_to', 'available_to']) {
+        if (record[dateColumn] === '') record[dateColumn] = null;
+      }
+      if (table.tableName === 'md_mbom_line' && record['parent_line_id'] === '') record['parent_line_id'] = null;
+      if (table.tableName === 'md_shopfloor' && !record['master_id']) record['master_id'] = randomUUID();
       const machineId = table.tableName === 'md_workstation' ? String(record['machine_id'] || '') : '';
       const machineGroups = table.tableName === 'md_workstation' ? record['machine_groups'] : undefined;
       delete record['code_reservation_id'];
@@ -2742,7 +3814,7 @@ export function masterDataRouter(pool: Pool): Router {
       if (table.tableName === 'md_equipment') {
         const quantity = Number(rows[0]['quantity'] || 1);
         for (let unitSequence = 1; unitSequence <= quantity; unitSequence += 1) {
-          await client.query(`INSERT INTO md_machine_unit (machine_id, code, unit_sequence, execution_status, active_flag) VALUES ($1,$2,$3,$4,$5)`, [rows[0]['master_id'], `${rows[0]['code']}-${String(unitSequence).padStart(2, '0')}`, unitSequence, rows[0]['execution_status'] || 'Available', rows[0]['active_flag'] !== false]);
+          await client.query(`INSERT INTO md_machine_unit (machine_id, code, unit_sequence, lifecycle_status, physical_identity_status, planning_resource_flag, execution_status, active_flag) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [rows[0]['master_id'], `${rows[0]['code']}-${String(unitSequence).padStart(2, '0')}`, unitSequence, 'Draft', 'PendingIdentification', false, rows[0]['execution_status'] || 'Available', rows[0]['active_flag'] !== false]);
         }
       }
       if (table.tableName === 'md_workstation' && Array.isArray(machineGroups)) {
@@ -2751,6 +3823,9 @@ export function masterDataRouter(pool: Pool): Router {
         const machine = await client.query(`SELECT site_id, active_flag, execution_status FROM md_equipment WHERE master_id = $1 FOR UPDATE`, [machineId]);
         if (!machine.rows[0] || machine.rows[0].site_id !== record['site_id'] || machine.rows[0].active_flag !== true || machine.rows[0].execution_status === 'OutOfService') throw Object.assign(new Error('MACHINE_ASSIGNMENT_INVALID'), { statusCode: 422 });
         await persistMachineGroups(client, String(rows[0]['master_id']), [{ name: { vi: 'Nhóm máy mặc định', en: 'Default machine group', ja: '既定のマシングループ', ko: '기본 머신 그룹' }, primary_machine_id: machineId, minimum_required_machines: 1, effective_from: record['effective_from'] }], context);
+      }
+      if (table.tableName === 'md_mbom_line') {
+        await client.query(`UPDATE md_mbom_header SET structure_version = structure_version + 1, updated_by = $1, updated_at = NOW() WHERE master_id = $2`, [context.userId, body['mbom_header_id']]);
       }
       const creationEvent = creationEventType(table.tableName);
       if (creationEvent) {
@@ -2769,29 +3844,122 @@ export function masterDataRouter(pool: Pool): Router {
     } catch (err: any) {
       await client.query('ROLLBACK');
       if (err?.code === '23P01') return res.status(409).json({ error: 'MACHINE_UNIT_ALREADY_ASSIGNED', message: 'A physical machine unit is already assigned to another active Primary requirement.' });
+      if (err?.code === '23505' && table.tableName === 'md_mbom_line') return res.status(409).json({ error: 'MBOM_SEQUENCE_DUPLICATE', message: 'The sibling sequence is already used in this MBOM.' });
+      if (err?.code === '23502' && table.tableName === 'md_mbom_line') return res.status(422).json({ error: 'MBOM_LINE_REQUIRED_FIELDS', message: 'The MBOM line is missing a required field.' });
+      if (err?.code === '23505' && table.tableName === 'md_component_substitute') return res.status(409).json({ error: 'MBOM_SUBSTITUTE_DUPLICATE', message: 'The substitute or priority is already active for this MBOM line.' });
       return next(err);
     } finally {
       client.release();
     }
   });
 
+  router.put('/items/:id', async (req, res, next) => {
+    const context = getContext(req);
+    const body = normalizeBody(req.body);
+    const specificationFields = ['name', 'item_group', 'material_group_id', 'base_uom_id', 'planning_strategy', 'tracking_level', 'default_scrap_rate', 'specification_ref'];
+    const hasSpecificationChange = Object.keys(body).some((field) => specificationFields.includes(field));
+    if (body['name'] !== undefined && !localizedTextSchema.safeParse(body['name']).success) return res.status(422).json({ error: 'ITEM_NAME_INVALID' });
+    if (body['lifecycle_status'] !== undefined && !['Draft', 'InReview', 'Released', 'Inactive', 'Obsolete'].includes(String(body['lifecycle_status']))) return res.status(422).json({ error: 'ITEM_LIFECYCLE_STATUS_INVALID' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const itemResult = await client.query(`SELECT * FROM md_item WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!itemResult.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'ITEM_NOT_FOUND' }); }
+      const currentRevisionResult = await client.query(`SELECT * FROM md_item_revision WHERE item_id = $1 ORDER BY version_no DESC LIMIT 1 FOR UPDATE`, [req.params['id']]);
+      const currentRevision = currentRevisionResult.rows[0] as Record<string, unknown> | undefined;
+      if (hasSpecificationChange && currentRevision?.lifecycle_status === 'Released') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'ITEM_RELEASED_SPEC_IMMUTABLE_USE_NEW_REVISION' });
+      }
+      if (body['base_uom_id']) {
+        const uom = await client.query(`SELECT master_id FROM md_uom WHERE master_id = $1 AND lifecycle_status = 'Released'`, [body['base_uom_id']]);
+        if (!uom.rows[0]) { await client.query('ROLLBACK'); return res.status(422).json({ error: 'UOM_NOT_RELEASED' }); }
+      }
+      if (body['material_group_id'] !== undefined || body['item_group'] !== undefined) {
+        const materialGroup = await client.query(`SELECT master_id, code FROM md_material_group WHERE master_id = $1 OR UPPER(code) = UPPER($2)`, [body['material_group_id'] || null, body['item_group'] || null]);
+        if (!materialGroup.rows[0]) { await client.query('ROLLBACK'); return res.status(422).json({ error: 'MATERIAL_GROUP_REQUIRED' }); }
+        body['material_group_id'] = materialGroup.rows[0].master_id;
+        body['item_group'] = materialGroup.rows[0].code;
+      }
+      const itemColumns = ['name', 'item_group', 'material_group_id', 'base_uom_id', 'item_type', 'lifecycle_status'].filter((column) => body[column] !== undefined);
+      const itemValues = itemColumns.map((column) => column === 'name' ? JSON.stringify(body[column]) : body[column]);
+      if (itemColumns.length) {
+        const sets = itemColumns.map((column, index) => `${column} = $${index + 1}${column === 'name' ? '::jsonb' : ''}`);
+        await client.query(`UPDATE md_item SET ${sets.join(', ')}, updated_by = $${itemColumns.length + 1}, updated_at = NOW() WHERE master_id = $${itemColumns.length + 2}`, [...itemValues, context.userId, req.params['id']]);
+      }
+      if (hasSpecificationChange && currentRevision) {
+        const revisionColumns = specificationFields.filter((column) => body[column] !== undefined);
+        const revisionValues = revisionColumns.map((column) => column === 'name' ? JSON.stringify(body[column]) : body[column]);
+        const sets = revisionColumns.map((column, index) => `${column} = $${index + 1}${column === 'name' ? '::jsonb' : ''}`);
+        await client.query(`UPDATE md_item_revision SET ${sets.join(', ')}, updated_by = $${revisionColumns.length + 1}, updated_at = NOW() WHERE master_id = $${revisionColumns.length + 2}`, [...revisionValues, context.userId, currentRevision.master_id]);
+      }
+      const updated = await client.query(`SELECT * FROM md_item WHERE master_id = $1`, [req.params['id']]);
+      await client.query('COMMIT');
+      return res.json({ data: updated.rows[0], revision_updated: hasSpecificationChange && Boolean(currentRevision) });
+    } catch (err) { await client.query('ROLLBACK'); return next(err); } finally { client.release(); }
+  });
+
+  router.put('/uoms/:id', async (req, res, next) => {
+    const context = getContext(req);
+    try {
+      const body = validateUomPayload(normalizeBody(req.body), true);
+      if (body['code'] !== undefined) {
+        const current = await pool.query('SELECT code FROM md_uom WHERE master_id = $1', [req.params['id']]);
+        if (!current.rows[0]) return res.status(404).json({ error: 'UOM_NOT_FOUND' });
+        if (String(body['code']) !== String(current.rows[0].code)) return res.status(409).json({ error: 'UOM_CODE_IMMUTABLE' });
+        delete body['code'];
+      }
+      const usage = await getUomUsage(pool, req.params['id']);
+      const current = await pool.query('SELECT * FROM md_uom WHERE master_id = $1', [req.params['id']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'UOM_NOT_FOUND' });
+      if (usage.total > 0 && body['uom_class'] !== undefined && body['uom_class'] !== current.rows[0].uom_class) return res.status(409).json({ error: 'UOM_TYPE_USED_IMMUTABLE' });
+      delete body['master_id']; delete body['version_no']; delete body['created_by'];
+      const allowed = ['name', 'description', 'uom_class', 'decimal_precision', 'allow_fraction', 'lifecycle_status'];
+      const columns = Object.keys(body).filter((column) => allowed.includes(column));
+      if (!columns.length) return res.status(400).json({ error: 'No update fields provided' });
+      const values = columns.map((column) => ['name', 'description'].includes(column) ? JSON.stringify(body[column]) : body[column]);
+      const sets = columns.map((column, index) => `${column} = $${index + 1}${['name', 'description'].includes(column) ? '::jsonb' : ''}`);
+      const { rows } = await pool.query(`UPDATE md_uom SET ${sets.join(', ')}, updated_by = $${columns.length + 1}, updated_at = NOW() WHERE master_id = $${columns.length + 2} RETURNING *`, [...values, context.userId, req.params['id']]);
+      if (!rows[0]) return res.status(404).json({ error: 'UOM_NOT_FOUND' });
+      return res.json(rows[0]);
+    } catch (err) { return next(err); }
+  });
+
+  router.delete('/uoms/:id', async (req, res, next) => {
+    try {
+      const usage = await getUomUsage(pool, req.params['id']);
+      if (usage.total > 0) return res.status(409).json({ error: 'UOM_IN_USE', usage });
+      const result = await pool.query('DELETE FROM md_uom WHERE master_id = $1 RETURNING master_id', [req.params['id']]);
+      if (!result.rows[0]) return res.status(404).json({ error: 'UOM_NOT_FOUND' });
+      return res.status(204).send();
+    } catch (err) { return next(err); }
+  });
+
   router.put('/:resource/:id', async (req, res, next) => {
     const table = requireTable(req.params['resource'] ?? '');
     const context = getContext(req);
     const body = normalizeLocalizedFields(table, normalizeBody(req.body));
+    if (table.tableName === 'md_shopfloor') normalizeShopfloorPayload(body);
     if (table.tableName === 'md_production_version') {
       if (body['name_i18n'] !== undefined && !isProductionVersionNameValid(body['name_i18n'])) return res.status(422).json({ error: 'PRODUCTION_VERSION_NAME_INVALID' });
       delete body['code'];
       if (body['min_lot_size'] !== undefined && Number(body['min_lot_size']) <= 0) return res.status(422).json({ error: 'PRODUCTION_VERSION_LOT_SIZE_INVALID' });
       if (body['max_lot_size'] !== undefined && body['max_lot_size'] !== null && Number(body['max_lot_size']) < Number(body['min_lot_size'] || 0)) return res.status(422).json({ error: 'PRODUCTION_VERSION_LOT_SIZE_INVALID' });
-      const current = await pool.query(`SELECT item_revision_id, mbom_header_id, routing_header_id FROM md_production_version WHERE master_id = $1`, [req.params['id']]);
+      const current = await pool.query(`SELECT item_revision_id, ebom_header_id, mbom_header_id, routing_header_id FROM md_production_version WHERE master_id = $1`, [req.params['id']]);
       if (!current.rows[0]) return res.status(404).json({ error: 'Not Found' });
       const itemRevisionId = body['item_revision_id'] || current.rows[0].item_revision_id;
       const mbomHeaderId = body['mbom_header_id'] || current.rows[0].mbom_header_id;
       const routingHeaderId = body['routing_header_id'] || current.rows[0].routing_header_id;
+      const ebomHeaderId = body['ebom_header_id'] || current.rows[0].ebom_header_id;
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        if (ebomHeaderId) {
+          const ebom = await client.query(`SELECT item_revision_id, lifecycle_status FROM md_ebom_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [ebomHeaderId]);
+          if (!ebom.rows[0]) throw Object.assign(new Error('PRODUCTION_VERSION_EBOM_INVALID'), { statusCode: 422 });
+          if (String(ebom.rows[0].item_revision_id) !== String(itemRevisionId)) throw Object.assign(new Error('PRODUCTION_VERSION_EBOM_REVISION_MISMATCH'), { statusCode: 422 });
+        }
         body['site_id'] = await resolveProductionVersionSite(client, String(itemRevisionId), String(mbomHeaderId), String(routingHeaderId));
         await client.query('COMMIT');
       } catch (error: any) {
@@ -2826,11 +3994,12 @@ export function masterDataRouter(pool: Pool): Router {
     if (table.tableName === 'md_workstation') {
       for (const projectionField of ['site_code', 'site_name', 'area_code', 'area_name', 'work_center_code', 'work_center_name', 'assignments', 'machine_groups', 'operation_capabilities', 'skill_ids', 'code_reservation_id', 'machine_id']) delete body[projectionField];
     }
-    if (table.tableName === 'md_routing_header') {
-      delete body['item_revision_id'];
-      delete body['site_id'];
+    if (table.tableName === 'md_mbom_header' || table.tableName === 'md_routing_header') {
+      const current = await pool.query(`SELECT item_revision_id, lifecycle_status FROM ${table.tableName} WHERE master_id = $1`, [req.params['id']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'STRUCTURE_NOT_FOUND' });
+      if (current.rows[0].lifecycle_status === 'Released' && body['item_revision_id'] !== undefined && String(body['item_revision_id']) !== String(current.rows[0].item_revision_id)) return res.status(409).json({ error: table.tableName === 'md_mbom_header' ? 'RELEASED_MBOM_IMMUTABLE' : 'RELEASED_ROUTING_IMMUTABLE' });
+      if (body['item_revision_id'] !== undefined) await validateStructureOwner(pool, table.tableName, body['item_revision_id']);
     }
-    if (table.tableName === 'md_mbom_header') delete body['item_revision_id'];
     if (table.tableName === 'md_operation') {
       delete body['code']; delete body['version_no'];
       // md_operation uses the shared lifecycle_status column; active_flag is a legacy client field.
@@ -2879,6 +4048,43 @@ export function masterDataRouter(pool: Pool): Router {
       }
       await client.query('COMMIT');
       return res.json(rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      return next(err);
+    } finally {
+      client.release();
+    }
+  });
+
+  // Draft MBOMs are disposable working copies. Released MBOMs are immutable;
+  // a new version is the only supported change path after release.
+  router.delete('/mbom-headers/:id', async (req, res, next) => {
+    const context = getContext(req);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [context.userId]);
+      const header = await client.query(`SELECT lifecycle_status FROM md_mbom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+      if (!header.rows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'MBOM_NOT_FOUND' });
+      }
+      if (header.rows[0].lifecycle_status === 'Released') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'MBOM_RELEASED_IMMUTABLE' });
+      }
+      const dependency = await client.query(`SELECT EXISTS (SELECT 1 FROM md_production_version WHERE mbom_header_id = $1) AS used`, [req.params['id']]);
+      if (dependency.rows[0]?.used) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'MBOM_DELETE_DEPENDENCY_EXISTS' });
+      }
+      await client.query(`DELETE FROM md_component_substitute_approval_audit WHERE substitute_id IN (SELECT cs.master_id FROM md_component_substitute cs JOIN md_mbom_line l ON l.master_id = cs.mbom_line_id WHERE l.mbom_header_id = $1)`, [req.params['id']]);
+      await client.query(`DELETE FROM md_component_substitute WHERE mbom_line_id IN (SELECT master_id FROM md_mbom_line WHERE mbom_header_id = $1)`, [req.params['id']]);
+      await client.query(`UPDATE md_mbom_line SET parent_line_id = NULL WHERE mbom_header_id = $1`, [req.params['id']]);
+      await client.query(`DELETE FROM md_mbom_line WHERE mbom_header_id = $1`, [req.params['id']]);
+      const deleted = await client.query(`DELETE FROM md_mbom_header WHERE master_id = $1 RETURNING master_id`, [req.params['id']]);
+      await client.query('COMMIT');
+      return res.json({ deleted: Boolean(deleted.rows[0]), master_id: req.params['id'] });
     } catch (err) {
       await client.query('ROLLBACK');
       return next(err);
@@ -2977,6 +4183,31 @@ export function masterDataRouter(pool: Pool): Router {
         }
       }
 
+      if (table.tableName === 'md_mbom_header') {
+        const current = await client.query(`SELECT master_id, lifecycle_status, base_quantity, base_uom_id FROM md_mbom_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+        if (!current.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'MBOM_NOT_FOUND' }); }
+        if (current.rows[0].lifecycle_status === 'Released') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'MBOM_RELEASED_IMMUTABLE' }); }
+        const lines = await client.query(`SELECT l.master_id, l.parent_line_id, l.seq, l.quantity_per, l.component_revision_id, r.base_uom_id AS uom_id, r.lifecycle_status AS component_status, u.lifecycle_status AS uom_status, u.allow_fraction, u.decimal_precision FROM md_mbom_line l JOIN md_item_revision r ON r.master_id = l.component_revision_id JOIN md_uom u ON u.master_id = r.base_uom_id WHERE l.mbom_header_id = $1 AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY l.seq`, [req.params['id']]);
+        const failures: Array<Record<string, unknown>> = [];
+        if (!lines.rows.length) failures.push({ code: 'MBOM_RELEASE_REQUIRES_LINES', path: 'lines' });
+        if (Number(current.rows[0].base_quantity) <= 0) failures.push({ code: 'MBOM_BASE_QUANTITY_INVALID', path: 'base_quantity' });
+        const headerUom = await client.query(`SELECT lifecycle_status, allow_fraction, decimal_precision FROM md_uom WHERE master_id = $1`, [current.rows[0].base_uom_id]);
+        if (!headerUom.rows[0] || headerUom.rows[0].lifecycle_status !== 'Released') failures.push({ code: 'MBOM_BASE_UOM_NOT_RELEASED', path: 'base_uom_id' });
+        else { try { validateUomQuantity(current.rows[0].base_quantity, headerUom.rows[0]); } catch (error: any) { failures.push({ code: error.message, path: 'base_quantity' }); } }
+        const siblingSeq = new Set<string>();
+        for (const line of lines.rows) {
+          const sibling = `${line.parent_line_id || 'root'}:${line.seq}`;
+          if (siblingSeq.has(sibling)) failures.push({ code: 'MBOM_SEQUENCE_DUPLICATE', path: `lines.${line.master_id}.seq` });
+          siblingSeq.add(sibling);
+          if (line.component_status !== 'Released') failures.push({ code: 'MBOM_COMPONENT_REVISION_INVALID', path: `lines.${line.master_id}.component_revision_id` });
+          if (line.uom_status !== 'Released') failures.push({ code: 'MBOM_LINE_UOM_NOT_RELEASED', path: `lines.${line.master_id}.uom_id` });
+          try { validateUomQuantity(line.quantity_per, line); } catch (error: any) { failures.push({ code: error.message, path: `lines.${line.master_id}.quantity_per` }); }
+          if (line.parent_line_id && !lines.rows.some((parent: any) => parent.master_id === line.parent_line_id)) failures.push({ code: 'MBOM_PARENT_LINE_INVALID', path: `lines.${line.master_id}.parent_line_id` });
+        }
+        if (failures.length) { await client.query('ROLLBACK'); return res.status(422).json({ valid: false, errors: failures, warnings: [] }); }
+        await client.query(`UPDATE md_mbom_line SET lifecycle_status = 'Released', approved_by = $1, approved_at = NOW(), updated_by = $1, updated_at = NOW() WHERE mbom_header_id = $2 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [context.userId, req.params['id']]);
+      }
+
       if (table.tableName === 'md_routing_header') {
         const current = await client.query(`SELECT master_id FROM md_routing_header WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
         if (!current.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'ROUTING_NOT_FOUND' }); }
@@ -3045,9 +4276,6 @@ export function masterDataRouter(pool: Pool): Router {
         }
         await client.query('ALTER TABLE md_item_revision DISABLE TRIGGER USER');
         await client.query(`UPDATE md_item_revision SET is_default = FALSE WHERE item_id = $1 AND site_id = $2 AND master_id <> $3 AND lifecycle_status = 'Released'`, [current['item_id'], current['site_id'], req.params['id']]);
-        if (current['previous_revision_id']) {
-          await client.query(`UPDATE md_item_revision SET effective_to = $1, is_default = FALSE WHERE master_id = $2`, [current['effective_from'], current['previous_revision_id']]);
-        }
         await client.query('ALTER TABLE md_item_revision ENABLE TRIGGER USER');
       }
 
@@ -3068,10 +4296,27 @@ export function masterDataRouter(pool: Pool): Router {
       }
 
       if (table.eventType) {
+        if (table.tableName === 'md_mbom_header') {
+          const lines = await client.query(`
+            SELECT l.master_id, l.parent_line_id, l.seq, l.component_revision_id, r.revision_code AS component_revision_code,
+                   l.quantity_per, l.uom_id, u.code AS uom_code, l.scrap_rate, l.issue_operation_id,
+                   l.backflush_flag, l.phantom_flag, l.optional_flag
+            FROM md_mbom_line l
+            JOIN md_item_revision r ON r.master_id = l.component_revision_id
+            JOIN md_uom u ON u.master_id = l.uom_id
+            WHERE l.mbom_header_id = $1 AND l.lifecycle_status = 'Released' AND l.effective_to IS NULL
+            ORDER BY l.parent_line_id NULLS FIRST, l.seq`, [req.params['id']]);
+          const payload = eventPayloadFor(table, row);
+          payload['lines'] = lines.rows;
+          const envelope = createEventEnvelope({ event_type: table.eventType, source_service: SERVICE_NAME, trace_id: context.traceId, payload });
+          await writeToOutbox(client, { topic: table.eventType, envelope });
+          await client.query('COMMIT');
+          return res.json({ data: row, event_published: true, event_type: table.eventType });
+        }
         if (table.tableName === 'md_routing_header') {
           const operations = await client.query(`
 			SELECT ro.master_id, ro.operation_id, op.code AS operation_code, ro.work_center_id, ro.seq, ro.predecessor_seq,
-              ws.master_id AS workstation_id, op.requires_output_label,
+              ro.workstation_id, ws.code AS workstation_code, ws.name AS workstation_name, op.requires_output_label,
               ro.planning_mode,
               CASE WHEN ro.planning_mode = 'ROUTING_OVERRIDE' AND rps.master_id IS NOT NULL THEN 'ROUTING_OVERRIDE'
                 WHEN wps.master_id IS NOT NULL THEN 'WORK_CENTER_STANDARD' ELSE 'OPERATION_DEFAULT' END AS resolved_source,
@@ -3083,7 +4328,7 @@ export function masterDataRouter(pool: Pool): Router {
               COALESCE(rps.standard_yield, wps.standard_yield, op.default_yield) AS resolved_standard_yield
             FROM md_routing_operation ro JOIN md_operation op ON op.master_id = ro.operation_id
             JOIN md_work_center wc ON wc.master_id = ro.work_center_id
-            LEFT JOIN LATERAL (SELECT ws0.master_id FROM md_work_center_composition c0 JOIN md_workstation ws0 ON ws0.master_id = c0.workstation_id WHERE c0.work_center_id = ro.work_center_id AND c0.active_flag = TRUE AND c0.effective_to IS NULL AND ws0.active_flag = TRUE AND ws0.lifecycle_status NOT IN ('Inactive','Obsolete') ORDER BY c0.effective_from DESC LIMIT 1) ws ON TRUE
+            LEFT JOIN md_workstation ws ON ws.master_id = ro.workstation_id
             LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id = ro.master_id AND ps0.item_revision_id IS NULL AND ps0.lifecycle_status = 'Released' AND ps0.effective_to IS NULL ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) rps ON TRUE
             LEFT JOIN LATERAL (SELECT ps0.* FROM md_production_standard ps0 WHERE ps0.routing_operation_id IS NULL AND ps0.item_revision_id IS NULL AND ps0.operation_id = ro.operation_id AND ps0.work_center_id = ro.work_center_id AND ps0.site_id = wc.site_id AND ps0.source_method = 'WorkCenter' AND ps0.lifecycle_status = 'Released' AND ps0.effective_to IS NULL ORDER BY ps0.valid_from DESC NULLS LAST LIMIT 1) wps ON TRUE
             WHERE ro.routing_header_id = $1 AND ro.lifecycle_status = 'Released' AND ro.effective_to IS NULL ORDER BY ro.seq

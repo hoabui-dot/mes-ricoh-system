@@ -23,10 +23,10 @@ services:
       context: ..
       dockerfile: portal/Dockerfile
       args:
-        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://led-hitachi-handled-cost.trycloudflare.com}
-        VITE_MES_URL: ${VITE_MES_URL:-https://trailers-replaced-unknown-even.trycloudflare.com}
-        VITE_WMS_URL: ${VITE_WMS_URL:-https://cove-concerning-markets-bugs.trycloudflare.com}
-        VITE_QMS_URL: ${VITE_QMS_URL:-https://ocean-compact-encyclopedia-lover.trycloudflare.com}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:?VITE_KEYCLOAK_URL is required}
+        VITE_MES_URL: ${VITE_MES_URL:?VITE_MES_URL is required}
+        VITE_WMS_URL: ${VITE_WMS_URL:?VITE_WMS_URL is required}
+        VITE_QMS_URL: ${VITE_QMS_URL:?VITE_QMS_URL is required}
     container_name: platform-portal
     networks: [platform-net]
     ports:

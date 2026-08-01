@@ -8,9 +8,10 @@ interface LocalizedTextInputProps {
   value: Partial<LocalizedText>;
   onChange: (value: Partial<LocalizedText>) => void;
   required?: boolean;
+  'data-testid'?: string;
 }
 
-export const LocalizedTextInput: React.FC<LocalizedTextInputProps> = ({ label, value, onChange, required }) => {
+export const LocalizedTextInput: React.FC<LocalizedTextInputProps> = ({ label, value, onChange, required, 'data-testid': testId }) => {
   const { t } = useI18n();
   const [activeLocale, setActiveLocale] = useState<SupportedLocale>('vi');
   const applyForAll = () => {
@@ -43,6 +44,7 @@ export const LocalizedTextInput: React.FC<LocalizedTextInputProps> = ({ label, v
       <div className="flex items-center justify-between gap-2"><span className="text-xs text-slate-400">{languageNames[activeLocale]}</span><Button type="button" size="sm" variant="ghost" disabled={!String(value[activeLocale] ?? '').trim()} onClick={applyForAll} title={t('common.applyForAll')}><Copy className="h-3 w-3" />{t('common.applyForAll')}</Button></div><Input
         required={required && activeLocale === 'vi'}
         value={value[activeLocale] ?? ''}
+        data-testid={testId}
         onChange={(event) => onChange({ ...value, [activeLocale]: event.target.value })}
       />
       {required && !value.vi && <div className="text-xs text-amber-300">VI {t('common.name')} required</div>}

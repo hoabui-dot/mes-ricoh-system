@@ -59,13 +59,23 @@ export async function validateProductionVersion(
   if (!(await exists(db, `SELECT 1 FROM md_item_revision WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.item_revision_id]))) {
     failures.push(fail('1', 'ITEM_REVISION.NOT_RELEASED'));
   }
+  const outputItem = await db.query<{ item_type: string }>(`
+    SELECT i.item_type
+    FROM md_item_revision r
+    JOIN md_item i ON i.master_id = r.item_id
+    WHERE r.master_id = $1`, [pv.item_revision_id]);
+  if (!outputItem.rows[0]) failures.push(fail('1', 'ITEM_REVISION.NOT_FOUND'));
+  else if (outputItem.rows[0].item_type === 'RM') failures.push(fail('1', 'MBOM.OUTPUT_RAW_MATERIAL'));
 
-  const mbomHeader = await db.query<{ site_id: string }>(`SELECT site_id FROM md_mbom_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.mbom_header_id]);
+  const mbomHeader = await db.query<{ site_id: string; base_uom_id: string; effective_from: string; effective_to: string | null }>(`SELECT site_id, base_uom_id, effective_from, effective_to FROM md_mbom_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.mbom_header_id]);
   if (!mbomHeader.rows[0]) failures.push(fail('2', 'MBOM.NOT_RELEASED'));
+  const outputUom = await db.query<{ base_uom_id: string }>(`SELECT base_uom_id FROM md_item_revision WHERE master_id = $1`, [pv.item_revision_id]);
+  if (mbomHeader.rows[0] && outputUom.rows[0] && mbomHeader.rows[0].base_uom_id !== outputUom.rows[0].base_uom_id) failures.push(fail('2', 'PRODUCTION_VERSION_MBOM_UOM_MISMATCH'));
 
-  const { rows: mbomLines } = await db.query<{ master_id: string; quantity_per: string; uom_id: string; phantom_flag: boolean; component_revision_id: string }>(
-    `SELECT master_id, quantity_per, uom_id, phantom_flag, component_revision_id
-     FROM md_mbom_line WHERE mbom_header_id = $1`,
+  const { rows: mbomLines } = await db.query<{ master_id: string; quantity_per: string; uom_id: string; phantom_flag: boolean; component_revision_id: string; issue_operation_id: string | null }>(
+    `SELECT l.master_id, l.quantity_per, r.base_uom_id AS uom_id, l.phantom_flag, l.component_revision_id, l.issue_operation_id
+     FROM md_mbom_line l JOIN md_item_revision r ON r.master_id = l.component_revision_id
+     WHERE l.mbom_header_id = $1 AND l.effective_to IS NULL AND l.lifecycle_status NOT IN ('Inactive','Obsolete')`,
     [pv.mbom_header_id],
   );
   if (mbomLines.length === 0) {
@@ -95,7 +105,7 @@ export async function validateProductionVersion(
 
   const { rows: routingOps } = await db.query<{ master_id: string; operation_id: string; work_center_id: string; seq: number; predecessor_seq: number | null; lifecycle_status: string }>(
     `SELECT master_id, operation_id, work_center_id, seq, predecessor_seq, lifecycle_status
-     FROM md_routing_operation WHERE routing_header_id = $1`,
+     FROM md_routing_operation WHERE routing_header_id = $1 AND effective_to IS NULL AND lifecycle_status NOT IN ('Inactive','Obsolete')`,
     [pv.routing_header_id],
   );
   if (routingOps.length === 0) {
@@ -105,6 +115,7 @@ export async function validateProductionVersion(
   if (!routingActive) failures.push(fail('4', 'ROUTING.NOT_ACTIVE'));
   const factoryIds = new Set<string>();
   const seqs = new Set<number>();
+  const routingOperationIds = new Set(routingOps.map((operation) => operation.operation_id));
   for (const op of routingOps) {
     if (op.lifecycle_status !== 'Released') failures.push(fail('4', 'ROUTING_OPERATION_NOT_RELEASED', { routingOperationId: op.master_id }));
     if (seqs.has(op.seq)) failures.push(fail('4', 'ROUTING.SEQ_DUPLICATE', { seq: op.seq }));
@@ -134,6 +145,9 @@ export async function validateProductionVersion(
         )`, [pv.item_revision_id, op.master_id, op.operation_id, op.work_center_id]))) {
       failures.push(fail('7', 'PRODUCTION_STANDARD.MISSING_TIME', { routingOperationId: op.master_id }));
     }
+  }
+  for (const line of mbomLines) {
+    if (line.issue_operation_id && !routingOperationIds.has(line.issue_operation_id)) failures.push(fail('3', 'PRODUCTION_VERSION_ISSUE_OPERATION_NOT_IN_ROUTING', { lineId: line.master_id }));
   }
   if (routingOps.some((op) => op.predecessor_seq === op.seq)) {
     failures.push(fail('4', 'ROUTING.CYCLE'));

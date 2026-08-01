@@ -32,12 +32,15 @@ export function LabelTemplatesTab() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [printerWarning, setPrinterWarning] = useState<string | null>(null)
   const [printerCode, setPrinterCode] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
+    const [templatesResult, printersResult] = await Promise.allSettled([templateApi.list(), templateApi.getPrintersReady()])
     try {
-      const [templatesResponse, printersResponse] = await Promise.all([templateApi.list(), templateApi.getPrintersReady()])
+      if (templatesResult.status === 'rejected') throw templatesResult.reason
+      const templatesResponse = templatesResult.value
       setTemplates((templatesResponse.data ?? []).map((row: any) => ({
         ...row,
         id: value(field(row, 'id', 'Id')),
@@ -52,14 +55,25 @@ export function LabelTemplatesTab() {
         sheetRows: Number(field(row, 'sheetRows', 'SheetRows') ?? 1),
         gapMm: Number(field(row, 'gapMm', 'GapMm') ?? 0),
       })))
-      setPrinters((printersResponse.data ?? []).map((row: any) => ({
-        ...row, printerCode: value(field(row, 'printerCode', 'PrinterCode')), displayName: value(field(row, 'displayName', 'DisplayName')),
-        status: value(field(row, 'status', 'Status')), isReady: field(row, 'isReady', 'IsReady') === true
-      })))
+      if (printersResult.status === 'fulfilled') {
+        setPrinterWarning(null)
+        setPrinters((printersResult.value.data ?? []).map((row: any) => ({
+          ...row, printerCode: value(field(row, 'printerCode', 'PrinterCode')), displayName: value(field(row, 'displayName', 'DisplayName')),
+          status: value(field(row, 'status', 'Status')), isReady: field(row, 'isReady', 'IsReady') === true
+        })))
+      } else {
+        setPrinters([])
+        setPrinterWarning('Không thể tải trạng thái máy in. Mẫu nhãn vẫn có thể xem và chỉnh sửa.')
+      }
     } catch (err: any) { setError(err?.response?.data?.detail || err?.message || 'Không thể tải mẫu nhãn') }
     finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (!error && !printerWarning) return
+    const retry = window.setInterval(() => { void load() }, 10000)
+    return () => window.clearInterval(retry)
+  }, [error, printerWarning, load])
 
   const open = async (template: Template, nextMode: typeof mode) => {
     setActionError(null); setMessage(null); setSelected(template); setMode(nextMode)
@@ -147,6 +161,7 @@ export function LabelTemplatesTab() {
     <CardContent>
       {loading && <p className="text-sm text-muted-foreground">Đang tải mẫu nhãn...</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {!error && printerWarning && <p className="mb-3 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700">{printerWarning}</p>}
       {!loading && !error && templates.length === 0 && <p className="text-sm text-muted-foreground">Chưa có mẫu nhãn.</p>}
       {!loading && !error && templates.length > 0 && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {templates.map(t => <div key={t.id} className="rounded-md border bg-card p-4">

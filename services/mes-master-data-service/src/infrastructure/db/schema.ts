@@ -87,6 +87,14 @@ export const mdUomConversion = pgTable('md_uom_conversion', {
   factor: numeric('factor', { precision: 18, scale: 8 }).notNull(),
 });
 
+export const mdMaterialGroup = pgTable('md_material_group', {
+  ...commonMasterColumns(),
+  name: jsonb('name').$type<Record<string, string>>().notNull(),
+  description: jsonb('description').$type<Record<string, string>>(),
+}, (table) => ({
+  codeUnique: uniqueIndex('uq_md_material_group_code_ci').on(table.code),
+}));
+
 export const mdShift = pgTable('md_shift', {
   ...commonMasterColumns(),
   siteId: uuid('site_id').notNull(),
@@ -104,6 +112,7 @@ export const mdReasonCode = pgTable('md_reason_code', {
 export const mdItem = pgTable('md_item', {
   ...commonMasterColumns(),
   itemGroup: varchar('item_group', { length: 80 }).notNull(),
+  materialGroupId: uuid('material_group_id'),
   itemType: varchar('item_type', { length: 40 }).notNull(),
   baseUomId: uuid('base_uom_id').notNull(),
 });
@@ -116,6 +125,7 @@ export const mdItemRevision = pgTable('md_item_revision', {
   siteId: uuid('site_id').notNull(),
   isDefault: boolean('is_default').notNull().default(false),
   itemGroup: varchar('item_group', { length: 80 }).notNull(),
+  materialGroupId: uuid('material_group_id'),
   baseUomId: uuid('base_uom_id').notNull(),
   planningStrategy: varchar('planning_strategy', { length: 40 }).notNull(),
   procurementType: varchar('procurement_type', { length: 40 }).notNull(),
@@ -139,6 +149,10 @@ export const mdMbomHeader = pgTable('md_mbom_header', {
   changeReason: jsonb('change_reason').$type<Record<string, string>>(),
   engineeringNote: jsonb('engineering_note').$type<Record<string, string>>(),
   referenceDocument: varchar('reference_document', { length: 500 }),
+  structureVersion: integer('structure_version').notNull().default(1),
+  // Restored canonical ownership. Legacy ambiguous rows remain nullable until
+  // the ownership reconciliation workflow resolves them.
+  itemRevisionId: uuid('item_revision_id'),
 });
 
 export const mdMbomLine = pgTable('md_mbom_line', {
@@ -153,6 +167,7 @@ export const mdMbomLine = pgTable('md_mbom_line', {
   issueOperationId: uuid('issue_operation_id'),
   backflushFlag: boolean('backflush_flag').notNull().default(false),
   phantomFlag: boolean('phantom_flag').notNull().default(false),
+  optionalFlag: boolean('optional_flag').notNull().default(false),
 });
 
 export const mdComponentSubstitute = pgTable('md_component_substitute', {
@@ -160,6 +175,10 @@ export const mdComponentSubstitute = pgTable('md_component_substitute', {
   mbomLineId: uuid('mbom_line_id').notNull(),
   substituteRevisionId: uuid('substitute_revision_id').notNull(),
   priority: integer('priority').notNull().default(1),
+  conversionFactor: numeric('conversion_factor', { precision: 18, scale: 6 }).notNull().default('1'),
+  maxUsagePercent: numeric('max_usage_percent', { precision: 7, scale: 2 }).notNull().default('100'),
+  requiresApproval: boolean('requires_approval').notNull().default(false),
+  approvalStatus: varchar('approval_status', { length: 30 }).notNull().default('NotRequired'),
 });
 
 export const mdProductionVersion = pgTable('md_production_version', {
@@ -168,6 +187,9 @@ export const mdProductionVersion = pgTable('md_production_version', {
   itemRevisionId: uuid('item_revision_id').notNull(),
   mbomHeaderId: uuid('mbom_header_id').notNull(),
   routingHeaderId: uuid('routing_header_id').notNull(),
+  // Optional engineering baseline for traceability. It is never exploded into
+  // execution/material requirements; MBOM and Routing remain authoritative.
+  ebomHeaderId: uuid('ebom_header_id'),
   siteId: uuid('site_id').notNull(),
   minLotSize: numeric('min_lot_size', { precision: 18, scale: 6 }),
   maxLotSize: numeric('max_lot_size', { precision: 18, scale: 6 }),
@@ -204,6 +226,7 @@ export const mdRoutingHeader = pgTable('md_routing_header', {
   changeReason: jsonb('change_reason').$type<Record<string, string>>(),
   engineeringNote: jsonb('engineering_note').$type<Record<string, string>>(),
   referenceDocument: varchar('reference_document', { length: 500 }),
+  itemRevisionId: uuid('item_revision_id'),
 });
 
 export const mdRoutingOperation = pgTable('md_routing_operation', {
@@ -211,6 +234,7 @@ export const mdRoutingOperation = pgTable('md_routing_operation', {
   routingHeaderId: uuid('routing_header_id').notNull(),
   operationId: uuid('operation_id').notNull(),
   workCenterId: uuid('work_center_id').notNull(),
+  workstationId: uuid('workstation_id'),
   seq: integer('seq').notNull(),
   predecessorSeq: integer('predecessor_seq'),
   schedulingMode: varchar('scheduling_mode', { length: 30 }).notNull().default('Finite'),
@@ -309,6 +333,9 @@ export const mdMachineUnit = pgTable('md_machine_unit', {
   code: varchar('code', { length: 100 }).notNull().unique(),
   unitSequence: integer('unit_sequence').notNull(),
   serialNumber: varchar('serial_number', { length: 100 }),
+  lifecycleStatus: varchar('lifecycle_status', { length: 30 }).notNull().default('Draft'),
+  physicalIdentityStatus: varchar('physical_identity_status', { length: 30 }).notNull().default('PendingIdentification'),
+  planningResourceFlag: boolean('planning_resource_flag').notNull().default(false),
   executionStatus: varchar('execution_status', { length: 30 }).notNull().default('Available'),
   activeFlag: boolean('active_flag').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

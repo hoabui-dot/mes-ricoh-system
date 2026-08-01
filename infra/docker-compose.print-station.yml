@@ -56,6 +56,8 @@ services:
     build:
       context: ../print-marking/station-agent
       dockerfile: services/kiosk-ui/docker/Dockerfile
+      args:
+        VITE_STATION_ID: ${VITE_STATION_ID:?VITE_STATION_ID is required}
     container_name: station-kiosk-ui
     restart: unless-stopped
     networks: [platform-net]
@@ -77,7 +79,7 @@ services:
       Kafka__ClientId: PRINT-STATION-01-kiosk
       Kafka__GroupId: kiosk-ui
       Kafka__EnableIdempotence: "true"
-      CORS_ORIGINS: http://localhost:5007,http://100.68.50.41:5007
+      CORS_ORIGINS: ${KIOSK_CORS_ORIGINS:?KIOSK_CORS_ORIGINS is required}
     volumes:
       - print-station-kiosk-data:/data
     healthcheck:

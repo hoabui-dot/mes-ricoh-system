@@ -12,6 +12,8 @@ bin/
 *.so
 *.dylib
 *.out
+artifacts/playwright/
+e2e/.auth/
 
 # Environment & Credentials
 .env

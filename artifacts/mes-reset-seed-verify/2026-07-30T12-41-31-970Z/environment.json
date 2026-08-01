@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "mode": "reset",
+  "environment": "development",
+  "reasons": [],
+  "execution": {
+    "host": "localhost",
+    "port": "15435",
+    "database": "mes_execution_db",
+    "user": "mes_execution_user",
+    "password": "[REDACTED]"
+  },
+  "kiosk": {
+    "host": "localhost",
+    "port": "15437",
+    "database": "mes_kiosk_gateway_db",
+    "user": "mes_kiosk_user",
+    "password": "[REDACTED]"
+  },
+  "host": "staging-master",
+  "git": {
+    "branch": "main",
+    "commit": "985dbd6"
+  }
+}

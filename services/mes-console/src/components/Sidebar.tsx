@@ -19,6 +19,8 @@ import {
   Monitor,
   Link2,
   Printer,
+  Ruler,
+  Tags,
 } from 'lucide-react';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 
@@ -33,7 +35,7 @@ export const Sidebar: React.FC = () => {
     }`;
 
   return (
-    <aside className="w-64 shrink-0 space-y-2 overflow-y-auto border-r border-border bg-surface-subtle p-4 h-[calc(100vh-4rem)]">
+    <aside className="h-full w-64 min-h-0 shrink-0 space-y-2 overflow-y-auto border-r border-border bg-surface-subtle p-4">
       <div>
         <div className={navSectionClass}>{t('nav.operations')}</div>
         <div className="space-y-1">
@@ -50,6 +52,14 @@ export const Sidebar: React.FC = () => {
           <NavLink to="/master-data/items" className={linkClass}>
             <Package className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.items')}</span>
+          </NavLink>
+          <NavLink to="/master-data/uoms" className={linkClass}>
+            <Ruler className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('nav.uoms')}</span>
+          </NavLink>
+          <NavLink to="/master-data/material-groups" className={linkClass}>
+            <Tags className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('nav.materialGroups')}</span>
           </NavLink>
           <NavLink to="/master-data/mboms" className={linkClass}>
             <Layers className="mes-nav-icon h-4 w-4 text-info" />

@@ -2185,3 +2185,43 @@ The same single page retains the existing `PrinterManagementTab` workspace. It
 loads ready printers and active production printers, requires a published
 label template when adding a printer to production, and supports changing the
 template of an already active printer through the confirmed `Đổi mẫu` action.
+
+## Realtime WO print dashboard projection (2026-07-29)
+
+The canonical Kiosk dashboard path is now:
+
+`MES WO/outbox` -> Kafka `command.printer.print.batch` -> Projection Service
+`projection_print_dashboard` -> SignalR `OnPrintDashboardUpdate` -> Kiosk.
+
+The Projection Service also consumes `MES.Execution.#` for WO lifecycle and
+operation context, and `printer.batch.printed` for physical result counts. The
+new `PrintDashboardView` is deliberately separate from the legacy per-label
+tables (`projection_production_records`, `projection_production_view`, and
+`projection_production_orders`). It is a current-state read model, keyed by
+`station_id + work_order_id`, and contains work-order status, product,
+operation, workstation/print-station/printer, requested quantity, required and
+printed label counts, failure/remaining counts, print job status, batch
+progress, and the last Kafka/printer event metadata. It does not calculate
+business status in the browser.
+
+The read endpoint is:
+
+`GET /api/projection/print-dashboard?stationId=PRINT-STATION-01`
+
+The service creates the additive SQLite table at startup, claims Kafka event
+IDs in `projection_event_dedup`, writes the dashboard update transactionally,
+then broadcasts `OnPrintDashboardUpdate` to the station SignalR group. Duplicate
+command/result deliveries are ignored by event ID. The Kiosk fetches the
+projection on startup, subscribes to `OnPrintDashboardUpdate`, deduplicates by
+Kafka event ID, and refetches the authoritative projection after SignalR
+reconnect. It shows the compact current product summary and opens the existing
+product detail modal for secondary information.
+
+Runtime verification for this change: the projection and kiosk containers were
+rebuilt and recreated with Docker; both `/health` endpoints returned healthy;
+the projection logs showed active consumers for `command.printer.print.#` and
+`printer.batch.printed`; and the dashboard endpoint returned a completed
+record with WO quantity 20, required/total labels 20, printed labels 20,
+failed labels 0, remaining labels 0, printer `Zebra-GK420t-CUPS`, and a
+`ProductionBatchPrinted` event. A fresh external physical print was not
+claimed in this local verification.

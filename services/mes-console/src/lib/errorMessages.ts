@@ -28,6 +28,7 @@ const workOrderErrorKeys: Record<string, string> = {
   PRODUCTION_VERSION_SITE_CONTEXT_INVALID: 'workOrders.errors.productionVersionSiteContextInvalid',
   RESOURCE_CAPACITY_CONFLICT: 'workOrders.errors.resourceCapacityConflict',
   RESOURCE_CANDIDATE_STALE: 'workOrders.errors.resourceCandidateStale',
+  RESOURCE_ALLOCATION_FORBIDDEN: 'workOrders.errors.resourceAllocationForbidden',
   READINESS_REQUEST_INVALID: 'workOrders.errors.readinessRequestInvalid',
   ROUTING_OPERATION_NOT_FOUND: 'workOrders.errors.routingOperationNotFound',
   ROUTING_CONTEXT_INVALID: 'workOrders.errors.routingContextInvalid',
@@ -40,10 +41,29 @@ const workOrderErrorKeys: Record<string, string> = {
   WORKSTATION_INACTIVE: 'workOrders.errors.workstationInactive',
   EQUIPMENT_NOT_AVAILABLE: 'workOrders.errors.equipmentNotAvailable',
   EQUIPMENT_OUT_OF_SERVICE: 'workOrders.errors.equipmentOutOfService',
+  EQUIPMENT_INACTIVE: 'workOrders.errors.equipmentInactive',
+  EQUIPMENT_ASSIGNMENT_INVALID: 'workOrders.errors.equipmentAssignmentInvalid',
+  EQUIPMENT_MACHINE_UNIT_UNAVAILABLE: 'workOrders.errors.equipmentMachineUnitUnavailable',
+  EQUIPMENT_CAPACITY_CONFLICT: 'workOrders.errors.equipmentCapacityConflict',
+  EQUIPMENT_MAINTENANCE_STATE_UNKNOWN: 'workOrders.errors.equipmentMaintenanceUnknown',
+  EQUIPMENT_CALIBRATION_STATE_UNKNOWN: 'workOrders.errors.equipmentCalibrationUnknown',
+  EQUIPMENT_STATE_STALE: 'workOrders.errors.equipmentStateStale',
+  EQUIPMENT_READINESS_UNKNOWN: 'workOrders.errors.equipmentReadinessUnknown',
   MACHINE_GROUP_NO_PRIMARY: 'workOrders.errors.machineGroupNoPrimary',
   MACHINE_GROUP_INSUFFICIENT_ACTIVE_MEMBERS: 'workOrders.errors.machineGroupInsufficientMembers',
   PRIMARY_MACHINE_UNAVAILABLE: 'workOrders.errors.primaryMachineUnavailable',
   REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE: 'workOrders.errors.requiredSupportingMachineUnavailable',
+  WORKSTATION_MACHINE_REQUIREMENT_UNSATISFIED: 'resourceFoundation.machineRequirementUnsatisfied',
+  WORKSTATION_PRIMARY_MACHINE_MISSING: 'resourceFoundation.primaryMachineMissing',
+  WORKSTATION_SUPPORTING_MACHINE_MISSING: 'resourceFoundation.supportingMachineMissing',
+  WORKSTATION_MACHINE_QUANTITY_INSUFFICIENT: 'resourceFoundation.machineQuantityInsufficient',
+  RESOURCE_ASSIGNMENT_WORKSTATION_MISMATCH: 'resourceFoundation.resourceAssignmentWorkstationMismatch',
+  RESOURCE_ASSIGNMENT_EQUIPMENT_INVALID: 'resourceFoundation.resourceAssignmentEquipmentInvalid',
+  RESOURCE_ASSIGNMENT_MACHINE_UNIT_INVALID: 'resourceFoundation.resourceAssignmentMachineUnitInvalid',
+  MACHINE_UNIT_UNAVAILABLE: 'resourceFoundation.machineUnitUnavailable',
+  MACHINE_UNIT_ALREADY_RESERVED: 'resourceFoundation.machineUnitAlreadyReserved',
+  PRINT_STATION_RUNTIME_NOT_AVAILABLE: 'printStation.runtimeUnavailable',
+  PRINT_STATION_RUNTIME_NOT_READY: 'printStation.runtimeNotReady',
 };
 
 export function translateWorkOrderError(raw: unknown, t: Translator): string {
@@ -58,6 +78,17 @@ export function translateWorkOrderError(raw: unknown, t: Translator): string {
   if (key) return t(key);
   if (/cannot scan NULL into \*string|no Production Version found for Item/i.test(value)) {
     return t('workOrders.errors.masterDataIncomplete');
+  }
+  return value;
+}
+
+export function translateMbomError(raw: unknown, t: Translator): string {
+  const value = String(raw || '').trim();
+  if (!value) return t('common.unknownError');
+  const code = value.split(':', 1)[0];
+  if (code.startsWith('MBOM_')) {
+    const translated = t(`mbom.errors.${code}`);
+    return translated === `mbom.errors.${code}` ? value : translated;
   }
   return value;
 }

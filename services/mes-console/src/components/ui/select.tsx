@@ -23,6 +23,7 @@ export type SelectBaseProps = {
   contentClassName?: string;
   name?: string;
   required?: boolean;
+  'data-testid'?: string;
   'aria-label'?: string;
 };
 
@@ -37,6 +38,7 @@ export function SelectBase({
   contentClassName,
   name,
   required,
+  'data-testid': testId,
   'aria-label': ariaLabel,
 }: SelectBaseProps) {
   const normalizedValue = value ? value : EMPTY_VALUE;
@@ -51,6 +53,7 @@ export function SelectBase({
     >
       <SelectPrimitive.Trigger
         aria-label={ariaLabel}
+        data-testid={testId}
         className={cn(
           'flex h-11 w-full items-center justify-between rounded-md border border-input bg-input px-3 text-left text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
           className,

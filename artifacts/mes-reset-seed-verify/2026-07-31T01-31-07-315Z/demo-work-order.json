@@ -1,0 +1,32 @@
+{
+  "target_date": "2026-07-31",
+  "workflow_id": "cc98d465-d2c0-4aad-970e-59462d0151ea",
+  "work_order_id": "4627dec0-4663-4b46-8b8e-cf1ed54c7347",
+  "work_order_code": "WO-20260731-0001",
+  "status": "Draft",
+  "operation_count": 3,
+  "material_count": 1,
+  "compute_check": {
+    "labor_assignment_count": 3
+  },
+  "candidates": [
+    {
+      "operation_id": "07a27e58-78d8-45e4-8ec0-4a87df99f6eb",
+      "status": "ReadyWithWarnings",
+      "candidate_count": 1,
+      "blocking_errors": []
+    },
+    {
+      "operation_id": "4f9ecd47-26c6-4b2d-a3d3-6404371103c7",
+      "status": "ReadyWithWarnings",
+      "candidate_count": 1,
+      "blocking_errors": []
+    },
+    {
+      "operation_id": "be0e297e-1176-433a-bf04-5fad67bd1fd1",
+      "status": "ReadyWithWarnings",
+      "candidate_count": 1,
+      "blocking_errors": []
+    }
+  ]
+}

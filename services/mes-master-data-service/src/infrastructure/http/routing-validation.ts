@@ -1,4 +1,4 @@
-export type RoutingGraphRow = { operation_id: string; work_center_id: string; seq: number; predecessor_seq: number | null };
+export type RoutingGraphRow = { operation_id: string; work_center_id: string; workstation_id?: string | null; seq: number; predecessor_seq: number | null };
 
 export function validateRoutingOperationGraph(rows: RoutingGraphRow[]): void {
   const sequences = new Set<number>();

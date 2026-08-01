@@ -76,19 +76,20 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	if input.ProductionVersionID == "" {
 		return nil, fmt.Errorf("PRODUCTION_VERSION_REQUIRED")
 	}
-	var pvID, mbomHeaderID, routingHeaderID, derivedItemRevisionID, derivedSiteID, derivedUOMID, pvCode, itemRevisionCode, itemCode, mbomCode, routingCode string
+	var pvID, mbomHeaderID, routingHeaderID, derivedItemRevisionID, derivedSiteID, derivedUOMID, pvCode, itemRevisionCode, itemCode, mbomCode, routingCode, mbomBusinessVersion string
+	var mbomBaseQuantity float64
 	var pvName, itemName []byte
 	err = tx.QueryRow(ctx, `
 		SELECT pv.master_id, pv.item_revision_id, pv.mbom_header_id, pv.routing_header_id, pv.site_id,
 		       COALESCE(pv.code, ''), COALESCE(pv.name_i18n, '{}'::jsonb), COALESCE(ir.code, ''),
 		       COALESCE(ir.name, '{}'::jsonb), COALESCE(ir.base_uom_id::text, ''), COALESCE(ir.code, ''),
-		       COALESCE(mb.code, ''), COALESCE(rh.code, '')
+		       COALESCE(mb.code, ''), COALESCE(rh.code, ''), COALESCE(mb.business_version, '1'), mb.base_quantity
 		FROM rm_production_version pv
 		JOIN rm_item_revision ir ON ir.master_id = pv.item_revision_id
 		JOIN rm_mbom_header mb ON mb.master_id = pv.mbom_header_id
 		JOIN rm_routing_header rh ON rh.master_id = pv.routing_header_id
 		WHERE pv.master_id = $1 AND pv.lifecycle_status = 'Released'
-	`, input.ProductionVersionID).Scan(&pvID, &derivedItemRevisionID, &mbomHeaderID, &routingHeaderID, &derivedSiteID, &pvCode, &pvName, &itemRevisionCode, &itemName, &derivedUOMID, &itemCode, &mbomCode, &routingCode)
+	`, input.ProductionVersionID).Scan(&pvID, &derivedItemRevisionID, &mbomHeaderID, &routingHeaderID, &derivedSiteID, &pvCode, &pvName, &itemRevisionCode, &itemName, &derivedUOMID, &itemCode, &mbomCode, &routingCode, &mbomBusinessVersion, &mbomBaseQuantity)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("PRODUCTION_VERSION_NOT_FOUND")
@@ -162,23 +163,28 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		return nil, fmt.Errorf("failed to insert wo_header: %w", err)
 	}
 
-	// Explode MBOM lines (including phantom nodes)
+	if mbomBaseQuantity <= 0 {
+		return nil, fmt.Errorf("MBOM_BASE_QUANTITY_INVALID")
+	}
+
+	// Explode the selected released MBOM. Quantities are scaled by the MBOM
+	// base quantity; optional lines are not demand unless explicitly selected.
 	mbomRows, err := tx.Query(ctx, `
-		SELECT master_id, component_revision_id, component_item_code, quantity_per::text, uom_id, scrap_rate::text, issue_operation_id, backflush_flag, phantom_flag
+		SELECT master_id, parent_line_id, component_revision_id, component_item_code, quantity_per::text, uom_id, scrap_rate::text, issue_operation_id, backflush_flag, phantom_flag, optional_flag
 		FROM rm_mbom_line WHERE mbom_header_id = $1
 	`, mbomHeaderID)
 	if err != nil {
 		log.Printf("[CreateWO] Query mbom lines error: %v", err)
 	} else {
 		type lineStruct struct {
-			masterID, compRevID, compCode, uomID, issueOpID *string
-			qtyPerStr, scrapRateStr                         string
-			backflush, phantom                              bool
+			masterID, parentID, compRevID, compCode, uomID, issueOpID *string
+			qtyPerStr, scrapRateStr                                   string
+			backflush, phantom, optional                              bool
 		}
 		var lines []lineStruct
 		for mbomRows.Next() {
 			var l lineStruct
-			if err := mbomRows.Scan(&l.masterID, &l.compRevID, &l.compCode, &l.qtyPerStr, &l.uomID, &l.scrapRateStr, &l.issueOpID, &l.backflush, &l.phantom); err != nil {
+			if err := mbomRows.Scan(&l.masterID, &l.parentID, &l.compRevID, &l.compCode, &l.qtyPerStr, &l.uomID, &l.scrapRateStr, &l.issueOpID, &l.backflush, &l.phantom, &l.optional); err != nil {
 				log.Printf("[CreateWO] Scan mbom line error: %v", err)
 				continue
 			}
@@ -186,7 +192,17 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		}
 		mbomRows.Close()
 
+		children := make(map[string]bool)
 		for _, l := range lines {
+			if l.parentID != nil {
+				children[*l.parentID] = true
+			}
+		}
+		scale := input.Quantity / mbomBaseQuantity
+		for _, l := range lines {
+			if l.optional || (l.phantom && l.masterID != nil && children[*l.masterID]) {
+				continue
+			}
 			compCode := "COMPONENT"
 			if l.compCode != nil {
 				compCode = *l.compCode
@@ -194,12 +210,14 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 			qtyPer, _ := strconv.ParseFloat(l.qtyPerStr, 64)
 			scrapRate, _ := strconv.ParseFloat(l.scrapRateStr, 64)
 
-			reqQty := qtyPer * input.Quantity * (1.0 + scrapRate)
+			scaledQty := qtyPer * scale
+			reqQty := math.Round(scaledQty*(1.0+scrapRate)*1_000_000) / 1_000_000
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO wo_material_requirement (
-					wo_id, component_item_revision_id, component_item_code, required_qty, uom_id, issue_operation_id, backflush_flag, phantom_flag, stock_check_status
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NotChecked')
-			`, woID, *l.compRevID, compCode, reqQty, *l.uomID, l.issueOpID, l.backflush, l.phantom); err != nil {
+					wo_id, component_item_revision_id, component_item_code, required_qty, uom_id, issue_operation_id, backflush_flag, phantom_flag, stock_check_status,
+					mbom_header_id, mbom_version, mbom_line_id, source_parent_line_id, quantity_per, scaled_quantity, scrap_rate, optional_flag
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NotChecked', $9, $10, $11, $12, $13, $14, $15, $16)
+			`, woID, *l.compRevID, compCode, reqQty, *l.uomID, l.issueOpID, l.backflush, l.phantom, mbomHeaderID, mbomBusinessVersion, *l.masterID, l.parentID, qtyPer, scaledQty, scrapRate, l.optional); err != nil {
 				return nil, fmt.Errorf("failed to insert wo_material_requirement: %w", err)
 			}
 		}

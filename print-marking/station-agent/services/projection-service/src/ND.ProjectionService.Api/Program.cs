@@ -72,6 +72,42 @@ using (var scope = app.Services.CreateScope())
             );";
         try { await cmd.ExecuteNonQueryAsync(); } catch { }
 
+        cmd.CommandText = @"
+            CREATE TABLE IF NOT EXISTS projection_print_dashboard (
+                id TEXT PRIMARY KEY,
+                station_id TEXT NOT NULL,
+                work_order_id TEXT NOT NULL,
+                work_order_code TEXT NOT NULL,
+                work_order_status TEXT NOT NULL,
+                product_code TEXT NOT NULL,
+                product_name TEXT NULL,
+                operation_code TEXT NULL,
+                operation_name TEXT NULL,
+                workstation_code TEXT NULL,
+                print_station_code TEXT NULL,
+                printer_code TEXT NULL,
+                requested_quantity NUMERIC NOT NULL DEFAULT 0,
+                required_label_quantity NUMERIC NOT NULL DEFAULT 0,
+                total_label_count NUMERIC NOT NULL DEFAULT 0,
+                queued_label_count NUMERIC NOT NULL DEFAULT 0,
+                printed_label_count NUMERIC NOT NULL DEFAULT 0,
+                failed_label_count NUMERIC NOT NULL DEFAULT 0,
+                remaining_label_count NUMERIC NOT NULL DEFAULT 0,
+                print_job_id TEXT NULL,
+                print_job_status TEXT NOT NULL DEFAULT 'Unknown',
+                batch_size INTEGER NOT NULL DEFAULT 0,
+                total_batches INTEGER NOT NULL DEFAULT 0,
+                completed_batches INTEGER NOT NULL DEFAULT 0,
+                last_kafka_event_id TEXT NULL,
+                last_kafka_event_type TEXT NULL,
+                last_kafka_event_at TEXT NULL,
+                last_printer_result_at TEXT NULL,
+                updated_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(station_id, work_order_id)
+            );";
+        try { await cmd.ExecuteNonQueryAsync(); } catch { }
+
         // v2: initial alarms table
         cmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS projection_alarms (
@@ -184,6 +220,32 @@ app.MapGet("/api/projection/activities", async (
         l.OccurredAt));
 
     return Results.Ok(dtos);
+});
+
+app.MapGet("/api/projection/print-dashboard", async (
+    string? stationId,
+    IConfiguration config,
+    ProjectionDbContext db,
+    CancellationToken ct) =>
+{
+    var targetStationId = stationId ?? config["STATION_ID"];
+    if (string.IsNullOrWhiteSpace(targetStationId)) return Results.NoContent();
+    var view = await db.PrintDashboards
+        .AsNoTracking()
+        .Where(x => x.StationId == targetStationId)
+        .OrderByDescending(x => x.UpdatedAt)
+        .FirstOrDefaultAsync(ct);
+    if (view is null) return Results.NoContent();
+    return Results.Ok(new PrintDashboardDto(
+        view.StationId, view.WorkOrderId, view.WorkOrderCode, view.WorkOrderStatus,
+        view.ProductCode, view.ProductName, view.OperationCode, view.OperationName,
+        view.WorkstationCode, view.PrintStationCode, view.PrinterCode,
+        view.RequestedQuantity, view.RequiredLabelQuantity, view.TotalLabelCount,
+        view.QueuedLabelCount, view.PrintedLabelCount, view.FailedLabelCount,
+        view.RemainingLabelCount, view.PrintJobId, view.PrintJobStatus,
+        view.BatchSize, view.TotalBatches, view.CompletedBatches,
+        view.LastKafkaEventId, view.LastKafkaEventType, view.LastKafkaEventAt,
+        view.LastPrinterResultAt, view.UpdatedAt));
 });
 
 app.MapGet("/api/projection/devices", async (

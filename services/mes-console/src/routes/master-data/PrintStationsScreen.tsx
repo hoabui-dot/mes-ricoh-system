@@ -43,6 +43,7 @@ export const PrintStationsScreen: React.FC = () => {
       WORKSTATION_ALREADY_HAS_PRINT_STATION: 'printStation.workstationAlreadyBound',
       INVALID_ALLOCATED_PRINTER_QUANTITY: 'printStation.invalidAllocation',
       PRINT_STATION_RUNTIME_NOT_AVAILABLE: 'printStation.runtimeUnavailable',
+      PRINT_STATION_RUNTIME_NOT_READY: 'printStation.runtimeNotReady',
       PRINT_STATION_ALLOCATION_EXCEEDS_CAPACITY: 'printStation.capacityExceeded',
     };
     return key[code] ? t(key[code]) : error?.message || t('printStation.bindingFailed');

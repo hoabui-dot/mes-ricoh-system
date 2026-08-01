@@ -9,11 +9,12 @@ public static class PrinterDbSeeder
 {
     public static async Task SeedAsync(PrinterDbContext db, string host, int port)
     {
+        var cupsQueue = Environment.GetEnvironmentVariable("CUPS_QUEUE") ?? "Zebra_Technologies_ZTC_GK420t";
+        var cupsHost = Environment.GetEnvironmentVariable("CUPS_HEALTH_HOST") ?? "host.docker.internal";
+
         // ── Printers ─────────────────────────────────────────────────────────
         if (!await db.Printers.AnyAsync())
         {
-            var cupsQueue = Environment.GetEnvironmentVariable("CUPS_QUEUE") ?? "Zebra_Technologies_ZTC_GK420t";
-            var cupsHost = Environment.GetEnvironmentVariable("CUPS_HEALTH_HOST") ?? "host.docker.internal";
             var pCups = Printer.Create("Zebra-GK420t-CUPS", "Zebra GK420t (Physical)", cupsHost, 631, "ZPL", "ZEBRA",
                 driverType: "cups", cupsQueueName: cupsQueue);
             await db.Printers.AddAsync(pCups);
@@ -25,11 +26,18 @@ public static class PrinterDbSeeder
             var existingCups = await db.Printers.FirstOrDefaultAsync(p => p.PrinterCode == "Zebra-GK420t-CUPS");
             if (existingCups == null)
             {
-                var cupsQueue = Environment.GetEnvironmentVariable("CUPS_QUEUE") ?? "Zebra_Technologies_ZTC_GK420t";
-                var cupsHost = Environment.GetEnvironmentVariable("CUPS_HEALTH_HOST") ?? "host.docker.internal";
                 var pCups = Printer.Create("Zebra-GK420t-CUPS", "Zebra GK420t (Physical)", cupsHost, 631, "ZPL", "ZEBRA",
                     driverType: "cups", cupsQueueName: cupsQueue);
                 await db.Printers.AddAsync(pCups);
+            }
+            else
+            {
+                // Existing station volumes must follow the current deployment
+                // endpoint. Otherwise /api/printers reports the old
+                // host.docker.internal value even when CUPS_HEALTH_HOST points
+                // at the current macOS LAN address.
+                existingCups.UpdateEndpoint(cupsHost, 631);
+                existingCups.UpdateDriver("cups", cupsQueue);
             }
         }
 

@@ -5,6 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: mes-master-data-db
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     environment:
       POSTGRES_DB: mes_master_data_db
       POSTGRES_USER: mes_master_data_user
@@ -25,6 +28,9 @@ services:
       dockerfile: services/mes-master-data-service/Dockerfile
     container_name: mes-master-data-service
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     ports:
       - "13020:3020"
     depends_on:
@@ -50,6 +56,9 @@ services:
     image: postgres:16-alpine
     container_name: mes-execution-db
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     environment:
       POSTGRES_DB: mes_execution_db
       POSTGRES_USER: mes_execution_user
@@ -70,6 +79,9 @@ services:
       dockerfile: services/mes-execution-service/Dockerfile
     container_name: mes-execution-service
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     ports:
       - "13030:3030"
     depends_on:
@@ -108,6 +120,9 @@ services:
     image: postgres:16-alpine
     container_name: mes-traceability-db
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     environment:
       POSTGRES_DB: mes_traceability_db
       POSTGRES_USER: traceability_user
@@ -128,6 +143,9 @@ services:
       dockerfile: services/mes-traceability-service/Dockerfile
     container_name: mes-traceability-service
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     ports:
       - "13040:3040"
     depends_on:
@@ -153,6 +171,9 @@ services:
     image: postgres:16-alpine
     container_name: mes-kiosk-gateway-db
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     environment:
       POSTGRES_DB: mes_kiosk_gateway_db
       POSTGRES_USER: mes_kiosk_user
@@ -173,6 +194,9 @@ services:
       dockerfile: services/mes-kiosk-gateway-service/Dockerfile
     container_name: mes-kiosk-gateway-service
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     ports:
       - "13050:3050"
     depends_on:
@@ -199,6 +223,9 @@ services:
       dockerfile: services/kiosk-operator-ui/Dockerfile
     container_name: kiosk-operator-ui
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     ports:
       - "13051:3051"
     environment:
@@ -212,17 +239,20 @@ services:
       context: ..
       dockerfile: services/mes-console/Dockerfile
       args:
-        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://jar-planes-possession-liberal.trycloudflare.com}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://plant-memories-ago-bar.trycloudflare.com}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:?VITE_KEYCLOAK_URL is required}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?VITE_API_BASE_URL is required}
     container_name: mes-console
     networks: [platform-net]
+    env_file:
+      - ./.common.env
+      - ./.mes.env
     ports:
       - "13052:3052"
     environment:
       NODE_ENV: production
       PORT: 3052
-      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://jar-planes-possession-liberal.trycloudflare.com}
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://plant-memories-ago-bar.trycloudflare.com}
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:?VITE_KEYCLOAK_URL is required}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:?VITE_API_BASE_URL is required}
 
 volumes:
   mes-master-data-db-data:

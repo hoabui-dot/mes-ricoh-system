@@ -1,4 +1,6 @@
 export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
+import { mesQueryClient } from './queryClient';
+import { mesQueryKeys } from './queryKeys';
 
 export function gatewayBaseUrl() {
   const configured = import.meta.env.VITE_API_BASE_URL;
@@ -20,12 +22,14 @@ export function authHeaders(user?: { userId?: string; roles?: string[] } | null)
 export class MasterDataApiError extends Error {
   resource: string;
   status: number;
+  code?: string;
 
-  constructor(resource: string, status: number, message: string) {
+  constructor(resource: string, status: number, message: string, code?: string) {
     super(message);
     this.name = 'MasterDataApiError';
     this.resource = resource;
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -33,10 +37,37 @@ export async function fetchResource(resource: string, user?: { userId?: string; 
   const resp = await fetch(`${masterDataBaseUrl()}/${resource}${query}`, { headers: authHeaders(user), cache: 'no-store' });
   if (!resp.ok) {
     const error = await resp.json().catch(() => ({}));
-    throw new MasterDataApiError(resource, resp.status, error.message || error.error || `Cannot load ${resource}`);
+    throw new MasterDataApiError(resource, resp.status, error.message || error.error || `Cannot load ${resource}`, error.error);
   }
   const data = await resp.json();
   return data.data || [];
+}
+
+const invalidationMap: Record<string, string[]> = {
+  items: ['items', 'item-revisions', 'mbom-headers', 'routing-headers', 'production-versions', 'production-ready-versions'],
+  'item-revisions': ['item-revisions', 'items', 'mbom-headers', 'mbom-lines', 'component-substitutes', 'routing-headers', 'production-versions', 'production-ready-versions'],
+  'mbom-headers': ['mbom-headers', 'mbom-lines', 'component-substitutes', 'production-versions', 'production-ready-versions'],
+  'mbom-lines': ['mbom-lines', 'mbom-headers', 'component-substitutes', 'production-versions', 'production-ready-versions'],
+  'component-substitutes': ['component-substitutes', 'mbom-lines', 'mbom-headers', 'production-versions', 'production-ready-versions'],
+  'routing-headers': ['routing-headers', 'routing-operations', 'production-versions', 'production-ready-versions'],
+  'routing-operations': ['routing-operations', 'routing-headers', 'production-versions', 'production-ready-versions'],
+  'production-versions': ['production-versions', 'production-ready-versions'],
+  'work-centers': ['work-centers', 'workstations', 'resource-capabilities', 'routing-operations', 'production-ready-versions'],
+  workstations: ['workstations', 'work-centers', 'equipment', 'resource-capabilities', 'routing-operations', 'production-ready-versions'],
+  equipment: ['equipment', 'workstations', 'resource-capabilities', 'production-ready-versions'],
+  employees: ['employees', 'employee-schedules', 'resource-capabilities', 'production-ready-versions'],
+  skills: ['skills', 'worker-skills', 'resource-skill-assignments', 'production-ready-versions'],
+  'worker-skills': ['worker-skills', 'skills', 'operations', 'production-ready-versions'],
+  shifts: ['shifts', 'employee-schedules', 'production-ready-versions'],
+  operations: ['operations', 'routing-operations', 'workstation-operation-capabilities', 'production-ready-versions'],
+};
+
+export async function invalidateMesQueries(resource: string) {
+  const resources = invalidationMap[resource] || [resource];
+  await Promise.all(resources.flatMap((name) => [
+    mesQueryClient.invalidateQueries({ queryKey: [name] }),
+    mesQueryClient.invalidateQueries({ queryKey: mesQueryKeys.resource(name) }),
+  ]));
 }
 
 export async function postResource(resource: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
@@ -49,7 +80,11 @@ export async function postResource(resource: string, payload: Record<string, unk
     const error = await resp.json().catch(() => ({}));
     throw Object.assign(new Error(error.message || error.error || `Cannot create ${resource}`), { code: error.error, details: error.details });
   }
-  return resp.json();
+  if (resp.status === 204 || resp.headers.get('content-length') === '0') { await invalidateMesQueries(resource); return null; }
+  const contentType = resp.headers.get('content-type') || '';
+  const result = contentType.includes('application/json') ? await resp.json() : null;
+  await invalidateMesQueries(resource);
+  return result;
 }
 
 export async function putResource(resource: string, id: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
@@ -62,7 +97,9 @@ export async function putResource(resource: string, id: string, payload: Record<
     const error = await resp.json().catch(() => ({}));
     throw Object.assign(new Error(error.message || error.error || `Cannot update ${resource}`), { code: error.error, details: error.details });
   }
-  return resp.json();
+  const result = await resp.json();
+  await invalidateMesQueries(resource);
+  return result;
 }
 
 export async function deleteResource(resource: string, id: string, user?: { userId?: string; roles?: string[] } | null) {
@@ -72,9 +109,11 @@ export async function deleteResource(resource: string, id: string, user?: { user
   });
   if (!resp.ok) {
     const error = await resp.json().catch(() => ({}));
-    throw new MasterDataApiError(resource, resp.status, error.message || error.error || `Cannot delete ${resource}`);
+    throw new MasterDataApiError(resource, resp.status, error.message || error.error || `Cannot delete ${resource}`, error.error);
   }
-  return resp.json();
+  const result = await resp.json();
+  await invalidateMesQueries(resource);
+  return result;
 }
 
 export async function releaseResource(resource: string, id: string, user?: { userId?: string; roles?: string[] } | null) {
@@ -84,11 +123,118 @@ export async function releaseResource(resource: string, id: string, user?: { use
   });
   if (!resp.ok) {
     const error = await resp.json().catch(() => ({}));
-    if (Array.isArray(error.failures)) {
-      throw Object.assign(new Error('Validation failed'), { validationFailures: error.failures });
+    const failures = Array.isArray(error.failures) ? error.failures : Array.isArray(error.errors) ? error.errors : [];
+    if (failures.length) {
+      throw Object.assign(new Error('Validation failed'), {
+        validationFailures: failures,
+        code: failures[0]?.code || error.error,
+        status: resp.status,
+      });
     }
-    const messages = Array.isArray(error.errors) ? error.errors.map((item: any) => item.message || item.error || String(item)).join('\n') : '';
-    throw new Error(messages || error.message || error.error || `Cannot release ${resource}`);
+    throw Object.assign(new Error(error.message || error.error || `Cannot release ${resource}`), { code: error.error, status: resp.status });
   }
-  return resp.json();
+  const result = await resp.json();
+  await invalidateMesQueries(resource);
+  return result;
+}
+
+export async function fetchMbomDetail(id: string, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-headers/${id}`, { headers: authHeaders(user), cache: 'no-store' });
+  if (!resp.ok) {
+    const error = await resp.json().catch(() => ({}));
+    throw new MasterDataApiError('mbom-headers', resp.status, error.message || error.error || 'Cannot load MBOM', error.error);
+  }
+  const payload = await resp.json();
+  return payload.data;
+}
+
+export async function validateMbom(id: string, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-headers/${id}/validate`, {
+    method: 'POST',
+    headers: { ...authHeaders(user), 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw Object.assign(new Error(payload.error || 'MBOM validation failed'), { validationErrors: payload.errors || [] });
+  return payload;
+}
+
+export async function createMbomNewVersion(id: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-headers/${id}/create-new-version`, {
+    method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw Object.assign(new Error(result.message || result.error || 'Cannot create MBOM version'), { code: result.error });
+  await invalidateMesQueries('mbom-headers');
+  return result.data;
+}
+
+export async function replaceMbomLines(id: string, expectedStructureVersion: number, lines: Array<Record<string, unknown>>, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-headers/${id}/lines/replace`, {
+    method: 'PUT', headers: { ...authHeaders(user), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expected_structure_version: expectedStructureVersion, lines }),
+  });
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw Object.assign(new Error(result.message || result.error || 'Cannot save MBOM structure'), { code: result.error, latestStructureVersion: result.latest_structure_version });
+  await invalidateMesQueries('mbom-lines');
+  return result.data;
+}
+
+export async function createMbomSubstitute(lineId: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-lines/${lineId}/substitutes`, {
+    method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw Object.assign(new Error(result.message || result.error || 'Cannot create substitute'), { code: result.error, details: result.details });
+  await invalidateMesQueries('component-substitutes');
+  return result.data;
+}
+
+export async function replaceMbomSubstitutes(lineId: string, substitutes: Array<Record<string, unknown>>, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-lines/${lineId}/substitutes/replace`, {
+    method: 'PUT', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify({ substitutes }),
+  });
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw Object.assign(new Error(result.message || result.error || 'Cannot save substitutes'), { code: result.error, details: result.details });
+  await invalidateMesQueries('component-substitutes');
+  return result.data || result;
+}
+
+async function substituteMutation(path: string, method: string, payload: Record<string, unknown> | undefined, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/${path}`, {
+    method,
+    headers: { ...authHeaders(user), ...(payload ? { 'Content-Type': 'application/json' } : {}) },
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
+  });
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw Object.assign(new Error(result.message || result.error || 'Substitute mutation failed'), { code: result.error, details: result.details });
+  await invalidateMesQueries('component-substitutes');
+  return result.data || result;
+}
+
+export function updateMbomSubstitute(lineId: string, substituteId: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
+  return substituteMutation(`mbom-lines/${lineId}/substitutes/${substituteId}`, 'PUT', payload, user);
+}
+
+export function deleteMbomSubstitute(lineId: string, substituteId: string, user?: { userId?: string; roles?: string[] } | null) {
+  return substituteMutation(`mbom-lines/${lineId}/substitutes/${substituteId}`, 'DELETE', undefined, user);
+}
+
+export function endMbomSubstituteEffectivity(lineId: string, substituteId: string, effectiveTo: string | undefined, user?: { userId?: string; roles?: string[] } | null) {
+  return substituteMutation(`mbom-lines/${lineId}/substitutes/${substituteId}/end-effectivity`, 'POST', effectiveTo ? { effective_to: effectiveTo } : {}, user);
+}
+
+export function approveMbomSubstitute(lineId: string, substituteId: string, reason: string | undefined, user?: { userId?: string; roles?: string[] } | null) {
+  return substituteMutation(`mbom-lines/${lineId}/substitutes/${substituteId}/approve`, 'POST', reason ? { reason } : {}, user);
+}
+
+export function rejectMbomSubstitute(lineId: string, substituteId: string, reason: string, user?: { userId?: string; roles?: string[] } | null) {
+  return substituteMutation(`mbom-lines/${lineId}/substitutes/${substituteId}/reject`, 'POST', { reason }, user);
+}
+
+export async function fetchMbomSubstituteAudit(lineId: string, substituteId: string, user?: { userId?: string; roles?: string[] } | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-lines/${lineId}/substitutes/${substituteId}/audit`, { headers: authHeaders(user), cache: 'no-store' });
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw Object.assign(new Error(result.message || result.error || 'Cannot load substitute audit'), { code: result.error });
+  return result.data || [];
 }

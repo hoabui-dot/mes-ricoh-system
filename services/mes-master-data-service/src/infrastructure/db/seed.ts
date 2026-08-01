@@ -70,10 +70,13 @@ export async function seedMasterData(pool: Pool): Promise<void> {
       area_type: 'Production',
     });
 
-    const pcsId = await upsertMaster(client, 'md_uom', { ...common, code: 'PCS', name: 'Pieces', uom_class: 'Quantity', decimal_precision: 0 });
-    const kgId = await upsertMaster(client, 'md_uom', { ...common, code: 'KG', name: 'Kilogram', uom_class: 'Weight', decimal_precision: 3 });
-    const m2Id = await upsertMaster(client, 'md_uom', { ...common, code: 'M2', name: 'Square Meter', uom_class: 'Area', decimal_precision: 3 });
-    await upsertMaster(client, 'md_uom_conversion', { ...common, code: 'PCS-PCS', name: 'PCS to PCS', from_uom_id: pcsId, to_uom_id: pcsId, factor: '1' });
+    const pcsId = await upsertMaster(client, 'md_uom', { ...common, code: 'PCS', name: 'Piece', uom_class: 'Count', decimal_precision: 0, allow_fraction: false });
+    const kgId = await upsertMaster(client, 'md_uom', { ...common, code: 'KG', name: 'Kilogram', uom_class: 'Weight', decimal_precision: 3, allow_fraction: true });
+    const m2Id = await upsertMaster(client, 'md_uom', { ...common, code: 'M2', name: 'Square metre', uom_class: 'Area', decimal_precision: 4, allow_fraction: true });
+    await upsertMaster(client, 'md_uom', { ...common, code: 'G', name: 'Gram', uom_class: 'Weight', decimal_precision: 3, allow_fraction: true });
+    await upsertMaster(client, 'md_uom', { ...common, code: 'M', name: 'Metre', uom_class: 'Length', decimal_precision: 3, allow_fraction: true });
+    await upsertMaster(client, 'md_uom', { ...common, code: 'L', name: 'Litre', uom_class: 'Volume', decimal_precision: 3, allow_fraction: true });
+    await upsertMaster(client, 'md_uom', { ...common, code: 'MIN', name: 'Minute', uom_class: 'Time', decimal_precision: 2, allow_fraction: true });
     const shiftAId = await upsertMaster(client, 'md_shift', { ...common, code: 'SHIFT-A', name: 'Day Shift', site_id: siteId, start_time: '08:00', end_time: '17:00' });
     await upsertMaster(client, 'md_reason_code', { ...common, code: 'QC-BOND-FAIL', name: 'Bonding Failure', reason_type: 'Quality', requires_comment: true });
 
@@ -124,17 +127,17 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const skillVulcanId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-WC-VULCAN-OPERATOR', name: 'Vận hành máy ép lưu hóa áp lực cao', skill_group: 'Production', skill_group_id: skillGroups.get('SKG-WC-PROCESS'), scope: 'WorkCenter', legacy_flag: false, minimum_level: 'L2' });
     const skillInspectionId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-WC-INSPECTION', name: 'Kỹ thuật viên QC', skill_group: 'Quality', skill_group_id: skillGroups.get('SKG-WC-QUALITY'), scope: 'WorkCenter', legacy_flag: false, minimum_level: 'L2' });
 
-    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', site_id: siteId, base_quantity: '100.000000', base_uom_id: pcsId });
+    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', site_id: siteId, item_revision_id: fgRevId, base_quantity: '100.000000', base_uom_id: pcsId });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L10', name: 'Treated metal core', mbom_header_id: mbomId, seq: 10, component_revision_id: metRevId, quantity_per: '100.000000', uom_id: pcsId, scrap_rate: '0.0100', issue_operation_id: opMoldId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L20', name: 'Rubber child blank', mbom_header_id: mbomId, seq: 20, component_revision_id: rubRevId, quantity_per: '102.000000', uom_id: pcsId, scrap_rate: '0.0200', issue_operation_id: opMoldId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L30', name: 'Raw steel blank', mbom_header_id: mbomId, seq: 30, component_revision_id: steelRevId, quantity_per: '101.000000', uom_id: pcsId, scrap_rate: '0.0050', issue_operation_id: opPrepId, backflush_flag: false, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L40', name: 'Bonding chemical', mbom_header_id: mbomId, seq: 40, component_revision_id: bondRevId, quantity_per: '1.500000', uom_id: kgId, scrap_rate: '0.0500', issue_operation_id: opPrepId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L50', name: 'EPDM parent roll phantom', mbom_header_id: mbomId, seq: 50, component_revision_id: rollRevId, quantity_per: '15.500000', uom_id: m2Id, scrap_rate: '0.0300', issue_operation_id: opCutId, backflush_flag: true, phantom_flag: true });
 
-    const childMbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1', name: 'Child MBOM for EPDM phantom roll', site_id: siteId, base_quantity: '1.000000', base_uom_id: m2Id });
+    const childMbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1', name: 'Child MBOM for EPDM phantom roll', site_id: siteId, item_revision_id: rollRevId, base_quantity: '1.000000', base_uom_id: m2Id });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1-L10', name: 'Synthetic rubber base', mbom_header_id: childMbomId, seq: 10, component_revision_id: rollRevId, quantity_per: '1.000000', uom_id: m2Id, scrap_rate: '0.0000', issue_operation_id: opMixId, backflush_flag: true, phantom_flag: false });
 
-    const routingId = await upsertMaster(client, 'md_routing_header', { ...common, code: 'RT-FG-WS-CM01-R1', name: 'Routing Cao su chân máy ô tô' });
+    const routingId = await upsertMaster(client, 'md_routing_header', { ...common, code: 'RT-FG-WS-CM01-R1', name: 'Routing Cao su chân máy ô tô', item_revision_id: fgRevId });
     const roMixId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-010', name: 'Mixing', routing_header_id: routingId, operation_id: opMixId, work_center_id: wcMixId, seq: 10 });
     const roPrepId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-020', name: 'Metal Prep', routing_header_id: routingId, operation_id: opPrepId, work_center_id: wcMoldId, seq: 20, predecessor_seq: 10 });
     const roCutId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-030', name: 'Cutting', routing_header_id: routingId, operation_id: opCutId, work_center_id: wcCutId, seq: 30, predecessor_seq: 20 });
@@ -188,6 +191,16 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 
     await upsertMaster(client, 'md_production_version', { ...common, code: 'PV-FG-WS-CM01-R1', name: 'Production Version FG-WS-CM01 R1', name_i18n: { vi: 'Phiên bản sản xuất FG-WS-CM01 R1', en: 'Production Version FG-WS-CM01 R1', ja: 'FG-WS-CM01 R1 生産バージョン', ko: 'FG-WS-CM01 R1 생산 버전' }, item_revision_id: fgRevId, mbom_header_id: mbomId, routing_header_id: routingId, site_id: siteId, is_default: true });
 
+    // Legacy seed calls still provide item_group for readability. Resolve that
+    // compatibility input to the authoritative material-group foreign key.
+    await client.query(`
+      INSERT INTO md_material_group (code, name, created_by)
+      SELECT DISTINCT i.item_group, jsonb_build_object('vi', i.item_group, 'en', i.item_group, 'ja', i.item_group, 'ko', i.item_group), $1::uuid
+      FROM md_item i WHERE i.item_group IS NOT NULL
+      ON CONFLICT (UPPER(code)) DO NOTHING`, [SYSTEM_USER_ID]);
+    await client.query(`UPDATE md_item i SET material_group_id = g.master_id FROM md_material_group g WHERE UPPER(g.code) = UPPER(i.item_group) AND i.material_group_id IS NULL`);
+    await client.query(`UPDATE md_item_revision r SET material_group_id = g.master_id FROM md_item i, md_material_group g WHERE i.master_id = r.item_id AND UPPER(g.code) = UPPER(r.item_group) AND r.material_group_id IS NULL`);
+    await client.query(`UPDATE md_item_revision r SET material_group_id = i.material_group_id FROM md_item i WHERE i.master_id = r.item_id AND r.material_group_id IS NULL`);
     await client.query('COMMIT');
     console.info('[Seed] MES master data seed applied');
   } catch (err) {

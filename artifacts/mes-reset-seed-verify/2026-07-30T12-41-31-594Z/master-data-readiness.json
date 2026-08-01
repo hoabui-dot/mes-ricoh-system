@@ -1,0 +1,150 @@
+{
+  "readiness": {
+    "productionVersionReady": true,
+    "candidate": {
+      "production_version_name": {
+        "en": "E2E WO Label Production Version",
+        "ja": "E2E WO ラベル生産バージョン",
+        "ko": "E2E WO 라벨 생산 버전",
+        "vi": "Cấu hình E2E WO in nhãn"
+      },
+      "min_lot_size": "1.000000",
+      "max_lot_size": "100.000000",
+      "item_id": "3d129ed0-5c16-452b-9c5a-4bcc8d0661a1",
+      "item_code": "E2E-WO-FG-01",
+      "item_name": {
+        "en": "E2E WO Label Product",
+        "ja": "E2E WO ラベル製品",
+        "ko": "E2E WO 라벨 제품",
+        "vi": "Sản phẩm E2E WO in nhãn"
+      },
+      "item_revision_id": "6fd21a71-c509-474f-a536-46e1af677636",
+      "revision_code": "E2E-WO-FG-01-R1",
+      "revision_status": "Released",
+      "revision_effective_from": "2026-07-30T12:41:32.331Z",
+      "revision_effective_to": null,
+      "base_uom_code": "PCS",
+      "base_uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+      "base_uom_decimal_precision": 0,
+      "base_uom_allow_fraction": false,
+      "production_version_id": "fb83a61e-5332-4d70-9ebb-578c523528b3",
+      "production_version_code": "PV-20260730-0001",
+      "mbom_header_id": "8f965792-1d28-4179-be85-448e294b6b16",
+      "mbom_code": "E2E-WO-MBOM-01",
+      "mbom_name": {
+        "en": "E2E WO Label MBOM",
+        "ja": "E2E WO ラベルMBOM",
+        "ko": "E2E WO MBOM",
+        "vi": "MBOM E2E WO in nhãn"
+      },
+      "routing_header_id": "bd753e43-d0ec-4ccc-8abd-601b124f7aa6",
+      "routing_code": "RT-20260730-0002",
+      "routing_name": {
+        "en": "E2E WO Label Routing",
+        "ja": "E2E WO ラベルルーティング",
+        "ko": "E2E WO 라우팅",
+        "vi": "Routing E2E WO in nhãn"
+      },
+      "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+      "site_code": "SITE-KZ3",
+      "item_revision": {
+        "id": "6fd21a71-c509-474f-a536-46e1af677636",
+        "code": "E2E-WO-FG-01-R1",
+        "name": {
+          "en": "E2E WO Label Product",
+          "ja": "E2E WO ラベル製品",
+          "ko": "E2E WO 라벨 제품",
+          "vi": "Sản phẩm E2E WO in nhãn"
+        }
+      },
+      "mbom": {
+        "id": "8f965792-1d28-4179-be85-448e294b6b16",
+        "code": "E2E-WO-MBOM-01",
+        "name": {
+          "en": "E2E WO Label MBOM",
+          "ja": "E2E WO ラベルMBOM",
+          "ko": "E2E WO MBOM",
+          "vi": "MBOM E2E WO in nhãn"
+        }
+      },
+      "routing": {
+        "id": "bd753e43-d0ec-4ccc-8abd-601b124f7aa6",
+        "code": "RT-20260730-0002",
+        "name": {
+          "en": "E2E WO Label Routing",
+          "ja": "E2E WO ラベルルーティング",
+          "ko": "E2E WO 라우팅",
+          "vi": "Routing E2E WO in nhãn"
+        }
+      },
+      "site": {
+        "id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+        "code": "SITE-KZ3"
+      },
+      "base_uom": {
+        "id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+        "code": "PCS",
+        "decimal_precision": 0,
+        "allow_fraction": false,
+        "lifecycle_status": "Released"
+      },
+      "valid_from": "2026-07-30T12:41:32.331Z",
+      "valid_to": null,
+      "ready": true,
+      "warnings": [],
+      "display_code": "E2E-WO-FG-01-E2E-WO-FG-01-R1",
+      "readiness_status": "Ready"
+    },
+    "printReadiness": {
+      "binding_id": "db1b2f58-c2ca-44de-82f5-45eea0569eef",
+      "role": "PRIMARY",
+      "print_station_id": "6f56f652-bc6a-456e-a6b3-6284ab023f2d",
+      "print_station_code": "PRINT-STATION-01",
+      "lifecycle_status": "ONLINE",
+      "is_active": true,
+      "runtime_status": "ONLINE",
+      "kafka_status": "CONNECTED",
+      "ready_printer_count": 1,
+      "active_for_work_printer_count": 1,
+      "allocated_printer_quantity": 1,
+      "last_heartbeat_at": "2026-07-30T12:41:20.661Z"
+    },
+    "expectedOperationCount": 3,
+    "operationCodes": [
+      "OP-20260730-0004",
+      "OP-20260730-0005",
+      "OP-20260730-0006"
+    ],
+    "mbomLineCount": 1
+  },
+  "masterDataVerification": {
+    "passed": true,
+    "row": {
+      "production_version_id": "fb83a61e-5332-4d70-9ebb-578c523528b3",
+      "production_version_code": "PV-20260730-0001",
+      "production_version_status": "Released",
+      "item_revision_id": "6fd21a71-c509-474f-a536-46e1af677636",
+      "ebom_header_id": "06ab695f-11e1-4d56-974b-7383151a9547",
+      "mbom_header_id": "8f965792-1d28-4179-be85-448e294b6b16",
+      "routing_header_id": "bd753e43-d0ec-4ccc-8abd-601b124f7aa6",
+      "revision_status": "Released",
+      "item_status": "Released",
+      "ebom_status": "Released",
+      "ebom_revision_id": "6fd21a71-c509-474f-a536-46e1af677636",
+      "mbom_status": "Released",
+      "mbom_revision_id": "6fd21a71-c509-474f-a536-46e1af677636",
+      "routing_status": "Released",
+      "routing_revision_id": "6fd21a71-c509-474f-a536-46e1af677636",
+      "routing_operation_count": 3,
+      "mbom_line_count": 1,
+      "ebom_line_count": 1
+    },
+    "issue_mapping": [
+      {
+        "mbom_line_code": "E2E-WO-MBOM-L01",
+        "issue_operation_id": "538fdbee-734c-4f07-b13f-843769bf85dc",
+        "matching_routing_operations": 1
+      }
+    ]
+  }
+}

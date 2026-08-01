@@ -11,6 +11,7 @@ import {
   Modal,
   SelectBase,
 } from '../../components/ui';
+import { BaseDataTable, type BaseDataTableColumn } from '../../components/base';
 import { LocalizedTextInput } from '../../components/LocalizedTextInput';
 import { authHeaders, fetchResource, masterDataBaseUrl, postResource } from '../../lib/masterDataApi';
 
@@ -163,6 +164,17 @@ export function SkillManagementScreen() {
     ['workers', t('skills.workerTab')],
   ];
   const scopeLabel = workerTab ? t('skills.workerDefinitions') : t('skills.definitions');
+  const skillColumns: BaseDataTableColumn<Row>[] = workerTab ? [
+    { id: 'skill', header: t('common.name'), accessorFn: (row) => `${text(row.name)} ${row.code || ''}`, cell: ({ row }) => <button type="button" className="text-left" onClick={() => void openAssignments(row.original)}><div className="font-semibold">{text(row.original.name)}</div><div className="font-mono text-xs text-muted-foreground">{row.original.code}</div></button> },
+    { id: 'assignments', header: t('skills.assignments'), accessorFn: (row) => row.active_assignment_count || 0 },
+    { id: 'status', header: t('common.status'), accessorKey: 'lifecycle_status' },
+    { id: 'actions', header: t('common.actions'), align: 'right', cell: ({ row }) => <div className="flex justify-end gap-1" onClick={(event) => event.stopPropagation()}><Button type="button" variant="ghost" size="icon" title={t('skills.addSkill')} onClick={() => void openEdit(row.original)}><Pencil className="h-4 w-4" /></Button><Button type="button" variant="ghost" size="icon" title={t('skills.deactivate')} onClick={() => setDeactivateTarget(row.original)}><UserMinus className="h-4 w-4" /></Button></div> },
+  ] : [
+    { id: 'skill', header: t('common.name'), accessorFn: (row) => `${text(row.name)} ${row.code || ''}`, cell: ({ row }) => <><div className="font-semibold">{text(row.original.name)}</div><div className="text-xs text-muted-foreground">{text(row.original.description) || t('common.notAvailable')}</div><div className="font-mono text-xs text-muted-foreground">{row.original.code}</div></> },
+    { id: 'level', header: t('common.level'), accessorFn: (row) => row.minimum_level || 'Basic' },
+    { id: 'status', header: t('common.status'), accessorKey: 'lifecycle_status' },
+    { id: 'actions', header: t('common.actions'), align: 'right', cell: ({ row }) => <div className="flex justify-end gap-1"><Button type="button" variant="ghost" size="icon" title={t('skills.addSkill')} onClick={() => void openEdit(row.original)}><Pencil className="h-4 w-4" /></Button><Button type="button" variant="ghost" size="icon" title={t('skills.deactivate')} onClick={() => setDeactivateTarget(row.original)}><UserMinus className="h-4 w-4" /></Button></div> },
+  ];
 
   return (
     <div className="space-y-5">
@@ -183,14 +195,12 @@ export function SkillManagementScreen() {
       {workerTab ? (
         <Card className="space-y-4 p-5">
           <div><h2 className="font-bold">{scopeLabel}</h2><p className="text-xs text-muted-foreground">{t('skills.workerScopeHelp')}</p></div>
-          <div className="space-y-2">
-            {loading ? <p>{t('common.loading')}</p> : skills.map((skill) => <div key={skill.master_id} className="flex items-center justify-between gap-3 rounded border border-border p-3"><button type="button" className="min-w-0 flex-1 text-left" onClick={() => void openAssignments(skill)}><div className="font-semibold">{text(skill.name)}</div><div className="font-mono text-xs text-muted-foreground">{skill.code} · {skill.active_assignment_count || 0} {t('skills.assignments')}</div></button><span className="text-xs text-muted-foreground">{skill.lifecycle_status}</span><Button type="button" variant="ghost" size="icon" title={t('skills.addSkill')} onClick={() => void openEdit(skill)}><Pencil className="h-4 w-4" /></Button><Button type="button" variant="ghost" size="icon" title={t('skills.deactivate')} onClick={() => setDeactivateTarget(skill)}><UserMinus className="h-4 w-4" /></Button></div>)}
-          </div>
+          <BaseDataTable data={skills} columns={skillColumns} loading={loading} getRowId={(row) => row.master_id} onRowClick={openAssignments} stickyHeader />
         </Card>
       ) : (
         <Card className="space-y-4 p-5">
           <div><h2 className="font-bold">{scopeLabel}</h2><p className="text-xs text-muted-foreground">{t('skills.definitionsHelp')}</p></div>
-          <div className="space-y-2">{loading ? <p>{t('common.loading')}</p> : skills.map((skill) => <div key={skill.master_id} className="flex items-center justify-between gap-3 rounded border border-border p-3"><div className="min-w-0"><div className="font-semibold">{text(skill.name)}</div><div className="text-xs text-muted-foreground">{text(skill.description) || t('common.notAvailable')}</div><div className="font-mono text-xs text-muted-foreground">{skill.code}</div></div><div className="flex items-center gap-3"><span className="text-xs text-muted-foreground">{skill.minimum_level || 'Basic'}</span><Button type="button" variant="ghost" size="icon" title={t('skills.addSkill')} onClick={() => void openEdit(skill)}><Pencil className="h-4 w-4" /></Button><Button type="button" variant="ghost" size="icon" title={t('skills.deactivate')} onClick={() => setDeactivateTarget(skill)}><UserMinus className="h-4 w-4" /></Button></div></div>)}</div>
+          <BaseDataTable data={skills} columns={skillColumns} loading={loading} getRowId={(row) => row.master_id} stickyHeader />
         </Card>
       )}
 

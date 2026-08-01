@@ -216,3 +216,21 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 ### 4. Quy tắc kiểm soát dữ liệu (Validation Rules)
 - `MBOMID` và `RoutingID` được liên kết trong Production Version phải thỏa điều kiện cùng `SiteID`; Item Revision là quan hệ độc lập do chính Production Version lưu giữ.
 - Tại một thời điểm, chỉ cho phép duy nhất một bản ghi có `DefaultFlag = Yes` có hiệu lực cho cùng một tổ hợp `[ProductRevisionID + SiteID + Khoảng LotSize]`.
+
+## B7. Quyết định kiến trúc MBOM hiện hành (2026-07-29)
+
+MBOM Header là master data độc lập và không sở hữu trực tiếp Item Revision. Một Item Revision có thể được sử dụng bởi nhiều MBOM version thông qua các Production Version khác nhau theo Site, mục đích hoặc phương pháp sản xuất. MBOM Line mới là nơi sở hữu cấu trúc sản xuất đa cấp và định mức.
+
+Không thêm trường `MBOMType` trùng lặp. Loại đầu ra Finished Good/Semi-Finished được suy ra từ Item Revision mà Production Version chọn; Raw Material không được phép làm đầu ra MBOM/Production Version. EBOM và MBOM là hai aggregate khác nhau. Work Order chỉ sử dụng MBOM được chọn bởi Production Version và lưu snapshot bất biến.
+
+Migration `0048_mbom_structure_and_substitute_controls` bổ sung cờ optional, uniqueness sequence theo sibling và metadata substitute có kiểu dữ liệu. Migration `0049_reconcile_released_mbom_line_lifecycle` sửa một dữ liệu legacy không nhất quán nhưng không đổi cấu trúc vật tư. Chi tiết API và giới hạn hiện tại: `implementation-fix/Redesign-MBOM-Architecture-and-Workflow-Implementation.md`.
+
+## B8. Final MBOM Workflow Reconciliation (2026-07-29)
+
+MBOM Header belongs to one output Item Revision through `item_revision_id`. A Released MBOM is immutable; changes use `POST /mbom-headers/:id/create-new-version`. Current hierarchical lines are saved with complete replacement semantics and `expected_structure_version`. Work Order explosion uses `quantity_per * (WO quantity / MBOM base quantity) * (1 + scrap_rate)`, skips unselected optional lines, and preserves MBOM line/parent/version traceability in the Work Order snapshot. Production Version remains the authority that selects the matching Item Revision-owned MBOM and Routing.
+
+Duplicate component policy: the same component may appear on different parents when the manufacturing structure requires it; active sibling sequence is unique under each parent. It is not implicitly aggregated across operations or parents because execution readiness and genealogy remain line-specific.
+
+## B9. UOM Quantity Entry and Decimal Policy (2026-07-30)
+
+UOM-aware quantities must use the selected Released UOM's `allow_fraction` and `decimal_precision`. Integer-only UOMs such as PCS accept `1` and reject `1.5`; a decimal UOM with precision 3 accepts `1.125` and rejects `1.1254`. The UI preserves the raw editing string and displays persisted values compactly (`1`, `1.5`, `1.25`) without insignificant trailing zeros. Invalid values are rejected rather than silently rounded. MBOM base quantity and line quantity are validated by the master-data service during create, update, validate, replacement and release.

@@ -28,6 +28,8 @@ services:
     container_name: platform-kafka
     hostname: kafka
     networks: [platform-net]
+    env_file:
+      - ./.common.env
     ports:
       - "19092:9092"   # external (host → kafka)
       - "19093:9093"   # internal (container → container)
@@ -37,7 +39,7 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:29092
       # The external listener is used by an Edge Print Station on another host.
       # Keep the internal listener for services attached to platform-net.
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://100.68.50.41:19092,INTERNAL://kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_EXTERNAL_HOST:?KAFKA_EXTERNAL_HOST is required}:${KAFKA_EXTERNAL_PORT:?KAFKA_EXTERNAL_PORT is required},INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
@@ -110,14 +112,16 @@ services:
     container_name: platform-keycloak
     hostname: keycloak
     networks: [platform-net]
+    env_file:
+      - ./.common.env
     ports:
       - "18080:8080"
     command:
       - start-dev
       - --import-realm
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: Admin@123!
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:?KEYCLOAK_ADMIN is required}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HOSTNAME_STRICT_HTTPS: "false"
@@ -244,6 +248,8 @@ services:
     container_name: platform-grafana
     hostname: grafana
     networks: [platform-net]
+    env_file:
+      - ./.common.env
     ports:
       - "13001:3000"
     depends_on:
@@ -251,8 +257,8 @@ services:
       - loki
       - tempo
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: Admin@123!
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER is required}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor"
     volumes:

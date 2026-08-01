@@ -1,14 +1,6 @@
 import React from 'react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './alert-dialog';
+import { BaseModal } from '../base/BaseModal';
+import { Button } from './button';
 
 export type ConfirmationProps = {
   open: boolean;
@@ -19,23 +11,19 @@ export type ConfirmationProps = {
   onConfirm: () => void;
   onClose: () => void;
   destructive?: boolean;
+  loading?: boolean;
 };
 
-export function Confirmation({ open, title, description, confirmLabel, cancelLabel, onConfirm, onClose, destructive = false }: ConfirmationProps) {
-  return (
-    <AlertDialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div>{description}</div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction className={destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined} onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
+export function Confirmation({ open, title, description, confirmLabel, cancelLabel, onConfirm, onClose, destructive = false, loading = false }: ConfirmationProps) {
+  return <BaseModal
+    open={open}
+    title={title}
+    onClose={onClose}
+    size="sm"
+    placement="center"
+    footerLeft={<Button type="button" variant="secondary" disabled={loading} onClick={onClose}>{cancelLabel}</Button>}
+    footer={<Button type="button" variant={destructive ? 'destructive' : 'default'} disabled={loading} onClick={onConfirm}>{confirmLabel}</Button>}
+  >
+    <div className="text-sm text-muted-foreground">{description}</div>
+  </BaseModal>;
 }

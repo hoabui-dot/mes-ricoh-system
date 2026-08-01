@@ -173,8 +173,8 @@ services:
       context: ..
       dockerfile: services/wms-console/Dockerfile
       args:
-        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-https://jar-planes-possession-liberal.trycloudflare.com}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://plant-memories-ago-bar.trycloudflare.com}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:?VITE_KEYCLOAK_URL is required}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?VITE_API_BASE_URL is required}
     container_name: wms-console
     networks: [platform-net]
     ports:

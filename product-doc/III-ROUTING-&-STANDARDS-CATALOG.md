@@ -214,3 +214,7 @@ Operation. Công đoạn schedulable chưa phân giải đủ cycle time, base q
 workers, efficiency hoặc yield không được Release. Work Order lưu lại toàn bộ
 giá trị và nguồn đã phân giải vào planning snapshot; thay đổi master data sau
 đó không thay đổi Work Order đã tạo.
+
+## C7. Production Version Compatibility Boundary (2026-07-29)
+
+Routing belongs to one output Item Revision through `item_revision_id`; Site remains resolved from its Work Center context. Production Version validates matching Item Revision ownership across MBOM and Routing, the selected Site, base UOM, current MBOM lines, issue-operation membership and Work Center site before release. Routing operations remain process occurrences of reusable Operation Catalog records; Routing owns order, dependencies and resource capability context.

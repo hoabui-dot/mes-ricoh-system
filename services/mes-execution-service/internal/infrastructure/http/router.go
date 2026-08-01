@@ -130,6 +130,10 @@ func decodeAllocationInput(r *http.Request) (usecase.AllocationInput, error) {
 
 func handleCreateResourceAllocation(service *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !canMutateResourcePlanning(r) {
+			writeAllocationForbidden(w)
+			return
+		}
 		input, err := decodeAllocationInput(r)
 		if err != nil {
 			writeAllocationResponse(w, nil, err)
@@ -142,6 +146,10 @@ func handleCreateResourceAllocation(service *usecase.AllocationService) http.Han
 
 func handleReallocateResource(service *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !canMutateResourcePlanning(r) {
+			writeAllocationForbidden(w)
+			return
+		}
 		input, err := decodeAllocationInput(r)
 		if err != nil {
 			writeAllocationResponse(w, nil, err)
@@ -154,6 +162,10 @@ func handleReallocateResource(service *usecase.AllocationService) http.HandlerFu
 
 func handleDeleteResourceAllocation(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !canMutateResourcePlanning(r) {
+			writeAllocationForbidden(w)
+			return
+		}
 		woID, opID := chi.URLParam(r, "id"), chi.URLParam(r, "opId")
 		var status string
 		err := pool.QueryRow(r.Context(), `SELECT h.status::text FROM wo_header h WHERE h.wo_id=$1`, woID).Scan(&status)
@@ -181,6 +193,22 @@ func handleDeleteResourceAllocation(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
+func canMutateResourcePlanning(r *http.Request) bool {
+	role := strings.ToUpper(strings.TrimSpace(getHeader(r, "X-Role-Code", "OPERATOR")))
+	switch role {
+	case "PLANT_MANAGER", "PROD_MANAGER", "PLANNER", "EXECUTIVE":
+		return true
+	default:
+		return false
+	}
+}
+
+func writeAllocationForbidden(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": "RESOURCE_ALLOCATION_FORBIDDEN", "message": "RESOURCE_ALLOCATION_FORBIDDEN"})
+}
+
 func handleRevalidateResourceAllocations(service *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result, err := service.Revalidate(r.Context(), chi.URLParam(r, "id"), getHeader(r, "X-User-ID", systemUserID), getHeader(r, "X-Trace-ID", "missing-trace"))
@@ -196,6 +224,9 @@ func writeAllocationResponse(w http.ResponseWriter, result map[string]interface{
 	}
 	status := http.StatusConflict
 	code := err.Error()
+	if strings.Contains(code, "SQLSTATE 40001") || strings.Contains(strings.ToLower(code), "could not serialize access") {
+		code = "RESOURCE_CAPACITY_CONFLICT"
+	}
 	if strings.Contains(code, "not found") {
 		status = http.StatusNotFound
 	}

@@ -9,14 +9,15 @@ namespace ND.PrinterAdapter.Infrastructure.DeviceAdapters;
 
 /// <summary>
 /// Aggregates printer state from multiple CUPS sources using the IPP (Internet Printing Protocol)
-/// over HTTP. Works from inside a Docker container on macOS via host.docker.internal:631.
+/// over HTTP. The endpoint is configured with CUPS_HEALTH_HOST/CUPS_HEALTH_PORT
+/// so Docker Desktop for macOS can reach the host LAN interface.
 ///
 /// Primary source: CUPS IPP Get-Printer-Attributes (RFC 8011)
-///   POST http://host.docker.internal:631/printers/{queue}
+///   POST http://{CUPS_HEALTH_HOST}:{CUPS_HEALTH_PORT}/printers/{queue}
 ///   Content-Type: application/ipp
 ///   → Returns structured binary: printer-state, printer-state-reasons, queued-job-count
 ///
-/// Fallback: TCP ping to host.docker.internal:631
+/// Fallback: TCP ping to the configured CUPS endpoint.
 ///   → Returns Offline if unreachable.
 ///
 /// State mapping:

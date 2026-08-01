@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Factory, Pencil, Plus, RefreshCw, Users, X, Trash2 } from 'lucide-react';
+import { Factory, Pencil, Plus, RefreshCw, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
@@ -12,7 +12,7 @@ import { SelectBase } from '../../components/ui';
 type ModalMode = 'create' | 'edit';
 
 const WORK_CENTER_TYPES = ['Production', 'Inspection'] as const;
-const blank = { code: '', code_reservation_id: '', name: { vi: '' }, site_id: '', shopfloor_id: '', area_id: '', work_center_type: 'Production', active_flag: true, capabilities: [] as any[], composition: [] as any[] };
+const blank = { code: '', code_reservation_id: '', name: { vi: '' }, site_id: '', shopfloor_id: '', area_id: '', work_center_type: 'Production', active_flag: true };
 
 export const WorkCentersScreen: React.FC = () => {
   const { user } = useAuth();
@@ -22,9 +22,6 @@ export const WorkCentersScreen: React.FC = () => {
   const [sites, setSites] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
   const [shopfloors, setShopfloors] = useState<any[]>([]);
-  const [operations, setOperations] = useState<any[]>([]);
-  const [workstations, setWorkstations] = useState<any[]>([]);
-  const [workstationCapabilities, setWorkstationCapabilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [headcount, setHeadcount] = useState<Record<string, any>>({});
@@ -34,25 +31,22 @@ export const WorkCentersScreen: React.FC = () => {
   const [form, setForm] = useState<any>(blank);
   const [detail, setDetail] = useState<any | null>(null);
   const [detailFilter, setDetailFilter] = useState<'all' | 'on' | 'off'>('all');
+  const [detailWorkstations, setDetailWorkstations] = useState<any[]>([]);
+  const [detailCapabilities, setDetailCapabilities] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [wc, siteRows, areaRows, shopfloorRows, operationRows, workstationRows, capabilityRows] = await Promise.all([
+      const [wc, siteRows, areaRows, shopfloorRows] = await Promise.all([
         fetchResource('work-centers', user),
         fetchResource('sites', user),
         fetchResource('production-areas', user),
         fetchResource('shopfloors', user),
-        fetchResource('operations', user),
-        fetchResource('workstations', user),
-        fetchResource('workstation-operation-capabilities', user),
       ]);
       setWorkCenters(wc);
       setSites(siteRows);
       setAreas(areaRows); setShopfloors(shopfloorRows);
-      setOperations(operationRows);
-      setWorkstations(workstationRows); setWorkstationCapabilities(capabilityRows);
       const counts: Record<string, any> = {};
       await Promise.all(wc.map(async (row: any) => {
         const resp = await fetch(`${masterDataBaseUrl()}/work-centers/${row.master_id}/headcount`, { headers: authHeaders(user) });
@@ -72,9 +66,7 @@ export const WorkCentersScreen: React.FC = () => {
 
   const openModal = async (mode: ModalMode, row?: any) => {
     setModal({ mode, row });
-    let capabilities: any[] = []; let composition: any[] = [];
-    if (row) { capabilities = await fetchResource('resource-capabilities', user, `?work_center_id=${row.master_id}`); const response = await fetch(`${masterDataBaseUrl()}/work-centers/${row.master_id}/composition`, { headers: authHeaders(user) }); const payload = response.ok ? await response.json() : { data: [] }; composition = Object.values((payload.data || []).reduce((acc: Record<string, any>, item: any) => { acc[item.workstation_id] ||= { workstation_id: item.workstation_id, operation_ids: [] }; acc[item.workstation_id].operation_ids.push(item.operation_id); return acc; }, {})); }
-    let nextForm = row ? { ...row, name: typeof row.name === 'string' ? { vi: row.name } : row.name, capabilities, composition } : { ...blank, site_id: sites[0]?.master_id || '', area_id: areas[0]?.master_id || '' };
+    let nextForm = row ? { ...row, name: typeof row.name === 'string' ? { vi: row.name } : row.name } : { ...blank, site_id: sites[0]?.master_id || '', area_id: areas[0]?.master_id || '' };
     if (!row) { const response = await fetch(`${masterDataBaseUrl()}/business-codes/reservations`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify({ entity_type: 'WorkCenter' }) }); if (response.ok) { const payload = await response.json(); nextForm = { ...nextForm, code: payload.data?.code, code_reservation_id: payload.data?.reservation_id }; } }
     setForm(nextForm);
   };
@@ -93,17 +85,6 @@ export const WorkCentersScreen: React.FC = () => {
         active_flag: Boolean(form.active_flag),
       };
       const saved = modal?.mode === 'edit' ? await putResource('work-centers', modal.row.master_id, payload, user) : await postResource('work-centers', payload, user);
-      const workCenterId = modal?.mode === 'edit' ? modal.row.master_id : saved.master_id;
-      for (const capability of form.capabilities || []) {
-        if (!capability.operation_id || Number(capability.cycle_time_sec) <= 0) continue;
-        const capabilityPayload = { operation_id: capability.operation_id, work_center_id: workCenterId, capability_type: capability.capability_type || 'Eligible', cycle_time_sec: Number(capability.cycle_time_sec), active_flag: capability.active_flag !== false };
-        if (capability.master_id) await putResource('resource-capabilities', capability.master_id, capabilityPayload, user);
-        else await postResource('resource-capabilities', capabilityPayload, user);
-      }
-      if (form.composition?.length) {
-        const response = await fetch(`${masterDataBaseUrl()}/work-centers/${workCenterId}/composition`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify({ workstations: form.composition }) });
-        if (!response.ok) { const failure = await response.json().catch(() => ({})); throw new Error(failure.message || failure.error || t('workCenters.compositionSaveFailed')); }
-      }
       toast.success(t('workCenters.saved'));
       setModal(null);
       await load();
@@ -116,11 +97,15 @@ export const WorkCentersScreen: React.FC = () => {
     setDetail(row);
     setDetailFilter('all');
     const today = new Date().toISOString().slice(0, 10);
-    const [empRows, scheduleResp] = await Promise.all([
+    const [empRows, scheduleResp, workstationRows, capabilityRows] = await Promise.all([
       fetchResource('employees', user, `?work_center_id=${row.master_id}`),
       fetch(`${masterDataBaseUrl()}/employee-schedules?work_center_id=${row.master_id}&date=${today}`, { headers: authHeaders(user) }),
+      fetchResource('workstations', user),
+      fetchResource('resource-capabilities', user, `?work_center_id=${row.master_id}`),
     ]);
     setEmployees(empRows);
+    setDetailWorkstations(workstationRows.filter((item: any) => item.work_center_id === row.master_id));
+    setDetailCapabilities(capabilityRows);
     const scheduleJson = scheduleResp.ok ? await scheduleResp.json() : { data: [] };
     setSchedules(scheduleJson.data || []);
   };
@@ -207,22 +192,7 @@ export const WorkCentersScreen: React.FC = () => {
               <SelectBase value={form.work_center_type} onValueChange={(value) => setForm({ ...form, work_center_type: value })} options={WORK_CENTER_TYPES.map((type) => ({ value: type, label: translatedEnum(t, 'workCenters.type', type) }))} aria-label={t('common.type')} />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active_flag} onChange={(e) => setForm({ ...form, active_flag: e.target.checked })} /> {form.active_flag ? t('common.active') : t('common.inactive')}</label>
             </div>
-            <div className="grid items-start gap-4 lg:grid-cols-2">
-            <div className="space-y-3 rounded-md border border-border bg-surface-subtle p-4">
-              <div><h4 className="font-semibold">{t('workCenters.capabilitiesTitle')}</h4><p className="text-xs text-muted-foreground">{t('workCenters.capabilitiesHelp')}</p></div>
-              {(form.capabilities || []).map((capability: any, index: number) => <div key={capability.master_id || index} className="grid grid-cols-[1fr_140px_auto] items-end gap-2">
-                <label className="space-y-1 text-xs"><span className="text-muted-foreground">{t('common.operation')}</span><SelectBase value={capability.operation_id} onValueChange={(value) => setForm({ ...form, capabilities: form.capabilities.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, operation_id: value } : item) })} options={operations.map((operation) => ({ value: operation.master_id, label: `${operation.code} - ${operation.name?.vi || operation.name?.en || ''}` }))} aria-label={t('common.operation')} /></label>
-                <label className="space-y-1 text-xs"><span className="text-muted-foreground">{t('workCenters.cycleTimeSec')}</span><input required type="number" min="0.001" step="0.001" value={capability.cycle_time_sec || ''} onChange={(event) => setForm({ ...form, capabilities: form.capabilities.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, cycle_time_sec: event.target.value } : item) })} className="w-full rounded-md border border-border bg-background p-2 text-foreground" /></label>
-                <button type="button" onClick={() => setForm({ ...form, capabilities: form.capabilities.filter((_item: any, itemIndex: number) => itemIndex !== index) })} className="rounded-md p-2 text-muted-foreground hover:bg-hover hover:text-danger" aria-label={t('common.remove')}><Trash2 className="h-4 w-4" /></button>
-              </div>)}
-              <button type="button" onClick={() => setForm({ ...form, capabilities: [...(form.capabilities || []), { operation_id: operations[0]?.master_id || '', cycle_time_sec: '' }] })} className="rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-hover">{t('workCenters.addCapability')}</button>
-            </div>
-            <div className="space-y-3 rounded-md border border-border bg-surface-subtle p-4">
-              <div><h4 className="font-semibold">{t('workCenters.compositionTitle')}</h4><p className="text-xs text-muted-foreground">{t('workCenters.compositionHelp')}</p></div>
-              {(form.composition || []).map((entry: any, index: number) => { const selected = workstationCapabilities.filter((capability) => capability.workstation_id === entry.workstation_id); return <div key={index} className="rounded-md border border-border p-3"><div className="flex gap-2"><SelectBase value={entry.workstation_id} onValueChange={(value) => setForm({ ...form, composition: form.composition.map((item: any, itemIndex: number) => itemIndex === index ? { workstation_id: value, operation_ids: [] } : item) })} options={workstations.filter((workstation) => !form.shopfloor_id || workstation.shopfloor_id === form.shopfloor_id).map((workstation) => ({ value: workstation.master_id, label: `${text(workstation.name) || workstation.code} (${workstation.code})` }))} aria-label={t('workCenters.workstation')} /><button type="button" onClick={() => setForm({ ...form, composition: form.composition.filter((_item: any, itemIndex: number) => itemIndex !== index) })} className="rounded-md p-2 text-muted-foreground" aria-label={t('common.remove')}><Trash2 className="h-4 w-4" /></button></div><div className="mt-2 grid gap-2 sm:grid-cols-2">{selected.map((capability) => <label key={capability.operation_id} className="flex items-center gap-2 rounded border border-border p-2 text-sm"><input type="checkbox" checked={(entry.operation_ids || []).includes(capability.operation_id)} onChange={(event) => setForm({ ...form, composition: form.composition.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, operation_ids: event.target.checked ? [...(item.operation_ids || []), capability.operation_id] : (item.operation_ids || []).filter((id: string) => id !== capability.operation_id) } : item) })} />{text(capability.operation_name) || capability.operation_code} <span className="font-mono text-xs text-muted-foreground">{capability.operation_code} · {capability.cycle_time_sec}s</span></label>)}</div>{entry.workstation_id && !selected.length ? <div className="mt-2 text-xs text-danger">{t('workCenters.noSupportedOperations')}</div> : null}</div>; })}
-              <button type="button" onClick={() => setForm({ ...form, composition: [...(form.composition || []), { workstation_id: '', operation_ids: [] }] })} className="rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-hover">{t('workCenters.addWorkstation')}</button>
-            </div>
-            </div>
+            <div className="rounded-md border border-border bg-surface-subtle p-4 text-sm text-muted-foreground">{t('workCenters.resourcePlanningHelp')}</div>
             </div>
             <div className="flex shrink-0 justify-end gap-3 border-t border-slate-800 bg-slate-900 px-6 py-4"><button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-slate-800 rounded-lg">{t('common.cancel')}</button><button className="px-5 py-2 bg-action rounded-lg font-semibold">{t('common.save')}</button></div>
           </form>
@@ -236,6 +206,18 @@ export const WorkCentersScreen: React.FC = () => {
             <div className="p-5 space-y-4">
               <div className="inline-flex bg-slate-950 border border-slate-800 rounded-lg p-1">
                 {([['all', t('workCenters.filter.all')], ['on', t('workCenters.filter.on')], ['off', t('workCenters.filter.off')]] as const).map(([key, label]) => <button key={key} onClick={() => setDetailFilter(key)} className={`px-3 py-1.5 rounded-md text-sm ${detailFilter === key ? 'bg-action text-white' : 'text-slate-400'}`}>{label}</button>)}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-md border border-slate-800 bg-slate-950/50 p-4">
+                  <h4 className="font-semibold text-slate-100">{t('workCenters.workstations')}</h4>
+                  <p className="mt-1 text-xs text-slate-400">{t('workCenters.workstationsHelp')}</p>
+                  <div className="mt-3 space-y-2">{detailWorkstations.map((workstation: any) => <div key={workstation.master_id} className="flex items-center justify-between rounded border border-slate-800 px-3 py-2 text-sm"><span>{text(workstation.name) || workstation.code}<span className="ml-2 font-mono text-xs text-slate-500">{workstation.code}</span></span><span className="text-xs text-slate-400">{workstation.active_flag === false ? t('common.inactive') : t('common.active')}</span></div>)}{detailWorkstations.length === 0 ? <span className="text-sm text-slate-500">{t('common.empty')}</span> : null}</div>
+                </div>
+                <div className="rounded-md border border-slate-800 bg-slate-950/50 p-4">
+                  <h4 className="font-semibold text-slate-100">{t('workCenters.capabilitiesTitle')}</h4>
+                  <p className="mt-1 text-xs text-slate-400">{t('workCenters.capabilitiesDetailHelp')}</p>
+                  <div className="mt-3 text-2xl font-bold text-amber-200">{detailCapabilities.length}</div>
+                </div>
               </div>
               <div className="divide-y divide-slate-800 border border-slate-800 rounded-lg overflow-hidden">
                 {detailRows.map((row) => <div key={row.employee_id} className="flex items-center justify-between px-4 py-3"><div><div className="font-mono text-cyan-300">{row.employee_code}</div><div className="text-sm text-slate-200">{row.employee_name}</div></div><span className={`px-2.5 py-1 rounded-full text-xs ${row.on ? 'bg-emerald-950 text-amber-200 border border-emerald-800' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>{row.state}</span></div>)}

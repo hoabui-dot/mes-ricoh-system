@@ -9,6 +9,8 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { WorkOrderDetailModal } from './WorkOrderDetailModal';
 import { normalizeWorkOrderDetail } from './workOrderDetail';
 import { gatewayBaseUrl } from '../../lib/masterDataApi';
+import { BaseDataTable, type BaseDataTableColumn } from '../../components/base';
+import { formatNumberForDisplay } from '../../lib/numeric/uomNumeric';
 
 export const WOListScreen: React.FC = () => {
   const { user } = useAuth();
@@ -62,6 +64,15 @@ export const WOListScreen: React.FC = () => {
     return wo.status === statusFilter;
   });
 
+  const columns: BaseDataTableColumn<any>[] = [
+    { accessorKey: 'wo_code', header: 'WO', cell: ({ getValue }) => <span className="font-mono font-bold text-amber-300">{String(getValue() || '')}</span> },
+    { accessorKey: 'item_code', header: t('nav.items'), cell: ({ getValue }) => <span className="font-medium text-slate-100">{String(getValue() || t('common.notAvailable'))}</span> },
+    { accessorKey: 'quantity', header: t('wo.quantity'), cell: ({ row }) => <span className="font-mono font-semibold text-slate-200">{formatNumberForDisplay(row.original.quantity)} {row.original.uom || t('uom.pcs')}</span> },
+    { accessorKey: 'target_completion_date', header: t('wo.targetDate'), cell: ({ getValue }) => <span className="text-xs font-mono text-slate-400">{getValue() ? formatDate(String(getValue())) : t('common.notAvailable')}</span> },
+    { accessorKey: 'status', header: t('common.status'), cell: ({ getValue }) => <StatusBadge status={String(getValue() || '')}>{t(`status.wo.${String(getValue() || '')}`)}</StatusBadge> },
+    { id: 'actions', header: t('common.actions'), enableSorting: false, cell: ({ row }) => <div className="text-right"><Button onClick={(event) => { event.stopPropagation(); void openDetail(row.original); }} variant="secondary" size="sm" className="ml-auto"><Eye className="w-3.5 h-3.5" /><span>{t('common.detail')}</span></Button></div> },
+  ];
+
   if (error) return <ErrorBoundaryCard error={error} onRetry={fetchWorkOrders} />;
 
   return (
@@ -106,48 +117,7 @@ export const WOListScreen: React.FC = () => {
       </div>
 
       {/* WO Table */}
-      <div className="mes-table-wrap">
-        <table className="mes-table">
-          <thead>
-            <tr>
-              <th className="px-6 py-4">WO</th>
-              <th className="px-6 py-4">{t('nav.items')}</th>
-              <th className="px-6 py-4">{t('wo.quantity')}</th>
-              <th className="px-6 py-4">{t('wo.targetDate')}</th>
-              <th className="px-6 py-4">{t('common.status')}</th>
-              <th className="px-6 py-4 text-right">{t('common.actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {filteredWOs.map((wo) => (
-              <tr key={wo.wo_id} onClick={() => void openDetail(wo)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') void openDetail(wo); }} tabIndex={0} className="cursor-pointer hover:bg-slate-800/40 transition">
-                <td className="px-6 py-4 font-mono font-bold text-amber-300">{wo.wo_code}</td>
-                <td className="px-6 py-4 font-medium text-slate-100">{wo.item_code}</td>
-                <td className="px-6 py-4 font-mono font-semibold text-slate-200">{wo.quantity} {wo.uom || t('uom.pcs')}</td>
-                <td className="px-6 py-4 text-xs font-mono text-slate-400">
-                  {wo.target_completion_date ? formatDate(wo.target_completion_date) : t('common.notAvailable')}
-                </td>
-                <td className="px-6 py-4">
-                  <StatusBadge status={wo.status}>
-                    {t(`status.wo.${wo.status}`)}
-                  </StatusBadge>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <Button
-                    onClick={(event) => { event.stopPropagation(); void openDetail(wo); }}
-                    variant="secondary"
-                    size="sm"
-                    className="ml-auto"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>{t('common.detail')}</span>
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <BaseDataTable data={filteredWOs} columns={columns} loading={loading} getRowId={(row) => row.wo_id} onRowClick={(wo) => void openDetail(wo)} stickyHeader />
       {detailLoading && <div className="text-sm text-muted-foreground">{t('common.loading')}</div>}
       {selectedWorkOrder && <WorkOrderDetailModal wo={selectedWorkOrder} onClose={() => setSelectedWorkOrder(null)} onOpen={() => navigate(`/work-orders/${selectedWorkOrder.wo_id}`)} />}
     </div>

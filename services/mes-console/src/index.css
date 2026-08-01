@@ -147,8 +147,15 @@
     @apply border-border;
   }
 
+  html,
+  body,
+  #root {
+    height: 100%;
+    min-height: 0;
+  }
+
   body {
-    @apply min-h-screen overflow-x-hidden bg-background text-foreground antialiased;
+    @apply overflow-hidden bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
@@ -157,6 +164,21 @@
   input,
   textarea {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  /* Keep custom validation toasts aligned and interactive above the app shell. */
+  [data-sonner-toaster] {
+    top: 16px !important;
+    right: 16px !important;
+    left: auto !important;
+    width: min(30rem, calc(100vw - 2rem)) !important;
+    pointer-events: none;
+  }
+
+  [data-sonner-toast] {
+    width: 100% !important;
+    box-sizing: border-box;
+    pointer-events: auto !important;
   }
 }
 
@@ -295,6 +317,27 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   text-transform: none;
   letter-spacing: 0;
+}
+
+/*
+ * Legacy route modals use a fullscreen fixed wrapper instead of the shared
+ * Radix dialog. Keep those wrappers flush with the viewport top as well, so
+ * the modal itself never inherits a misleading top gap from flex centering.
+ */
+div.fixed.inset-0.flex.items-center.justify-center.p-4,
+div.fixed.inset-0.flex.items-center.justify-center.p-6 {
+  align-items: flex-start !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+}
+
+div.fixed.inset-0.flex.items-center.justify-center.p-4 > [class~="max-h-[90vh]"],
+div.fixed.inset-0.flex.items-center.justify-center.p-4 > [class~="max-h-[92vh]"],
+div.fixed.inset-0.flex.items-center.justify-center.p-6 > [class~="max-h-[90vh]"],
+div.fixed.inset-0.flex.items-center.justify-center.p-6 > [class~="max-h-[92vh]"] {
+  max-height: 100dvh !important;
+  border-radius: 0 0 0.5rem 0.5rem;
 }
 
 @media (max-width: 760px) {
