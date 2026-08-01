@@ -11,13 +11,13 @@ Tài liệu này dùng cho người kiểm thử thủ công, planner, plant man
 
 ### 1.1 Địa chỉ truy cập
 
-Chạy lệnh sau tại repository để lấy các URL Cloudflare đang sống:
+Chạy lệnh sau tại workspace root `/home/neurosus/recoh-system` để lấy các URL Cloudflare đang sống:
 
 ```bash
 npm run cloudflare:urls
 ```
 
-Kết quả cần có các dòng `Portal`, `MES`, `WMS`, `QMS`, `API`, `SSO` với URL `https://...trycloudflare.com`. Không sử dụng hostname cũ đã lưu trong tài liệu hoặc ảnh chụp màn hình. Nếu một dòng là `NONE`, đánh dấu môi trường kiểm thử **BLOCKED**, không kết luận use case thất bại.
+Kết quả cần có các dòng `MES` và `WMS` với URL `https://...trycloudflare.com`. Không sử dụng hostname cũ đã lưu trong tài liệu hoặc ảnh chụp màn hình. Nếu một dòng là `NONE`, đánh dấu môi trường kiểm thử **BLOCKED**, không kết luận use case thất bại.
 
 Khi kiểm thử nội bộ, có thể dùng:
 
@@ -73,7 +73,7 @@ Không coi việc request trả HTTP 200 là đủ để PASS. Phải kiểm tra
 
 ### Các bước
 
-1. Mở URL Portal lấy từ `npm run cloudflare:urls`.
+1. Mở URL MES lấy từ `npm run cloudflare:urls`.
 2. Chọn đăng nhập và quan sát chuyển hướng sang Keycloak realm `wonsealtech`.
 3. Đăng nhập bằng `plant.manager`.
 4. Quan sát Portal sau khi Keycloak trả về.
