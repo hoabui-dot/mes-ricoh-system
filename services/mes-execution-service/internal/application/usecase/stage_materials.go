@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/mom-platform/mes-execution-service/internal/infrastructure/client"
+	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
 
 type StageMaterialsInput struct {
@@ -16,10 +16,10 @@ type StageMaterialsInput struct {
 }
 
 type StageRequirementResult struct {
-	RequirementID string                        `json:"requirement_id"`
-	Status        string                        `json:"status"`
-	Response      *client.MaterialRequestOutput `json:"response,omitempty"`
-	Error         string                        `json:"error,omitempty"`
+	RequirementID string `json:"requirement_id"`
+	Status        string `json:"status"`
+	EventID       string `json:"event_id,omitempty"`
+	Error         string `json:"error,omitempty"`
 }
 
 type stageDemand struct {
@@ -65,10 +65,7 @@ func aggregateStageDemands(rows []stageRequirement) (map[string]*stageDemand, []
 	return demands, demandOrder
 }
 
-func StageMaterialsForWorkOrder(ctx context.Context, pool *pgxpool.Pool, wms *client.WMSOutboundClient, input StageMaterialsInput) ([]StageRequirementResult, error) {
-	if wms == nil {
-		return nil, fmt.Errorf("WMS_OUTBOUND_SERVICE_URL is not configured")
-	}
+func StageMaterialsForWorkOrder(ctx context.Context, pool *pgxpool.Pool, input StageMaterialsInput) ([]StageRequirementResult, error) {
 	commandTx, err := pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -132,39 +129,47 @@ func StageMaterialsForWorkOrder(ctx context.Context, pool *pgxpool.Pool, wms *cl
 	results := make([]StageRequirementResult, 0)
 	for _, key := range demandOrder {
 		demand := demands[key]
-		out, err := wms.RequestMaterial(ctx, client.MaterialRequestInput{
-			ItemRevisionID: demand.itemRevisionID,
-			ItemCode:       demand.itemCode,
-			ItemName:       demand.itemName,
-			WorkOrderCode:  demand.workOrderCode,
-			WorkOrderName:  demand.workOrderName,
-			WorkCenterRef:  demand.workCenterID,
-			WorkCenterCode: demand.workCenterCode,
-			WorkCenterName: demand.workCenterName,
-			RequiredQty:    demand.quantity,
-			WOID:           input.WOID,
-		}, input.UserID, input.TraceID)
-		if err != nil {
-			for _, reqID := range demand.requirementIDs {
-				results = append(results, StageRequirementResult{RequirementID: reqID, Status: "NotChecked", Error: err.Error()})
-			}
-			continue
+		payload := map[string]interface{}{
+			"wo_id":            input.WOID,
+			"requirement_ids":  demand.requirementIDs,
+			"item_revision_id": demand.itemRevisionID,
+			"item_code":        demand.itemCode,
+			"item_name":        demand.itemName,
+			"work_order_code":  demand.workOrderCode,
+			"work_order_name":  demand.workOrderName,
+			"work_center_ref":  demand.workCenterID,
+			"work_center_code": demand.workCenterCode,
+			"work_center_name": demand.workCenterName,
+			"required_qty":     demand.quantity,
+			"created_by":       input.UserID,
 		}
-		status := "Staged"
-		if out.Status == "Shortage" {
-			status = "Shortage"
-		}
-		detail, _ := json.Marshal(out)
+		envelope := sharedkernel.CreateEventEnvelope("MES.Execution.MaterialStagingRequested.v1", "mes-execution-service", input.TraceID, payload)
+		detail, _ := json.Marshal(map[string]interface{}{"status": "Requested", "event_id": envelope.EventID, "event_type": envelope.EventType, "queued_at": envelope.OccurredAt})
 		if _, err := commandTx.Exec(ctx, `
 			UPDATE wo_material_requirement
-			SET stock_check_status = $1,
-			    stock_check_detail = $2::jsonb
-			WHERE requirement_id = ANY($3::uuid[])
-		`, status, string(detail), demand.requirementIDs); err != nil {
+			SET stock_check_status = 'NotChecked',
+			    stock_check_detail = $1::jsonb
+			WHERE requirement_id = ANY($2::uuid[])
+		`, string(detail), demand.requirementIDs); err != nil {
 			return nil, err
 		}
+		if err := sharedkernel.WriteToOutbox(ctx, commandTx, "MES.Execution.MaterialStagingRequested.v1", envelope); err != nil {
+			return nil, fmt.Errorf("failed to write MaterialStagingRequested event to outbox: %w", err)
+		}
 		for _, reqID := range demand.requirementIDs {
-			results = append(results, StageRequirementResult{RequirementID: reqID, Status: status, Response: out})
+			results = append(results, StageRequirementResult{RequirementID: reqID, Status: "Queued", EventID: envelope.EventID})
+		}
+	}
+	if len(results) == 0 {
+		detail, _ := json.Marshal(map[string]interface{}{"status": "NoMaterialDemand"})
+		if _, err := commandTx.Exec(ctx, `
+			UPDATE wo_material_requirement
+			SET stock_check_status = 'Staged',
+			    stock_check_detail = $1::jsonb
+			WHERE wo_id = $2
+			  AND phantom_flag = true
+		`, string(detail), input.WOID); err != nil {
+			return nil, err
 		}
 	}
 	if err := commandTx.Commit(ctx); err != nil {

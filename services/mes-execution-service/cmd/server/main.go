@@ -62,6 +62,9 @@ func main() {
 	printerResults := events.NewPrinterResultConsumer(brokers, pool)
 	printerResults.Start()
 	defer printerResults.Stop()
+	wmsMaterialResults := events.NewWMSMaterialResultConsumer(brokers, pool)
+	wmsMaterialResults.Start()
+	defer wmsMaterialResults.Stop()
 
 	relay := sharedkernel.NewOutboxRelayWorker(sharedkernel.OutboxRelayConfig{
 		Pool:           pool,
@@ -76,12 +79,10 @@ func main() {
 
 	traceabilityURL := getEnv("TRACEABILITY_SERVICE_URL", "http://mes-traceability-service:3040/api/mes/traceability")
 	traceabilityClient := client.NewTraceabilityClient(traceabilityURL)
-	wmsOutboundURL := getEnv("WMS_OUTBOUND_SERVICE_URL", "http://wms-outbound-service:3090/api/wms/outbound")
-	wmsOutboundClient := client.NewWMSOutboundClient(wmsOutboundURL)
 
 	masterDataURL := getEnv("MASTER_DATA_SERVICE_URL", "http://mes-master-data-service:3020")
 	resourcePlanningClient := client.NewResourcePlanningClient(masterDataURL)
-	router := servicehttp.NewRouter(pool, traceabilityClient, wmsOutboundClient, resourcePlanningClient)
+	router := servicehttp.NewRouter(pool, traceabilityClient, resourcePlanningClient)
 
 	srv := &http.Server{
 		Addr:         ":" + port,

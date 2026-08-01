@@ -104,14 +104,13 @@ services:
       # committed resource allocation before approval.
       MES_RESOURCE_ALLOCATION_APPROVAL_REQUIRED: "true"
       # Temporary demo mode: approval auto-commits a planning view, bypasses
-      # WMS staging/readiness, and queues Kafka print jobs atomically.
+      # Kafka event bridge handles WMS staging/readiness, and this service queues Kafka print jobs atomically.
       MES_DEMO_PRINT_ON_APPROVAL: "true"
       DEMO_KIOSK_RECEIVE_ALL_WORKSTATIONS: "true"
       DEMO_KIOSK_TERMINAL_CODE: KIOSK-DEMO-01
       MES_DEMO_PRINT_STATION_CODE: PRINT-STATION-01
       MES_DEMO_PRINT_STATION_ID: 6f56f652-bc6a-456e-a6b3-6284ab023f2d
       MES_DEMO_PRINT_ADAPTER_ID: PRINT-ADAPTER-01
-      WMS_OUTBOUND_SERVICE_URL: http://wms-outbound-service:3090/api/wms/outbound
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_SERVICE_NAME: mes-execution-service
       OTEL_TRACES_EXPORTER: otlp

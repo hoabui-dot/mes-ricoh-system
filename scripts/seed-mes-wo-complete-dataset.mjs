@@ -278,7 +278,7 @@ async function ensurePrintStation(context) {
 
 async function seedSupportingData() {
   runCommand('bash', ['scripts/seed-mes-labor-demo.sh'], 'Seeding employees, shifts, skills, and work calendars');
-  runCommand('npx', ['tsx', 'scripts/seed-wms-demo.ts'], 'Seeding WMS locations, lots, inventory, inbound, and outbound demo data');
+  runCommand('npm', ['--prefix', '../ricoh-wms', 'run', 'seed:demo'], 'Seeding WMS data through the separate ricoh-wms repository');
   return { labor: true, wms: true };
 }
 

@@ -14,7 +14,6 @@ name: mom-platform
 include:
   - path: docker-compose.platform.yml
   - path: docker-compose.mes.yml
-  - path: docker-compose.wms.yml
   - path: docker-compose.qms.yml
 
 services:

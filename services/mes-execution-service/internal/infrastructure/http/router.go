@@ -18,7 +18,7 @@ import (
 
 const systemUserID = "00000000-0000-0000-0000-000000000001"
 
-func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient, wmsOutboundClient *client.WMSOutboundClient, resourcePlanningClient *client.ResourcePlanningClient) http.Handler {
+func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient, resourcePlanningClient *client.ResourcePlanningClient) http.Handler {
 	r := chi.NewRouter()
 	creationWorkflows := newCreationWorkflowManager(pool)
 	allocationService := usecase.NewAllocationService(pool, resourcePlanningClient)
@@ -56,7 +56,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Post("/work-orders/{id}/approve", handleApproveWO(pool, allocationService))
 		r.Post("/work-orders/{id}/start-execution", handleStartExecution(pool))
 		r.Post("/work-orders/{id}/operations/{opId}/print-retry", handlePrintRetry(pool))
-		r.Post("/work-orders/{id}/stage-materials", handleStageMaterials(pool, wmsOutboundClient))
+		r.Post("/work-orders/{id}/stage-materials", handleStageMaterials(pool))
 		r.Post("/work-orders/{id}/reject", handleRejectWO(pool))
 		r.Get("/work-orders/{id}", handleGetWOByID(pool))
 		r.Get("/work-orders/{id}/operations/{opId}/resource-candidates", handleResourceCandidates(allocationService))
@@ -76,20 +76,20 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 	return r
 }
 
-func handleStageMaterials(pool *pgxpool.Pool, wmsOutboundClient *client.WMSOutboundClient) http.HandlerFunc {
+func handleStageMaterials(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		woID := chi.URLParam(r, "id")
 		userID := getHeader(r, "X-User-ID", systemUserID)
 		traceID := getHeader(r, "X-Trace-ID", "missing-trace")
-		results, err := usecase.StageMaterialsForWorkOrder(r.Context(), pool, wmsOutboundClient, usecase.StageMaterialsInput{
+		results, err := usecase.StageMaterialsForWorkOrder(r.Context(), pool, usecase.StageMaterialsInput{
 			WOID:    woID,
 			UserID:  userID,
 			TraceID: traceID,
 		})
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
-			statusCode := http.StatusServiceUnavailable
-			errorCode := "WMS_STAGING_UNAVAILABLE"
+			statusCode := http.StatusInternalServerError
+			errorCode := "WMS_STAGING_REQUEST_FAILED"
 			if strings.Contains(err.Error(), "WMS_INVALID_WORK_ORDER_STATE") {
 				statusCode = http.StatusConflict
 				errorCode = "WMS_INVALID_WORK_ORDER_STATE"
@@ -98,14 +98,11 @@ func handleStageMaterials(pool *pgxpool.Pool, wmsOutboundClient *client.WMSOutbo
 			json.NewEncoder(w).Encode(map[string]string{"error": errorCode, "message": err.Error()})
 			return
 		}
-		status := http.StatusOK
+		status := http.StatusAccepted
 		for _, result := range results {
 			if result.Error != "" {
-				status = http.StatusServiceUnavailable
+				status = http.StatusInternalServerError
 				break
-			}
-			if result.Status == "Shortage" {
-				status = http.StatusConflict
 			}
 		}
 		w.WriteHeader(status)

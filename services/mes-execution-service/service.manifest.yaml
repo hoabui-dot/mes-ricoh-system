@@ -20,6 +20,9 @@ publishes_events:
   - name: MES.Execution.MaterialConsumed.v1
     topic: MES.Execution.MaterialConsumed.v1
     payload: consumption_id, wo_id, wo_operation_id, work_center_id, component_revision_id, qty_consumed, uom, source
+  - name: MES.Execution.MaterialStagingRequested.v1
+    topic: MES.Execution.MaterialStagingRequested.v1
+    payload: wo_id, requirement_ids, item_revision_id, work_center_ref, required_qty
   - name: MES.Execution.WOResourceAllocated.v1
     topic: MES.Execution.WOResourceAllocated.v1
     payload: allocation_id, wo_id, wo_operation_id, work_center, workstation, equipment, shift, planned_start_at, planned_end_at
@@ -46,6 +49,10 @@ consumes_events:
   - name: MES.MasterData.EquipmentActivated.v2
     topic: MES.MasterData.EquipmentActivated.v2
     payload_note: "name is stored as LocalizedText jsonb in rm_equipment"
+  - name: WMS.Outbound.MaterialStaged.v1
+    topic: WMS.Outbound.MaterialStaged.v1
+  - name: WMS.Outbound.MaterialShortageDeclared.v1
+    topic: WMS.Outbound.MaterialShortageDeclared.v1
 
 synchronous_dependencies:
   - service: mes-master-data-service
@@ -68,17 +75,6 @@ synchronous_dependencies:
       open_timeout: 30s
       half_open_trial_requests: 2
       graceful_failure: "retryable dependency error; confirm operation returns HTTP 503"
-  - service: wms-outbound-service
-    endpoints:
-      - POST /api/wms/outbound/material-requests
-    caller: retryable material staging action after WO release
-    circuit_breaker:
-      library: gobreaker via libs/shared-kernel-go
-      failure_threshold: ">=50% failures after minimum 4 requests"
-      open_timeout: 30s
-      half_open_trial_requests: 2
-      graceful_failure: "HTTP 503 DEPENDENCY_UNAVAILABLE; mes-console uses existing retry UI pattern"
-      idempotency: "wms-outbound-service serializes duplicate WO/work-center/item/quantity requests and returns the existing material request"
   - service: mes-master-data-service
     endpoints:
       - POST /api/mes/master-data/resource-planning/readiness
@@ -100,7 +96,7 @@ http_endpoints:
     description: Approve WO (executes freshness check & permission check to master-data-service)
   - method: POST
     path: /api/mes/execution/work-orders/:id/stage-materials
-    description: Retryable WMS material staging step; updates requirement stock_check_status/detail
+    description: Retryable WMS material staging step; queues MES.Execution.MaterialStagingRequested.v1 and updates from WMS result events
   - method: POST
     path: /api/mes/execution/work-orders/:id/reject
     description: Reject WO
@@ -129,7 +125,7 @@ http_endpoints:
 notes:
   - "Stage A scope only: WO planning/creation/approval. Kiosk Start/Finish, backflush, and QR mother-child scanning at OP-CUT are Stage B, deferred until mes-traceability-service exists."
   - "Built in Go per the Node-vs-Go tech stack decision: this service owns both low-frequency Stage A approval flows and high-throughput, CPU-bound Stage B real-time execution in the same bounded context, so the language was chosen for the heaviest workload up front rather than migrated later."
-  - "Phase 2 Step 2 implements WMS material staging as a separate retryable action, not inside the approval transaction. wo_material_requirement.stock_check_status is now NotChecked/Staged/Shortage and stock_check_detail stores the WMS response/shortage breakdown."
+  - "WMS material staging is a separate retryable action and crosses the MES/WMS boundary only through Kafka events. MES publishes MES.Execution.MaterialStagingRequested.v1 and consumes WMS.Outbound.MaterialStaged.v1 / WMS.Outbound.MaterialShortageDeclared.v1 to update wo_material_requirement.stock_check_status/detail."
   - "MES.Execution.MaterialConsumed.v1 additively carries work_center_id so WMS inventory can decrement the correct WorkCenter staging location."
   - "Two deliberate synchronous calls to mes-master-data-service exist at the Approval gate (version freshness re-check + role/permission check), both circuit-breaker guarded via libs/shared-kernel-go/gobreaker."
   - "Phase 3 resource allocation is execution-owned. It stores compact snapshots, reservations, idempotency records, and audit history; it never reads the master-data database directly. Release calls the same readiness contract and blocks missing or stale committed allocations."

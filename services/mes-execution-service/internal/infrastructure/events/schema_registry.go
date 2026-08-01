@@ -14,6 +14,7 @@ var executionEventTypes = []string{
 	"MES.Execution.OperationStarted.v1",
 	"MES.Execution.OperationFinished.v1",
 	"MES.Execution.MaterialConsumed.v1",
+	"MES.Execution.MaterialStagingRequested.v1",
 	"MES.Execution.WOCompleted.v1",
 }
 
