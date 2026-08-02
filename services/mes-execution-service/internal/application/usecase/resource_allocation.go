@@ -59,12 +59,12 @@ func containsID(candidate map[string]interface{}, key, value string) bool {
 }
 
 func (s *AllocationService) workOrderContext(ctx context.Context, woID, opID string) (map[string]interface{}, error) {
-	var site, product, woStatus string
+	var site, product, woStatus, lineStatus, selectedLine string
 	var shift *string
 	var quantity float64
 	var start time.Time
 	var rowVersion int
-	err := s.pool.QueryRow(ctx, `SELECT h.site_id, h.item_revision_id, h.shift_id, h.quantity, h.planned_start_at, h.status::text, h.row_version FROM wo_header h WHERE h.wo_id=$1`, woID).Scan(&site, &product, &shift, &quantity, &start, &woStatus, &rowVersion)
+	err := s.pool.QueryRow(ctx, `SELECT h.site_id, h.item_revision_id, h.shift_id, h.quantity, h.planned_start_at, h.status::text, h.row_version, h.line_selection_status, COALESCE(h.selected_production_line_id::text, '') FROM wo_header h WHERE h.wo_id=$1`, woID).Scan(&site, &product, &shift, &quantity, &start, &woStatus, &rowVersion, &lineStatus, &selectedLine)
 	if err != nil {
 		return nil, fmt.Errorf("work order not found: %w", err)
 	}
@@ -78,7 +78,7 @@ func (s *AllocationService) workOrderContext(ctx context.Context, woID, opID str
 	if shift != nil {
 		shiftID = *shift
 	}
-	return map[string]interface{}{"site_id": site, "product_revision_id": product, "shift_id": shiftID, "quantity": quantity, "planned_start_at": start, "status": woStatus, "row_version": rowVersion, "routing_operation_id": routingOperationID, "work_center_id": workCenter, "sequence": seq, "operation_id": operationID}, nil
+	return map[string]interface{}{"site_id": site, "product_revision_id": product, "shift_id": shiftID, "quantity": quantity, "planned_start_at": start, "status": woStatus, "row_version": rowVersion, "routing_operation_id": routingOperationID, "work_center_id": workCenter, "sequence": seq, "operation_id": operationID, "line_selection_status": lineStatus, "selected_production_line_id": selectedLine}, nil
 }
 
 func readinessRequest(ctx map[string]interface{}, start time.Time, shift string) map[string]interface{} {
@@ -89,6 +89,12 @@ func (s *AllocationService) Candidates(ctx context.Context, woID, opID, plannedS
 	ctxData, err := s.workOrderContext(ctx, woID, opID)
 	if err != nil {
 		return nil, err
+	}
+	if asString(ctxData["line_selection_status"]) == "RESOURCE_HOLD" {
+		return map[string]interface{}{"status": "Blocked", "blocking_errors": []map[string]interface{}{{"code": "WO_LINE_RESOURCE_HOLD"}}, "warnings": []map[string]interface{}{}, "candidates": []interface{}{}, "operation": map[string]interface{}{"id": opID, "sequence": ctxData["sequence"], "work_center_id": ctxData["work_center_id"], "production_line_id": ctxData["selected_production_line_id"]}}, nil
+	}
+	if asString(ctxData["selected_production_line_id"]) == "" {
+		return map[string]interface{}{"status": "Blocked", "blocking_errors": []map[string]interface{}{{"code": "WO_LINE_SELECTION_REQUIRED"}}, "warnings": []map[string]interface{}{}, "candidates": []interface{}{}, "operation": map[string]interface{}{"id": opID, "sequence": ctxData["sequence"], "work_center_id": ctxData["work_center_id"]}}, nil
 	}
 	start := ctxData["planned_start_at"].(time.Time)
 	if plannedStart != "" {
@@ -134,7 +140,7 @@ func (s *AllocationService) Candidates(ctx context.Context, woID, opID, plannedS
 	if current != nil {
 		excludeAllocationID = asString(current["allocation_id"])
 	}
-	result["operation"] = map[string]interface{}{"id": opID, "sequence": ctxData["sequence"], "work_center_id": ctxData["work_center_id"]}
+	result["operation"] = map[string]interface{}{"id": opID, "sequence": ctxData["sequence"], "work_center_id": ctxData["work_center_id"], "production_line_id": ctxData["selected_production_line_id"]}
 	result["requested_window"] = map[string]interface{}{"start_at": start.UTC().Format(time.RFC3339), "shift_id": shift}
 	result["current_allocation"] = current
 	if list, ok := result["candidates"].([]interface{}); ok {
@@ -232,6 +238,13 @@ func (s *AllocationService) Allocate(ctx context.Context, woID, opID string, inp
 	if input.RowVersion > 0 && input.RowVersion != int(ctxData["row_version"].(int)) {
 		return nil, fmt.Errorf("WO_ALLOCATION_VERSION_CONFLICT")
 	}
+	if asString(ctxData["line_selection_status"]) == "RESOURCE_HOLD" {
+		return nil, fmt.Errorf("WO_LINE_RESOURCE_HOLD")
+	}
+	selectedLineID := asString(ctxData["selected_production_line_id"])
+	if selectedLineID == "" {
+		return nil, fmt.Errorf("WO_LINE_SELECTION_REQUIRED")
+	}
 	if input.ChangeReason == "" && reallocate {
 		return nil, fmt.Errorf("CHANGE_REASON_REQUIRED")
 	}
@@ -297,6 +310,9 @@ func (s *AllocationService) Allocate(ctx context.Context, woID, opID string, inp
 	if status != "Draft" && status != "PendingApproval" {
 		return nil, fmt.Errorf("ALLOCATION_LIFECYCLE_LOCKED")
 	}
+	if err := requireSelectedLineConsistency(ctx, tx, woID); err != nil {
+		return nil, err
+	}
 	var oldID string
 	if err := tx.QueryRow(ctx, `SELECT allocation_id FROM wo_resource_allocation WHERE wo_operation_id=$1 AND status IN ('Draft','Validated','Committed') FOR UPDATE`, opID).Scan(&oldID); err != nil && err != pgx.ErrNoRows {
 		return nil, fmt.Errorf("RESOURCE_ALLOCATION_QUERY_FAILED: %w", err)
@@ -330,7 +346,7 @@ func (s *AllocationService) Allocate(ctx context.Context, woID, opID string, inp
 	}
 	supportingUnits, _ := json.Marshal(selected["supporting_machines"])
 	primaryUnit := asString(nested(selected, "primary_machine")["unit_id"])
-	_, err = tx.Exec(ctx, `INSERT INTO wo_resource_allocation (allocation_id,wo_id,wo_operation_id,site_id,planned_work_center_id,planned_workstation_id,planned_equipment_id,planned_machine_group_id,planned_primary_machine_unit_id,planned_supporting_machine_units,planned_shift_id,planned_start_at,planned_end_at,source,status,validation_status,resource_assignment_id,resource_capability_id,production_standard_id,resource_calendar_id, candidate_rank,setup_time_min,run_time_min,queue_time_min,move_time_min,total_duration_min,warning_codes,validation_snapshot,allocated_by,change_reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'PlannerSelected','Committed',$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`, allocationID, woID, opID, ctxData["site_id"], ctxData["work_center_id"], nilIfEmpty(input.WorkstationID), nilIfEmpty(input.EquipmentID), nilIfEmpty(input.MachineGroupID), nilIfEmpty(primaryUnit), supportingUnits, shift, start, end, validationStatus, asString(nested(selected, "assignment")["id"]), asString(nested(selected, "capability")["id"]), asString(nested(selected, "production_standard")["id"]), asString(nested(selected, "calendar")["id"]), 1, asFloat(nested(selected, "calculation")["setup_time_min"]), asFloat(nested(selected, "calculation")["run_duration_min"]), asFloat(nested(selected, "calculation")["queue_time_min"]), asFloat(nested(selected, "calculation")["move_time_min"]), duration, warningCodes, snapshot, userID, input.ChangeReason)
+	_, err = tx.Exec(ctx, `INSERT INTO wo_resource_allocation (allocation_id,wo_id,wo_operation_id,site_id,planned_production_line_id,planned_work_center_id,planned_workstation_id,planned_equipment_id,planned_machine_group_id,planned_primary_machine_unit_id,planned_supporting_machine_units,planned_shift_id,planned_start_at,planned_end_at,source,status,validation_status,resource_assignment_id,resource_capability_id,production_standard_id,resource_calendar_id, candidate_rank,setup_time_min,run_time_min,queue_time_min,move_time_min,total_duration_min,warning_codes,validation_snapshot,allocated_by,change_reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'PlannerSelected','Committed',$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)`, allocationID, woID, opID, ctxData["site_id"], selectedLineID, ctxData["work_center_id"], nilIfEmpty(input.WorkstationID), nilIfEmpty(input.EquipmentID), nilIfEmpty(input.MachineGroupID), nilIfEmpty(primaryUnit), supportingUnits, shift, start, end, validationStatus, asString(nested(selected, "assignment")["id"]), asString(nested(selected, "capability")["id"]), asString(nested(selected, "production_standard")["id"]), asString(nested(selected, "calendar")["id"]), 1, asFloat(nested(selected, "calculation")["setup_time_min"]), asFloat(nested(selected, "calculation")["run_duration_min"]), asFloat(nested(selected, "calculation")["queue_time_min"]), asFloat(nested(selected, "calculation")["move_time_min"]), duration, warningCodes, snapshot, userID, input.ChangeReason)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +354,7 @@ func (s *AllocationService) Allocate(ctx context.Context, woID, opID string, inp
 		if resource.id == "" {
 			continue
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO wo_capacity_reservation (allocation_id,wo_id,wo_operation_id,resource_type,resource_id,shift_id,start_at,end_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, allocationID, woID, opID, resource.typ, resource.id, shift, start, end)
+		_, err = tx.Exec(ctx, `INSERT INTO wo_capacity_reservation (allocation_id,wo_id,wo_operation_id,resource_type,resource_id,shift_id,start_at,end_at,production_line_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, allocationID, woID, opID, resource.typ, resource.id, shift, start, end, selectedLineID)
 		if err != nil {
 			return nil, err
 		}
@@ -360,7 +376,7 @@ func (s *AllocationService) Allocate(ctx context.Context, woID, opID string, inp
 			if count > 0 {
 				return nil, fmt.Errorf("RESOURCE_CAPACITY_CONFLICT")
 			}
-			_, err = tx.Exec(ctx, `INSERT INTO wo_capacity_reservation (allocation_id,wo_id,wo_operation_id,resource_type,resource_id,shift_id,start_at,end_at) VALUES ($1,$2,$3,'MachineUnit',$4,$5,$6,$7)`, allocationID, woID, opID, unitID, shift, start, end)
+			_, err = tx.Exec(ctx, `INSERT INTO wo_capacity_reservation (allocation_id,wo_id,wo_operation_id,resource_type,resource_id,shift_id,start_at,end_at,production_line_id) VALUES ($1,$2,$3,'MachineUnit',$4,$5,$6,$7,$8)`, allocationID, woID, opID, unitID, shift, start, end, selectedLineID)
 			if err != nil {
 				return nil, err
 			}
@@ -369,13 +385,13 @@ func (s *AllocationService) Allocate(ctx context.Context, woID, opID string, inp
 	if _, err := tx.Exec(ctx, `INSERT INTO wo_resource_allocation_audit (allocation_id,wo_id,wo_operation_id,action,previous_allocation_id,new_allocation_id,actor_user_id,change_reason,candidate_rank,validation_status,warning_codes,trace_id,wo_row_version) VALUES ($1,$2,$3,$4,$5,$1,$6,$7,1,$8,$9,$10,$11)`, allocationID, woID, opID, map[bool]string{true: "Reallocated", false: "Allocated"}[reallocate], nilIfEmpty(oldID), userID, input.ChangeReason, validationStatus, warningCodes, traceID, ctxData["row_version"]); err != nil {
 		return nil, fmt.Errorf("RESOURCE_ALLOCATION_AUDIT_WRITE_FAILED: %w", err)
 	}
-	payload := map[string]interface{}{"allocation_id": allocationID, "wo_id": woID, "wo_operation_id": opID, "status": "Validated", "planned_start_at": start, "planned_end_at": end, "candidate": selected}
+	payload := map[string]interface{}{"allocation_id": allocationID, "wo_id": woID, "wo_operation_id": opID, "status": "Validated", "planned_production_line_id": selectedLineID, "planned_start_at": start, "planned_end_at": end, "candidate": selected}
 	envelope := sharedkernel.CreateEventEnvelope(map[bool]string{true: "MES.Execution.WOResourceReallocated.v1", false: "MES.Execution.WOResourceAllocated.v1"}[reallocate], "mes-execution-service", traceID, payload)
 	eventType := map[bool]string{true: "MES.Execution.WOResourceReallocated.v1", false: "MES.Execution.WOResourceAllocated.v1"}[reallocate]
 	if err := sharedkernel.WriteToOutbox(ctx, tx, eventType, envelope); err != nil {
 		return nil, err
 	}
-	out := map[string]interface{}{"allocation_id": allocationID, "wo_id": woID, "wo_operation_id": opID, "status": "Committed", "validation_status": validationStatus, "planned_start_at": start, "planned_end_at": end, "warning_codes": json.RawMessage(warningCodes), "candidate": selected}
+	out := map[string]interface{}{"allocation_id": allocationID, "wo_id": woID, "wo_operation_id": opID, "status": "Committed", "validation_status": validationStatus, "planned_production_line_id": selectedLineID, "planned_start_at": start, "planned_end_at": end, "warning_codes": json.RawMessage(warningCodes), "candidate": selected}
 	encoded, _ := json.Marshal(out)
 	if idempotency != "" {
 		if _, err := tx.Exec(ctx, `INSERT INTO wo_resource_allocation_idempotency (idempotency_key,user_id,request_hash,allocation_id,response_payload) VALUES ($1,$2,$3,$4,$5)`, idempotency, userID, requestHash, allocationID, encoded); err != nil {
@@ -396,6 +412,9 @@ func nilIfEmpty(value string) interface{} {
 }
 
 func (s *AllocationService) Revalidate(ctx context.Context, woID, userID, traceID string) (map[string]interface{}, error) {
+	if err := requireSelectedLineConsistency(ctx, s.pool, woID); err != nil {
+		return map[string]interface{}{"wo_id": woID, "valid": false, "error_code": err.Error()}, nil
+	}
 	var operationCount, committedCount int
 	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM wo_operation WHERE wo_id=$1`, woID).Scan(&operationCount); err != nil {
 		return nil, err
@@ -406,7 +425,7 @@ func (s *AllocationService) Revalidate(ctx context.Context, woID, userID, traceI
 	if operationCount != committedCount {
 		return map[string]interface{}{"wo_id": woID, "valid": false, "error_code": "WO_OPERATION_ALLOCATION_MISSING", "operation_count": operationCount, "committed_allocation_count": committedCount}, nil
 	}
-	rows, err := s.pool.Query(ctx, `SELECT wo_operation_id, planned_start_at, planned_shift_id, planned_workstation_id, planned_equipment_id FROM wo_resource_allocation WHERE wo_id=$1 AND status IN ('Draft','Validated','Committed')`, woID)
+	rows, err := s.pool.Query(ctx, `SELECT wo_operation_id, planned_start_at, planned_shift_id, planned_workstation_id, planned_equipment_id, planned_machine_group_id, planned_primary_machine_unit_id FROM wo_resource_allocation WHERE wo_id=$1 AND status IN ('Draft','Validated','Committed')`, woID)
 	if err != nil {
 		return nil, err
 	}
@@ -416,8 +435,8 @@ func (s *AllocationService) Revalidate(ctx context.Context, woID, userID, traceI
 	for rows.Next() {
 		var opID string
 		var start time.Time
-		var shift, ws, eq *string
-		if err := rows.Scan(&opID, &start, &shift, &ws, &eq); err != nil {
+		var shift, ws, eq, machineGroup, primaryUnit *string
+		if err := rows.Scan(&opID, &start, &shift, &ws, &eq, &machineGroup, &primaryUnit); err != nil {
 			return nil, fmt.Errorf("RESOURCE_REVALIDATION_SCAN_FAILED: %w", err)
 		}
 		c, err := s.Candidates(ctx, woID, opID, start.UTC().Format(time.RFC3339), asString(shift), userID, traceID)
@@ -427,7 +446,11 @@ func (s *AllocationService) Revalidate(ctx context.Context, woID, userID, traceI
 		ok := false
 		for _, raw := range c["candidates"].([]interface{}) {
 			candidate, _ := raw.(map[string]interface{})
-			if containsID(nested(candidate, "workstation"), "id", asString(ws)) && containsID(nested(candidate, "equipment"), "id", asString(eq)) && asString(candidate["readiness"]) != "Blocked" {
+			matchesWorkstation := containsID(nested(candidate, "workstation"), "id", asString(ws))
+			matchesEquipment := asString(eq) == "" || containsID(nested(candidate, "equipment"), "id", asString(eq)) || containsID(nested(candidate, "primary_machine"), "id", asString(eq))
+			matchesMachineGroup := asString(machineGroup) == "" || containsID(nested(candidate, "machine_group"), "id", asString(machineGroup))
+			matchesPrimaryUnit := asString(primaryUnit) == "" || asString(nested(candidate, "primary_machine")["unit_id"]) == asString(primaryUnit)
+			if matchesWorkstation && matchesEquipment && matchesMachineGroup && matchesPrimaryUnit && asString(candidate["readiness"]) != "Blocked" {
 				ok = true
 			}
 		}

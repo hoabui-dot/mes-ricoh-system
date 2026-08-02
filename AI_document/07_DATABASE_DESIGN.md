@@ -78,3 +78,31 @@ Transaction boundaries belong to owning service operations:
 - Traceability label issue/split/consume owns label/genealogy writes.
 
 Never split a business invariant across services with a distributed database transaction. Use events, snapshots, and retryable recovery.
+
+## Phase 5 Two-Line Design
+
+Status: PARTIALLY_IMPLEMENTED.
+
+ADR-009 designs Production Line selection. Phase 6 implemented Master Data ownership:
+
+- `md_production_line`: Site-scoped execution scope.
+- `md_production_line_work_center`: line-to-Work-Center scope, not a Routing owner.
+- `md_production_line_resource_scope`: line scope over existing `md_resource_assignment` rows, not a replacement assignment table.
+- `md_production_version_line_eligibility`: released Production Version to primary/backup eligible lines.
+
+Future Execution ownership remains NOT_IMPLEMENTED:
+
+- `wo_header` selected-line snapshot and line lock fields.
+- `wo_resource_allocation.planned_production_line_id` to reject mixed-line allocation.
+- `wo_capacity_reservation.production_line_id` for line-scoped capacity audit.
+
+Existing historical Work Orders must not be arbitrarily backfilled to lines. See `docs/adr/ADR-009-two-production-line-selection-and-resource-planning.md`.
+
+Phase 7 added MES Execution line-selection persistence:
+
+- `rm_production_line`, `rm_production_line_work_center`, and `rm_production_version_line_eligibility` are execution-owned projections of master-data line facts.
+- `wo_header` snapshots selected Production Line identity, line-selection mode/status, evaluated line results, fallback reason, `ResourceHold` blockers, and line lock timestamp.
+- `wo_operation` snapshots the selected line and the source Routing Work Center before resolving to the selected line Work Center.
+- `wo_resource_allocation` and `wo_capacity_reservation` carry the planned Production Line.
+- `wo_line_selection_audit` records initial selection and audited replan decisions.
+- Database triggers reject mixed-line operation, allocation, and reservation persistence for line-aware Work Orders.

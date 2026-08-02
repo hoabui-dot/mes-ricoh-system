@@ -56,6 +56,14 @@ Why: current source and canonical context state this; MES is not Remix.
 Evidence: package manifests and `AI_CONTEXT.md`.
 Consequence: do not introduce Remix assumptions.
 
+## ADR-009: Two Production Line Selection and Resource Planning
+
+Status: PARTIALLY_IMPLEMENTED.
+Decision: one Work Order selects exactly one complete Production Line from Production Version Line Eligibility; Routing remains a logical process definition and is not duplicated for equivalent physical lines.
+Why: preserves Production Version authority, prevents per-operation mixed-line allocation, and keeps `md_resource_assignment` as the Workstation/Equipment assignment owner.
+Evidence: `docs/adr/ADR-009-two-production-line-selection-and-resource-planning.md`.
+Consequence: Phase 6 added Production Line and eligibility structures additively. Phase 7 added MES Execution selected-line snapshots, `ResourceHold`, audited pre-start replan, selected-line fields on operations/allocations/reservations, and database/usecase rejection of mixed-line allocations.
+
 ## Decisions Requiring Human Input
 
 - Complete production deployment/security hardening policy.

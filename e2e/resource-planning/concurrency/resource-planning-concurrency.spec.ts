@@ -12,6 +12,14 @@ let createdWorkOrderIds: string[] = [];
 
 type LoginResult = { base: string; headers: Record<string, string> };
 
+function defaultPlanningDate() {
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 async function login(page: Page): Promise<LoginResult> {
   if (!username || !password) test.skip(true, 'MES_E2E_USERNAME and MES_E2E_PASSWORD are required.');
   if (!allowMutation) test.skip(true, 'Set ALLOW_E2E_MUTATION=true for the mutating concurrency flow.');
@@ -91,7 +99,7 @@ test('[@concurrency] RP-E2E-063 simultaneous commits allow one exclusive Machine
     apiRequest.newContext({ extraHTTPHeaders: loginResult.headers }),
   ]);
   try {
-    const targetDate = new Date().toISOString().slice(0, 10);
+    const targetDate = process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
     const versions = await json(clientA, loginResult.base, `/api/mes/master-data/production-ready-versions?planned_date=${targetDate}&limit=500`);
     const version = (versions.body as any[]).find((row) => row.readiness_status === 'Ready' && row.production_version_code?.startsWith('PV-'));
     expect(version, 'released Ready Production Version').toBeTruthy();

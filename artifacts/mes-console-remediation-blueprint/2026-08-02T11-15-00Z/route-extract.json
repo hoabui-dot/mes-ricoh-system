@@ -1,0 +1,620 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "component": "Navigate",
+      "props": "to=\"/work-orders\" replace"
+    },
+    {
+      "path": "/work-orders",
+      "component": "WOListScreen",
+      "props": ""
+    },
+    {
+      "path": "/work-orders/new",
+      "component": "WOCreateScreen",
+      "props": ""
+    },
+    {
+      "path": "/work-orders/:id",
+      "component": "WODetailScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/work-orders",
+      "component": "WOListScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/work-orders/new",
+      "component": "WOCreateScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/work-orders/:id",
+      "component": "WODetailScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/items",
+      "component": "ItemsScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/uoms",
+      "component": "UomManagementScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/material-groups",
+      "component": "MaterialGroupManagementScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/mboms",
+      "component": "MbomScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/mboms/new",
+      "component": "MbomCreateScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/mboms/:id",
+      "component": "MbomScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/routings",
+      "component": "RoutingScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/routings/new",
+      "component": "RoutingCreateScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/routings/:id/edit",
+      "component": "RoutingCreateScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/routings/:id/operations",
+      "component": "RoutingOperationsScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/production-versions",
+      "component": "ProductionVersionScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/production-versions/new",
+      "component": "ProductionVersionCrudScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/production-versions/:id/edit",
+      "component": "ProductionVersionCrudScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/eboms",
+      "component": "EbomScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/eboms/:id",
+      "component": "EbomScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/operations",
+      "component": "OperationCatalogScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/operations/new",
+      "component": "OperationCatalogScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/operations/:id",
+      "component": "OperationCatalogScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/operations/:id/edit",
+      "component": "OperationCatalogScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/production-areas",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-areas\""
+    },
+    {
+      "path": "/master-data/production-areas/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-areas\""
+    },
+    {
+      "path": "/master-data/production-areas/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-areas\""
+    },
+    {
+      "path": "/master-data/production-areas/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-areas\""
+    },
+    {
+      "path": "/master-data/production-lines",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-lines\""
+    },
+    {
+      "path": "/master-data/production-lines/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-lines\""
+    },
+    {
+      "path": "/master-data/production-lines/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-lines\""
+    },
+    {
+      "path": "/master-data/production-lines/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"production-lines\""
+    },
+    {
+      "path": "/master-data/factories",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"factories\""
+    },
+    {
+      "path": "/master-data/factories/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"factories\""
+    },
+    {
+      "path": "/master-data/factories/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"factories\""
+    },
+    {
+      "path": "/master-data/factories/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"factories\""
+    },
+    {
+      "path": "/master-data/shopfloors",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"shopfloors\""
+    },
+    {
+      "path": "/master-data/shopfloors/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"shopfloors\""
+    },
+    {
+      "path": "/master-data/shopfloors/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"shopfloors\""
+    },
+    {
+      "path": "/master-data/shopfloors/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"shopfloors\""
+    },
+    {
+      "path": "/master-data/product-recipes",
+      "component": "Navigate",
+      "props": "to=\"/master-data/production-versions\" replace"
+    },
+    {
+      "path": "/console/mes/items",
+      "component": "ItemsScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/routings",
+      "component": "RoutingScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/production-versions",
+      "component": "ProductionVersionScreen",
+      "props": ""
+    },
+    {
+      "path": "/employees",
+      "component": "EmployeesScreen",
+      "props": ""
+    },
+    {
+      "path": "/shifts",
+      "component": "ShiftsScreen",
+      "props": ""
+    },
+    {
+      "path": "/work-calendar",
+      "component": "WorkCalendarScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/employees",
+      "component": "EmployeesScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/shifts",
+      "component": "ShiftsScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/work-calendar",
+      "component": "WorkCalendarScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/mboms",
+      "component": "MbomScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/mboms/:id",
+      "component": "MbomScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/work-centers",
+      "component": "WorkCentersScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/work-centers/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"work-centers\""
+    },
+    {
+      "path": "/master-data/work-centers/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"work-centers\""
+    },
+    {
+      "path": "/master-data/work-centers/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"work-centers\""
+    },
+    {
+      "path": "/master-data/workstations",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"workstations\""
+    },
+    {
+      "path": "/master-data/workstations/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"workstations\""
+    },
+    {
+      "path": "/master-data/workstations/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"workstations\""
+    },
+    {
+      "path": "/master-data/workstations/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"workstations\""
+    },
+    {
+      "path": "/master-data/print-stations",
+      "component": "PrintStationsScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/resource-assignments",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"resource-assignments\""
+    },
+    {
+      "path": "/master-data/resource-assignments/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"resource-assignments\""
+    },
+    {
+      "path": "/master-data/resource-capabilities",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-capabilities\""
+    },
+    {
+      "path": "/master-data/resource-capabilities/new",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-capabilities\""
+    },
+    {
+      "path": "/master-data/resource-capabilities/:id",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-capabilities\""
+    },
+    {
+      "path": "/master-data/resource-capabilities/:id/edit",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-capabilities\""
+    },
+    {
+      "path": "/master-data/resource-calendars",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-calendars\""
+    },
+    {
+      "path": "/master-data/resource-calendars/new",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-calendars\""
+    },
+    {
+      "path": "/master-data/resource-calendars/:id",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-calendars\""
+    },
+    {
+      "path": "/master-data/resource-calendars/:id/edit",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"resource-calendars\""
+    },
+    {
+      "path": "/master-data/operation-skill-requirements",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"operation-skill-requirements\""
+    },
+    {
+      "path": "/master-data/operation-skill-requirements/new",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"operation-skill-requirements\""
+    },
+    {
+      "path": "/master-data/operation-skill-requirements/:id",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"operation-skill-requirements\""
+    },
+    {
+      "path": "/master-data/operation-skill-requirements/:id/edit",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"operation-skill-requirements\""
+    },
+    {
+      "path": "/console/mes/work-centers",
+      "component": "WorkCentersScreen",
+      "props": ""
+    },
+    {
+      "path": "/console/mes/i18n-review",
+      "component": "I18nReviewScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/equipment/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"equipment\""
+    },
+    {
+      "path": "/master-data/equipment/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"equipment\""
+    },
+    {
+      "path": "/master-data/equipment/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"equipment\""
+    },
+    {
+      "path": "/master-data/machines",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"machines\""
+    },
+    {
+      "path": "/master-data/machines/new",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"machines\""
+    },
+    {
+      "path": "/master-data/machines/:id",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"machines\""
+    },
+    {
+      "path": "/master-data/machines/:id/edit",
+      "component": "ResourceFoundationScreen",
+      "props": "entity=\"machines\""
+    },
+    {
+      "path": "/master-data/production-standards",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"production-standards\""
+    },
+    {
+      "path": "/master-data/production-standards/new",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"production-standards\""
+    },
+    {
+      "path": "/master-data/production-standards/:id",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"production-standards\""
+    },
+    {
+      "path": "/master-data/production-standards/:id/edit",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"production-standards\""
+    },
+    {
+      "path": "/console/mes/production-standards",
+      "component": "PlanningConstraintsScreen",
+      "props": "entity=\"production-standards\""
+    },
+    {
+      "path": "/master-data/skills",
+      "component": "SkillManagementScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/skills/:scope",
+      "component": "SkillManagementScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/worker-skills",
+      "component": "Navigate",
+      "props": "to=\"/master-data/skills/workers\" replace"
+    },
+    {
+      "path": "/master-data/employee-skills",
+      "component": "Navigate",
+      "props": "to=\"/master-data/skills/workers\" replace"
+    },
+    {
+      "path": "/worker-skills",
+      "component": "Navigate",
+      "props": "to=\"/master-data/skills/workers\" replace"
+    },
+    {
+      "path": "*",
+      "component": "NotFoundScreen",
+      "props": ""
+    },
+    {
+      "path": "/master-data/equipment",
+      "component": "Tier2AdminScreen",
+      "props": "entityType=\"equipment\"\n              titleKey=\"tier2.equipment.title\"\n              subtitleKey=\"tier2.equipment.subtitl"
+    },
+    {
+      "path": "/console/mes/equipment",
+      "component": "Tier2AdminScreen",
+      "props": "entityType=\"equipment\"\n              titleKey=\"tier2.equipment.title\"\n              subtitleKey=\"tier2.equipment.subtitl"
+    },
+    {
+      "path": "/master-data/reason-codes",
+      "component": "Tier2AdminScreen",
+      "props": "entityType=\"reason-codes\"\n              titleKey=\"tier2.reasonCodes.title\"\n              subtitleKey=\"tier2.reasonCodes."
+    },
+    {
+      "path": "/console/mes/reason-codes",
+      "component": "Tier2AdminScreen",
+      "props": "entityType=\"reason-codes\"\n              titleKey=\"tier2.reasonCodes.title\"\n              subtitleKey=\"tier2.reasonCodes."
+    },
+    {
+      "path": "/console/mes/skills",
+      "component": "Tier2AdminScreen",
+      "props": "entityType=\"skills\"\n              titleKey=\"tier2.skills.title\"\n              subtitleKey=\"tier2.skills.subtitle\"\n      "
+    }
+  ],
+  "sidebar": [
+    {
+      "path": "/work-orders",
+      "labelKey": "nav.workOrders"
+    },
+    {
+      "path": "/master-data/items",
+      "labelKey": "nav.items"
+    },
+    {
+      "path": "/master-data/uoms",
+      "labelKey": "nav.uoms"
+    },
+    {
+      "path": "/master-data/material-groups",
+      "labelKey": "nav.materialGroups"
+    },
+    {
+      "path": "/master-data/mboms",
+      "labelKey": "nav.mbom"
+    },
+    {
+      "path": "/master-data/routings",
+      "labelKey": "nav.routing"
+    },
+    {
+      "path": "/master-data/production-versions",
+      "labelKey": "nav.productionVersion"
+    },
+    {
+      "path": "/master-data/eboms",
+      "labelKey": "operationCatalog.title"
+    },
+    {
+      "path": "/employees",
+      "labelKey": "nav.employees"
+    },
+    {
+      "path": "/shifts",
+      "labelKey": "nav.shifts"
+    },
+    {
+      "path": "/work-calendar",
+      "labelKey": "nav.workCalendar"
+    },
+    {
+      "path": "/master-data/factories",
+      "labelKey": "resourceFoundation.factories"
+    },
+    {
+      "path": "/master-data/shopfloors",
+      "labelKey": "resourceFoundation.shopfloors"
+    },
+    {
+      "path": "/master-data/production-lines",
+      "labelKey": "resourceFoundation.productionLines"
+    },
+    {
+      "path": "/master-data/work-centers",
+      "labelKey": "nav.workCenters"
+    },
+    {
+      "path": "/master-data/workstations",
+      "labelKey": "resourceFoundation.workstations"
+    },
+    {
+      "path": "/master-data/print-stations",
+      "labelKey": "nav.printStations"
+    },
+    {
+      "path": "/master-data/machines",
+      "labelKey": "resourceFoundation.machines"
+    },
+    {
+      "path": "/master-data/resource-assignments",
+      "labelKey": "resourceFoundation.assignments"
+    },
+    {
+      "path": "/master-data/resource-capabilities",
+      "labelKey": "resourceFoundation.capabilities"
+    },
+    {
+      "path": "/master-data/resource-calendars",
+      "labelKey": "resourceFoundation.calendars"
+    },
+    {
+      "path": "/master-data/production-standards",
+      "labelKey": "nav.productionStandards"
+    },
+    {
+      "path": "/master-data/operation-skill-requirements",
+      "labelKey": "resourceFoundation.operationSkillRequirements"
+    },
+    {
+      "path": "/master-data/reason-codes",
+      "labelKey": "nav.reasonCodes"
+    },
+    {
+      "path": "/master-data/skills",
+      "labelKey": "nav.skills"
+    },
+    {
+      "path": "/console/mes/i18n-review",
+      "labelKey": "nav.i18nReview"
+    }
+  ]
+}

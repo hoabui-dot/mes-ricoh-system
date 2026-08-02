@@ -24,6 +24,8 @@ function routeCrumbs(pathname: string): Crumb[] {
   if (normalized === '/master-data/print-stations') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'nav.printStations' }];
   if (normalized === '/master-data/production-areas') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.productionAreas' }];
   if (normalized.startsWith('/master-data/production-areas/')) return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.productionAreas', href: '/master-data/production-areas' }, { labelKey: 'common.detail' }];
+  if (normalized === '/master-data/production-lines') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.productionLines' }];
+  if (normalized.startsWith('/master-data/production-lines/')) return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.productionLines', href: '/master-data/production-lines' }, { labelKey: 'common.detail' }];
   if (normalized === '/master-data/factories') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.factories' }];
   if (normalized.startsWith('/master-data/factories/')) return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.factories', href: '/master-data/factories' }, { labelKey: 'common.detail' }];
   if (normalized === '/master-data/shopfloors') return [{ labelKey: 'nav.masterDataTier2' }, { labelKey: 'resourceFoundation.shopfloors' }];

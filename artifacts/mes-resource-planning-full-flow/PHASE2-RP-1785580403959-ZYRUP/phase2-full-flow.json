@@ -1,0 +1,772 @@
+{
+  "success": false,
+  "status": "FAIL_PHASE_2",
+  "run_id": "PHASE2-RP-1785580403959-ZYRUP",
+  "target_date": "2026-08-03",
+  "error": "Error: scripts/test-mes-resource-planning-domain-phase1.mjs exited 1: [phase1] FAILED: Error: No Ready machine-group candidate for Phase 1 fixture: {\"blocking_errors\":[],\"candidates\":[{\"assignment\":{\"id\":\"b91a24cc-0e7e-4e44-a005-12207dd5e01f\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"EQUIPMENT_CAPACITY_CONFLICT\"}],\"calculation\":{\"adjusted_cycle_time_sec\":120,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":4,\"setup_time_min\":5},\"calendar\":{\"availability_status\":\"Available\",\"available_minutes\":540,\"capacity_factor\":\"1.0000\",\"id\":\"d9fa7261-4937-4691-a134-c0d30d34ad39\",\"resource_id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"resource_type\":\"Equipment\",\"source_id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"source_type\":\"Equipment\"},\"capability\":{\"code\":\"E2E-WO-CAP-01\",\"id\":\"359963e7-0ccd-4ea9-a1ca-a3cabde87bee\",\"priority_no\":1,\"specificity\":\"Equipment\",\"speed_factor\":\"1.0000\"},\"capacity_conflicts\":[{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Equipment\"},{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Workstation\"}],\"equipment\":{\"code\":\"EQ-MOLD-HYD01\",\"execution_status\":\"Available\",\"id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"name\":{\"en\":\"500-ton hydraulic press\",\"ja\":\"500トン油圧プレス\",\"ko\":\"500톤 유압 프레스\",\"vi\":\"Máy ép 500 tấn\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"b91a24cc-0e7e-4e44-a005-12207dd5e01f\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[],\"calendar\":{\"status\":\"Available\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Matched\"},\"capacity\":{\"conflicts\":[{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Equipment\"},{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Workstation\"}],\"status\":\"Conflict\"},\"equipment\":{\"code\":\"EQ-MOLD-HYD01\",\"execution_status\":\"Available\",\"id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"name\":{\"en\":\"500-ton hydraulic press\",\"ja\":\"500トン油圧プレス\",\"ko\":\"500톤 유압 프레스\",\"vi\":\"Máy ép 500 tấn\"}},\"evaluated_at\":\"2026-08-01T10:33:26.288Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"EQ-MOLD-HYD01-02\",\"unit_id\":\"256fdde7-1b30-46de-9b32-c7e5573ed6b3\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":12,\"machine_group\":{\"code\":\"MG-20260727-0004\",\"id\":\"14c646c4-ef08-4dcb-b516-069ed88391ba\",\"minimum_required_machines\":1,\"name\":{\"en\":\"E2E label printing machine group\",\"ja\":\"E2Eラベル印刷マシングループ\",\"ko\":\"E2E 라벨 인쇄 머신 그룹\",\"vi\":\"Nhóm máy demo in nhãn\"}},\"primary_machine\":{\"code\":\"EQ-MOLD-HYD01\",\"id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"name\":{\"en\":\"500-ton hydraulic press\",\"ja\":\"500トン油圧プレス\",\"ko\":\"500톤 유압 프레스\",\"vi\":\"Máy ép 500 tấn\"},\"unit_code\":\"EQ-MOLD-HYD01-02\",\"unit_id\":\"256fdde7-1b30-46de-9b32-c7e5573ed6b3\"},\"production_standard\":{\"code\":\"E2E-WO-STD-01\",\"id\":\"9b4db013-e388-4dbb-a294-5859a0286ec7\",\"level\":\"Equipment\"},\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":528,\"supporting_machines\":[],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-20260727-0006\",\"id\":\"dc497a37-1347-481e-a120-9a0fad5238a1\",\"name\":{\"en\":\"Trạm in\",\"ja\":\"Trạm in\",\"ko\":\"Trạm in\",\"vi\":\"Trạm in\"}}},{\"assignment\":{\"id\":\"1fc66434-6147-4770-b49b-0fc935671803\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CRY-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-CRY-01\",\"execution_status\":\"Available\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"1fc66434-6147-4770-b49b-0fc935671803\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CRY-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-CRY-01\",\"execution_status\":\"Available\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.307Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-CRY-001\",\"unit_id\":\"fded0697-d344-43c1-ba16-9f871539dc04\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-DEFLASHING\",\"id\":\"f156d801-a077-4dea-92bb-d1460b05c49a\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-CRY-01\",\"vi\":\"Nhóm máy WST-EQ-CRY-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-CRY-01\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"},\"unit_code\":\"WST-CRY-001\",\"unit_id\":\"fded0697-d344-43c1-ba16-9f871539dc04\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-CRY-01\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-CRY-002\",\"unit_id\":\"6b546d47-3ab8-43bc-bb00-ef2ed9ae9b56\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"9e759cd4-ee84-42f0-a398-631f98c3be91\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CUT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-CUT-01\",\"execution_status\":\"Available\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"9e759cd4-ee84-42f0-a398-631f98c3be91\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CUT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-CUT-01\",\"execution_status\":\"Available\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.336Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-CUT-001\",\"unit_id\":\"de2dba9d-fe4b-4f99-953a-48f21aadce04\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-RAW-CUTTING\",\"id\":\"1f52d19f-9cf8-450e-9f54-328c5d3f52f9\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-CUT-01\",\"vi\":\"Nhóm máy WST-EQ-CUT-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-CUT-01\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"},\"unit_code\":\"WST-CUT-001\",\"unit_id\":\"de2dba9d-fe4b-4f99-953a-48f21aadce04\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-CUT-01\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-CUT-002\",\"unit_id\":\"6274675a-dbc0-45e5-90e7-716262c9e70f\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"24182817-7026-403b-8a59-fd0413e147b7\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-EXT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-EXT-01\",\"execution_status\":\"Available\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"24182817-7026-403b-8a59-fd0413e147b7\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-EXT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-EXT-01\",\"execution_status\":\"Available\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.317Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-EXT-001\",\"unit_id\":\"655aaf63-c8f1-4202-a316-382f1cdd9055\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-EXTRUSION\",\"id\":\"886100d2-3c25-48ca-8cec-31c11ec448b1\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-EXT-01\",\"vi\":\"Nhóm máy WST-EQ-EXT-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-EXT-01\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"},\"unit_code\":\"WST-EXT-001\",\"unit_id\":\"655aaf63-c8f1-4202-a316-382f1cdd9055\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-EXT-01\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-EXT-002\",\"unit_id\":\"307d8f58-7547-47c4-a4b6-fa465e19b224\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"96bcc63a-0b88-4479-806e-46c6ff11d466\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-PRE-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-PRE-01\",\"execution_status\":\"Available\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"96bcc63a-0b88-4479-806e-46c6ff11d466\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-PRE-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-PRE-01\",\"execution_status\":\"Available\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.326Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-PRE-001\",\"unit_id\":\"ef6cd021-d64c-4501-94ba-964e4f8cc5ed\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-PREFORMERS\",\"id\":\"55c46198-1957-4eaf-9094-5d72d1e2a166\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-PRE-01\",\"vi\":\"Nhóm máy WST-EQ-PRE-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-PRE-01\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"},\"unit_code\":\"WST-PRE-001\",\"unit_id\":\"ef6cd021-d64c-4501-94ba-964e4f8cc5ed\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-PRE-01\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-PRE-002\",\"unit_id\":\"31b4e0b3-763d-4a05-b206-58f44c6ae510\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"937b262b-4a29-417b-baee-78bf66ea602e\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-TRIM-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-TRIM-01\",\"execution_status\":\"Available\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"937b262b-4a29-417b-baee-78bf66ea602e\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-TRIM-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-TRIM-01\",\"execution_status\":\"Available\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.298Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-TRIM-001\",\"unit_id\":\"f5798e21-df1a-4ec2-98fa-17620ccf3353\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-AUTO-TRIMMING\",\"id\":\"c6702d32-d816-4931-982b-d7b4dfd08dbf\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-TRIM-01\",\"vi\":\"Nhóm máy WST-EQ-TRIM-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-TRIM-01\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"},\"unit_code\":\"WST-TRIM-001\",\"unit_id\":\"f5798e21-df1a-4ec2-98fa-17620ccf3353\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-TRIM-01\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-TRIM-002\",\"unit_id\":\"a0e67613-78f9-482d-89d3-5dfbfc408bff\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}}],\"current_allocation\":null,\"operation\":{\"id\":\"855eb18d-4141-4ad6-b1fd-b12648d02976\",\"sequence\":10,\"work_center_id\":\"ff94355e-3c68-4bc4-a4bf-caa04674096d\"},\"requested_window\":{\"shift_id\":\"39c80321-749c-4861-9b4e-c76a45dbfdac\",\"start_at\":\"2026-08-03T08:00:00Z\"},\"status\":\"ReadyWithWarnings\",\"warnings\":[],\"work_center\":{\"code\":\"WC-CUTTING\",\"id\":\"ff94355e-3c68-4bc4-a4bf-caa04674096d\",\"name\":{\"en\":\"Rubber Cutting Work Center\",\"ja\":\"ゴム切断ワークセンター\",\"ko\":\"고무 절단 워크센터\",\"vi\":\"Trạm cắt cao su\"}},\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}]}\n    at baselineFixture (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:258:25)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async main (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:412:19)\n\n    at ChildProcess.<anonymous> (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-full-flow.mjs:104:19)\n    at ChildProcess.emit (node:events:519:28)\n    at maybeClose (node:internal/child_process:1101:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:304:5)",
+  "cleanup": {
+    "error": "could not determine data type of parameter $1"
+  },
+  "steps": [
+    {
+      "name": "authenticate through supported trusted-gateway identity path",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:24.002Z",
+      "finished_at": "2026-08-01T10:33:24.060Z",
+      "data": {
+        "mode": "trusted-gateway-headers",
+        "user_id_header": "00000000-0000-0000-0000-000000000001",
+        "role_code_header": "PLANT_MANAGER",
+        "status": 200
+      }
+    },
+    {
+      "name": "reuse deterministic released master-data chain",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:24.060Z",
+      "finished_at": "2026-08-01T10:33:24.168Z",
+      "data": {
+        "version": {
+          "production_version_name": {
+            "en": "E2E WO Label Production Version",
+            "ja": "E2E WO ラベル生産バージョン",
+            "ko": "E2E WO 라벨 생산 버전",
+            "vi": "Cấu hình E2E WO in nhãn"
+          },
+          "min_lot_size": "1.000000",
+          "max_lot_size": "100.000000",
+          "item_id": "27f6bc11-a295-4e0d-80b5-9da4f5a91079",
+          "item_code": "E2E-WO-FG-01",
+          "item_name": {
+            "en": "E2E WO Label Product",
+            "ja": "E2E WO ラベル製品",
+            "ko": "E2E WO 라벨 제품",
+            "vi": "Sản phẩm E2E WO in nhãn"
+          },
+          "item_revision_id": "9af3dced-6646-43ee-a2e7-8b573719adab",
+          "revision_code": "E2E-WO-FG-01-R1",
+          "revision_status": "Released",
+          "revision_effective_from": "2026-08-01T10:05:07.626Z",
+          "revision_effective_to": null,
+          "base_uom_code": "PCS",
+          "base_uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+          "base_uom_decimal_precision": 0,
+          "base_uom_allow_fraction": false,
+          "production_version_id": "655c4e54-d6e2-4f38-9d79-3070f0622ad3",
+          "production_version_code": "PV-20260801-0006",
+          "mbom_header_id": "ec8c66bf-6fe7-42ea-aeaf-5847860303ae",
+          "mbom_code": "E2E-WO-MBOM-01",
+          "mbom_name": {
+            "en": "E2E WO Label MBOM",
+            "ja": "E2E WO ラベルMBOM",
+            "ko": "E2E WO MBOM",
+            "vi": "MBOM E2E WO in nhãn"
+          },
+          "routing_header_id": "4df34603-914a-4e1a-8677-b90d5a53e41c",
+          "routing_code": "RT-20260801-0006",
+          "routing_name": {
+            "en": "E2E WO Label Routing",
+            "ja": "E2E WO ラベルルーティング",
+            "ko": "E2E WO 라우팅",
+            "vi": "Routing E2E WO in nhãn"
+          },
+          "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+          "site_code": "SITE-KZ3",
+          "item_revision": {
+            "id": "9af3dced-6646-43ee-a2e7-8b573719adab",
+            "code": "E2E-WO-FG-01-R1",
+            "name": {
+              "en": "E2E WO Label Product",
+              "ja": "E2E WO ラベル製品",
+              "ko": "E2E WO 라벨 제품",
+              "vi": "Sản phẩm E2E WO in nhãn"
+            }
+          },
+          "mbom": {
+            "id": "ec8c66bf-6fe7-42ea-aeaf-5847860303ae",
+            "code": "E2E-WO-MBOM-01",
+            "name": {
+              "en": "E2E WO Label MBOM",
+              "ja": "E2E WO ラベルMBOM",
+              "ko": "E2E WO MBOM",
+              "vi": "MBOM E2E WO in nhãn"
+            }
+          },
+          "routing": {
+            "id": "4df34603-914a-4e1a-8677-b90d5a53e41c",
+            "code": "RT-20260801-0006",
+            "name": {
+              "en": "E2E WO Label Routing",
+              "ja": "E2E WO ラベルルーティング",
+              "ko": "E2E WO 라우팅",
+              "vi": "Routing E2E WO in nhãn"
+            }
+          },
+          "site": {
+            "id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+            "code": "SITE-KZ3"
+          },
+          "base_uom": {
+            "id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+            "code": "PCS",
+            "decimal_precision": 0,
+            "allow_fraction": false,
+            "lifecycle_status": "Released"
+          },
+          "valid_from": "2026-08-01T10:05:07.626Z",
+          "valid_to": null,
+          "ready": true,
+          "warnings": [],
+          "display_code": "E2E-WO-FG-01-E2E-WO-FG-01-R1",
+          "readiness_status": "Ready"
+        },
+        "shift": {
+          "master_id": "39c80321-749c-4861-9b4e-c76a45dbfdac",
+          "code": "SHIFT-A",
+          "name": "Day Shift",
+          "version_no": 1,
+          "lifecycle_status": "Released",
+          "effective_from": "2026-07-21T00:00:00.000Z",
+          "effective_to": null,
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "created_at": "2026-07-21T03:39:00.241Z",
+          "updated_by": "00000000-0000-0000-0000-000000000001",
+          "updated_at": "2026-07-21T03:39:00.241Z",
+          "approved_by": "00000000-0000-0000-0000-000000000001",
+          "approved_at": "2026-07-21T00:00:00.000Z",
+          "row_version": 1,
+          "attributes": {},
+          "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+          "start_time": "08:00",
+          "end_time": "17:00",
+          "crosses_midnight": false
+        }
+      }
+    },
+    {
+      "name": "create Work Order from production_version_id and wait workflow",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:24.168Z",
+      "finished_at": "2026-08-01T10:33:24.400Z",
+      "data": {
+        "current_step": "outbox_queued",
+        "events": [
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "0c088ab5-9765-401a-86a7-31213122ab71",
+            "event_type": "workflow.started",
+            "occurred_at": "2026-08-01T10:33:24.185089475Z",
+            "schema_version": 1,
+            "sequence": 1,
+            "source_service": "mes-execution-service",
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          },
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "0b11b4ec-66f6-45be-9f09-bfa1459e13a5",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-01T10:33:24.189045786Z",
+            "schema_version": 1,
+            "sequence": 2,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "request_validation",
+              "message_key": "workOrders.creation.steps.request.success",
+              "message_params": null,
+              "order": 1,
+              "result": {
+                "quantity": 2
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.request_validation.title"
+            },
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          },
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "8429a8d9-f709-4a37-8b0b-a3db9d39ee54",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-01T10:33:24.192941859Z",
+            "schema_version": 1,
+            "sequence": 3,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.running",
+              "message_params": null,
+              "order": 2,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          },
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "2c5d1b6c-0ed6-4c57-b5f9-754674d8f5f5",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-01T10:33:24.198149177Z",
+            "schema_version": 1,
+            "sequence": 4,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.success",
+              "message_params": null,
+              "order": 2,
+              "result": {
+                "mbomId": "ec8c66bf-6fe7-42ea-aeaf-5847860303ae",
+                "productionVersionId": "655c4e54-d6e2-4f38-9d79-3070f0622ad3",
+                "routingId": "4df34603-914a-4e1a-8677-b90d5a53e41c"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          },
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "5b461a32-82d4-44fa-917c-89d93d6e2ff8",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-01T10:33:24.20079977Z",
+            "schema_version": 1,
+            "sequence": 5,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.running",
+              "message_params": null,
+              "order": 3,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          },
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "1a8e3fc6-f1a7-454d-8225-b004544d11c2",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-01T10:33:24.213235857Z",
+            "schema_version": 1,
+            "sequence": 6,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.success",
+              "message_params": null,
+              "order": 3,
+              "result": {
+                "materialCount": 1,
+                "operationCount": 3,
+                "status": "Draft",
+                "workOrderCode": "WO-20260801-0061",
+                "workOrderId": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          },
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "64613b43-19b3-417a-b1b2-7655d6cb1fbc",
+            "event_type": "step.event_queued",
+            "occurred_at": "2026-08-01T10:33:24.216845383Z",
+            "schema_version": 1,
+            "sequence": 7,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "outbox_queued",
+              "message_key": "workOrders.creation.steps.outbox.success",
+              "message_params": null,
+              "order": 4,
+              "result": {
+                "eventType": "MES.Execution.WOCreated.v1"
+              },
+              "status": "event_queued",
+              "title_key": "workOrders.creation.steps.outbox_queued.title"
+            },
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          },
+          {
+            "correlation_id": "fe249077-4135-4497-8a38-c2dfdf8aa1e7",
+            "event_id": "2cca3d2d-93eb-49d4-a125-64f7a08b2448",
+            "event_type": "workflow.succeeded",
+            "occurred_at": "2026-08-01T10:33:24.220825432Z",
+            "schema_version": 1,
+            "sequence": 8,
+            "source_service": "mes-execution-service",
+            "workflow": {
+              "status": "succeeded",
+              "work_order_code": "WO-20260801-0061",
+              "work_order_id": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73"
+            },
+            "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+          }
+        ],
+        "last_sequence": 8,
+        "status": "succeeded",
+        "work_order_code": "WO-20260801-0061",
+        "work_order_id": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73",
+        "workflow_id": "7386251b-0f87-4e7f-811b-f020192ee8ba"
+      }
+    },
+    {
+      "name": "load created Work Order routing snapshot",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:24.400Z",
+      "finished_at": "2026-08-01T10:33:24.409Z",
+      "data": {
+        "approval_logs": null,
+        "header": {
+          "created_at": "2026-08-01T10:33:24.204473Z",
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "demo_print_on_approval": true,
+          "item_code": "E2E-WO-FG-01-R1",
+          "item_name": "Sản phẩm E2E WO in nhãn",
+          "item_revision_code": "E2E-WO-FG-01-R1",
+          "item_revision_id": "9af3dced-6646-43ee-a2e7-8b573719adab",
+          "item_revision_name_i18n": {
+            "en": "E2E WO Label Product",
+            "ja": "E2E WO ラベル製品",
+            "ko": "E2E WO 라벨 제품",
+            "vi": "Sản phẩm E2E WO in nhãn"
+          },
+          "mbom_code": "E2E-WO-MBOM-01",
+          "planning_snapshot": {
+            "mbom_id": "ec8c66bf-6fe7-42ea-aeaf-5847860303ae",
+            "shift_id": "39c80321-749c-4861-9b4e-c76a45dbfdac",
+            "routing_id": "4df34603-914a-4e1a-8677-b90d5a53e41c",
+            "production_version_id": "655c4e54-d6e2-4f38-9d79-3070f0622ad3",
+            "production_version_code": "PV-20260801-0006"
+          },
+          "production_version_code": "PV-20260801-0006",
+          "production_version_id": "655c4e54-d6e2-4f38-9d79-3070f0622ad3",
+          "production_version_name_i18n": {
+            "en": "E2E WO Label Production Version",
+            "ja": "E2E WO ラベル生産バージョン",
+            "ko": "E2E WO 라벨 생산 버전",
+            "vi": "Cấu hình E2E WO in nhãn"
+          },
+          "quantity": 2,
+          "routing_code": "RT-20260801-0006",
+          "row_version": 1,
+          "shift_id": "39c80321-749c-4861-9b4e-c76a45dbfdac",
+          "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+          "status": "Draft",
+          "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29",
+          "wo_code": "WO-20260801-0061",
+          "wo_id": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73"
+        },
+        "material_requirements": [
+          {
+            "backflush_flag": false,
+            "component_item_code": "SFG-MET-CM01",
+            "component_item_revision_id": "24448e3d-37f6-4ad9-a7b4-25b27a28305c",
+            "item_name": {
+              "vi": ""
+            },
+            "phantom_flag": false,
+            "required_qty": 2,
+            "requirement_id": "d3a28854-2b03-4e4d-bdd6-2d1c0304c3a2",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1a2c0adc-cd7e-4cc9-a2ae-4b9053683b29"
+          }
+        ],
+        "operations": [
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-20260801-0016",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "OP-20260801-0016",
+              "ja": "OP-20260801-0016",
+              "ko": "OP-20260801-0016",
+              "vi": "OP-20260801-0016"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 10,
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "67b44809-1475-48ba-b6fa-f825c09828c7",
+            "work_center_code": "WC-CUTTING",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "work_center_name": {
+              "en": "Rubber Cutting Work Center",
+              "ja": "ゴム切断ワークセンター",
+              "ko": "고무 절단 워크센터",
+              "vi": "Trạm cắt cao su"
+            },
+            "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-20260801-0017",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "OP-20260801-0017",
+              "ja": "OP-20260801-0017",
+              "ko": "OP-20260801-0017",
+              "vi": "OP-20260801-0017"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 20,
+            "status": "Pending",
+            "units_per_label": 1,
+            "wo_operation_id": "0f72426c-33ba-4615-89c5-0d6797016b34",
+            "work_center_code": "WC-CUTTING",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "work_center_name": {
+              "en": "Rubber Cutting Work Center",
+              "ja": "ゴム切断ワークセンター",
+              "ko": "고무 절단 워크센터",
+              "vi": "Trạm cắt cao su"
+            },
+            "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-20260801-0018",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "OP-20260801-0018",
+              "ja": "OP-20260801-0018",
+              "ko": "OP-20260801-0018",
+              "vi": "OP-20260801-0018"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 30,
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "9595d0ca-72ac-445c-a006-5a85daaee173",
+            "work_center_code": "WC-CUTTING",
+            "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+            "work_center_name": {
+              "en": "Rubber Cutting Work Center",
+              "ja": "ゴム切断ワークセンター",
+              "ko": "고무 절단 워크센터",
+              "vi": "Trạm cắt cao su"
+            },
+            "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1"
+          }
+        ],
+        "print_jobs": null
+      }
+    },
+    {
+      "name": "run Compute and Check",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:24.409Z",
+      "finished_at": "2026-08-01T10:33:24.421Z",
+      "data": {
+        "status": 409,
+        "body": {
+          "wo_id": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73",
+          "total_duration_minutes": 31,
+          "planned_start_at": "2026-08-01T10:33:24Z",
+          "planned_end_at": "2026-08-01T11:04:24Z",
+          "operations": [
+            {
+              "sequence_no": 10,
+              "operation_code": "OP-20260801-0016",
+              "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+              "duration_minutes": 12,
+              "planned_start_at": "2026-08-01T10:33:24Z",
+              "planned_end_at": "2026-08-01T10:45:24Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 120,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 4,
+              "calculated_total_minutes": 12,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 20,
+              "operation_code": "OP-20260801-0017",
+              "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+              "duration_minutes": 9,
+              "planned_start_at": "2026-08-01T10:45:24Z",
+              "planned_end_at": "2026-08-01T10:54:24Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 30,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 1,
+              "calculated_total_minutes": 9,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "units_per_label": 1,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            },
+            {
+              "sequence_no": 30,
+              "operation_code": "OP-20260801-0018",
+              "work_center_id": "ff94355e-3c68-4bc4-a4bf-caa04674096d",
+              "duration_minutes": 10,
+              "planned_start_at": "2026-08-01T10:54:24Z",
+              "planned_end_at": "2026-08-01T11:04:24Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 60,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 2,
+              "calculated_total_minutes": 10,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            }
+          ],
+          "capacity_warnings": [],
+          "labor_warnings": [],
+          "labor_shortages": [
+            {
+              "operation_code": "OP-20260801-0016",
+              "skill_code": "SK-WC-VULCAN-OPERATOR",
+              "required_persons": 1,
+              "eligible_persons": 0,
+              "mandatory": true
+            },
+            {
+              "operation_code": "OP-20260801-0017",
+              "skill_code": "SK-WC-VULCAN-OPERATOR",
+              "required_persons": 1,
+              "eligible_persons": 0,
+              "mandatory": true
+            },
+            {
+              "operation_code": "OP-20260801-0018",
+              "skill_code": "SK-WC-VULCAN-OPERATOR",
+              "required_persons": 1,
+              "eligible_persons": 0,
+              "mandatory": true
+            }
+          ],
+          "labor_assignments": []
+        }
+      }
+    },
+    {
+      "name": "retrieve candidates and commit one Ready candidate for every operation",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:24.421Z",
+      "finished_at": "2026-08-01T10:33:25.008Z",
+      "data": [
+        {
+          "operation_code": "OP-20260801-0016",
+          "operation_id": "67b44809-1475-48ba-b6fa-f825c09828c7",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1",
+          "allocation_id": "14a2c251-2b78-4e16-8c1a-c410ec3e1143"
+        },
+        {
+          "operation_code": "OP-20260801-0017",
+          "operation_id": "0f72426c-33ba-4615-89c5-0d6797016b34",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1",
+          "allocation_id": "9f4808ea-372b-470e-93d1-dae549025c88"
+        },
+        {
+          "operation_code": "OP-20260801-0018",
+          "operation_id": "9595d0ca-72ac-445c-a006-5a85daaee173",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "dc497a37-1347-481e-a120-9a0fad5238a1",
+          "allocation_id": "f901e91d-94c9-467d-bd13-7f5b63e3b780"
+        }
+      ]
+    },
+    {
+      "name": "repair local print-station readiness for exact allocated print workstations",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:25.008Z",
+      "finished_at": "2026-08-01T10:33:25.049Z",
+      "data": {
+        "print_operations": 1,
+        "readiness": [
+          {
+            "binding_id": "db1b2f58-c2ca-44de-82f5-45eea0569eef",
+            "role": "PRIMARY",
+            "print_station_id": "6f56f652-bc6a-456e-a6b3-6284ab023f2d",
+            "print_station_code": "PRINT-STATION-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-07-31T06:30:17.944Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "refresh committed snapshots and revalidate allocations",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:25.049Z",
+      "finished_at": "2026-08-01T10:33:25.242Z",
+      "data": {
+        "operation_count": 3,
+        "committed_count": 3,
+        "revalidation": {
+          "operations": [
+            {
+              "valid": true,
+              "wo_operation_id": "67b44809-1475-48ba-b6fa-f825c09828c7"
+            },
+            {
+              "valid": true,
+              "wo_operation_id": "0f72426c-33ba-4615-89c5-0d6797016b34"
+            },
+            {
+              "valid": true,
+              "wo_operation_id": "9595d0ca-72ac-445c-a006-5a85daaee173"
+            }
+          ],
+          "valid": true,
+          "wo_id": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73"
+        }
+      }
+    },
+    {
+      "name": "approve Work Order with strict resource-allocation policy",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:25.242Z",
+      "finished_at": "2026-08-01T10:33:25.550Z",
+      "data": {
+        "approval_mode": "DEMO_PRINT_ON_APPROVAL",
+        "approval_policy": "Demo",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "event_published": true,
+        "event_type": "MES.Execution.WOApproved.v1",
+        "material_staging_bypassed": true,
+        "print_jobs_queued": 1,
+        "print_triggered_on_approval": true,
+        "status": "Released",
+        "wo_code": "WO-20260801-0061",
+        "wo_id": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73"
+      }
+    },
+    {
+      "name": "start execution",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:25.550Z",
+      "finished_at": "2026-08-01T10:33:25.570Z",
+      "data": {
+        "queued_operations": 1,
+        "status": "InProgress",
+        "wo_id": "ca8e9907-1b1e-4440-8d7e-252ee7e3fc73"
+      }
+    },
+    {
+      "name": "verify allocation reservation audit and outbox persistence",
+      "status": "passed",
+      "started_at": "2026-08-01T10:33:25.571Z",
+      "finished_at": "2026-08-01T10:33:25.588Z",
+      "data": {
+        "committed_allocations": 3,
+        "primary_unit_snapshots": 3,
+        "committed_reservations": 9,
+        "allocation_audit_rows": 3,
+        "outbox_events": {
+          "MES.Execution.OperationDispatchQueued.v1": 1,
+          "MES.Execution.WOApproved.v1": 1,
+          "MES.Execution.WOCreated.v1": 1,
+          "MES.Execution.WOResourceAllocated.v1": 3,
+          "command.printer.print.batch": 1
+        }
+      }
+    },
+    {
+      "name": "run required negative scenario matrix",
+      "status": "failed",
+      "started_at": "2026-08-01T10:33:25.588Z",
+      "finished_at": "2026-08-01T10:33:30.194Z",
+      "error": "scripts/test-mes-resource-planning-domain-phase1.mjs exited 1: [phase1] FAILED: Error: No Ready machine-group candidate for Phase 1 fixture: {\"blocking_errors\":[],\"candidates\":[{\"assignment\":{\"id\":\"b91a24cc-0e7e-4e44-a005-12207dd5e01f\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"EQUIPMENT_CAPACITY_CONFLICT\"}],\"calculation\":{\"adjusted_cycle_time_sec\":120,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":4,\"setup_time_min\":5},\"calendar\":{\"availability_status\":\"Available\",\"available_minutes\":540,\"capacity_factor\":\"1.0000\",\"id\":\"d9fa7261-4937-4691-a134-c0d30d34ad39\",\"resource_id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"resource_type\":\"Equipment\",\"source_id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"source_type\":\"Equipment\"},\"capability\":{\"code\":\"E2E-WO-CAP-01\",\"id\":\"359963e7-0ccd-4ea9-a1ca-a3cabde87bee\",\"priority_no\":1,\"specificity\":\"Equipment\",\"speed_factor\":\"1.0000\"},\"capacity_conflicts\":[{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Equipment\"},{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Workstation\"}],\"equipment\":{\"code\":\"EQ-MOLD-HYD01\",\"execution_status\":\"Available\",\"id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"name\":{\"en\":\"500-ton hydraulic press\",\"ja\":\"500トン油圧プレス\",\"ko\":\"500톤 유압 프레스\",\"vi\":\"Máy ép 500 tấn\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"b91a24cc-0e7e-4e44-a005-12207dd5e01f\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[],\"calendar\":{\"status\":\"Available\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Matched\"},\"capacity\":{\"conflicts\":[{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Equipment\"},{\"active_reservations\":1,\"code\":\"RESOURCE_CAPACITY_CONFLICT\",\"resource_type\":\"Workstation\"}],\"status\":\"Conflict\"},\"equipment\":{\"code\":\"EQ-MOLD-HYD01\",\"execution_status\":\"Available\",\"id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"name\":{\"en\":\"500-ton hydraulic press\",\"ja\":\"500トン油圧プレス\",\"ko\":\"500톤 유압 프레스\",\"vi\":\"Máy ép 500 tấn\"}},\"evaluated_at\":\"2026-08-01T10:33:26.288Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"EQ-MOLD-HYD01-02\",\"unit_id\":\"256fdde7-1b30-46de-9b32-c7e5573ed6b3\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":12,\"machine_group\":{\"code\":\"MG-20260727-0004\",\"id\":\"14c646c4-ef08-4dcb-b516-069ed88391ba\",\"minimum_required_machines\":1,\"name\":{\"en\":\"E2E label printing machine group\",\"ja\":\"E2Eラベル印刷マシングループ\",\"ko\":\"E2E 라벨 인쇄 머신 그룹\",\"vi\":\"Nhóm máy demo in nhãn\"}},\"primary_machine\":{\"code\":\"EQ-MOLD-HYD01\",\"id\":\"5b058945-71c1-41ed-b15e-40df5a433bb8\",\"name\":{\"en\":\"500-ton hydraulic press\",\"ja\":\"500トン油圧プレス\",\"ko\":\"500톤 유압 프레스\",\"vi\":\"Máy ép 500 tấn\"},\"unit_code\":\"EQ-MOLD-HYD01-02\",\"unit_id\":\"256fdde7-1b30-46de-9b32-c7e5573ed6b3\"},\"production_standard\":{\"code\":\"E2E-WO-STD-01\",\"id\":\"9b4db013-e388-4dbb-a294-5859a0286ec7\",\"level\":\"Equipment\"},\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":528,\"supporting_machines\":[],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-20260727-0006\",\"id\":\"dc497a37-1347-481e-a120-9a0fad5238a1\",\"name\":{\"en\":\"Trạm in\",\"ja\":\"Trạm in\",\"ko\":\"Trạm in\",\"vi\":\"Trạm in\"}}},{\"assignment\":{\"id\":\"1fc66434-6147-4770-b49b-0fc935671803\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CRY-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-CRY-01\",\"execution_status\":\"Available\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"1fc66434-6147-4770-b49b-0fc935671803\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CRY-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-CRY-01\",\"execution_status\":\"Available\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.307Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-CRY-001\",\"unit_id\":\"fded0697-d344-43c1-ba16-9f871539dc04\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-DEFLASHING\",\"id\":\"f156d801-a077-4dea-92bb-d1460b05c49a\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-CRY-01\",\"vi\":\"Nhóm máy WST-EQ-CRY-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-CRY-01\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"},\"unit_code\":\"WST-CRY-001\",\"unit_id\":\"fded0697-d344-43c1-ba16-9f871539dc04\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-CRY-01\",\"id\":\"a3a84edc-2bd9-48ac-9047-8d40db6e3649\",\"name\":{\"en\":\"Cryogenic deflashing machine 01\",\"vi\":\"Máy tách ba via lạnh 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-CRY-002\",\"unit_id\":\"6b546d47-3ab8-43bc-bb00-ef2ed9ae9b56\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"9e759cd4-ee84-42f0-a398-631f98c3be91\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CUT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-CUT-01\",\"execution_status\":\"Available\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"9e759cd4-ee84-42f0-a398-631f98c3be91\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-CUT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-CUT-01\",\"execution_status\":\"Available\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.336Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-CUT-001\",\"unit_id\":\"de2dba9d-fe4b-4f99-953a-48f21aadce04\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-RAW-CUTTING\",\"id\":\"1f52d19f-9cf8-450e-9f54-328c5d3f52f9\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-CUT-01\",\"vi\":\"Nhóm máy WST-EQ-CUT-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-CUT-01\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"},\"unit_code\":\"WST-CUT-001\",\"unit_id\":\"de2dba9d-fe4b-4f99-953a-48f21aadce04\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-CUT-01\",\"id\":\"3ba56e3d-6d31-4632-9590-7883ef498b88\",\"name\":{\"en\":\"Rubber bale cutting machine 01\",\"vi\":\"Máy cắt cao su 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-CUT-002\",\"unit_id\":\"6274675a-dbc0-45e5-90e7-716262c9e70f\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"24182817-7026-403b-8a59-fd0413e147b7\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-EXT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-EXT-01\",\"execution_status\":\"Available\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"24182817-7026-403b-8a59-fd0413e147b7\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-EXT-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-EXT-01\",\"execution_status\":\"Available\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.317Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-EXT-001\",\"unit_id\":\"655aaf63-c8f1-4202-a316-382f1cdd9055\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-EXTRUSION\",\"id\":\"886100d2-3c25-48ca-8cec-31c11ec448b1\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-EXT-01\",\"vi\":\"Nhóm máy WST-EQ-EXT-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-EXT-01\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"},\"unit_code\":\"WST-EXT-001\",\"unit_id\":\"655aaf63-c8f1-4202-a316-382f1cdd9055\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-EXT-01\",\"id\":\"58df9f9e-e39e-4aa6-9b79-c087cc31c7b9\",\"name\":{\"en\":\"Rubber extrusion line 01\",\"vi\":\"Dây chuyền đùn cao su 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-EXT-002\",\"unit_id\":\"307d8f58-7547-47c4-a4b6-fa465e19b224\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"96bcc63a-0b88-4479-806e-46c6ff11d466\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-PRE-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-PRE-01\",\"execution_status\":\"Available\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"96bcc63a-0b88-4479-806e-46c6ff11d466\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-PRE-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-PRE-01\",\"execution_status\":\"Available\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.326Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-PRE-001\",\"unit_id\":\"ef6cd021-d64c-4501-94ba-964e4f8cc5ed\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-PREFORMERS\",\"id\":\"55c46198-1957-4eaf-9094-5d72d1e2a166\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-PRE-01\",\"vi\":\"Nhóm máy WST-EQ-PRE-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-PRE-01\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"},\"unit_code\":\"WST-PRE-001\",\"unit_id\":\"ef6cd021-d64c-4501-94ba-964e4f8cc5ed\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-PRE-01\",\"id\":\"54d9e294-ebb8-4cf3-88c4-d726015f0f77\",\"name\":{\"en\":\"Precision rubber preformer 01\",\"vi\":\"Máy tạo phôi cao su 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-PRE-002\",\"unit_id\":\"31b4e0b3-763d-4a05-b206-58f44c6ae510\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}},{\"assignment\":{\"id\":\"937b262b-4a29-417b-baee-78bf66ea602e\",\"role\":\"Primary\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-TRIM-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calculation\":{\"adjusted_cycle_time_sec\":null,\"formula\":\"group primary standard plus required supporting availability\",\"queue_time_min\":2,\"run_duration_min\":null,\"setup_time_min\":0},\"calendar\":null,\"capability\":null,\"capacity_conflicts\":[],\"equipment\":{\"code\":\"WST-EQ-TRIM-01\",\"execution_status\":\"Available\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"}},\"equipment_readiness\":{\"assignment\":{\"id\":\"937b262b-4a29-417b-baee-78bf66ea602e\",\"role\":\"Primary\",\"status\":\"Valid\"},\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_CAPABILITY\"},{\"code\":\"CALENDAR_NOT_CONFIGURED\",\"message\":\"No effective resource calendar exists for the requested date and shift.\"},{\"code\":\"REQUIRED_SUPPORTING_MACHINE_UNAVAILABLE\",\"machine_code\":\"WST-EQ-TRIM-01\"},{\"code\":\"NO_EFFECTIVE_PRODUCTION_STANDARD\"}],\"calendar\":{\"status\":\"Missing\"},\"calibration\":{\"status\":\"Unknown\"},\"capability\":{\"status\":\"Missing\"},\"capacity\":{\"status\":\"Available\"},\"equipment\":{\"code\":\"WST-EQ-TRIM-01\",\"execution_status\":\"Available\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"}},\"evaluated_at\":\"2026-08-01T10:33:26.298Z\",\"machine_unit\":{\"status\":\"Available\",\"unit_code\":\"WST-TRIM-001\",\"unit_id\":\"f5798e21-df1a-4ec2-98fa-17620ccf3353\"},\"maintenance\":{\"status\":\"Unknown\"},\"operational_state\":{\"freshness\":\"Unknown\",\"state_source\":\"md_equipment\",\"status\":\"Available\"},\"status\":\"Blocked\",\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"},{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}]},\"estimated_duration_min\":null,\"machine_group\":{\"code\":\"WST-GRP-AUTO-TRIMMING\",\"id\":\"c6702d32-d816-4931-982b-d7b4dfd08dbf\",\"minimum_required_machines\":1,\"name\":{\"en\":\"Machine group WST-EQ-TRIM-01\",\"vi\":\"Nhóm máy WST-EQ-TRIM-01\"}},\"primary_machine\":{\"code\":\"WST-EQ-TRIM-01\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"},\"unit_code\":\"WST-TRIM-001\",\"unit_id\":\"f5798e21-df1a-4ec2-98fa-17620ccf3353\"},\"production_standard\":null,\"readiness\":\"Blocked\",\"remaining_minutes_after_allocation\":0,\"supporting_machines\":[{\"code\":\"WST-EQ-TRIM-01\",\"id\":\"cf8f7b03-ea43-4766-a372-2e08002589dc\",\"name\":{\"en\":\"Automatic seal trimming machine 01\",\"vi\":\"Máy cắt ba via tự động 01\"},\"readiness\":\"Available\",\"required\":true,\"unit_code\":\"WST-TRIM-002\",\"unit_id\":\"a0e67613-78f9-482d-89d3-5dfbfc408bff\"}],\"warnings\":[{\"code\":\"EQUIPMENT_MAINTENANCE_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_CALIBRATION_STATE_UNKNOWN\"},{\"code\":\"EQUIPMENT_STATE_STALE\"}],\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}],\"workstation\":{\"code\":\"WS-CUTTING-01\",\"id\":\"6823158e-ee93-4179-a48b-df8af2cb3e37\",\"name\":{\"en\":\"Cutting Workstation\",\"ja\":\"Cutting Workstation\",\"ko\":\"Cutting Workstation\",\"vi\":\"Cutting Workstation\"}}}],\"current_allocation\":null,\"operation\":{\"id\":\"855eb18d-4141-4ad6-b1fd-b12648d02976\",\"sequence\":10,\"work_center_id\":\"ff94355e-3c68-4bc4-a4bf-caa04674096d\"},\"requested_window\":{\"shift_id\":\"39c80321-749c-4861-9b4e-c76a45dbfdac\",\"start_at\":\"2026-08-03T08:00:00Z\"},\"status\":\"ReadyWithWarnings\",\"warnings\":[],\"work_center\":{\"code\":\"WC-CUTTING\",\"id\":\"ff94355e-3c68-4bc4-a4bf-caa04674096d\",\"name\":{\"en\":\"Rubber Cutting Work Center\",\"ja\":\"ゴム切断ワークセンター\",\"ko\":\"고무 절단 워크센터\",\"vi\":\"Trạm cắt cao su\"}},\"worker_readiness\":[{\"minimum_level\":\"L1\",\"qualified_available_persons\":2,\"readiness\":\"Available\",\"required_persons\":1,\"skill_code\":\"SK-WC-VULCAN-OPERATOR\",\"skill_id\":\"2449ccdb-e11f-4903-a859-195d5e41e5fe\",\"workers\":[{\"code\":\"PHASE1-EMP-PHASE1-RP-1785580405667-W2EHY\",\"id\":\"037658e8-4833-4fdb-b1fa-c84b372911f6\",\"level\":\"L5\",\"name\":\"Phase 1 fixture worker\"},{\"code\":\"EMP-003\",\"id\":\"f872b524-7437-4c81-b532-e5c327b92982\",\"level\":\"L1\",\"name\":\"Demo Employee 03\"}]}]}\n    at baselineFixture (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:258:25)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async main (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:412:19)\n"
+    }
+  ]
+}

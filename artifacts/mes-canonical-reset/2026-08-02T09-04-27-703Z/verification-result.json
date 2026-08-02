@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "generated_at": "2026-08-02T09:04:27.755Z",
+  "read_only": true,
+  "checks": [],
+  "error": "column a.assignment_id does not exist",
+  "completed_at": "2026-08-02T09:04:27.789Z"
+}

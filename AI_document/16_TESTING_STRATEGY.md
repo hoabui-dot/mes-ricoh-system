@@ -44,6 +44,10 @@ Important commands:
 
 ```bash
 npm run reset:seed:mes:wo
+npm run reset:seed:mes
+npm run seed:mes:won-seal-tech
+npm run verify:mes:seed
+npm run test:mes:two-line-flow
 npm run machines:reset
 npm run machines:verify
 npm run seed:qms:demo
@@ -55,7 +59,9 @@ Prefer real local services for integration/E2E where feasible. Use mocks only fo
 
 ## Test Data
 
-Use deterministic namespaces such as `WST-*` and exact Work Order IDs for cleanup. Never broaden cleanup to unrelated production/history rows.
+Use deterministic namespaces such as `WST-*`, `WST-SEED-*`, and exact Work Order IDs for cleanup. Never broaden cleanup to unrelated production/history rows.
+
+Phase 10 status: `IMPLEMENTED_AND_VERIFIED`. `reset:seed:mes` safely resets disposable MES Work Order data, resets the Won Seal Tech machine fixture, seeds a deterministic two-line Won Seal Tech production baseline, verifies create -> line selection -> Compute & Check -> resource commit -> approve, and writes `artifacts/mes-seed-verification-YYYYMMDD.json`. `verify:mes:seed` is repeatable and cleans its verification Work Order/workflow rows exactly.
 
 ## CI Verification
 
@@ -73,3 +79,30 @@ Not fully browser verified:
 - logout/login persistence.
 - cross-site access.
 - full Viewer/Operator/Admin role matrix.
+
+## Phase 5 Two-Line Test Targets
+
+Status: PARTIALLY_IMPLEMENTED.
+
+Phase 6 added `npm run test:mes:two-line-master-data:phase6` for migration/API/lifecycle/same-site/single-primary/duplicate/dependency/outbox/cleanup coverage.
+
+Phase 7 added `npm run test:mes:two-line-resource-planning:phase7` for execution migration/API/database verification:
+
+- primary Ready line selection;
+- deterministic backup fallback;
+- `ResourceHold` persistence and candidate blocking;
+- database rejection of mixed-line allocation persistence;
+- historical WO snapshot immutability after eligibility change;
+- audited replan before execution start;
+- rejection of in-place line change after execution start;
+- exact cleanup verification for generated WOs and projection fixtures.
+
+Future verification targets remain:
+
+- Production Line and eligibility migration constraints.
+- Primary-first selection and complete backup fallback.
+- `RESOURCE_HOLD` when no complete line is feasible.
+- Mixed-line allocation rejection at commit.
+- Selected-line snapshot immutability after master-data changes.
+- Pre-release line change and post-start transfer rejection.
+- Browser E2E for line readiness, blockers, refresh persistence, and authorization.

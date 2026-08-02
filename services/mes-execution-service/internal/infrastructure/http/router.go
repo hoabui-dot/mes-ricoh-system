@@ -27,7 +27,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization, X-User-ID, X-Role-Code, X-Trace-ID, Idempotency-Key")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization, X-User-ID, X-Role-Code, X-Trace-ID, Idempotency-Key, X-MES-Approval-Policy")
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
@@ -53,6 +53,8 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Get("/ws/work-order-creation", creationWorkflows.handleWebSocket)
 		r.Post("/work-orders", handleCreateWorkOrder(pool))
 		r.Post("/work-orders/{id}/compute-check", handleComputeCheck(pool))
+		r.Get("/work-orders/{id}/line-readiness", handleLineReadiness(pool))
+		r.Post("/work-orders/{id}/line-replan", handleLineReplan(pool))
 		r.Post("/work-orders/{id}/approve", handleApproveWO(pool, allocationService))
 		r.Post("/work-orders/{id}/start-execution", handleStartExecution(pool))
 		r.Post("/work-orders/{id}/operations/{opId}/print-retry", handlePrintRetry(pool))
@@ -180,7 +182,15 @@ func handleDeleteResourceAllocation(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 		defer tx.Rollback(r.Context())
-		_, _ = tx.Exec(r.Context(), `UPDATE wo_resource_allocation SET status='Cancelled', validation_status='Invalid', row_version=row_version+1 WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Draft','Validated')`, woID, opID)
+		userID := getHeader(r, "X-User-ID", systemUserID)
+		traceID := getHeader(r, "X-Trace-ID", "missing-trace")
+		_, _ = tx.Exec(r.Context(), `
+			INSERT INTO wo_resource_allocation_audit
+				(allocation_id, wo_id, wo_operation_id, action, previous_allocation_id, new_allocation_id, actor_user_id, change_reason, validation_status, warning_codes, trace_id, wo_row_version)
+			SELECT allocation_id, wo_id, wo_operation_id, 'Cancelled', allocation_id, NULL, $3, 'Allocation cancelled before lifecycle lock.', validation_status, warning_codes, $4, row_version
+			FROM wo_resource_allocation
+			WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Draft','Validated','Committed')`, woID, opID, userID, traceID)
+		_, _ = tx.Exec(r.Context(), `UPDATE wo_resource_allocation SET status='Cancelled', validation_status='Invalid', row_version=row_version+1 WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Draft','Validated','Committed')`, woID, opID)
 		_, _ = tx.Exec(r.Context(), `UPDATE wo_capacity_reservation SET status='Cancelled',updated_at=now() WHERE wo_id=$1 AND wo_operation_id=$2 AND status IN ('Tentative','Committed')`, woID, opID)
 		if err := tx.Commit(r.Context()); err != nil {
 			writeAllocationResponse(w, nil, err)
@@ -599,6 +609,41 @@ func handleComputeCheck(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
+func handleLineReadiness(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := usecase.CurrentLineReadiness(r.Context(), pool, chi.URLParam(r, "id"))
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error(), "message": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(res)
+	}
+}
+
+func handleLineReplan(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !canMutateResourcePlanning(r) {
+			writeAllocationForbidden(w)
+			return
+		}
+		var body struct {
+			Reason     string `json:"reason"`
+			RowVersion int    `json:"row_version"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		res, err := usecase.ReplanWorkOrderLine(r.Context(), pool, usecase.ReplanLineInput{
+			WOID:       chi.URLParam(r, "id"),
+			UserID:     getHeader(r, "X-User-ID", systemUserID),
+			TraceID:    getHeader(r, "X-Trace-ID", "missing-trace"),
+			Reason:     body.Reason,
+			RowVersion: body.RowVersion,
+		})
+		writeAllocationResponse(w, res, err)
+	}
+}
+
 func handleApproveWO(pool *pgxpool.Pool, allocationService *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		woID := chi.URLParam(r, "id")
@@ -609,7 +654,7 @@ func handleApproveWO(pool *pgxpool.Pool, allocationService *usecase.AllocationSe
 		var body map[string]interface{}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		comment, _ := body["comment"].(string)
-		demoPrint := usecase.DemoPrintOnApprovalEnabled()
+		demoPrint := usecase.DemoPrintOnApprovalEnabled() && !strings.EqualFold(strings.TrimSpace(r.Header.Get("X-MES-Approval-Policy")), "Strict")
 		if !demoPrint {
 			allocationCheck, allocationErr := allocationService.Revalidate(r.Context(), woID, userID, traceID)
 			if allocationErr != nil {
@@ -682,58 +727,73 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		woID := chi.URLParam(r, "id")
 
 		var header map[string]interface{}
-		rows, err := pool.Query(r.Context(), `SELECT wo_id, wo_code, production_version_id, COALESCE(production_version_code, ''), COALESCE(production_version_name_i18n, '{}'::jsonb), item_revision_id, COALESCE(item_revision_code, ''), COALESCE(item_revision_name_i18n, '{}'::jsonb), item_code, item_name, COALESCE(mbom_code, ''), COALESCE(routing_code, ''), COALESCE(planning_snapshot, '{}'::jsonb), quantity, uom_id, site_id, shift_id, status, created_by, created_at, row_version FROM wo_header WHERE wo_id = $1`, woID)
+		rows, err := pool.Query(r.Context(), `SELECT wo_id, wo_code, production_version_id, COALESCE(production_version_code, ''), COALESCE(production_version_name_i18n, '{}'::jsonb), item_revision_id, COALESCE(item_revision_code, ''), COALESCE(item_revision_name_i18n, '{}'::jsonb), item_code, item_name, COALESCE(mbom_code, ''), COALESCE(routing_code, ''), COALESCE(planning_snapshot, '{}'::jsonb), quantity, uom_id, site_id, shift_id, planned_start_at, planned_end_at, status, created_by, created_at, row_version, COALESCE(selected_production_line_id::text, ''), COALESCE(selected_production_line_code, ''), COALESCE(selected_production_line_name_i18n, '{}'::jsonb), line_selection_mode, line_selection_status, COALESCE(line_selection_reason, ''), COALESCE(fallback_reason, ''), COALESCE(resource_hold_reason, '{}'::jsonb), COALESCE(evaluated_line_results, '[]'::jsonb), line_locked_at FROM wo_header WHERE wo_id = $1`, woID)
 		if err != nil || !rows.Next() {
 			http.Error(w, "Work Order not found", http.StatusNotFound)
 			return
 		}
 		var id, code, pvID, pvCode, itemRevID, itemRevCode, itemCode, itemName, mbomCode, routingCode, uomID, siteID, status, createdBy string
-		var pvNameI18n, itemRevNameI18n, planningSnapshot []byte
+		var pvNameI18n, itemRevNameI18n, planningSnapshot, selectedLineName, resourceHoldReason, evaluatedLineResults []byte
 		var shiftID *string
+		var lineLockedAt *time.Time
 		var rowVersion int
 		var qty float64
-		var createdAt time.Time
-		_ = rows.Scan(&id, &code, &pvID, &pvCode, &pvNameI18n, &itemRevID, &itemRevCode, &itemRevNameI18n, &itemCode, &itemName, &mbomCode, &routingCode, &planningSnapshot, &qty, &uomID, &siteID, &shiftID, &status, &createdBy, &createdAt, &rowVersion)
+		var plannedStartAt, plannedEndAt, createdAt time.Time
+		var selectedLineID, selectedLineCode, lineMode, lineStatus, lineReason, fallbackReason string
+		_ = rows.Scan(&id, &code, &pvID, &pvCode, &pvNameI18n, &itemRevID, &itemRevCode, &itemRevNameI18n, &itemCode, &itemName, &mbomCode, &routingCode, &planningSnapshot, &qty, &uomID, &siteID, &shiftID, &plannedStartAt, &plannedEndAt, &status, &createdBy, &createdAt, &rowVersion, &selectedLineID, &selectedLineCode, &selectedLineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &resourceHoldReason, &evaluatedLineResults, &lineLockedAt)
 		rows.Close()
 
 		header = map[string]interface{}{
-			"wo_id":                        id,
-			"wo_code":                      code,
-			"production_version_id":        pvID,
-			"production_version_code":      pvCode,
-			"production_version_name_i18n": json.RawMessage(pvNameI18n),
-			"item_revision_id":             itemRevID,
-			"item_revision_code":           itemRevCode,
-			"item_revision_name_i18n":      json.RawMessage(itemRevNameI18n),
-			"item_code":                    itemCode,
-			"item_name":                    itemName,
-			"mbom_code":                    mbomCode,
-			"routing_code":                 routingCode,
-			"planning_snapshot":            json.RawMessage(planningSnapshot),
-			"quantity":                     qty,
-			"uom_id":                       uomID,
-			"site_id":                      siteID,
-			"shift_id":                     shiftID,
-			"status":                       status,
-			"row_version":                  rowVersion,
-			"created_by":                   createdBy,
-			"created_at":                   createdAt,
-			"demo_print_on_approval":       usecase.DemoPrintOnApprovalEnabled(),
+			"wo_id":                              id,
+			"wo_code":                            code,
+			"production_version_id":              pvID,
+			"production_version_code":            pvCode,
+			"production_version_name_i18n":       json.RawMessage(pvNameI18n),
+			"item_revision_id":                   itemRevID,
+			"item_revision_code":                 itemRevCode,
+			"item_revision_name_i18n":            json.RawMessage(itemRevNameI18n),
+			"item_code":                          itemCode,
+			"item_name":                          itemName,
+			"mbom_code":                          mbomCode,
+			"routing_code":                       routingCode,
+			"planning_snapshot":                  json.RawMessage(planningSnapshot),
+			"quantity":                           qty,
+			"uom_id":                             uomID,
+			"site_id":                            siteID,
+			"shift_id":                           shiftID,
+			"planned_start_at":                   plannedStartAt,
+			"planned_end_at":                     plannedEndAt,
+			"status":                             status,
+			"row_version":                        rowVersion,
+			"created_by":                         createdBy,
+			"created_at":                         createdAt,
+			"demo_print_on_approval":             usecase.DemoPrintOnApprovalEnabled(),
+			"selected_production_line_id":        selectedLineID,
+			"selected_production_line_code":      selectedLineCode,
+			"selected_production_line_name_i18n": json.RawMessage(selectedLineName),
+			"line_selection_mode":                lineMode,
+			"line_selection_status":              lineStatus,
+			"line_selection_reason":              lineReason,
+			"fallback_reason":                    fallbackReason,
+			"resource_hold_reason":               json.RawMessage(resourceHoldReason),
+			"evaluated_line_results":             json.RawMessage(evaluatedLineResults),
+			"line_locked_at":                     lineLockedAt,
 		}
 
-		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id, o.status, o.execution_target_type, o.workstation_id, o.print_station_id, o.adapter_id, o.dispatch_event_id, o.operation_cycle_count, o.expected_good_quantity, o.base_quantity, o.requires_output_label, o.units_per_label, o.label_quantity_method, o.copies_per_label, o.label_count, o.print_copies, o.print_status, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), a.allocation_id, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id, a.planned_workstation_id, a.planned_equipment_id, a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
+		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id, o.status, o.execution_target_type, o.workstation_id, o.print_station_id, o.adapter_id, o.dispatch_event_id, o.operation_cycle_count, o.expected_good_quantity, o.base_quantity, o.requires_output_label, o.units_per_label, o.label_quantity_method, o.copies_per_label, o.label_count, o.print_copies, o.print_status, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), COALESCE(o.production_line_id::text, ''), COALESCE(o.production_line_code, ''), COALESCE(o.production_line_name_i18n, '{}'::jsonb), COALESCE(o.source_routing_work_center_id::text, ''), a.allocation_id, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id, a.planned_workstation_id, a.planned_equipment_id, COALESCE(a.planned_production_line_id::text, ''), a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
 		var ops []map[string]interface{}
 		for opRows != nil && opRows.Next() {
 			var opID, opCode, wcID, opStatus, wcCode, executionTarget, labelQuantityMethod, printStatus string
-			var opNameJSON, wcNameJSON []byte
+			var opNameJSON, wcNameJSON, opLineNameJSON []byte
 			var seq, copiesPerLabel, labelCount, printCopies int
 			var operationCycleCount, expectedGoodQuantity, baseQuantity, unitsPerLabel *float64
 			var requiresOutputLabel bool
 			var snapshotWorkstationID, printStationID, adapterID, dispatchEventID *string
 			var allocationID, allocationStatus, validationStatus, shiftID, workstationID, equipmentID *string
+			var opLineID, opLineCode, sourceRoutingWorkCenterID, allocationLineID string
 			var plannedStart, plannedEnd *time.Time
 			var warningCodes []byte
-			_ = opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &executionTarget, &snapshotWorkstationID, &printStationID, &adapterID, &dispatchEventID, &operationCycleCount, &expectedGoodQuantity, &baseQuantity, &requiresOutputLabel, &unitsPerLabel, &labelQuantityMethod, &copiesPerLabel, &labelCount, &printCopies, &printStatus, &wcCode, &wcNameJSON, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &warningCodes)
+			_ = opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &executionTarget, &snapshotWorkstationID, &printStationID, &adapterID, &dispatchEventID, &operationCycleCount, &expectedGoodQuantity, &baseQuantity, &requiresOutputLabel, &unitsPerLabel, &labelQuantityMethod, &copiesPerLabel, &labelCount, &printCopies, &printStatus, &wcCode, &wcNameJSON, &opLineID, &opLineCode, &opLineNameJSON, &sourceRoutingWorkCenterID, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &allocationLineID, &warningCodes)
 			var opName map[string]string
 			if err := json.Unmarshal(opNameJSON, &opName); err != nil {
 				opName = map[string]string{"vi": opCode, "en": opCode, "ja": opCode, "ko": opCode}
@@ -744,7 +804,7 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			if len(warningCodes) > 0 {
 				_ = json.Unmarshal(warningCodes, &warnings)
 			}
-			ops = append(ops, map[string]interface{}{"wo_operation_id": opID, "sequence_no": seq, "operation_code": opCode, "operation_name": opName, "work_center_id": wcID, "work_center_code": wcCode, "work_center_name": wcName, "status": opStatus, "execution_target_type": executionTarget, "workstation_id": snapshotWorkstationID, "print_station_id": printStationID, "adapter_id": adapterID, "dispatch_event_id": dispatchEventID, "operation_cycle_count": operationCycleCount, "expected_good_quantity": expectedGoodQuantity, "base_quantity": baseQuantity, "requires_output_label": requiresOutputLabel, "units_per_label": unitsPerLabel, "label_quantity_method": labelQuantityMethod, "copies_per_label": copiesPerLabel, "label_count": labelCount, "print_copies": printCopies, "print_status": printStatus, "resource_allocation": map[string]interface{}{"allocation_id": allocationID, "status": allocationStatus, "validation_status": validationStatus, "planned_start_at": plannedStart, "planned_end_at": plannedEnd, "planned_shift_id": shiftID, "planned_workstation_id": workstationID, "planned_equipment_id": equipmentID, "warning_codes": warnings}})
+			ops = append(ops, map[string]interface{}{"wo_operation_id": opID, "sequence_no": seq, "operation_code": opCode, "operation_name": opName, "work_center_id": wcID, "work_center_code": wcCode, "work_center_name": wcName, "production_line_id": opLineID, "production_line_code": opLineCode, "production_line_name_i18n": json.RawMessage(opLineNameJSON), "source_routing_work_center_id": sourceRoutingWorkCenterID, "status": opStatus, "execution_target_type": executionTarget, "workstation_id": snapshotWorkstationID, "print_station_id": printStationID, "adapter_id": adapterID, "dispatch_event_id": dispatchEventID, "operation_cycle_count": operationCycleCount, "expected_good_quantity": expectedGoodQuantity, "base_quantity": baseQuantity, "requires_output_label": requiresOutputLabel, "units_per_label": unitsPerLabel, "label_quantity_method": labelQuantityMethod, "copies_per_label": copiesPerLabel, "label_count": labelCount, "print_copies": printCopies, "print_status": printStatus, "resource_allocation": map[string]interface{}{"allocation_id": allocationID, "status": allocationStatus, "validation_status": validationStatus, "planned_start_at": plannedStart, "planned_end_at": plannedEnd, "planned_shift_id": shiftID, "planned_workstation_id": workstationID, "planned_equipment_id": equipmentID, "planned_production_line_id": allocationLineID, "warning_codes": warnings}})
 		}
 		if opRows != nil {
 			opRows.Close()

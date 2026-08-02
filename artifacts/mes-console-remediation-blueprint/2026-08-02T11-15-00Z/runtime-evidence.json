@@ -1,0 +1,149 @@
+{
+  "generated_at": "2026-08-02T11:15:11.623Z",
+  "targetWorkOrder": [
+    {
+      "wo_id": "ad71bae7-0252-46db-a1f0-e9e0fad3c468",
+      "wo_code": "WO-20260802-0047",
+      "status": "ResourceHold",
+      "selected_production_line_id": null,
+      "selected_production_line_code": null,
+      "line_selection_mode": "AUTO",
+      "line_selection_status": "RESOURCE_HOLD",
+      "fallback_reason": null,
+      "resource_hold_reason": {
+        "code": "NO_RELEASED_EFFECTIVE_LINE_ELIGIBILITY",
+        "evaluated_lines": []
+      },
+      "evaluated_line_results": []
+    }
+  ],
+  "executionWoCount": [
+    {
+      "status": "ResourceHold",
+      "line_selection_status": "RESOURCE_HOLD",
+      "count": 2
+    }
+  ],
+  "skillScopes": [
+    {
+      "code": "SK-WC-INSPECTION",
+      "scope": "WorkCenter",
+      "lifecycle_status": "Released"
+    },
+    {
+      "code": "SK-WC-MIX-MASTER",
+      "scope": "WorkCenter",
+      "lifecycle_status": "Released"
+    },
+    {
+      "code": "SK-WC-VULCAN-OPERATOR",
+      "scope": "WorkCenter",
+      "lifecycle_status": "Released"
+    }
+  ],
+  "employeeSkills": [
+    {
+      "employee_code": "EMP-MIX-001",
+      "skill_code": "SK-WC-MIX-MASTER",
+      "scope": "WorkCenter",
+      "level": "L3"
+    },
+    {
+      "employee_code": "EMP-QC-001",
+      "skill_code": "SK-WC-INSPECTION",
+      "scope": "WorkCenter",
+      "level": "L2"
+    },
+    {
+      "employee_code": "EMP-VULCAN-001",
+      "skill_code": "SK-WC-VULCAN-OPERATOR",
+      "scope": "WorkCenter",
+      "level": "L2"
+    },
+    {
+      "employee_code": "EMP-VULCAN-002",
+      "skill_code": "SK-WC-VULCAN-OPERATOR",
+      "scope": "WorkCenter",
+      "level": "L2"
+    }
+  ],
+  "lineEligibility": [
+    {
+      "production_version_code": "PV-FG-WS-CM01-R1",
+      "production_line_code": "LINE-BASE-1",
+      "is_primary": true,
+      "priority_no": 1,
+      "efficiency_factor": "1.0000",
+      "lifecycle_status": "Released",
+      "active_flag": true
+    },
+    {
+      "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+      "production_line_code": "WST-SEED-LINE-1",
+      "is_primary": true,
+      "priority_no": 1,
+      "efficiency_factor": "1.0000",
+      "lifecycle_status": "Released",
+      "active_flag": true
+    },
+    {
+      "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+      "production_line_code": "WST-SEED-LINE-2",
+      "is_primary": false,
+      "priority_no": 2,
+      "efficiency_factor": "1.0000",
+      "lifecycle_status": "Released",
+      "active_flag": true
+    }
+  ],
+  "counts": [
+    {
+      "name": "production_lines",
+      "count": 3
+    },
+    {
+      "name": "line_eligibilities",
+      "count": 3
+    },
+    {
+      "name": "work_centers",
+      "count": 12
+    },
+    {
+      "name": "workstations",
+      "count": 12
+    },
+    {
+      "name": "equipment",
+      "count": 13
+    },
+    {
+      "name": "machine_units",
+      "count": 12
+    },
+    {
+      "name": "resource_assignments",
+      "count": 12
+    },
+    {
+      "name": "skills",
+      "count": 3
+    },
+    {
+      "name": "employees",
+      "count": 4
+    },
+    {
+      "name": "employee_skills",
+      "count": 4
+    },
+    {
+      "name": "employee_shift_schedules",
+      "count": 4
+    },
+    {
+      "name": "operation_skill_requirements",
+      "count": 3
+    }
+  ]
+}

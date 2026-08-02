@@ -1,0 +1,133 @@
+{
+  "status": "PASS",
+  "generated_at": "2026-08-02T03:30:18.145Z",
+  "mode": "--two-line-flow",
+  "safety": {
+    "passed": true,
+    "mode": "--two-line-flow",
+    "environment": "development",
+    "reasons": [],
+    "host": "staging-master",
+    "databases": {
+      "master": {
+        "host": "localhost",
+        "port": "15434",
+        "database": "mes_master_data_db",
+        "user": "mes_master_data_user",
+        "password": "[REDACTED]"
+      },
+      "execution": {
+        "host": "localhost",
+        "port": "15435",
+        "database": "mes_execution_db",
+        "user": "mes_execution_user",
+        "password": "[REDACTED]"
+      },
+      "traceability": {
+        "host": "localhost",
+        "port": "15436",
+        "database": "mes_traceability_db",
+        "user": "traceability_user",
+        "password": "[REDACTED]"
+      }
+    }
+  },
+  "artifact_path": "/home/neurosus/recoh-system/mes-system/artifacts/mes-seed-verification-20260802.json",
+  "command_results": [
+    {
+      "label": "Two-line full regression",
+      "command": "npm run test:mes:two-line-full-regression:phase9",
+      "exit_code": 0,
+      "started_at": "2026-08-02T03:30:20.880Z",
+      "ended_at": "2026-08-02T03:30:30.041Z",
+      "stdout": "\n> mom-platform@1.0.0 test:mes:two-line-full-regression:phase9\n> MES_TWO_LINE_TEST_PHASE=phase9 MES_ENV=development ALLOW_TWO_LINE_RESOURCE_PLANNING_MUTATION=true node scripts/test-mes-two-line-resource-planning-phase7.mjs\n\n[phase9] PASS migration tables and line columns exist\n[phase9] PASS primary line Ready is selected at WO creation\n[phase9] PASS primary blocked and backup Ready selects backup with fallback reason\n[phase9] PASS both lines blocked persists ResourceHold and blocks candidates\n[phase9] PASS mixed-line allocation is rejected by database trigger\n[phase9] reserved primary-capacity work_center=6c551a04-e4b6-4cf3-b92f-90ee4c97f9ce\n[phase9] PASS primary capacity full falls back to backup line\n[phase9] PASS primary calendar unavailable falls back to backup line\n[phase9] PASS primary missing required operation resource falls back to backup line\n[phase9] PASS primary maintenance-style resource outage falls back to backup line\n[phase9] reserved compete-primary work_center=135806b8-dafa-429e-bcc1-833eccc05ade\n[phase9] PASS concurrent Work Orders compete for primary line capacity deterministically\n[phase9] reserved bothcap-primary work_center=9c8ff19c-999f-471f-b0b7-a1bd2784db70\n[phase9] reserved bothcap-backup work_center=a0c9eb0a-c0c5-4cc2-bf40-a54052bf791e\n[phase9] PASS both lines at capacity puts new Work Order on ResourceHold\n[phase9] PASS historical WO line snapshot is unaffected by changed eligibility\n[phase9] PASS new Work Order uses changed line eligibility\n[phase9] PASS audited replan can change line before execution starts\n[phase9] PASS authorized line change after release but before start succeeds\n[phase9] PASS concurrent line replan rejects stale row version\n[phase9] PASS line change after execution start is rejected\n[phase9] PASS idempotent Work Order creation workflow reuses workflow\n[phase9] PASS idempotent retry creates one Work Order, one selection decision, and one WOCreated event\n[phase9] Summary {\"declared\":19,\"passed\":19,\"failed\":0,\"skipped\":0}\n",
+      "stderr": ""
+    }
+  ],
+  "seed": {
+    "production_version_id": "84f12ddd-9856-4cbc-816b-5baeccf5043f",
+    "item_revision_id": "4a264fef-69c2-48d5-87ac-69f27b3dc148",
+    "site_id": "9f785cbd-98aa-4b2c-98ef-287a189e760c",
+    "line_1_id": "8ede6ae0-d344-49dd-b0a6-649cbc138a54",
+    "line_2_id": "ecc7ed18-21ef-4285-a52b-b2637de4023c",
+    "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+    "shift_id": "39c80321-749c-4861-9b4e-c76a45dbfdac",
+    "target_date": "2026-08-03",
+    "operation_count": 4
+  },
+  "counts": {
+    "masterCounts": {
+      "production_lines": 2,
+      "work_centers": 8,
+      "workstations": 8,
+      "equipment": 8,
+      "machine_units": 8,
+      "assignments": 8,
+      "capabilities": 8,
+      "calendars": 8,
+      "operations": 4,
+      "production_versions": 1,
+      "line_eligibilities": 2
+    },
+    "orphanCounts": {
+      "line_work_center_orphans": 0,
+      "assignment_orphans": 0,
+      "eligibility_orphans": 0
+    }
+  },
+  "flow": {
+    "workflow_id": "40f74c74-0a97-48a4-9ae7-a2baa321ceb5",
+    "work_order_id": "90b2f57a-6a0a-49a7-8604-bb1c06ade36a",
+    "work_order_code": "WO-20260802-0099",
+    "selected_production_line_id": "8ede6ae0-d344-49dd-b0a6-649cbc138a54",
+    "selected_production_line_code": "WST-SEED-LINE-1",
+    "operation_count": 4,
+    "committed_count": 4,
+    "revalidation": {
+      "operations": [
+        {
+          "valid": true,
+          "wo_operation_id": "531f96a3-b7e3-4f0e-9ef9-1b3c004400bb"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "24846439-c116-4bb5-895f-9a7901006bae"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "e4734fbb-0b51-40bf-b250-ff310df89e36"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "43571aa8-dab5-47c3-aacd-3b4a0147a2c3"
+        }
+      ],
+      "valid": true,
+      "wo_id": "90b2f57a-6a0a-49a7-8604-bb1c06ade36a"
+    },
+    "approval_status": "Released"
+  },
+  "flow_cleanup": {
+    "operation_confirmations": 0,
+    "execution_sessions": 0,
+    "material_consumption": 0,
+    "print_events": 0,
+    "print_attempts": 0,
+    "capacity_reservations": 12,
+    "resource_allocation_audit": 4,
+    "allocation_idempotency": 4,
+    "print_jobs": 0,
+    "resource_allocations": 4,
+    "operation_labor_assignments": 0,
+    "materials": 1,
+    "operations": 4,
+    "approval_logs": 1,
+    "line_audit": 1,
+    "outbox_events": 6,
+    "work_orders": 1,
+    "workflow_events": 8,
+    "workflows": 1,
+    "remaining_work_orders": 0
+  },
+  "completed_at": "2026-08-02T03:30:30.041Z"
+}

@@ -64,6 +64,19 @@ const workOrderErrorKeys: Record<string, string> = {
   MACHINE_UNIT_ALREADY_RESERVED: 'resourceFoundation.machineUnitAlreadyReserved',
   PRINT_STATION_RUNTIME_NOT_AVAILABLE: 'printStation.runtimeUnavailable',
   PRINT_STATION_RUNTIME_NOT_READY: 'printStation.runtimeNotReady',
+  WO_LINE_SELECTION_REQUIRED: 'workOrders.errors.lineSelectionRequired',
+  WO_LINE_RESOURCE_HOLD: 'workOrders.errors.lineResourceHold',
+  WO_LINE_NOT_READY: 'workOrders.errors.lineNotReady',
+  WO_LINE_MIXED_ALLOCATION_REJECTED: 'workOrders.errors.mixedLineRejected',
+  WO_LINE_REPLAN_VERSION_CONFLICT: 'workOrders.errors.lineReplanVersionConflict',
+  WO_LINE_REPLAN_AFTER_START_REQUIRES_EXECUTION_SEGMENT: 'workOrders.errors.lineTransferRequiresExecutionSegment',
+  NO_RELEASED_EFFECTIVE_LINE_ELIGIBILITY: 'workOrders.errors.noReleasedEffectiveLineEligibility',
+  NO_COMPLETE_FEASIBLE_LINE: 'workOrders.errors.noCompleteFeasibleLine',
+  LINE_MISSING_WORK_CENTER: 'workOrders.errors.lineMissingWorkCenter',
+  LINE_OPERATION_CAPABILITY_MISSING: 'workOrders.errors.lineOperationCapabilityMissing',
+  LINE_PRODUCTION_STANDARD_MISSING: 'workOrders.errors.lineProductionStandardMissing',
+  LINE_RESOURCE_CALENDAR_MISSING: 'workOrders.errors.lineResourceCalendarMissing',
+  LINE_RESOURCE_CAPACITY_CONFLICT: 'workOrders.errors.lineResourceCapacityConflict',
 };
 
 export function translateWorkOrderError(raw: unknown, t: Translator): string {

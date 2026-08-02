@@ -67,3 +67,21 @@ VI is default; EN, JA, and KO are supported. Localized names are primary display
 ## Theme Architecture
 
 Existing UIs use Tailwind and shared components. Maintain restrained operational styling for enterprise workflows. Do not introduce marketing-style layouts into operational tools.
+
+## Phase 5 Two-Line UX Design
+
+Status: PARTIALLY_IMPLEMENTED.
+
+ADR-009 requires the MES Console to treat backend line state as authoritative when implemented:
+
+- Production Line list/detail/create/edit is implemented through the master-data resource screen.
+- Work Order creation remains Production-Version-authoritative.
+- Production Version detail shows primary/backup line eligibility.
+- Work Order detail shows selected line, readiness, fallback reason, blockers, and line lock state.
+- Pre-release line change requires confirmation, impact explanation, reason, mutation, invalidation, and refetch.
+- The browser must not calculate readiness or select fallback independently.
+## Phase 8 Two-Line UX
+
+Status: IMPLEMENTED_AND_VERIFIED
+
+MES Console Work Order creation and detail screens display backend-owned Production Line selection state. The UI shows Auto line selection, selected line, primary/backup evaluated results, fallback reason, `ResourceHold` blockers, line lock state, operation line scope, candidate selected-line context, and audited replan controls. The browser does not calculate line readiness; it renders persisted execution API state and posts replan reasons to the backend action.

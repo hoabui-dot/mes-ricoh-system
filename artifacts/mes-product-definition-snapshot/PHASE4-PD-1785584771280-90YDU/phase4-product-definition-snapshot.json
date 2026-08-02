@@ -1,0 +1,37 @@
+{
+  "run_id": "PHASE4-PD-1785584771280-90YDU",
+  "status": "failed",
+  "target_date": "2026-08-03",
+  "steps": [
+    {
+      "name": "baseline ready production version and validation",
+      "status": "passed",
+      "started_at": "2026-08-01T11:46:11.315Z",
+      "finished_at": "2026-08-01T11:46:11.587Z",
+      "data": {
+        "production_version": "PV-20260801-0006",
+        "validation": {
+          "production_version_id": "655c4e54-d6e2-4f38-9d79-3070f0622ad3",
+          "valid": true,
+          "failures": [],
+          "warnings": [],
+          "delegated_rules": [
+            {
+              "rule": "9",
+              "delegated_to": "mes-traceability-service",
+              "reason": "Traceability policy is outside mes-master-data-service ownership."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "work order snapshots production version routing and mbom",
+      "status": "failed",
+      "started_at": "2026-08-01T11:46:11.684Z",
+      "finished_at": "2026-08-01T11:46:11.961Z",
+      "error": "WO_RESOURCE_ALLOCATION_NOT_SEPARATE_FROM_OPERATION_SNAPSHOT"
+    }
+  ],
+  "artifact_root": "/home/neurosus/recoh-system/mes-system/artifacts/mes-product-definition-snapshot/PHASE4-PD-1785584771280-90YDU"
+}

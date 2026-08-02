@@ -41,6 +41,24 @@ func StartExecution(ctx context.Context, pool *pgxpool.Pool, input StartExecutio
 	if status != "Released" && status != "InProgress" {
 		return nil, fmt.Errorf("WO_EXECUTION_STATUS_INVALID")
 	}
+	if err := requireSelectedLineConsistency(ctx, tx, input.WOID); err != nil {
+		return nil, err
+	}
+	var operationCount, allocationCount int
+	if err := tx.QueryRow(ctx, `
+		SELECT COUNT(*)::int,
+		       COUNT(a.allocation_id)::int
+		FROM wo_operation o
+		LEFT JOIN wo_resource_allocation a
+		  ON a.wo_operation_id=o.wo_operation_id
+		 AND a.status='Committed'
+		 AND a.validation_status IN ('Valid','ValidWithWarnings')
+		WHERE o.wo_id=$1`, input.WOID).Scan(&operationCount, &allocationCount); err != nil {
+		return nil, err
+	}
+	if operationCount == 0 || allocationCount != operationCount {
+		return nil, fmt.Errorf("WO_RESOURCE_ALLOCATION_INVALID")
+	}
 	if status == "Released" {
 		if _, err := tx.Exec(ctx, `UPDATE wo_header SET status='InProgress', updated_by=$1, updated_at=NOW(), row_version=row_version+1 WHERE wo_id=$2`, input.UserID, input.WOID); err != nil {
 			return nil, err

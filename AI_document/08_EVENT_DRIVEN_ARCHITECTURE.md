@@ -92,3 +92,19 @@ sequenceDiagram
   QN->>QN: create or reuse NCR
   QN->>Kafka: QMS.Nonconformance.NCRRaised.v1
 ```
+
+## Phase 5 Two-Line Events
+
+Status: PARTIALLY_IMPLEMENTED.
+
+ADR-009 event status:
+
+- `MES.MasterData.ProductionLineReleased.v1`: IMPLEMENTED_AND_VERIFIED in Phase 6.
+- `MES.MasterData.ProductionLineWorkCenterAssigned.v1`: IMPLEMENTED_AND_VERIFIED in Phase 6.
+- `MES.MasterData.ProductionVersionLineEligibilityReleased.v1`: IMPLEMENTED_AND_VERIFIED in Phase 6.
+- MES Execution consumes these as local `rm_*` projections for Phase 7 line selection. Phase 7 verified execution persistence, API, and invariant enforcement using seeded projections; durable Kafka consumer mapping for all new line event payload variants remains implementation-sensitive and must be separately verified when the runtime event contracts are finalized.
+- `MES.Execution.WOLineSelected.v1`
+- `MES.Execution.WOResourceHoldDeclared.v1`
+- `MES.Execution.WOLineChanged.v1`
+
+Candidate previews remain read-only and must not publish events. Implementation must use versioned event names and outbox persistence where the owning service already requires durable facts.

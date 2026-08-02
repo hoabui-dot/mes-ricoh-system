@@ -79,6 +79,10 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/production-areas/new" element={<ResourceFoundationScreen entity="production-areas" />} />
         <Route path="/master-data/production-areas/:id" element={<ResourceFoundationScreen entity="production-areas" />} />
         <Route path="/master-data/production-areas/:id/edit" element={<ResourceFoundationScreen entity="production-areas" />} />
+        <Route path="/master-data/production-lines" element={<ResourceFoundationScreen entity="production-lines" />} />
+        <Route path="/master-data/production-lines/new" element={<ResourceFoundationScreen entity="production-lines" />} />
+        <Route path="/master-data/production-lines/:id" element={<ResourceFoundationScreen entity="production-lines" />} />
+        <Route path="/master-data/production-lines/:id/edit" element={<ResourceFoundationScreen entity="production-lines" />} />
         <Route path="/master-data/factories" element={<ResourceFoundationScreen entity="factories" />} />
         <Route path="/master-data/factories/new" element={<ResourceFoundationScreen entity="factories" />} />
         <Route path="/master-data/factories/:id" element={<ResourceFoundationScreen entity="factories" />} />

@@ -2764,6 +2764,257 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
         serial_state = EXCLUDED.serial_state, manual_action_required = EXCLUDED.manual_action_required;
     `,
   },
+  {
+    name: '0062_two_line_master_data',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_production_line (
+        master_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code VARCHAR(50) NOT NULL,
+        name JSONB NOT NULL,
+        description JSONB,
+        version_no INTEGER NOT NULL DEFAULT 1,
+        lifecycle_status master_lifecycle_status NOT NULL DEFAULT 'Draft',
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        created_by UUID NOT NULL DEFAULT '${SYSTEM_USER_ID}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        approved_by UUID,
+        approved_at TIMESTAMPTZ,
+        row_version INTEGER NOT NULL DEFAULT 1,
+        attributes JSONB NOT NULL DEFAULT '{}'::JSONB,
+        site_id UUID NOT NULL REFERENCES md_site(master_id),
+        area_id UUID NOT NULL REFERENCES md_production_area(master_id),
+        shopfloor_id UUID REFERENCES md_shopfloor(master_id),
+        default_shift_id UUID REFERENCES md_shift(master_id),
+        line_type VARCHAR(50) NOT NULL DEFAULT 'Production',
+        active_flag BOOLEAN NOT NULL DEFAULT TRUE,
+        CHECK (effective_to IS NULL OR effective_to > effective_from)
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_production_line_site_code_current
+        ON md_production_line(site_id, UPPER(code)) WHERE active_flag = TRUE AND effective_to IS NULL;
+      CREATE INDEX IF NOT EXISTS ix_md_production_line_site_area ON md_production_line(site_id, area_id, lifecycle_status, active_flag);
+
+      CREATE TABLE IF NOT EXISTS md_production_line_work_center (
+        line_work_center_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        production_line_id UUID NOT NULL REFERENCES md_production_line(master_id),
+        work_center_id UUID NOT NULL REFERENCES md_work_center(master_id),
+        sequence_no INTEGER NOT NULL DEFAULT 1 CHECK (sequence_no > 0),
+        mandatory_flag BOOLEAN NOT NULL DEFAULT TRUE,
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        active_flag BOOLEAN NOT NULL DEFAULT TRUE,
+        created_by UUID NOT NULL DEFAULT '${SYSTEM_USER_ID}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        row_version INTEGER NOT NULL DEFAULT 1,
+        CHECK (effective_to IS NULL OR effective_to > effective_from)
+      );
+      CREATE INDEX IF NOT EXISTS ix_md_line_work_center_line ON md_production_line_work_center(production_line_id, active_flag, effective_from, effective_to);
+      CREATE INDEX IF NOT EXISTS ix_md_line_work_center_wc ON md_production_line_work_center(work_center_id, active_flag, effective_from, effective_to);
+
+      CREATE TABLE IF NOT EXISTS md_production_line_resource_scope (
+        scope_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        production_line_id UUID NOT NULL REFERENCES md_production_line(master_id),
+        resource_assignment_id UUID NOT NULL REFERENCES md_resource_assignment(master_id),
+        work_center_id UUID NOT NULL REFERENCES md_work_center(master_id),
+        workstation_id UUID REFERENCES md_workstation(master_id),
+        equipment_id UUID REFERENCES md_equipment(master_id),
+        machine_group_id UUID REFERENCES md_workstation_machine_group(master_id),
+        machine_unit_id UUID REFERENCES md_machine_unit(machine_unit_id),
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        active_flag BOOLEAN NOT NULL DEFAULT TRUE,
+        created_by UUID NOT NULL DEFAULT '${SYSTEM_USER_ID}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        row_version INTEGER NOT NULL DEFAULT 1,
+        CHECK (effective_to IS NULL OR effective_to > effective_from)
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_line_resource_scope_current
+        ON md_production_line_resource_scope(production_line_id, resource_assignment_id)
+        WHERE active_flag = TRUE AND effective_to IS NULL;
+      CREATE INDEX IF NOT EXISTS ix_md_line_resource_scope_assignment ON md_production_line_resource_scope(resource_assignment_id, active_flag, effective_from, effective_to);
+
+      CREATE TABLE IF NOT EXISTS md_production_version_line_eligibility (
+        eligibility_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        production_version_id UUID NOT NULL REFERENCES md_production_version(master_id),
+        production_line_id UUID NOT NULL REFERENCES md_production_line(master_id),
+        is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+        priority_no INTEGER NOT NULL CHECK (priority_no > 0),
+        efficiency_factor NUMERIC(8,4) NOT NULL DEFAULT 1 CHECK (efficiency_factor > 0),
+        selection_mode VARCHAR(40) NOT NULL DEFAULT 'AutoPrimaryThenBackup'
+          CHECK (selection_mode IN ('AutoPrimaryThenBackup','ManualBeforeRelease','PrimaryOnly')),
+        selection_policy VARCHAR(80) NOT NULL DEFAULT 'PrimaryThenBackup',
+        lifecycle_status master_lifecycle_status NOT NULL DEFAULT 'Draft',
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        active_flag BOOLEAN NOT NULL DEFAULT TRUE,
+        created_by UUID NOT NULL DEFAULT '${SYSTEM_USER_ID}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        row_version INTEGER NOT NULL DEFAULT 1,
+        attributes JSONB NOT NULL DEFAULT '{}'::JSONB,
+        CHECK (effective_to IS NULL OR effective_to > effective_from)
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_pv_line_eligibility_current
+        ON md_production_version_line_eligibility(production_version_id, production_line_id)
+        WHERE active_flag = TRUE AND effective_to IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_pv_line_eligibility_primary_current
+        ON md_production_version_line_eligibility(production_version_id)
+        WHERE active_flag = TRUE AND is_primary = TRUE AND effective_to IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_md_pv_line_eligibility_priority_current
+        ON md_production_version_line_eligibility(production_version_id, priority_no)
+        WHERE active_flag = TRUE AND effective_to IS NULL;
+
+      CREATE OR REPLACE FUNCTION fn_validate_production_line_context()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      DECLARE area_site UUID; shopfloor_site UUID; shift_site UUID;
+      BEGIN
+        SELECT site_id INTO area_site FROM md_production_area WHERE master_id = NEW.area_id;
+        IF area_site IS NULL OR area_site <> NEW.site_id THEN
+          RAISE EXCEPTION 'PRODUCTION_LINE_AREA_SITE_MISMATCH';
+        END IF;
+        IF NEW.shopfloor_id IS NOT NULL THEN
+          SELECT site_id INTO shopfloor_site FROM md_shopfloor WHERE master_id = NEW.shopfloor_id;
+          IF shopfloor_site IS NULL OR shopfloor_site <> NEW.site_id THEN
+            RAISE EXCEPTION 'PRODUCTION_LINE_SHOPFLOOR_SITE_MISMATCH';
+          END IF;
+        END IF;
+        IF NEW.default_shift_id IS NOT NULL THEN
+          SELECT site_id INTO shift_site FROM md_shift WHERE master_id = NEW.default_shift_id;
+          IF shift_site IS NULL OR shift_site <> NEW.site_id THEN
+            RAISE EXCEPTION 'PRODUCTION_LINE_SHIFT_SITE_MISMATCH';
+          END IF;
+        END IF;
+        RETURN NEW;
+      END; $$;
+
+      CREATE OR REPLACE FUNCTION fn_validate_line_work_center_context()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      DECLARE line_row RECORD; wc_row RECORD;
+      BEGIN
+        SELECT site_id, area_id, lifecycle_status, active_flag INTO line_row FROM md_production_line WHERE master_id = NEW.production_line_id;
+        SELECT site_id, area_id, lifecycle_status, active_flag INTO wc_row FROM md_work_center WHERE master_id = NEW.work_center_id;
+        IF line_row.site_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_LINE_NOT_FOUND'; END IF;
+        IF wc_row.site_id IS NULL THEN RAISE EXCEPTION 'WORK_CENTER_NOT_FOUND'; END IF;
+        IF line_row.site_id <> wc_row.site_id THEN RAISE EXCEPTION 'PRODUCTION_LINE_WORK_CENTER_SITE_MISMATCH'; END IF;
+        IF line_row.area_id IS NOT NULL AND wc_row.area_id IS NOT NULL AND line_row.area_id <> wc_row.area_id THEN RAISE EXCEPTION 'PRODUCTION_LINE_WORK_CENTER_AREA_MISMATCH'; END IF;
+        IF NEW.active_flag = TRUE AND EXISTS (
+          SELECT 1 FROM md_production_line_work_center existing
+          WHERE existing.line_work_center_id <> COALESCE(NEW.line_work_center_id, '00000000-0000-0000-0000-000000000000'::uuid)
+            AND existing.work_center_id = NEW.work_center_id
+            AND existing.active_flag = TRUE
+            AND tstzrange(existing.effective_from, COALESCE(existing.effective_to, 'infinity'::timestamptz), '[)')
+                && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')
+        ) THEN
+          RAISE EXCEPTION 'WORK_CENTER_LINE_OWNERSHIP_OVERLAP';
+        END IF;
+        RETURN NEW;
+      END; $$;
+
+      CREATE OR REPLACE FUNCTION fn_validate_line_resource_scope()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      DECLARE line_site UUID; assignment_row RECORD;
+      BEGIN
+        SELECT site_id INTO line_site FROM md_production_line WHERE master_id = NEW.production_line_id;
+        SELECT site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id INTO assignment_row
+        FROM md_resource_assignment WHERE master_id = NEW.resource_assignment_id;
+        IF line_site IS NULL THEN RAISE EXCEPTION 'PRODUCTION_LINE_NOT_FOUND'; END IF;
+        IF assignment_row.site_id IS NULL THEN RAISE EXCEPTION 'RESOURCE_ASSIGNMENT_NOT_FOUND'; END IF;
+        IF assignment_row.site_id <> line_site THEN RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_SITE_MISMATCH'; END IF;
+        IF assignment_row.work_center_id <> NEW.work_center_id THEN RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_WORK_CENTER_MISMATCH'; END IF;
+        IF assignment_row.workstation_id IS DISTINCT FROM NEW.workstation_id
+           OR assignment_row.equipment_id IS DISTINCT FROM NEW.equipment_id
+           OR assignment_row.machine_group_id IS DISTINCT FROM NEW.machine_group_id
+           OR assignment_row.machine_unit_id IS DISTINCT FROM NEW.machine_unit_id THEN
+          RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_ASSIGNMENT_SNAPSHOT_MISMATCH';
+        END IF;
+        IF NOT EXISTS (
+          SELECT 1 FROM md_production_line_work_center lwc
+          WHERE lwc.production_line_id = NEW.production_line_id
+            AND lwc.work_center_id = NEW.work_center_id
+            AND lwc.active_flag = TRUE
+            AND tstzrange(lwc.effective_from, COALESCE(lwc.effective_to, 'infinity'::timestamptz), '[)')
+                && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')
+        ) THEN
+          RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_WORK_CENTER_NOT_SCOPED';
+        END IF;
+        RETURN NEW;
+      END; $$;
+
+      CREATE OR REPLACE FUNCTION fn_validate_pv_line_eligibility()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      DECLARE pv_row RECORD; line_row RECORD; missing_count INTEGER;
+      BEGIN
+        SELECT master_id, site_id, routing_header_id, lifecycle_status, effective_from, effective_to INTO pv_row
+        FROM md_production_version WHERE master_id = NEW.production_version_id;
+        SELECT master_id, site_id, lifecycle_status, active_flag, effective_from, effective_to INTO line_row
+        FROM md_production_line WHERE master_id = NEW.production_line_id;
+        IF pv_row.master_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_VERSION_NOT_FOUND'; END IF;
+        IF line_row.master_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_LINE_NOT_FOUND'; END IF;
+        IF pv_row.site_id <> line_row.site_id THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_SITE_MISMATCH'; END IF;
+        IF pv_row.lifecycle_status <> 'Released' THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_PV_NOT_RELEASED'; END IF;
+        IF line_row.lifecycle_status <> 'Released' OR line_row.active_flag <> TRUE THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_NOT_RELEASED'; END IF;
+        SELECT COUNT(*)::INTEGER INTO missing_count
+        FROM md_routing_operation ro
+        JOIN md_operation op ON op.master_id = ro.operation_id
+        WHERE ro.routing_header_id = pv_row.routing_header_id
+          AND ro.effective_to IS NULL
+          AND ro.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND op.is_schedulable = TRUE
+          AND NOT EXISTS (
+            SELECT 1
+            FROM md_production_line_work_center lwc
+            JOIN md_resource_capability rc ON rc.work_center_id = lwc.work_center_id
+              AND rc.operation_id = ro.operation_id
+              AND rc.eligibility = TRUE
+              AND rc.active_flag = TRUE
+              AND rc.lifecycle_status = 'Released'
+            WHERE lwc.production_line_id = NEW.production_line_id
+              AND lwc.active_flag = TRUE
+              AND tstzrange(lwc.effective_from, COALESCE(lwc.effective_to, 'infinity'::timestamptz), '[)')
+                  && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')
+          );
+        IF missing_count > 0 THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_OPERATION_CAPABILITY_UNRESOLVED'; END IF;
+        RETURN NEW;
+      END; $$;
+
+      DROP TRIGGER IF EXISTS trg_validate_production_line_context ON md_production_line;
+      CREATE TRIGGER trg_validate_production_line_context
+        BEFORE INSERT OR UPDATE ON md_production_line
+      FOR EACH ROW EXECUTE FUNCTION fn_validate_production_line_context();
+
+      DROP TRIGGER IF EXISTS trg_validate_line_work_center_context ON md_production_line_work_center;
+      CREATE TRIGGER trg_validate_line_work_center_context
+        BEFORE INSERT OR UPDATE ON md_production_line_work_center
+      FOR EACH ROW EXECUTE FUNCTION fn_validate_line_work_center_context();
+
+      DROP TRIGGER IF EXISTS trg_validate_line_resource_scope ON md_production_line_resource_scope;
+      CREATE TRIGGER trg_validate_line_resource_scope
+        BEFORE INSERT OR UPDATE ON md_production_line_resource_scope
+      FOR EACH ROW EXECUTE FUNCTION fn_validate_line_resource_scope();
+
+      DROP TRIGGER IF EXISTS trg_validate_pv_line_eligibility ON md_production_version_line_eligibility;
+      CREATE TRIGGER trg_validate_pv_line_eligibility
+        BEFORE INSERT OR UPDATE ON md_production_version_line_eligibility
+      FOR EACH ROW EXECUTE FUNCTION fn_validate_pv_line_eligibility();
+
+      DROP TRIGGER IF EXISTS trg_md_production_line_audit ON md_production_line;
+      CREATE TRIGGER trg_md_production_line_audit BEFORE INSERT OR UPDATE ON md_production_line
+      FOR EACH ROW EXECUTE FUNCTION fn_set_audit_timestamps();
+      DROP TRIGGER IF EXISTS trg_md_production_line_lifecycle ON md_production_line;
+      CREATE TRIGGER trg_md_production_line_lifecycle BEFORE UPDATE ON md_production_line
+      FOR EACH ROW EXECUTE FUNCTION fn_validate_master_lifecycle();
+      DROP TRIGGER IF EXISTS trg_md_production_line_protect_released ON md_production_line;
+      CREATE TRIGGER trg_md_production_line_protect_released BEFORE UPDATE ON md_production_line
+      FOR EACH ROW EXECUTE FUNCTION fn_protect_released_master();
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

@@ -1,0 +1,22 @@
+{
+  "success": false,
+  "generated_at": "2026-08-02T09:13:50.445Z",
+  "safety": {
+    "passed": true,
+    "reasons": [],
+    "environment": "development"
+  },
+  "command_results": [
+    {
+      "label": "Build MES Master Data service before importing seed",
+      "command": "npm --prefix services/mes-master-data-service run build",
+      "exit_code": 0,
+      "started_at": "2026-08-02T09:13:50.447Z",
+      "ended_at": "2026-08-02T09:13:57.195Z",
+      "stdout": "\n> mes-master-data-service@1.0.0 build\n> tsc\n\n",
+      "stderr": ""
+    }
+  ],
+  "error": "PRODUCTION_LINE_WORK_CENTER_AREA_MISMATCH",
+  "completed_at": "2026-08-02T09:13:57.433Z"
+}

@@ -60,3 +60,27 @@ Services use `X-Trace-ID` and user/role headers such as `X-User-ID` and `X-Role-
 ## CORS
 
 MES execution explicitly allows `Authorization`, `X-User-ID`, `X-Role-Code`, `X-Trace-ID`, and `Idempotency-Key`. When adding headers, update CORS and client behavior together.
+
+## Phase 5 Two-Line API Design
+
+Status: PARTIALLY_IMPLEMENTED.
+
+Phase 6 implemented Production Line CRUD/lifecycle, Work Center line assignment, Production Version Line Eligibility, and Production Version line-readiness preview APIs in MES Master Data.
+
+Phase 7 implemented MES Execution line-selection API behavior:
+
+- Work Order creation returns line-selection state and snapshots the selected line or `ResourceHold`.
+- `GET /api/mes/execution/work-orders/{id}/line-readiness` returns the persisted line decision and evaluated line results.
+- `POST /api/mes/execution/work-orders/{id}/line-replan` performs an audited replan before execution start and rejects in-place transfer after start.
+- `GET resource-candidates` blocks `ResourceHold` or line-less Work Orders before calling advisory planner services.
+- Allocation, approval, start-execution, and operation-start paths revalidate selected-line consistency.
+
+Stable future error codes include:
+
+- `WO_LINE_SELECTION_REQUIRED`
+- `WO_LINE_RESOURCE_HOLD`
+- `WO_LINE_NOT_ELIGIBLE`
+- `WO_LINE_NOT_READY`
+- `WO_LINE_MIXED_ALLOCATION_REJECTED`
+- `WO_LINE_LOCKED`
+- `WO_LINE_IDEMPOTENCY_MISMATCH`

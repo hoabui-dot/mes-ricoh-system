@@ -35,6 +35,14 @@ const names = {
   pvNameVi: 'Cấu hình E2E WO in nhãn',
   operationPrefix: 'E2E-WO-OP-',
 };
+
+function defaultPlanningDate() {
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
 const ownedOperationNames = ['Chuẩn bị', 'In nhãn vật lý', 'Xác nhận chất lượng'];
 const headers = { 'Content-Type': 'application/json', 'X-User-ID': userId, 'X-Role-Code': roleCode, 'X-Trace-ID': traceId };
 const json = (value) => JSON.stringify(value, null, 2);
@@ -297,6 +305,28 @@ async function ensureDemoMachineGroup(context) {
   const group = result.rows[0];
   if (!group) throw new Error(`SEED_PLANNING: machine group ${requestedCode} is required for the deterministic demo workstation`);
   if (Number(group.active_member_count) < 1 || Number(group.primary_count) !== 1) throw new Error(`SEED_PLANNING: machine group ${requestedCode} must have exactly one active primary member`);
+  const primary = (await master.query(`
+    SELECT ra.master_id AS assignment_id, ra.equipment_id, ra.machine_unit_id
+    FROM md_resource_assignment ra
+    WHERE ra.machine_group_id=$1 AND ra.assignment_role='Primary' AND ra.effective_to IS NULL
+    ORDER BY ra.sequence_no LIMIT 1`, [group.master_id])).rows[0];
+  if (!primary?.equipment_id || !primary?.machine_unit_id) throw new Error(`SEED_PLANNING: machine group ${requestedCode} primary member must have equipment and machine unit`);
+  await master.query(`
+    UPDATE md_equipment
+    SET site_id=$1, work_center_id=$2, lifecycle_status='Released', active_flag=TRUE,
+        execution_status='Available', planning_resource_flag=TRUE, effective_to=NULL,
+        updated_by=$3, updated_at=NOW()
+    WHERE master_id=$4`, [context.site.master_id, context.workCenter.master_id, userId, primary.equipment_id]);
+  await master.query(`
+    UPDATE md_machine_unit
+    SET active_flag=TRUE, execution_status='Available', physical_identity_status='Identified',
+        planning_resource_flag=TRUE, updated_at=NOW()
+    WHERE machine_unit_id=$1`, [primary.machine_unit_id]);
+  await master.query(`
+    UPDATE md_resource_assignment
+    SET site_id=$1, work_center_id=$2, workstation_id=$3, lifecycle_status='Released',
+        scheduling_flag=TRUE, effective_to=NULL, updated_by=$4, updated_at=NOW()
+    WHERE master_id=$5`, [context.site.master_id, context.workCenter.master_id, context.workstation.master_id, userId, primary.assignment_id]);
   if (group.lifecycle_status !== 'Released') {
     await master.query(`UPDATE md_workstation_machine_group SET name=$1::jsonb, lifecycle_status='Released', updated_by=$2, updated_at=NOW(), effective_to=NULL WHERE master_id=$3`, [JSON.stringify({ vi: 'Nhóm máy demo in nhãn', en: 'E2E label printing machine group', ja: 'E2Eラベル印刷マシングループ', ko: 'E2E 라벨 인쇄 머신 그룹' }), userId, group.master_id]);
   } else {
@@ -575,7 +605,7 @@ async function main() {
   if (!guard.passed) throw new Error(`ENVIRONMENT_SAFETY: ${guard.reasons.join('; ')}`);
   await master.connect(); await execution.connect(); await traceability.connect();
   const context = await getContext();
-  const targetDate = process.env.E2E_WO_TARGET_DATE || new Date().toISOString().slice(0, 10);
+  const targetDate = process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
   const plan = { ownedCodes: names, reused: { site: context.site.code, work_center: context.workCenter.code, workstation: context.workstation.code, component_revision: context.component.code, uom: context.pcs.code }, mode };
   await writeJson('seed-plan.json', plan);
   if (mode === 'dry-run') { console.log(json({ success: true, mode, artifactDir, plan })); return; }

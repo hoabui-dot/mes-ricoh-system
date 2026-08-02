@@ -8,6 +8,7 @@
 ## Demo-Only Features
 
 - Won Seal Tech machine fixture uses deterministic `WST-*` namespace for demos/tests.
+- Phase 10 MES reset/seed uses deterministic `WST-SEED-*` MES-owned rows. The legacy E2E WO seed still delegates to the separate WMS repository and is not part of the default Phase 10 reset contract unless `PHASE10_INCLUDE_LEGACY_E2E_SEED=true` and WMS seed environment is explicitly configured.
 - QMS demo dataset is deterministic and idempotent and does not emit Kafka events.
 - Offline print-station allowances are for database/UI fixture verification, not physical print proof.
 
@@ -47,3 +48,5 @@
 - DLQ/replay strategy if not already implemented in shared kernels.
 - Complete event schema coverage.
 - More exhaustive WMS and QMS source-derived API documentation.
+- Two Production Line master data and Production Version Line Eligibility are implemented in Phase 6. MES Execution selected-line snapshots, automatic primary-to-backup selection, `ResourceHold`, audited pre-start replan, and mixed-line persistence/execution rejection are IMPLEMENTED_AND_VERIFIED in Phase 7.
+- Full rich resource-candidate generation remains delegated to the Master Data Resource Planning API. Phase 7 verifies execution-side line gating and persistence; planner-side machine-maintenance/operator/workstation candidate richness must remain covered by the resource-planning API/E2E suites.

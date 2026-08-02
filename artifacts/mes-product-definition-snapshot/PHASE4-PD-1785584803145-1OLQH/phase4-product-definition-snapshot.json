@@ -1,0 +1,76 @@
+{
+  "run_id": "PHASE4-PD-1785584803145-1OLQH",
+  "status": "failed",
+  "target_date": "2026-08-03",
+  "steps": [
+    {
+      "name": "baseline ready production version and validation",
+      "status": "passed",
+      "started_at": "2026-08-01T11:46:43.179Z",
+      "finished_at": "2026-08-01T11:46:43.401Z",
+      "data": {
+        "production_version": "PV-20260801-0006",
+        "validation": {
+          "production_version_id": "655c4e54-d6e2-4f38-9d79-3070f0622ad3",
+          "valid": true,
+          "failures": [],
+          "warnings": [],
+          "delegated_rules": [
+            {
+              "rule": "9",
+              "delegated_to": "mes-traceability-service",
+              "reason": "Traceability policy is outside mes-master-data-service ownership."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "work order snapshots production version routing and mbom",
+      "status": "passed",
+      "started_at": "2026-08-01T11:46:43.456Z",
+      "finished_at": "2026-08-01T11:46:43.706Z",
+      "data": {
+        "work_order_id": "a4c4a694-6bbe-42c2-9170-0975b82d2018",
+        "operation_count": 3,
+        "material_count": 1,
+        "planning_snapshot": {
+          "mbom_id": "ec8c66bf-6fe7-42ea-aeaf-5847860303ae",
+          "shift_id": "39c80321-749c-4861-9b4e-c76a45dbfdac",
+          "routing_id": "4df34603-914a-4e1a-8677-b90d5a53e41c",
+          "production_version_id": "655c4e54-d6e2-4f38-9d79-3070f0622ad3",
+          "production_version_code": "PV-20260801-0006"
+        }
+      }
+    },
+    {
+      "name": "ebom does not drive work order material requirements",
+      "status": "passed",
+      "started_at": "2026-08-01T11:46:43.706Z",
+      "finished_at": "2026-08-01T11:46:43.715Z",
+      "data": {
+        "wo_material_rows_from_mbom": 1,
+        "released_ebom_lines": 1,
+        "ebom_used_for_material_requirements": false
+      }
+    },
+    {
+      "name": "snapshot immutability after master data changes",
+      "status": "passed",
+      "started_at": "2026-08-01T11:46:43.715Z",
+      "finished_at": "2026-08-01T11:46:43.787Z",
+      "data": {
+        "work_order_id": "a4c4a694-6bbe-42c2-9170-0975b82d2018",
+        "unchanged": true
+      }
+    },
+    {
+      "name": "negative validation matrix",
+      "status": "failed",
+      "started_at": "2026-08-01T11:46:43.787Z",
+      "finished_at": "2026-08-01T11:46:43.866Z",
+      "error": "POST /production-versions/655c4e54-d6e2-4f38-9d79-3070f0622ad3/validate -> 422: {\"production_version_id\":\"655c4e54-d6e2-4f38-9d79-3070f0622ad3\",\"valid\":false,\"failures\":[{\"rule\":\"1\",\"severity\":\"ERROR\",\"code\":\"ITEM_REVISION.NOT_RELEASED\"}],\"warnings\":[],\"delegated_rules\":[{\"rule\":\"9\",\"delegated_to\":\"mes-traceability-service\",\"reason\":\"Traceability policy is outside mes-master-data-service ownership.\"}]}"
+    }
+  ],
+  "artifact_root": "/home/neurosus/recoh-system/mes-system/artifacts/mes-product-definition-snapshot/PHASE4-PD-1785584803145-1OLQH"
+}

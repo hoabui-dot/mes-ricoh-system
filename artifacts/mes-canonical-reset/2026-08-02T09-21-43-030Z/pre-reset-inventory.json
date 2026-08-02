@@ -1,0 +1,1819 @@
+{
+  "generated_at": "2026-08-02T09:21:44.449Z",
+  "mode": "reset",
+  "safety": {
+    "passed": true,
+    "mode": "reset",
+    "environment": "development",
+    "reasons": [],
+    "host": "staging-master",
+    "git": {
+      "branch": "main",
+      "commit": "76bc03e"
+    },
+    "databases": {
+      "master": {
+        "host": "localhost",
+        "port": "15434",
+        "database": "mes_master_data_db",
+        "user": "mes_master_data_user",
+        "password": "[REDACTED]"
+      },
+      "execution": {
+        "host": "localhost",
+        "port": "15435",
+        "database": "mes_execution_db",
+        "user": "mes_execution_user",
+        "password": "[REDACTED]"
+      },
+      "traceability": {
+        "host": "localhost",
+        "port": "15436",
+        "database": "mes_traceability_db",
+        "user": "traceability_user",
+        "password": "[REDACTED]"
+      },
+      "kiosk": {
+        "host": "localhost",
+        "port": "15437",
+        "database": "mes_kiosk_gateway_db",
+        "user": "mes_kiosk_user",
+        "password": "[REDACTED]"
+      }
+    }
+  },
+  "compose": {
+    "ls": {
+      "command": "docker compose ls --format json",
+      "exit_code": 0,
+      "stdout": "[{\"Name\":\"deploymentlocalllm\",\"Status\":\"running(5)\",\"ConfigFiles\":\"/home/neurosus/DeploymentLocalLLM/docker-compose.yml\"},{\"Name\":\"mes-factory-website\",\"Status\":\"running(1)\",\"ConfigFiles\":\"/home/neurosus/mes-factory-website/docker-compose.yml\"},{\"Name\":\"mes-platform\",\"Status\":\"running(3)\",\"ConfigFiles\":\"/home/neurosus/print-marking/printer-marking/mes-platform/docker-compose.yml\"},{\"Name\":\"mom-platform\",\"Status\":\"running(29)\",\"ConfigFiles\":\"/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.print-station.yml,/home/neurosus/mes-system/infra/docker-compose.mes.yml,/home/neurosus/mes-system/infra/docker-compose.wms.yml,/home/neurosus/mes-system/infra/docker-compose.qms.yml,/home/neurosus/mes-system/infra/docker-compose.yml\"},{\"Name\":\"neuraagent\",\"Status\":\"restarting(1), running(26)\",\"ConfigFiles\":\"/home/neurosus/NeuraAgent/docker-compose.yml,/home/neurosus/NeuraAgent/docker-compose.dozzle.yml\"},{\"Name\":\"pda-backend\",\"Status\":\"running(2)\",\"ConfigFiles\":\"/home/neurosus/recoh-system/pda-backend/docker/compose.yml\"},{\"Name\":\"ricoh-wms\",\"Status\":\"running(9)\",\"ConfigFiles\":\"/home/neurosus/recoh-system/ricoh-wms/docker-compose.yml\"},{\"Name\":\"station-agent\",\"Status\":\"running(7)\",\"ConfigFiles\":\"/home/neurosus/mes-system/print-marking/station-agent/docker-compose.yml,/home/neurosus/print-marking/printer-marking/station-agent/docker-compose.yml\"}]\n",
+      "stderr": ""
+    },
+    "ps": {
+      "command": "docker ps --filter label=com.docker.compose.project=mom-platform --format {{json .}}",
+      "exit_code": 0,
+      "stdout": "{\"Command\":\"\\\"./server\\\"\",\"CreatedAt\":\"2026-08-02 03:26:50 +0000 UTC\",\"ID\":\"91b6455ee9f2\",\"Image\":\"mom-platform-mes-execution-service\",\"Labels\":\"com.docker.compose.config-hash=9694b209ebf9634c5236ec1fa6b3b9fa746bbcb76352e73cbf7d6214ea9fa3b7,com.docker.compose.container-number=1,com.docker.compose.depends_on=mes-execution-db:service_healthy:false,kafka:service_healthy:false,schema-registry:service_healthy:false,mes-master-data-service:service_healthy:false,com.docker.compose.image=sha256:602d758c6824900f05f538215b891f8c871324cfe5bd3a2a51fd911916890348,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-execution-service,com.docker.compose.service=mes-execution-service,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"mes-execution-service\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13030-\\u003e3030/tcp, [::]:13030-\\u003e3030/tcp\",\"RunningFor\":\"6 hours ago\",\"Size\":\"0B (virtual 38.8MB)\",\"State\":\"running\",\"Status\":\"Up 6 hours (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-08-01 13:08:54 +0000 UTC\",\"ID\":\"beddb2ec6c88\",\"Image\":\"mom-platform-mes-master-data-service\",\"Labels\":\"com.docker.compose.config-hash=a2c49a0f16309360a3c8ce68abeb213dcecf6fe2ab04f67f772907abbcb819dd,com.docker.compose.container-number=1,com.docker.compose.depends_on=kafka:service_healthy:false,schema-registry:service_healthy:false,mes-master-data-db:service_healthy:false,com.docker.compose.image=sha256:c3ec3c431661c2fca760164fdf9af599b87cc8b954ba39a83b4bd52488f23e3b,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-master-data-service,com.docker.compose.service=mes-master-data-service,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"mes-master-data-service\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13020-\\u003e3020/tcp, [::]:13020-\\u003e3020/tcp\",\"RunningFor\":\"20 hours ago\",\"Size\":\"0B (virtual 370MB)\",\"State\":\"running\",\"Status\":\"Up 20 hours (healthy)\"}\n{\"Command\":\"\\\"/docker-entrypoint.…\\\"\",\"CreatedAt\":\"2026-08-01 11:37:19 +0000 UTC\",\"ID\":\"b6c5ededfa7b\",\"Image\":\"mom-platform-mes-console\",\"Labels\":\"com.docker.compose.config-hash=554ee5d10ca34c1681c50534bf4f424c1e909459d3efa46aba2a5033d6d150b5,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:a73d4b2857ead96db1c5d5c48d58816f7e115390e352620decce8fe2ff8925ab,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-console,com.docker.compose.service=mes-console,com.docker.compose.version=5.1.0,maintainer=NGINX Docker Maintainers \\u003cdocker-maint@nginx.com\\u003e\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"mes-console\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"80/tcp, 0.0.0.0:13052-\\u003e3052/tcp, [::]:13052-\\u003e3052/tcp\",\"RunningFor\":\"22 hours ago\",\"Size\":\"1.09kB (virtual 64MB)\",\"State\":\"running\",\"Status\":\"Up 22 hours\"}\n{\"Command\":\"\\\"/docker-entrypoint.…\\\"\",\"CreatedAt\":\"2026-08-01 11:26:30 +0000 UTC\",\"ID\":\"b6da4bce435a\",\"Image\":\"kong:3.7\",\"Labels\":\"com.docker.compose.config-hash=f2ab073dba2ec13832d560ad29ed8ac48d9cdf29414606cb0c250f79731cf4cf,com.docker.compose.container-number=1,com.docker.compose.depends_on=keycloak:service_healthy:false,com.docker.compose.image=sha256:8735a1e440dfc38ecde22829c9e3e6ea3b6c06eec2c7c08d987e7eb16489dfba,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-kong,com.docker.compose.service=kong,com.docker.compose.version=5.1.0,maintainer=Kong Docker Maintainers \\u003cdocker@konghq.com\\u003e (@team-gateway-bot),org.opencontainers.image.ref.name=ubuntu,org.opencontainers.image.version=22.04\",\"LocalVolumes\":\"0\",\"Mounts\":\"/home/neurosus…\",\"Names\":\"platform-kong\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"8443-8444/tcp, 0.0.0.0:18000-\\u003e8000/tcp, [::]:18000-\\u003e8000/tcp, 0.0.0.0:18001-\\u003e8001/tcp, [::]:18001-\\u003e8001/tcp\",\"RunningFor\":\"22 hours ago\",\"Size\":\"523kB (virtual 300MB)\",\"State\":\"running\",\"Status\":\"Up 22 hours (healthy)\"}\n{\"Command\":\"\\\"./server\\\"\",\"CreatedAt\":\"2026-08-01 09:52:19 +0000 UTC\",\"ID\":\"06cd5c5cebdd\",\"Image\":\"mom-platform-mes-traceability-service\",\"Labels\":\"com.docker.compose.config-hash=377214996f4627974e27f8a8c6dc4e3694e3a304bc1502b08810bc88f48bb101,com.docker.compose.container-number=1,com.docker.compose.depends_on=mes-traceability-db:service_healthy:false,kafka:service_healthy:false,schema-registry:service_healthy:false,mes-master-data-service:service_healthy:false,com.docker.compose.image=sha256:ef80eb12d6a6c953b2ae1169acb99720488a95052a7267dc2544e4fc349d7b8c,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-traceability-service,com.docker.compose.service=mes-traceability-service,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"mes-traceability-service\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13040-\\u003e3040/tcp, [::]:13040-\\u003e3040/tcp\",\"RunningFor\":\"23 hours ago\",\"Size\":\"0B (virtual 32.8MB)\",\"State\":\"running\",\"Status\":\"Up 23 hours\"}\n{\"Command\":\"\\\"/docker-entrypoint.…\\\"\",\"CreatedAt\":\"2026-08-01 09:52:18 +0000 UTC\",\"ID\":\"b9e9414d6dbb\",\"Image\":\"mom-platform-kiosk-operator-ui\",\"Labels\":\"com.docker.compose.config-hash=037b12ce5e307e7106c1afd4b91e4df2442cea93adc4c6e0f63be22865ae3530,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:a3362830fc78bc6f64f2b53755bcc262b1440da62854f19552182a6deb2e62f2,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=kiosk-operator-ui,com.docker.compose.service=kiosk-operator-ui,com.docker.compose.version=5.1.0,maintainer=NGINX Docker Maintainers \\u003cdocker-maint@nginx.com\\u003e\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"kiosk-operator-ui\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"80/tcp, 0.0.0.0:13051-\\u003e3051/tcp, [::]:13051-\\u003e3051/tcp\",\"RunningFor\":\"23 hours ago\",\"Size\":\"1.09kB (virtual 62.7MB)\",\"State\":\"running\",\"Status\":\"Up 23 hours\"}\n{\"Command\":\"\\\"./server\\\"\",\"CreatedAt\":\"2026-08-01 09:52:18 +0000 UTC\",\"ID\":\"69477d7cf9d8\",\"Image\":\"mom-platform-mes-kiosk-gateway-service\",\"Labels\":\"com.docker.compose.config-hash=89b354f36c14c021330f98fb0d5c8ae4e132041d4cafe7b0811838fd1ec46e80,com.docker.compose.container-number=1,com.docker.compose.depends_on=kafka:service_healthy:false,keycloak:service_healthy:false,mes-kiosk-gateway-db:service_healthy:false,com.docker.compose.image=sha256:6f82d850967b1935077044941795bc945b1787c67ca634f9aa5be2abd9c1aff4,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.platform.yml,/home/neurosus/recoh-system/mes-system/infra/docker-compose.mes.yml,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-kiosk-gateway-service,com.docker.compose.service=mes-kiosk-gateway-service,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"mes-kiosk-gateway-service\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13050-\\u003e3050/tcp, [::]:13050-\\u003e3050/tcp\",\"RunningFor\":\"23 hours ago\",\"Size\":\"0B (virtual 25.8MB)\",\"State\":\"running\",\"Status\":\"Up 23 hours\"}\n{\"Command\":\"\\\"/run.sh\\\"\",\"CreatedAt\":\"2026-08-01 03:30:58 +0000 UTC\",\"ID\":\"ba9e2f270af9\",\"Image\":\"grafana/grafana:10.4.2\",\"Labels\":\"com.docker.compose.config-hash=f3d80cf1eb61216ecf8928d98812d45091eebe686214241e8f50746b3ca561a8,com.docker.compose.container-number=1,com.docker.compose.depends_on=prometheus:service_started:false,loki:service_started:false,tempo:service_started:false,com.docker.compose.image=sha256:679e4be9f9184b60905bc3c9297d293d0070f1d1155017877cf0199b1f1b787c,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-grafana,com.docker.compose.service=grafana,com.docker.compose.version=5.1.0,maintainer=Grafana Labs \\u003chello@grafana.com\\u003e\",\"LocalVolumes\":\"1\",\"Mounts\":\"/home/neurosus…,mom-platform_g…\",\"Names\":\"platform-grafana\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13001-\\u003e3000/tcp, [::]:13001-\\u003e3000/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"0B (virtual 429MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"/otelcol-contrib --…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:58 +0000 UTC\",\"ID\":\"92945d730967\",\"Image\":\"otel/opentelemetry-collector-contrib:0.99.0\",\"Labels\":\"com.docker.compose.config-hash=44600c7dfc6c2fdc204fa76d2095f7a3d63008502c954bb42f90aa19c231259f,com.docker.compose.container-number=1,com.docker.compose.depends_on=tempo:service_started:false,loki:service_started:false,prometheus:service_started:false,com.docker.compose.image=sha256:676745b2349fc244b04676d2b43114db918361e0161875dd4917264981da7280,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-otel-collector,com.docker.compose.service=otel-collector,com.docker.compose.version=5.1.0,org.opencontainers.image.created=2024-04-23T00:03:29Z,org.opencontainers.image.licenses=Apache-2.0,org.opencontainers.image.name=opentelemetry-collector-releases,org.opencontainers.image.revision=d2c96926b8b02e370d420df625dbc47cfbafa1cc,org.opencontainers.image.source=https://github.com/open-telemetry/opentelemetry-collector-releases,org.opencontainers.image.version=0.99.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"/home/neurosus…\",\"Names\":\"platform-otel-collector\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"55678-55679/tcp, 0.0.0.0:14317-\\u003e4317/tcp, [::]:14317-\\u003e4317/tcp, 0.0.0.0:14318-\\u003e4318/tcp, [::]:14318-\\u003e4318/tcp, 0.0.0.0:18888-\\u003e8888/tcp, [::]:18888-\\u003e8888/tcp, 0.0.0.0:18889-\\u003e8889/tcp, [::]:18889-\\u003e8889/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"0B (virtual 252MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"/docker-entrypoint.…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:48 +0000 UTC\",\"ID\":\"55b5aefc73cf\",\"Image\":\"mom-platform-portal\",\"Labels\":\"com.docker.compose.config-hash=f256917ca452ec7bc311efb0770be653c34e40db98816970d44f17754047c5d1,com.docker.compose.container-number=1,com.docker.compose.depends_on=keycloak:service_healthy:false,com.docker.compose.image=sha256:287ffc50cfe9aed63d9a1b9f09ccd5526d64de344ce7e91246b3a322eaa06e56,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-portal,com.docker.compose.service=portal,com.docker.compose.version=5.1.0,maintainer=NGINX Docker Maintainers \\u003cdocker-maint@nginx.com\\u003e\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"platform-portal\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13000-\\u003e80/tcp, [::]:13000-\\u003e80/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"817B (virtual 49.5MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours (healthy)\"}\n{\"Command\":\"\\\"/docker-entrypoint.…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:48 +0000 UTC\",\"ID\":\"4d4e417332a0\",\"Image\":\"mom-platform-qms-console\",\"Labels\":\"com.docker.compose.config-hash=7d0ae3369b0f3da38136141fe8bc0b03adad6508a5715319620c82a054e2c038,com.docker.compose.container-number=1,com.docker.compose.depends_on=qms-nonconformance-service:service_started:false,qms-inspection-service:service_started:false,com.docker.compose.image=sha256:3cb80e906cfb2388f101cec3f5dcb40cd8bbfa2354b0b8497b6f4d5e3dc31c5c,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=qms-console,com.docker.compose.service=qms-console,com.docker.compose.version=5.1.0,maintainer=NGINX Docker Maintainers \\u003cdocker-maint@nginx.com\\u003e\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"qms-console\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13130-\\u003e80/tcp, [::]:13130-\\u003e80/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"1.09kB (virtual 63.1MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:48 +0000 UTC\",\"ID\":\"3e10ff3a62bc\",\"Image\":\"mom-platform-qms-nonconformance-service\",\"Labels\":\"com.docker.compose.config-hash=65eb0246b3415b35eadaaf71fe147266cc664bb2d0abf509365540e3a19b5128,com.docker.compose.container-number=1,com.docker.compose.depends_on=schema-registry:service_healthy:false,qms-inspection-service:service_started:false,qms-nonconformance-db:service_healthy:false,kafka:service_healthy:false,com.docker.compose.image=sha256:900a0eed2d1fc0808fbe208d572ff003eedfc34de3767bf8593d88622f014cc9,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=qms-nonconformance-service,com.docker.compose.service=qms-nonconformance-service,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"qms-nonconformance-service\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13120-\\u003e3120/tcp, [::]:13120-\\u003e3120/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"0B (virtual 370MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:48 +0000 UTC\",\"ID\":\"76d848bb0080\",\"Image\":\"mom-platform-qms-inspection-service\",\"Labels\":\"com.docker.compose.config-hash=4472995e67a935c003f0277f87a7b4a6c0ad1e331b6929f985510cec75755d7d,com.docker.compose.container-number=1,com.docker.compose.depends_on=qms-inspection-db:service_healthy:false,kafka:service_healthy:false,schema-registry:service_healthy:false,mes-master-data-service:service_healthy:false,com.docker.compose.image=sha256:38fbdfb337aef05f9603cb252d1d3c6441ad6bfcb12cf72764ec406e57265d33,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=qms-inspection-service,com.docker.compose.service=qms-inspection-service,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"qms-inspection-service\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13110-\\u003e3110/tcp, [::]:13110-\\u003e3110/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"0B (virtual 371MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:46 +0000 UTC\",\"ID\":\"8a9ed76ea072\",\"Image\":\"postgres:16-alpine\",\"Labels\":\"com.docker.compose.config-hash=657446effe3903a66072e8f2b19e112c7fea26c38bcecfae6d8af6c3c4521c5d,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:108b27c919e6e7bc124350fb265deea9adac58e118eade428c6d1ad44b90debe,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=qms-inspection-db,com.docker.compose.service=qms-inspection-db,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"1\",\"Mounts\":\"/home/neurosus…,mom-platform_q…\",\"Names\":\"qms-inspection-db\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:15442-\\u003e5432/tcp, [::]:15442-\\u003e5432/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"63B (virtual 276MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:46 +0000 UTC\",\"ID\":\"5f5eedd1d882\",\"Image\":\"postgres:16-alpine\",\"Labels\":\"com.docker.compose.config-hash=149e37db824224e8cf3b01ac8f175c20dae90a7a39ccf5046ec0de444f84e216,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:108b27c919e6e7bc124350fb265deea9adac58e118eade428c6d1ad44b90debe,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=qms-nonconformance-db,com.docker.compose.service=qms-nonconformance-db,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"1\",\"Mounts\":\"/home/neurosus…,mom-platform_q…\",\"Names\":\"qms-nonconformance-db\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:15443-\\u003e5432/tcp, [::]:15443-\\u003e5432/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"63B (virtual 276MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours (healthy)\"}\n{\"Command\":\"\\\"/usr/bin/loki -conf…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:46 +0000 UTC\",\"ID\":\"a91e53386e67\",\"Image\":\"grafana/loki:3.0.0\",\"Labels\":\"com.docker.compose.config-hash=6bce4b125f63f8a54965e03cc78af0cfd0b5436a300d347c945ce1895dcc2217,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:b3ac890121a80b80e4d3bab6909a0bf54e75695e0ca71138d4dae8bbd68fc384,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-loki,com.docker.compose.service=loki,com.docker.compose.version=5.1.0,org.opencontainers.image.created=2024-04-08T19:20:27Z,org.opencontainers.image.revision=b4f7181c7aa9484e66976e8a933111a9b85ea8c2,org.opencontainers.image.source=https://github.com/grafana/loki.git,org.opencontainers.image.url=https://github.com/grafana/loki\",\"LocalVolumes\":\"1\",\"Mounts\":\"/home/neurosus…,mom-platform_l…\",\"Names\":\"platform-loki\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13100-\\u003e3100/tcp, [::]:13100-\\u003e3100/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"0B (virtual 80.4MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"/opt/keycloak/bin/k…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:46 +0000 UTC\",\"ID\":\"3347f2699305\",\"Image\":\"quay.io/keycloak/keycloak:24.0.4\",\"Labels\":\"architecture=x86_64,build-date=2024-04-25T17:06:25,com.docker.compose.config-hash=ef92071a73e3f73630ae9772179175885dd1c25d0b5cced6624e1803a99c3d25,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:c8bfd0bc98f00d67d22fda7ec4583534e762dd27df47f02491cbc4663a0f563f,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-keycloak,com.docker.compose.service=keycloak,com.docker.compose.version=5.1.0,com.redhat.component=ubi9-micro-container,com.redhat.license_terms=https://www.redhat.com/en/about/red-hat-end-user-license-agreements#UBI,description=Very small image which doesn't install the package manager.,distribution-scope=public,io.buildah.version=1.29.0,io.k8s.description=Very small image which doesn't install the package manager.,io.k8s.display-name=Ubi9-micro,io.openshift.expose-services=,maintainer=Red Hat, Inc.,name=ubi9/ubi-micro,org.opencontainers.image.created=2024-05-08T06:35:48.423Z,org.opencontainers.image.description=,org.opencontainers.image.licenses=Apache-2.0,org.opencontainers.image.revision=568246e4b593686585a0ba430e06c16e91ba38ac,org.opencontainers.image.source=https://github.com/keycloak-rel/keycloak-rel,org.opencontainers.image.title=keycloak-rel,org.opencontainers.image.url=https://github.com/keycloak-rel/keycloak-rel,org.opencontainers.image.version=24.0.4,release=6,summary=ubi9 micro image,url=https://access.redhat.com/containers/#/registry.access.redhat.com/ubi9/ubi-micro/images/9.4-6,vcs-ref=433dec61d526247ac9533c1d9b97e98a1127c782,vcs-type=git,vendor=Red Hat, Inc.,version=9.4\",\"LocalVolumes\":\"1\",\"Mounts\":\"mom-platform_k…,/home/neurosus…\",\"Names\":\"platform-keycloak\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"8443/tcp, 0.0.0.0:18080-\\u003e8080/tcp, [::]:18080-\\u003e8080/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"176MB (virtual 635MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours (healthy)\"}\n{\"Command\":\"\\\"/bin/prometheus --c…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:46 +0000 UTC\",\"ID\":\"390464b888a8\",\"Image\":\"prom/prometheus:v2.51.2\",\"Labels\":\"com.docker.compose.config-hash=88cc5747f43b9e6980ae9625b948ffb991db6cb5c627be17db5425cc461eb003,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:051cb67876a609e838c4be62bf88348ba896b8411d17b3221743a1d31466a114,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-prometheus,com.docker.compose.service=prometheus,com.docker.compose.version=5.1.0,maintainer=The Prometheus Authors \\u003cprometheus-developers@googlegroups.com\\u003e\",\"LocalVolumes\":\"1\",\"Mounts\":\"/home/neurosus…,mom-platform_p…\",\"Names\":\"platform-prometheus\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:19090-\\u003e9090/tcp, [::]:19090-\\u003e9090/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"0B (virtual 262MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"/tempo -config.file…\\\"\",\"CreatedAt\":\"2026-08-01 03:30:46 +0000 UTC\",\"ID\":\"0348081342f0\",\"Image\":\"grafana/tempo:2.4.2\",\"Labels\":\"com.docker.compose.config-hash=10824aa22149c9bd5e51aff5e26cf906eeb3073d0f379734f9ce09d8e010ba45,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:88430d3a2e52fa873b22a631d9bd21e63053658b7b8ebae6efc8d73ed2ebcb25,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/recoh-system/mes-system/infra/docker-compose.yml,com.docker.compose.project.environment_file=/home/neurosus/recoh-system/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/recoh-system/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-tempo,com.docker.compose.service=tempo,com.docker.compose.version=5.1.0,org.opencontainers.image.created=2024-05-15T13:15:18Z,org.opencontainers.image.revision=2225623e72362fa29496b1f3fcba337c4a982687,org.opencontainers.image.source=https://github.com/grafana/tempo.git,org.opencontainers.image.url=https://github.com/grafana/tempo\",\"LocalVolumes\":\"1\",\"Mounts\":\"/home/neurosus…,mom-platform_t…\",\"Names\":\"platform-tempo\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:13200-\\u003e3200/tcp, [::]:13200-\\u003e3200/tcp, 0.0.0.0:14319-\\u003e4317/tcp, [::]:14319-\\u003e4317/tcp\",\"RunningFor\":\"30 hours ago\",\"Size\":\"0B (virtual 111MB)\",\"State\":\"running\",\"Status\":\"Up 30 hours\"}\n{\"Command\":\"\\\"/entrypoint.sh\\\"\",\"CreatedAt\":\"2026-07-29 12:50:33 +0000 UTC\",\"ID\":\"a2b1ca943121\",\"Image\":\"mom-platform-station-kiosk-ui\",\"Labels\":\"com.docker.compose.config-hash=5eb4a4e5968c35bbe8ea57afaf476a21f011e52bfea410551769b39e66b2ed30,com.docker.compose.container-number=1,com.docker.compose.depends_on=station-projection-service:service_healthy:false,print-station-redis:service_healthy:false,com.docker.compose.image=sha256:ec1163dca66c7279defdb9a725cabfba7297651c25095285808a42d6eca88292,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.print-station.yml,com.docker.compose.project.environment_file=/home/neurosus/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=station-kiosk-ui,com.docker.compose.service=station-kiosk-ui,com.docker.compose.version=5.1.0,org.opencontainers.image.version=24.04\",\"LocalVolumes\":\"2\",\"Mounts\":\"mom-platform_p…,ac310fef5e5c84…\",\"Names\":\"station-kiosk-ui\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:5007-\\u003e5007/tcp, [::]:5007-\\u003e5007/tcp\",\"RunningFor\":\"3 days ago\",\"Size\":\"1kB (virtual 269MB)\",\"State\":\"running\",\"Status\":\"Up 3 days (healthy)\"}\n{\"Command\":\"\\\"/entrypoint.sh\\\"\",\"CreatedAt\":\"2026-07-29 12:46:24 +0000 UTC\",\"ID\":\"d06a22b35180\",\"Image\":\"mom-platform-station-projection-service\",\"Labels\":\"com.docker.compose.config-hash=73e2d5b1d4977074cfae69999ed210739e3dfc612a5b6a19665388edbd019744,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:a2d45c6cd94d55c43dba0c04983b5aaafc0fa7b97f234bef45ce50be34271fdd,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.print-station.yml,com.docker.compose.project.environment_file=/home/neurosus/mes-system/infra/.env,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=station-projection-service,com.docker.compose.service=station-projection-service,com.docker.compose.version=5.1.0,org.opencontainers.image.version=24.04\",\"LocalVolumes\":\"2\",\"Mounts\":\"mom-platform_p…,86cef119c12547…\",\"Names\":\"station-projection-service\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:5009-\\u003e5009/tcp, [::]:5009-\\u003e5009/tcp\",\"RunningFor\":\"3 days ago\",\"Size\":\"0B (virtual 267MB)\",\"State\":\"running\",\"Status\":\"Up 3 days (healthy)\"}\n{\"Command\":\"\\\"/etc/confluent/dock…\\\"\",\"CreatedAt\":\"2026-07-29 04:23:55 +0000 UTC\",\"ID\":\"9a0517f2a024\",\"Image\":\"confluentinc/cp-kafka:7.6.1\",\"Labels\":\"architecture=x86_64,build-date=2024-03-27T02:10:48,com.docker.compose.config-hash=9ccc200d8aab592bf4ff5c1025042aecb6d3f1b0bda6e943f546ae6bdf8b7ee1,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:5b4c63590c11c99c6ffe8f50c95741a7d9d85dbd6e28ec31a65982c2d3bdd902,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.mes.yml,/home/neurosus/mes-system/infra/docker-compose.wms.yml,/home/neurosus/mes-system/infra/docker-compose.qms.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=platform-kafka,com.docker.compose.service=kafka,com.docker.compose.version=5.1.0,com.redhat.component=ubi8-minimal-container,com.redhat.license_terms=https://www.redhat.com/en/about/red-hat-end-user-license-agreements#UBI,description=Common base image for Confluent's Docker images.,distribution-scope=public,io.buildah.version=1.29.0,io.confluent.docker.build.number=2,io.confluent.docker.git.id=e15392e3c,io.confluent.docker.git.repo=confluentinc/kafka-images,io.confluent.docker=true,io.k8s.description=The Universal Base Image Minimal is a stripped down image that uses microdnf as a package manager. This base image is freely redistributable, but Red Hat only supports Red Hat technologies through subscriptions for Red Hat products. This image is maintained by Red Hat and updated regularly.,io.k8s.display-name=Red Hat Universal Base Image 8 Minimal,io.openshift.expose-services=,io.openshift.tags=minimal rhel8,maintainer=partner-support@confluent.io,name=cp-kafka,release=7.6.1,summary=Confluent platform Kafka.,url=https://access.redhat.com/containers/#/registry.access.redhat.com/ubi8-minimal/images/8.9-1161,vcs-ref=7e7670a8c8c9a3be83beaa2787f3703b404d4a1d,vcs-type=git,vendor=Confluent,version=e15392e3c\",\"LocalVolumes\":\"2\",\"Mounts\":\"mom-platform_k…,05057d19859f4c…\",\"Names\":\"platform-kafka\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:19092-\\u003e9092/tcp, [::]:19092-\\u003e9092/tcp, 0.0.0.0:19093-\\u003e9093/tcp, [::]:19093-\\u003e9093/tcp\",\"RunningFor\":\"4 days ago\",\"Size\":\"1.32MB (virtual 803MB)\",\"State\":\"running\",\"Status\":\"Up 4 days (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-07-29 04:23:55 +0000 UTC\",\"ID\":\"0bd0ebc65955\",\"Image\":\"postgres:16-alpine\",\"Labels\":\"com.docker.compose.config-hash=eddea65eb5262255b2a76c593ba3e7e93882fe62c6300f8627e58f999a4b7b06,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:108b27c919e6e7bc124350fb265deea9adac58e118eade428c6d1ad44b90debe,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.mes.yml,/home/neurosus/mes-system/infra/docker-compose.wms.yml,/home/neurosus/mes-system/infra/docker-compose.qms.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-traceability-db,com.docker.compose.service=mes-traceability-db,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"1\",\"Mounts\":\"mom-platform_m…\",\"Names\":\"mes-traceability-db\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:15436-\\u003e5432/tcp, [::]:15436-\\u003e5432/tcp\",\"RunningFor\":\"4 days ago\",\"Size\":\"63B (virtual 276MB)\",\"State\":\"running\",\"Status\":\"Up 4 days (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-07-29 04:23:55 +0000 UTC\",\"ID\":\"84c08c0f90c0\",\"Image\":\"postgres:16-alpine\",\"Labels\":\"com.docker.compose.config-hash=6ab6556b72c5fed4296e4c23e4791d3c60a02369d22f498b32c311ae6c9e6334,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:108b27c919e6e7bc124350fb265deea9adac58e118eade428c6d1ad44b90debe,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.mes.yml,/home/neurosus/mes-system/infra/docker-compose.wms.yml,/home/neurosus/mes-system/infra/docker-compose.qms.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-execution-db,com.docker.compose.service=mes-execution-db,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"1\",\"Mounts\":\"mom-platform_m…\",\"Names\":\"mes-execution-db\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:15435-\\u003e5432/tcp, [::]:15435-\\u003e5432/tcp\",\"RunningFor\":\"4 days ago\",\"Size\":\"63B (virtual 276MB)\",\"State\":\"running\",\"Status\":\"Up 4 days (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-07-29 04:23:55 +0000 UTC\",\"ID\":\"82f5fda6c301\",\"Image\":\"postgres:16-alpine\",\"Labels\":\"com.docker.compose.config-hash=5b42f68a931fc74e15def64710dbdc8303143bc6de6dddfc3af1567c4cc7c6c8,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:108b27c919e6e7bc124350fb265deea9adac58e118eade428c6d1ad44b90debe,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.mes.yml,/home/neurosus/mes-system/infra/docker-compose.wms.yml,/home/neurosus/mes-system/infra/docker-compose.qms.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-master-data-db,com.docker.compose.service=mes-master-data-db,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"1\",\"Mounts\":\"mom-platform_m…\",\"Names\":\"mes-master-data-db\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:15434-\\u003e5432/tcp, [::]:15434-\\u003e5432/tcp\",\"RunningFor\":\"4 days ago\",\"Size\":\"63B (virtual 276MB)\",\"State\":\"running\",\"Status\":\"Up 4 days (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-07-29 04:23:55 +0000 UTC\",\"ID\":\"be22424ded5c\",\"Image\":\"postgres:16-alpine\",\"Labels\":\"com.docker.compose.config-hash=9d68cd2e16215f6c901721785f583c057efa91148d81c1e69fcc779ea4e232a2,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:108b27c919e6e7bc124350fb265deea9adac58e118eade428c6d1ad44b90debe,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.mes.yml,/home/neurosus/mes-system/infra/docker-compose.wms.yml,/home/neurosus/mes-system/infra/docker-compose.qms.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.replace=mes-kiosk-gateway-db,com.docker.compose.service=mes-kiosk-gateway-db,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"1\",\"Mounts\":\"mom-platform_m…\",\"Names\":\"mes-kiosk-gateway-db\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:15437-\\u003e5432/tcp, [::]:15437-\\u003e5432/tcp\",\"RunningFor\":\"4 days ago\",\"Size\":\"63B (virtual 276MB)\",\"State\":\"running\",\"Status\":\"Up 4 days (healthy)\"}\n{\"Command\":\"\\\"/bin/sh -c 'java --…\\\"\",\"CreatedAt\":\"2026-07-28 12:00:38 +0000 UTC\",\"ID\":\"dc718f6e49f4\",\"Image\":\"provectuslabs/kafka-ui:latest\",\"Labels\":\"com.docker.compose.config-hash=5b1e67a06b5296848b7b50d217da5a1f2ca8a1c22dd4a8099bd48ffa1b70f862,com.docker.compose.container-number=1,com.docker.compose.depends_on=schema-registry:service_healthy:false,kafka:service_healthy:false,com.docker.compose.image=sha256:99307ab28a49d7bfa4102e3f4961eccb607c7ad9a3aa83c604b14705e6ff0896,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.service=kafka-ui,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"0\",\"Mounts\":\"\",\"Names\":\"platform-kafka-ui\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:18082-\\u003e8080/tcp, [::]:18082-\\u003e8080/tcp\",\"RunningFor\":\"4 days ago\",\"Size\":\"32.8kB (virtual 291MB)\",\"State\":\"running\",\"Status\":\"Up 4 days\"}\n{\"Command\":\"\\\"/etc/confluent/dock…\\\"\",\"CreatedAt\":\"2026-07-28 12:00:38 +0000 UTC\",\"ID\":\"c0506ee26f61\",\"Image\":\"confluentinc/cp-schema-registry:7.6.1\",\"Labels\":\"architecture=x86_64,build-date=2024-03-27T02:10:48,com.docker.compose.config-hash=0ad909a5c3ca05865cd40cce306f0257b2ecc8845426427efbe0601da88b7348,com.docker.compose.container-number=1,com.docker.compose.depends_on=kafka:service_healthy:false,com.docker.compose.image=sha256:f773d6bb386e2f57677deb69a7762f48a7dc998f9e81ce9c2f6bb66de3cbc02d,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.service=schema-registry,com.docker.compose.version=5.1.0,com.redhat.component=ubi8-minimal-container,com.redhat.license_terms=https://www.redhat.com/en/about/red-hat-end-user-license-agreements#UBI,description=Confluent Schema Registry provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof.,distribution-scope=public,io.buildah.version=1.29.0,io.confluent.docker.build.number=2,io.confluent.docker.git.id=5410e900,io.confluent.docker.git.repo=confluentinc/schema-registry-images,io.confluent.docker=true,io.k8s.description=The Universal Base Image Minimal is a stripped down image that uses microdnf as a package manager. This base image is freely redistributable, but Red Hat only supports Red Hat technologies through subscriptions for Red Hat products. This image is maintained by Red Hat and updated regularly.,io.k8s.display-name=Red Hat Universal Base Image 8 Minimal,io.openshift.expose-services=,io.openshift.tags=minimal rhel8,maintainer=partner-support@confluent.io,name=cp-schema-registry,release=7.6.1,summary=Confluent Schema Registry provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof.,url=https://access.redhat.com/containers/#/registry.access.redhat.com/ubi8-minimal/images/8.9-1161,vcs-ref=7e7670a8c8c9a3be83beaa2787f3703b404d4a1d,vcs-type=git,vendor=Confluent,version=5410e900\",\"LocalVolumes\":\"1\",\"Mounts\":\"e4fd694ea560f5…\",\"Names\":\"platform-schema-registry\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"0.0.0.0:18081-\\u003e8081/tcp, [::]:18081-\\u003e8081/tcp\",\"RunningFor\":\"4 days ago\",\"Size\":\"33.2kB (virtual 2GB)\",\"State\":\"running\",\"Status\":\"Up 4 days (healthy)\"}\n{\"Command\":\"\\\"docker-entrypoint.s…\\\"\",\"CreatedAt\":\"2026-07-27 17:32:19 +0000 UTC\",\"ID\":\"1c0004656228\",\"Image\":\"redis:7.4-alpine\",\"Labels\":\"com.docker.compose.config-hash=f0a15623361c43818f699e1259d8d372521830d8f613a9c1fad2229af189984f,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:487efc0616382465781b8fdc3d6d1db449e6fd80ae23bf48432a2da6b6929908,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/home/neurosus/mes-system/infra/docker-compose.platform.yml,/home/neurosus/mes-system/infra/docker-compose.print-station.yml,com.docker.compose.project.working_dir=/home/neurosus/mes-system/infra,com.docker.compose.project=mom-platform,com.docker.compose.service=print-station-redis,com.docker.compose.version=5.1.0\",\"LocalVolumes\":\"1\",\"Mounts\":\"mom-platform_p…\",\"Names\":\"print-station-redis\",\"Networks\":\"platform-net\",\"Platform\":null,\"Ports\":\"6379/tcp\",\"RunningFor\":\"5 days ago\",\"Size\":\"0B (virtual 39.1MB)\",\"State\":\"running\",\"Status\":\"Up 5 days (healthy)\"}\n",
+      "stderr": ""
+    }
+  },
+  "component_boundary": [
+    {
+      "component": "MES Master Data Service",
+      "container": "mes-master-data-service",
+      "database_store": "mes_master_data_db",
+      "owner": "MES Master Data",
+      "data_classification": "Business master data and master-data outbox",
+      "reset": "RESET_REQUIRED",
+      "reason": "Canonical seed rebuilds the disposable MES master data baseline.",
+      "inspected_databases": [
+        "master",
+        "execution",
+        "traceability",
+        "kiosk"
+      ]
+    },
+    {
+      "component": "MES Execution Service",
+      "container": "mes-execution-service",
+      "database_store": "mes_execution_db",
+      "owner": "MES Execution",
+      "data_classification": "Work Orders, snapshots, allocations, read models, print jobs, outbox",
+      "reset": "RESET_REQUIRED",
+      "reason": "Old execution state must not influence UAT flows.",
+      "inspected_databases": [
+        "master",
+        "execution",
+        "traceability",
+        "kiosk"
+      ]
+    },
+    {
+      "component": "MES Traceability Service",
+      "container": "mes-traceability-service",
+      "database_store": "mes_traceability_db",
+      "owner": "MES Traceability",
+      "data_classification": "Traceability policies, labels, genealogy, outbox",
+      "reset": "RESET_REQUIRED",
+      "reason": "Canonical traceability seed is deterministic and disposable.",
+      "inspected_databases": [
+        "master",
+        "execution",
+        "traceability",
+        "kiosk"
+      ]
+    },
+    {
+      "component": "MES Kiosk Gateway Service",
+      "container": "mes-kiosk-gateway-service",
+      "database_store": "mes_kiosk_gateway_db",
+      "owner": "MES Kiosk Gateway",
+      "data_classification": "Terminals, sessions, outbound queue",
+      "reset": "RESET_REQUIRED",
+      "reason": "Disposable MES runtime/session data.",
+      "inspected_databases": [
+        "master",
+        "execution",
+        "traceability",
+        "kiosk"
+      ]
+    },
+    {
+      "component": "Kafka/Schema Registry/Keycloak/Kong/QMS/WMS/Printer Adapter",
+      "container": "platform/shared/non-MES",
+      "database_store": "Shared or non-MES",
+      "owner": "Platform or other bounded context",
+      "data_classification": "Infrastructure or non-MES business data",
+      "reset": "PRESERVE",
+      "reason": "Explicitly outside reset boundary.",
+      "inspected_databases": [
+        "master",
+        "execution",
+        "traceability",
+        "kiosk"
+      ]
+    }
+  ],
+  "databases": {
+    "master": {
+      "owner": "master",
+      "database": {
+        "host": "localhost",
+        "port": "15434",
+        "database": "mes_master_data_db",
+        "user": "mes_master_data_user",
+        "password": "[REDACTED]"
+      },
+      "tables": [
+        "i18n_data_quality_flag",
+        "md_business_code_reservation",
+        "md_component_substitute",
+        "md_component_substitute_approval_audit",
+        "md_ebom_header",
+        "md_ebom_line",
+        "md_employee",
+        "md_employee_shift_schedule",
+        "md_employee_skill",
+        "md_equipment",
+        "md_item",
+        "md_item_revision",
+        "md_item_revision_numbering",
+        "md_item_revision_temporal_audit",
+        "md_item_revision_temporal_reconciliation",
+        "md_legacy_skill_migration_map",
+        "md_machine_unit",
+        "md_machine_unit_migration_reconciliation",
+        "md_material_group",
+        "md_mbom_header",
+        "md_mbom_legacy_revision_audit",
+        "md_mbom_line",
+        "md_operation",
+        "md_operation_skill_requirement",
+        "md_print_station",
+        "md_print_station_runtime_events",
+        "md_print_station_runtime_projection",
+        "md_production_area",
+        "md_production_line",
+        "md_production_line_resource_scope",
+        "md_production_line_work_center",
+        "md_production_standard",
+        "md_production_version",
+        "md_production_version_line_eligibility",
+        "md_reason_code",
+        "md_resource_assignment",
+        "md_resource_calendar",
+        "md_resource_capability",
+        "md_resource_numbering_daily",
+        "md_resource_skill_assignment",
+        "md_role_permission",
+        "md_routing_header",
+        "md_routing_numbering_daily",
+        "md_routing_operation",
+        "md_shift",
+        "md_shopfloor",
+        "md_site",
+        "md_skill",
+        "md_skill_group",
+        "md_structure_ownership_reconciliation",
+        "md_uom",
+        "md_uom_conversion",
+        "md_user_resource_scope",
+        "md_work_center",
+        "md_work_center_composition",
+        "md_work_instruction",
+        "md_workstation",
+        "md_workstation_machine_group",
+        "md_workstation_machine_requirement",
+        "md_workstation_operation_capability",
+        "md_workstation_print_station_binding",
+        "outbox_events",
+        "schema_migrations"
+      ],
+      "targetTables": [
+        "i18n_data_quality_flag",
+        "md_business_code_reservation",
+        "md_component_substitute",
+        "md_component_substitute_approval_audit",
+        "md_ebom_header",
+        "md_ebom_line",
+        "md_employee",
+        "md_employee_shift_schedule",
+        "md_employee_skill",
+        "md_equipment",
+        "md_item",
+        "md_item_revision",
+        "md_item_revision_numbering",
+        "md_item_revision_temporal_audit",
+        "md_item_revision_temporal_reconciliation",
+        "md_legacy_skill_migration_map",
+        "md_machine_unit",
+        "md_machine_unit_migration_reconciliation",
+        "md_material_group",
+        "md_mbom_header",
+        "md_mbom_legacy_revision_audit",
+        "md_mbom_line",
+        "md_operation",
+        "md_operation_skill_requirement",
+        "md_print_station",
+        "md_print_station_runtime_events",
+        "md_print_station_runtime_projection",
+        "md_production_area",
+        "md_production_line",
+        "md_production_line_resource_scope",
+        "md_production_line_work_center",
+        "md_production_standard",
+        "md_production_version",
+        "md_production_version_line_eligibility",
+        "md_reason_code",
+        "md_resource_assignment",
+        "md_resource_calendar",
+        "md_resource_capability",
+        "md_resource_numbering_daily",
+        "md_resource_skill_assignment",
+        "md_role_permission",
+        "md_routing_header",
+        "md_routing_numbering_daily",
+        "md_routing_operation",
+        "md_shift",
+        "md_shopfloor",
+        "md_site",
+        "md_skill",
+        "md_skill_group",
+        "md_structure_ownership_reconciliation",
+        "md_uom",
+        "md_uom_conversion",
+        "md_user_resource_scope",
+        "md_work_center",
+        "md_work_center_composition",
+        "md_work_instruction",
+        "md_workstation",
+        "md_workstation_machine_group",
+        "md_workstation_machine_requirement",
+        "md_workstation_operation_capability",
+        "md_workstation_print_station_binding",
+        "outbox_events"
+      ],
+      "preservedTables": [
+        "schema_migrations"
+      ],
+      "rowCounts": {
+        "i18n_data_quality_flag": 0,
+        "md_business_code_reservation": 0,
+        "md_component_substitute": 0,
+        "md_component_substitute_approval_audit": 0,
+        "md_ebom_header": 1,
+        "md_ebom_line": 1,
+        "md_employee": 1,
+        "md_employee_shift_schedule": 1,
+        "md_employee_skill": 1,
+        "md_equipment": 11,
+        "md_item": 8,
+        "md_item_revision": 8,
+        "md_item_revision_numbering": 0,
+        "md_item_revision_temporal_audit": 0,
+        "md_item_revision_temporal_reconciliation": 0,
+        "md_legacy_skill_migration_map": 0,
+        "md_machine_unit": 10,
+        "md_machine_unit_migration_reconciliation": 0,
+        "md_material_group": 5,
+        "md_mbom_header": 3,
+        "md_mbom_legacy_revision_audit": 0,
+        "md_mbom_line": 7,
+        "md_operation": 10,
+        "md_operation_skill_requirement": 3,
+        "md_print_station": 0,
+        "md_print_station_runtime_events": 0,
+        "md_print_station_runtime_projection": 0,
+        "md_production_area": 2,
+        "md_production_line": 3,
+        "md_production_line_resource_scope": 8,
+        "md_production_line_work_center": 12,
+        "md_production_standard": 15,
+        "md_production_version": 2,
+        "md_production_version_line_eligibility": 3,
+        "md_reason_code": 1,
+        "md_resource_assignment": 10,
+        "md_resource_calendar": 13,
+        "md_resource_capability": 14,
+        "md_resource_numbering_daily": 0,
+        "md_resource_skill_assignment": 0,
+        "md_role_permission": 1,
+        "md_routing_header": 2,
+        "md_routing_numbering_daily": 0,
+        "md_routing_operation": 10,
+        "md_shift": 1,
+        "md_shopfloor": 1,
+        "md_site": 1,
+        "md_skill": 3,
+        "md_skill_group": 2,
+        "md_structure_ownership_reconciliation": 0,
+        "md_uom": 7,
+        "md_uom_conversion": 0,
+        "md_user_resource_scope": 1,
+        "md_work_center": 12,
+        "md_work_center_composition": 6,
+        "md_work_instruction": 1,
+        "md_workstation": 12,
+        "md_workstation_machine_group": 2,
+        "md_workstation_machine_requirement": 2,
+        "md_workstation_operation_capability": 6,
+        "md_workstation_print_station_binding": 0,
+        "outbox_events": 0,
+        "schema_migrations": 62
+      },
+      "statusDistributions": {
+        "i18n_data_quality_flag": [],
+        "md_component_substitute": [],
+        "md_ebom_header": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_ebom_line": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_employee": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_equipment": [
+          {
+            "value": "Released",
+            "count": 11
+          }
+        ],
+        "md_item": [
+          {
+            "value": "Released",
+            "count": 8
+          }
+        ],
+        "md_item_revision": [
+          {
+            "value": "Released",
+            "count": 8
+          }
+        ],
+        "md_machine_unit": [
+          {
+            "value": "Released",
+            "count": 10
+          }
+        ],
+        "md_material_group": [
+          {
+            "value": "Released",
+            "count": 5
+          }
+        ],
+        "md_mbom_header": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "md_mbom_line": [
+          {
+            "value": "Released",
+            "count": 7
+          }
+        ],
+        "md_operation": [
+          {
+            "value": "Released",
+            "count": 10
+          }
+        ],
+        "md_operation_skill_requirement": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "md_print_station": [],
+        "md_print_station_runtime_projection": [],
+        "md_production_area": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "md_production_line": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "md_production_standard": [
+          {
+            "value": "Released",
+            "count": 15
+          }
+        ],
+        "md_production_version": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "md_production_version_line_eligibility": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "md_reason_code": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_resource_assignment": [
+          {
+            "value": "Released",
+            "count": 10
+          }
+        ],
+        "md_resource_calendar": [
+          {
+            "value": "Released",
+            "count": 13
+          }
+        ],
+        "md_resource_capability": [
+          {
+            "value": "Released",
+            "count": 14
+          }
+        ],
+        "md_role_permission": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_routing_header": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "md_routing_operation": [
+          {
+            "value": "Released",
+            "count": 10
+          }
+        ],
+        "md_shift": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_shopfloor": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_site": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_skill": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "md_skill_group": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "md_uom": [
+          {
+            "value": "Released",
+            "count": 7
+          }
+        ],
+        "md_uom_conversion": [],
+        "md_user_resource_scope": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_work_center": [
+          {
+            "value": "Released",
+            "count": 12
+          }
+        ],
+        "md_work_instruction": [
+          {
+            "value": "Released",
+            "count": 1
+          }
+        ],
+        "md_workstation": [
+          {
+            "value": "Released",
+            "count": 12
+          }
+        ],
+        "md_workstation_machine_group": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "outbox_events": []
+      },
+      "foreignKeys": [
+        {
+          "child_table": "md_component_substitute",
+          "parent_table": "md_item_revision",
+          "child_column": "substitute_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_component_substitute",
+          "parent_table": "md_mbom_line",
+          "child_column": "mbom_line_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_component_substitute_approval_audit",
+          "parent_table": "md_component_substitute",
+          "child_column": "substitute_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_ebom_header",
+          "parent_table": "md_item_revision",
+          "child_column": "item_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_ebom_line",
+          "parent_table": "md_ebom_header",
+          "child_column": "ebom_header_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_ebom_line",
+          "parent_table": "md_ebom_line",
+          "child_column": "parent_line_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_ebom_line",
+          "parent_table": "md_item_revision",
+          "child_column": "component_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_ebom_line",
+          "parent_table": "md_uom",
+          "child_column": "uom_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_employee",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_employee",
+          "parent_table": "md_work_center",
+          "child_column": "default_work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_employee_shift_schedule",
+          "parent_table": "md_employee",
+          "child_column": "employee_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_employee_shift_schedule",
+          "parent_table": "md_shift",
+          "child_column": "shift_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_employee_shift_schedule",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_employee_skill",
+          "parent_table": "md_employee",
+          "child_column": "employee_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_employee_skill",
+          "parent_table": "md_skill",
+          "child_column": "skill_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_equipment",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_equipment",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item",
+          "parent_table": "md_material_group",
+          "child_column": "material_group_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item",
+          "parent_table": "md_uom",
+          "child_column": "base_uom_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision",
+          "parent_table": "md_item",
+          "child_column": "item_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision",
+          "parent_table": "md_item_revision",
+          "child_column": "previous_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision",
+          "parent_table": "md_material_group",
+          "child_column": "material_group_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision",
+          "parent_table": "md_uom",
+          "child_column": "base_uom_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision_numbering",
+          "parent_table": "md_item",
+          "child_column": "item_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision_temporal_audit",
+          "parent_table": "md_item",
+          "child_column": "item_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision_temporal_audit",
+          "parent_table": "md_item_revision",
+          "child_column": "triggered_by_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision_temporal_audit",
+          "parent_table": "md_item_revision",
+          "child_column": "revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision_temporal_reconciliation",
+          "parent_table": "md_item",
+          "child_column": "item_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_item_revision_temporal_reconciliation",
+          "parent_table": "md_item_revision",
+          "child_column": "revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_legacy_skill_migration_map",
+          "parent_table": "md_skill",
+          "child_column": "new_skill_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_machine_unit",
+          "parent_table": "md_equipment",
+          "child_column": "machine_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_machine_unit_migration_reconciliation",
+          "parent_table": "md_equipment",
+          "child_column": "machine_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_header",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_header",
+          "parent_table": "md_uom",
+          "child_column": "base_uom_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_line",
+          "parent_table": "md_ebom_line",
+          "child_column": "source_ebom_line_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_line",
+          "parent_table": "md_item_revision",
+          "child_column": "component_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_line",
+          "parent_table": "md_mbom_header",
+          "child_column": "mbom_header_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_line",
+          "parent_table": "md_mbom_line",
+          "child_column": "parent_line_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_line",
+          "parent_table": "md_operation",
+          "child_column": "issue_operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_mbom_line",
+          "parent_table": "md_uom",
+          "child_column": "uom_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_operation_skill_requirement",
+          "parent_table": "md_operation",
+          "child_column": "operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_operation_skill_requirement",
+          "parent_table": "md_skill",
+          "child_column": "skill_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_print_station",
+          "parent_table": "md_shopfloor",
+          "child_column": "shopfloor_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_print_station",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_print_station_runtime_events",
+          "parent_table": "md_print_station",
+          "child_column": "print_station_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_print_station_runtime_projection",
+          "parent_table": "md_print_station",
+          "child_column": "print_station_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_area",
+          "parent_table": "md_production_area",
+          "child_column": "parent_area_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_area",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line",
+          "parent_table": "md_production_area",
+          "child_column": "area_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line",
+          "parent_table": "md_shift",
+          "child_column": "default_shift_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line",
+          "parent_table": "md_shopfloor",
+          "child_column": "shopfloor_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_resource_scope",
+          "parent_table": "md_equipment",
+          "child_column": "equipment_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_resource_scope",
+          "parent_table": "md_machine_unit",
+          "child_column": "machine_unit_id",
+          "parent_column": "machine_unit_id"
+        },
+        {
+          "child_table": "md_production_line_resource_scope",
+          "parent_table": "md_production_line",
+          "child_column": "production_line_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_resource_scope",
+          "parent_table": "md_resource_assignment",
+          "child_column": "resource_assignment_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_resource_scope",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_resource_scope",
+          "parent_table": "md_workstation",
+          "child_column": "workstation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_resource_scope",
+          "parent_table": "md_workstation_machine_group",
+          "child_column": "machine_group_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_work_center",
+          "parent_table": "md_production_line",
+          "child_column": "production_line_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_line_work_center",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_standard",
+          "parent_table": "md_equipment",
+          "child_column": "equipment_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_standard",
+          "parent_table": "md_item_revision",
+          "child_column": "item_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_standard",
+          "parent_table": "md_operation",
+          "child_column": "operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_standard",
+          "parent_table": "md_skill",
+          "child_column": "skill_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_standard",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_version",
+          "parent_table": "md_ebom_header",
+          "child_column": "ebom_header_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_version",
+          "parent_table": "md_item_revision",
+          "child_column": "item_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_version",
+          "parent_table": "md_mbom_header",
+          "child_column": "mbom_header_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_version",
+          "parent_table": "md_routing_header",
+          "child_column": "routing_header_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_version",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_version_line_eligibility",
+          "parent_table": "md_production_line",
+          "child_column": "production_line_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_production_version_line_eligibility",
+          "parent_table": "md_production_version",
+          "child_column": "production_version_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_assignment",
+          "parent_table": "md_equipment",
+          "child_column": "equipment_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_assignment",
+          "parent_table": "md_machine_unit",
+          "child_column": "machine_unit_id",
+          "parent_column": "machine_unit_id"
+        },
+        {
+          "child_table": "md_resource_assignment",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_assignment",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_assignment",
+          "parent_table": "md_workstation",
+          "child_column": "workstation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_assignment",
+          "parent_table": "md_workstation_machine_group",
+          "child_column": "machine_group_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_calendar",
+          "parent_table": "md_equipment",
+          "child_column": "equipment_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_calendar",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_capability",
+          "parent_table": "md_equipment",
+          "child_column": "equipment_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_capability",
+          "parent_table": "md_operation",
+          "child_column": "operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_capability",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_resource_skill_assignment",
+          "parent_table": "md_skill",
+          "child_column": "skill_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_routing_operation",
+          "parent_table": "md_operation",
+          "child_column": "operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_routing_operation",
+          "parent_table": "md_routing_header",
+          "child_column": "routing_header_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_routing_operation",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_routing_operation",
+          "parent_table": "md_workstation",
+          "child_column": "workstation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_shift",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_shopfloor",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_skill",
+          "parent_table": "md_skill_group",
+          "child_column": "skill_group_id",
+          "parent_column": "skill_group_id"
+        },
+        {
+          "child_table": "md_structure_ownership_reconciliation",
+          "parent_table": "md_item_revision",
+          "child_column": "resolved_item_revision_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_uom_conversion",
+          "parent_table": "md_item",
+          "child_column": "item_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_uom_conversion",
+          "parent_table": "md_uom",
+          "child_column": "to_uom_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_uom_conversion",
+          "parent_table": "md_uom",
+          "child_column": "from_uom_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_center",
+          "parent_table": "md_production_area",
+          "child_column": "area_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_center",
+          "parent_table": "md_shift",
+          "child_column": "default_shift_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_center",
+          "parent_table": "md_shopfloor",
+          "child_column": "shopfloor_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_center",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_center_composition",
+          "parent_table": "md_operation",
+          "child_column": "operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_center_composition",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_center_composition",
+          "parent_table": "md_workstation",
+          "child_column": "workstation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_work_instruction",
+          "parent_table": "md_operation",
+          "child_column": "operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation",
+          "parent_table": "md_production_area",
+          "child_column": "area_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation",
+          "parent_table": "md_shopfloor",
+          "child_column": "shopfloor_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_machine_group",
+          "parent_table": "md_shopfloor",
+          "child_column": "shopfloor_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_machine_group",
+          "parent_table": "md_site",
+          "child_column": "site_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_machine_group",
+          "parent_table": "md_work_center",
+          "child_column": "work_center_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_machine_group",
+          "parent_table": "md_workstation",
+          "child_column": "workstation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_machine_requirement",
+          "parent_table": "md_equipment",
+          "child_column": "machine_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_machine_requirement",
+          "parent_table": "md_workstation_machine_group",
+          "child_column": "machine_group_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_operation_capability",
+          "parent_table": "md_operation",
+          "child_column": "operation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_operation_capability",
+          "parent_table": "md_workstation",
+          "child_column": "workstation_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_print_station_binding",
+          "parent_table": "md_print_station",
+          "child_column": "print_station_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "md_workstation_print_station_binding",
+          "parent_table": "md_workstation",
+          "child_column": "workstation_id",
+          "parent_column": "master_id"
+        }
+      ]
+    },
+    "execution": {
+      "owner": "execution",
+      "database": {
+        "host": "localhost",
+        "port": "15435",
+        "database": "mes_execution_db",
+        "user": "mes_execution_user",
+        "password": "[REDACTED]"
+      },
+      "tables": [
+        "execution_session",
+        "material_consumption",
+        "operation_confirmation",
+        "outbox_events",
+        "rm_employee",
+        "rm_employee_shift_schedule",
+        "rm_employee_skill",
+        "rm_equipment",
+        "rm_item_revision",
+        "rm_mbom_header",
+        "rm_mbom_line",
+        "rm_operation_skill_requirement",
+        "rm_production_line",
+        "rm_production_line_work_center",
+        "rm_production_standard",
+        "rm_production_version",
+        "rm_production_version_line_eligibility",
+        "rm_resource_calendar",
+        "rm_resource_capability",
+        "rm_routing_header",
+        "rm_routing_operation",
+        "rm_skill",
+        "rm_work_center",
+        "schema_migrations",
+        "wo_approval_log",
+        "wo_capacity_reservation",
+        "wo_creation_workflow",
+        "wo_creation_workflow_event",
+        "wo_header",
+        "wo_line_selection_audit",
+        "wo_material_requirement",
+        "wo_numbering_daily",
+        "wo_operation",
+        "wo_operation_labor_assignment",
+        "wo_print_job",
+        "wo_print_job_attempt",
+        "wo_print_job_event",
+        "wo_resource_allocation",
+        "wo_resource_allocation_audit",
+        "wo_resource_allocation_idempotency"
+      ],
+      "targetTables": [
+        "execution_session",
+        "material_consumption",
+        "operation_confirmation",
+        "outbox_events",
+        "rm_employee",
+        "rm_employee_shift_schedule",
+        "rm_employee_skill",
+        "rm_equipment",
+        "rm_item_revision",
+        "rm_mbom_header",
+        "rm_mbom_line",
+        "rm_operation_skill_requirement",
+        "rm_production_line",
+        "rm_production_line_work_center",
+        "rm_production_standard",
+        "rm_production_version",
+        "rm_production_version_line_eligibility",
+        "rm_resource_calendar",
+        "rm_resource_capability",
+        "rm_routing_header",
+        "rm_routing_operation",
+        "rm_skill",
+        "rm_work_center",
+        "wo_approval_log",
+        "wo_capacity_reservation",
+        "wo_creation_workflow",
+        "wo_creation_workflow_event",
+        "wo_header",
+        "wo_line_selection_audit",
+        "wo_material_requirement",
+        "wo_numbering_daily",
+        "wo_operation",
+        "wo_operation_labor_assignment",
+        "wo_print_job",
+        "wo_print_job_attempt",
+        "wo_print_job_event",
+        "wo_resource_allocation",
+        "wo_resource_allocation_audit",
+        "wo_resource_allocation_idempotency"
+      ],
+      "preservedTables": [
+        "schema_migrations"
+      ],
+      "rowCounts": {
+        "execution_session": 0,
+        "material_consumption": 0,
+        "operation_confirmation": 0,
+        "outbox_events": 0,
+        "rm_employee": 0,
+        "rm_employee_shift_schedule": 0,
+        "rm_employee_skill": 0,
+        "rm_equipment": 0,
+        "rm_item_revision": 2,
+        "rm_mbom_header": 2,
+        "rm_mbom_line": 6,
+        "rm_operation_skill_requirement": 3,
+        "rm_production_line": 3,
+        "rm_production_line_work_center": 12,
+        "rm_production_standard": 15,
+        "rm_production_version": 2,
+        "rm_production_version_line_eligibility": 3,
+        "rm_resource_calendar": 13,
+        "rm_resource_capability": 14,
+        "rm_routing_header": 2,
+        "rm_routing_operation": 10,
+        "rm_skill": 3,
+        "rm_work_center": 12,
+        "schema_migrations": 23,
+        "wo_approval_log": 0,
+        "wo_capacity_reservation": 0,
+        "wo_creation_workflow": 0,
+        "wo_creation_workflow_event": 0,
+        "wo_header": 0,
+        "wo_line_selection_audit": 0,
+        "wo_material_requirement": 0,
+        "wo_numbering_daily": 1,
+        "wo_operation": 0,
+        "wo_operation_labor_assignment": 0,
+        "wo_print_job": 0,
+        "wo_print_job_attempt": 0,
+        "wo_print_job_event": 0,
+        "wo_resource_allocation": 0,
+        "wo_resource_allocation_audit": 0,
+        "wo_resource_allocation_idempotency": 0
+      },
+      "statusDistributions": {
+        "execution_session": [],
+        "outbox_events": [],
+        "rm_employee": [],
+        "rm_equipment": [],
+        "rm_item_revision": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "rm_mbom_header": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "rm_production_line": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "rm_production_line_work_center": [
+          {
+            "value": "Released",
+            "count": 12
+          }
+        ],
+        "rm_production_standard": [
+          {
+            "value": "Released",
+            "count": 15
+          }
+        ],
+        "rm_production_version": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "rm_production_version_line_eligibility": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "rm_resource_calendar": [
+          {
+            "value": "Released",
+            "count": 13
+          }
+        ],
+        "rm_resource_capability": [
+          {
+            "value": "Released",
+            "count": 14
+          }
+        ],
+        "rm_routing_header": [
+          {
+            "value": "Released",
+            "count": 2
+          }
+        ],
+        "rm_skill": [
+          {
+            "value": "Released",
+            "count": 3
+          }
+        ],
+        "rm_work_center": [
+          {
+            "value": "Released",
+            "count": 12
+          }
+        ],
+        "wo_capacity_reservation": [],
+        "wo_creation_workflow": [],
+        "wo_header": [],
+        "wo_operation": [],
+        "wo_print_job": [],
+        "wo_print_job_attempt": [],
+        "wo_resource_allocation": []
+      },
+      "foreignKeys": [
+        {
+          "child_table": "execution_session",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        },
+        {
+          "child_table": "material_consumption",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "material_consumption",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        },
+        {
+          "child_table": "operation_confirmation",
+          "parent_table": "execution_session",
+          "child_column": "session_id",
+          "parent_column": "session_id"
+        },
+        {
+          "child_table": "operation_confirmation",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        },
+        {
+          "child_table": "rm_employee_shift_schedule",
+          "parent_table": "rm_employee",
+          "child_column": "employee_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "rm_employee_skill",
+          "parent_table": "rm_employee",
+          "child_column": "employee_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "rm_employee_skill",
+          "parent_table": "rm_skill",
+          "child_column": "skill_id",
+          "parent_column": "master_id"
+        },
+        {
+          "child_table": "wo_approval_log",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_capacity_reservation",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_capacity_reservation",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        },
+        {
+          "child_table": "wo_capacity_reservation",
+          "parent_table": "wo_resource_allocation",
+          "child_column": "allocation_id",
+          "parent_column": "allocation_id"
+        },
+        {
+          "child_table": "wo_creation_workflow_event",
+          "parent_table": "wo_creation_workflow",
+          "child_column": "workflow_id",
+          "parent_column": "workflow_id"
+        },
+        {
+          "child_table": "wo_line_selection_audit",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_material_requirement",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_operation",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_operation_labor_assignment",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_operation_labor_assignment",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        },
+        {
+          "child_table": "wo_print_job",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_print_job",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        },
+        {
+          "child_table": "wo_print_job_attempt",
+          "parent_table": "wo_print_job",
+          "child_column": "print_job_id",
+          "parent_column": "print_job_id"
+        },
+        {
+          "child_table": "wo_print_job_event",
+          "parent_table": "wo_print_job",
+          "child_column": "print_job_id",
+          "parent_column": "print_job_id"
+        },
+        {
+          "child_table": "wo_resource_allocation",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_resource_allocation",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        },
+        {
+          "child_table": "wo_resource_allocation",
+          "parent_table": "wo_resource_allocation",
+          "child_column": "superseded_by_allocation_id",
+          "parent_column": "allocation_id"
+        },
+        {
+          "child_table": "wo_resource_allocation_audit",
+          "parent_table": "wo_header",
+          "child_column": "wo_id",
+          "parent_column": "wo_id"
+        },
+        {
+          "child_table": "wo_resource_allocation_audit",
+          "parent_table": "wo_operation",
+          "child_column": "wo_operation_id",
+          "parent_column": "wo_operation_id"
+        }
+      ]
+    },
+    "traceability": {
+      "owner": "traceability",
+      "database": {
+        "host": "localhost",
+        "port": "15436",
+        "database": "mes_traceability_db",
+        "user": "traceability_user",
+        "password": "[REDACTED]"
+      },
+      "tables": [
+        "genealogy_event",
+        "label_instance",
+        "md_label_template",
+        "md_numbering_rule",
+        "md_numbering_sequence",
+        "md_qr_split_rule",
+        "md_traceability_policy",
+        "outbox_events",
+        "rm_item_revision",
+        "rm_mbom_header",
+        "rm_mbom_line",
+        "schema_migrations"
+      ],
+      "targetTables": [
+        "genealogy_event",
+        "label_instance",
+        "md_label_template",
+        "md_numbering_rule",
+        "md_numbering_sequence",
+        "md_qr_split_rule",
+        "md_traceability_policy",
+        "outbox_events",
+        "rm_item_revision",
+        "rm_mbom_header",
+        "rm_mbom_line"
+      ],
+      "preservedTables": [
+        "schema_migrations"
+      ],
+      "rowCounts": {
+        "genealogy_event": 0,
+        "label_instance": 0,
+        "md_label_template": 1,
+        "md_numbering_rule": 1,
+        "md_numbering_sequence": 0,
+        "md_qr_split_rule": 1,
+        "md_traceability_policy": 4,
+        "outbox_events": 0,
+        "rm_item_revision": 0,
+        "rm_mbom_header": 0,
+        "rm_mbom_line": 0,
+        "schema_migrations": 2
+      },
+      "statusDistributions": {
+        "label_instance": [],
+        "outbox_events": [],
+        "rm_item_revision": [],
+        "rm_mbom_header": []
+      },
+      "foreignKeys": [
+        {
+          "child_table": "genealogy_event",
+          "parent_table": "label_instance",
+          "child_column": "related_label_id",
+          "parent_column": "label_id"
+        },
+        {
+          "child_table": "genealogy_event",
+          "parent_table": "label_instance",
+          "child_column": "label_id",
+          "parent_column": "label_id"
+        },
+        {
+          "child_table": "label_instance",
+          "parent_table": "label_instance",
+          "child_column": "parent_label_id",
+          "parent_column": "label_id"
+        },
+        {
+          "child_table": "md_numbering_sequence",
+          "parent_table": "md_numbering_rule",
+          "child_column": "rule_id",
+          "parent_column": "rule_id"
+        },
+        {
+          "child_table": "md_traceability_policy",
+          "parent_table": "md_label_template",
+          "child_column": "label_template_id",
+          "parent_column": "template_id"
+        },
+        {
+          "child_table": "md_traceability_policy",
+          "parent_table": "md_numbering_rule",
+          "child_column": "numbering_rule_id",
+          "parent_column": "rule_id"
+        },
+        {
+          "child_table": "md_traceability_policy",
+          "parent_table": "md_qr_split_rule",
+          "child_column": "qr_split_rule_id",
+          "parent_column": "split_rule_id"
+        }
+      ]
+    },
+    "kiosk": {
+      "owner": "kiosk",
+      "database": {
+        "host": "localhost",
+        "port": "15437",
+        "database": "mes_kiosk_gateway_db",
+        "user": "mes_kiosk_user",
+        "password": "[REDACTED]"
+      },
+      "tables": [
+        "outbound_message_queue",
+        "schema_migrations",
+        "terminal",
+        "terminal_session"
+      ],
+      "targetTables": [
+        "outbound_message_queue",
+        "terminal",
+        "terminal_session"
+      ],
+      "preservedTables": [
+        "schema_migrations"
+      ],
+      "rowCounts": {
+        "outbound_message_queue": 0,
+        "schema_migrations": 2,
+        "terminal": 0,
+        "terminal_session": 0
+      },
+      "statusDistributions": {
+        "outbound_message_queue": [],
+        "terminal": [],
+        "terminal_session": []
+      },
+      "foreignKeys": [
+        {
+          "child_table": "outbound_message_queue",
+          "parent_table": "terminal",
+          "child_column": "terminal_id",
+          "parent_column": "terminal_id"
+        },
+        {
+          "child_table": "terminal_session",
+          "parent_table": "terminal",
+          "child_column": "terminal_id",
+          "parent_column": "terminal_id"
+        }
+      ]
+    }
+  }
+}

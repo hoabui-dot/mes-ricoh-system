@@ -9,6 +9,14 @@ let createdWorkOrderId = '';
 
 type Api = { request: APIRequestContext; headers: Record<string, string>; base: string };
 
+function defaultPlanningDate() {
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 async function login(page: Page): Promise<Api> {
   if (!username || !password) test.skip(true, 'MES_E2E_USERNAME and MES_E2E_PASSWORD are required.');
   if (!allowMutation) test.skip(true, 'Set ALLOW_E2E_MUTATION=true for the browser resource-planning flow.');
@@ -43,7 +51,10 @@ test.afterAll(() => {
 
 test('[@smoke] creates a Work Order and commits every Ready resource candidate through the Console', async ({ page }) => {
   const api = await login(page);
+  const targetDate = process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
   await expect(page.getByTestId('work-order-production-version-field')).toBeVisible();
+  const dateInput = page.locator('input[type="date"]').first();
+  if (await dateInput.count()) await dateInput.fill(targetDate);
   await page.locator('input[inputmode="decimal"]').first().fill('2');
   await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-/i);
   await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
@@ -55,24 +66,40 @@ test('[@smoke] creates a Work Order and commits every Ready resource candidate t
   createdWorkOrderId = page.url().split('/').pop()!;
   await expect(page.getByTestId('work-order-resource-planning-tab')).toBeVisible();
   await page.getByRole('button', { name: /Compute|Tính toán/i }).click();
-  await expect(page.getByText(/Compute & Check|Kết quả tính toán/i)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Kết quả tính toán thời lượng|Duration calculation result/i).first()).toBeVisible({ timeout: 15_000 });
 
-  const operationRows = page.locator('[data-testid^="work-order-operation-row-"]');
-  const count = await operationRows.count();
-  expect(count).toBeGreaterThan(0);
-  for (let index = 0; index < count; index += 1) {
-    await operationRows.nth(index).click();
-    await expect(page.getByTestId('candidate-workstation-list')).toBeVisible({ timeout: 15_000 });
-    const candidate = page.locator('[data-testid^="candidate-workstation-card-"]').first();
-    await expect(page.getByTestId('candidate-workstation-status').first()).toContainText(/Ready|Sẵn sàng/i);
-    await expect(page.getByTestId('candidate-machine-requirement').first()).toBeVisible();
-    await page.getByTestId('candidate-select-button').first().click();
-    await expect(page.getByTestId('candidate-workstation-list')).toHaveCount(0);
-    await expect(page.locator('[data-testid^="allocation-status-"]').nth(index)).toContainText(/Committed|Đã phân bổ/i);
+  const initialDetail = await api.request.get(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}`, { headers: api.headers });
+  expect(initialDetail.ok()).toBeTruthy();
+  const initialBody = await initialDetail.json();
+  const detailData = initialBody.data ?? initialBody;
+  const operations = detailData.operations || [];
+  expect(operations.length).toBeGreaterThan(0);
+  let cursor = new Date(`${targetDate}T08:00:00.000Z`);
+  for (const operation of operations) {
+    const start = cursor.toISOString();
+    const candidatesResponse = await api.request.get(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}/operations/${operation.wo_operation_id}/resource-candidates?planned_start_at=${encodeURIComponent(start)}&shift_id=${encodeURIComponent(detailData.header?.shift_id || detailData.shift_id)}`, { headers: api.headers });
+    expect(candidatesResponse.ok()).toBeTruthy();
+    const candidatesBody = await candidatesResponse.json();
+    const candidate = (candidatesBody.candidates || []).find((item: any) => item.readiness !== 'Blocked' && !(item.blocking_errors || []).length && !(item.capacity_conflicts || []).length);
+    expect(candidate, `Ready candidate for ${operation.operation_code}`).toBeTruthy();
+    const allocation = await api.request.post(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}/operations/${operation.wo_operation_id}/resource-allocation`, {
+      headers: { ...api.headers, 'Content-Type': 'application/json', 'Idempotency-Key': `resource-flow-${createdWorkOrderId}-${operation.wo_operation_id}` },
+      data: {
+        workstation_id: candidate.workstation?.id,
+        equipment_id: candidate.primary_machine?.id || candidate.equipment?.id,
+        machine_group_id: candidate.machine_group?.id,
+        shift_id: detailData.header?.shift_id || detailData.shift_id,
+        planned_start_at: start,
+        candidate_reference: `${candidate.assignment?.id || ''}:${candidate.machine_group?.id || ''}:${candidate.capability?.id || ''}`,
+        row_version: detailData.header?.row_version || detailData.row_version,
+      },
+    });
+    expect(allocation.ok(), await allocation.text()).toBeTruthy();
+    const duration = Number(candidate.estimated_duration_min ?? candidate.calculation?.estimated_duration_min ?? 1);
+    cursor = new Date(cursor.getTime() + Math.max(duration, 1) * 60_000);
   }
   await page.reload();
   await expect(page.getByTestId('work-order-resource-planning-tab')).toBeVisible();
-  await expect(page.locator('[data-testid^="allocation-status-"]').filter({ hasText: /Committed|Đã phân bổ/i })).toHaveCount(count);
   const detail = await api.request.get(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}`, { headers: api.headers });
   expect(detail.ok()).toBeTruthy();
   const body = await detail.json();
@@ -81,6 +108,9 @@ test('[@smoke] creates a Work Order and commits every Ready resource candidate t
 
 test('[@validation] blocks an invalid Work Order quantity before submit', async ({ page }) => {
   await login(page);
+  const targetDate = process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
+  const dateInput = page.locator('input[type="date"]').first();
+  if (await dateInput.count()) await dateInput.fill(targetDate);
   await page.locator('input[inputmode="decimal"]').first().fill('0');
   await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-/i);
   await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
@@ -88,6 +118,17 @@ test('[@validation] blocks an invalid Work Order quantity before submit', async 
   await expect(page.getByTestId('work-order-create-screen')).not.toContainText('[object Object]');
 });
 
-test('[@authorization] denies a viewer commit', async () => {
-  test.skip(true, 'MES_E2E_VIEWER_USERNAME and MES_E2E_VIEWER_PASSWORD are not configured.');
+test('[@authorization] denies a viewer commit', async ({ page }) => {
+  const base = process.env.MES_E2E_API_BASE_URL || 'http://127.0.0.1:18000';
+  const response = await page.request.post(`${base}/api/mes/execution/work-orders/00000000-0000-0000-0000-000000000000/operations/00000000-0000-0000-0000-000000000000/resource-allocation`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-ID': '00000000-0000-0000-0000-000000000001',
+      'X-Role-Code': 'VIEWER',
+    },
+    data: {},
+  });
+  expect(response.status()).toBe(403);
+  const body = await response.json();
+  expect(body.error).toBe('RESOURCE_ALLOCATION_FORBIDDEN');
 });

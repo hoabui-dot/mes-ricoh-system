@@ -74,9 +74,12 @@ async function cleanup() {
 
 try {
   const sites = (await api('/sites?limit=100')).data || [];
-  const site = sites.find((item) => item.lifecycle_status === 'Released') || sites[0];
   const centers = (await api('/work-centers?limit=100')).data || [];
-  const center = centers.find((item) => item.site_id === site?.master_id && item.lifecycle_status !== 'Inactive') || centers[0];
+  const releasedCenters = centers.filter((item) => item.lifecycle_status === 'Released' && item.active_flag !== false);
+  const site = sites.find((item) => item.code === 'SITE-KZ3' && releasedCenters.some((center) => center.site_id === item.master_id))
+    || sites.find((item) => item.lifecycle_status === 'Released' && releasedCenters.some((center) => center.site_id === item.master_id))
+    || sites[0];
+  const center = releasedCenters.find((item) => item.site_id === site?.master_id) || releasedCenters[0];
   if (!site || !center) throw new Error('A Site and Work Center fixture are required');
 
   const reservation = await reserve('Machine');

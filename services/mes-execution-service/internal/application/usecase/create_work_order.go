@@ -138,6 +138,14 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	if input.ItemName == "" {
 		input.ItemName = localizedNameValue(itemName)
 	}
+	plannedStartAt, err := time.Parse(time.RFC3339, input.PlannedStartAt)
+	if err != nil {
+		return nil, fmt.Errorf("WORK_ORDER_PLANNED_START_INVALID")
+	}
+	plannedEndAt, err := time.Parse(time.RFC3339, input.PlannedEndAt)
+	if err != nil {
+		return nil, fmt.Errorf("WORK_ORDER_PLANNED_END_INVALID")
+	}
 
 	var seq int64
 	numberDate := time.Now().UTC().Format("2006-01-02")
@@ -223,6 +231,7 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		}
 	}
 
+	var finalLineSelection lineSelectionResult
 	// Snapshot Routing Operations
 	opRows, err := tx.Query(ctx, `
 		SELECT ro.master_id, ro.operation_id, ro.operation_code, ro.work_center_id, ro.seq, ro.predecessor_seq,
@@ -261,6 +270,58 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		opRows.Close()
 		if len(ops) == 0 {
 			return nil, fmt.Errorf("WO_ROUTING_SNAPSHOT_MISSING: Production Version routing has no executable operations")
+		}
+		lineOps := make([]lineSelectionRoutingOperation, 0, len(ops))
+		for _, o := range ops {
+			opCodeStr := fmt.Sprintf("OP-%d", o.seq)
+			if o.opCode != nil {
+				opCodeStr = *o.opCode
+			}
+			lineOps = append(lineOps, lineSelectionRoutingOperation{MasterID: *o.masterID, OperationID: *o.opID, OperationCode: opCodeStr, WorkCenterID: *o.wcID, Seq: o.seq})
+		}
+		lineSelection, err := evaluateProductionLineSelection(ctx, tx, pvID, input.SiteID, plannedStartAt, plannedEndAt, lineOps)
+		if err != nil {
+			return nil, err
+		}
+		finalLineSelection = lineSelection
+		if lineSelection.Status == "RESOURCE_HOLD" {
+			if _, err := tx.Exec(ctx, `
+				UPDATE wo_header
+				SET status='ResourceHold',
+				    line_selection_mode=$2,
+				    line_selection_status='RESOURCE_HOLD',
+				    line_selection_reason=$3,
+				    resource_hold_reason=$4::jsonb,
+				    evaluated_line_results=$5::jsonb,
+				    updated_by=$6,
+				    updated_at=NOW(),
+				    row_version=row_version+1
+				WHERE wo_id=$1
+			`, woID, lineSelection.Mode, lineSelection.Reason, string(lineSelection.HoldReasonJSON), string(lineSelection.EvaluatedJSON), input.UserID); err != nil {
+				return nil, fmt.Errorf("WO_LINE_SELECTION_UPDATE_FAILED: %w", err)
+			}
+		} else {
+			if _, err := tx.Exec(ctx, `
+				UPDATE wo_header
+				SET selected_production_line_id=$2,
+				    selected_production_line_code=$3,
+				    selected_production_line_name_i18n=$4::jsonb,
+				    line_selection_mode=$5,
+				    line_selection_status='READY',
+				    line_selection_reason=$6,
+				    fallback_reason=NULLIF($7, ''),
+				    evaluated_line_results=$8::jsonb,
+				    line_locked_at=NOW(),
+				    updated_by=$9,
+				    updated_at=NOW(),
+				    row_version=row_version+1
+				WHERE wo_id=$1
+			`, woID, lineSelection.LineID, lineSelection.LineCode, string(lineSelection.LineNameJSON), lineSelection.Mode, lineSelection.Reason, lineSelection.FallbackReason, string(lineSelection.EvaluatedJSON), input.UserID); err != nil {
+				return nil, fmt.Errorf("WO_LINE_SELECTION_UPDATE_FAILED: %w", err)
+			}
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO wo_line_selection_audit (wo_id, previous_production_line_id, new_production_line_id, action, actor_user_id, reason, evaluated_line_results, wo_row_version, trace_id) VALUES ($1, NULL, NULLIF($2,'')::uuid, $3, $4, $5, $6::jsonb, 1, $7)`, woID, lineSelection.LineID, map[bool]string{true: "ResourceHold", false: "Selected"}[lineSelection.Status == "RESOURCE_HOLD"], input.UserID, lineSelection.Reason, string(lineSelection.EvaluatedJSON), input.TraceID); err != nil {
+			return nil, fmt.Errorf("WO_LINE_SELECTION_AUDIT_FAILED: %w", err)
 		}
 
 		for _, o := range ops {
@@ -303,18 +364,27 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 				}
 				labelCount = int(math.Ceil(input.Quantity / unitsPerLabel))
 			}
-			planningSnapshot := map[string]interface{}{"planning_source": o.planningSource, "execution_target_type": targetType, "base_quantity": baseQuantity, "setup_time_min": setupTime, "cycle_time_sec": cycleTime, "queue_time_min": o.queueTime, "move_time_min": o.moveTime, "required_workers": *o.workers, "efficiency_factor": eff, "standard_yield": standardYield, "predecessor_seq": predStr, "operation_cycle_count": input.Quantity / baseQuantity, "expected_good_quantity": input.Quantity * standardYield, "units_per_label": o.unitsPerLabel, "label_quantity_method": o.labelQuantityMethod, "copies_per_label": o.copiesPerLabel, "label_count": labelCount, "print_copies": labelCount * o.copiesPerLabel, "label_policy_warning": labelPolicyWarning}
+			lineWC := lineSelection.OperationWCs[*o.masterID]
+			snapshotWorkCenterID := *o.wcID
+			if lineWC.WorkCenterID != "" {
+				snapshotWorkCenterID = lineWC.WorkCenterID
+			}
+			planningSnapshot := map[string]interface{}{"planning_source": o.planningSource, "execution_target_type": targetType, "base_quantity": baseQuantity, "setup_time_min": setupTime, "cycle_time_sec": cycleTime, "queue_time_min": o.queueTime, "move_time_min": o.moveTime, "required_workers": *o.workers, "efficiency_factor": eff, "standard_yield": standardYield, "predecessor_seq": predStr, "operation_cycle_count": input.Quantity / baseQuantity, "expected_good_quantity": input.Quantity * standardYield, "units_per_label": o.unitsPerLabel, "label_quantity_method": o.labelQuantityMethod, "copies_per_label": o.copiesPerLabel, "label_count": labelCount, "print_copies": labelCount * o.copiesPerLabel, "label_policy_warning": labelPolicyWarning, "selected_production_line_id": lineSelection.LineID, "source_routing_work_center_id": *o.wcID}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO wo_operation (
 				wo_id, sequence_no, operation_id, routing_operation_id, operation_code, operation_name, work_center_id, predecessor_seq,
-					standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, base_quantity, standard_yield, required_workers, queue_time_min, move_time_min, calculation_version, planning_snapshot, execution_target_type, workstation_id, operation_cycle_count, expected_good_quantity, requires_output_label, units_per_label, label_quantity_method, copies_per_label, label_count, print_copies, print_status, status
-				) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, 'Pending')
-			`, woID, o.seq, *o.opID, *o.masterID, opCodeStr, localizedOperationName(opCodeStr), *o.wcID, predStr, setupTime, cycleTime, eff, baseQuantity, standardYield, *o.workers, o.queueTime, o.moveTime, "routing-plan-v1", planningSnapshot, targetType, o.workstationID, input.Quantity/baseQuantity, input.Quantity*standardYield, o.requiresOutputLabel, o.unitsPerLabel, o.labelQuantityMethod, o.copiesPerLabel, labelCount, labelCount*o.copiesPerLabel, printStatus); err != nil {
+					standard_setup_time_min, standard_cycle_time_sec, standard_efficiency_factor, base_quantity, standard_yield, required_workers, queue_time_min, move_time_min, calculation_version, planning_snapshot, execution_target_type, workstation_id, operation_cycle_count, expected_good_quantity, requires_output_label, units_per_label, label_quantity_method, copies_per_label, label_count, print_copies, print_status, production_line_id, production_line_code, production_line_name_i18n, source_routing_work_center_id, status
+				) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, NULLIF($30,'')::uuid, NULLIF($31,''), $32::jsonb, $33, 'Pending')
+			`, woID, o.seq, *o.opID, *o.masterID, opCodeStr, localizedOperationName(opCodeStr), snapshotWorkCenterID, predStr, setupTime, cycleTime, eff, baseQuantity, standardYield, *o.workers, o.queueTime, o.moveTime, "routing-plan-v1", planningSnapshot, targetType, o.workstationID, input.Quantity/baseQuantity, input.Quantity*standardYield, o.requiresOutputLabel, o.unitsPerLabel, o.labelQuantityMethod, o.copiesPerLabel, labelCount, labelCount*o.copiesPerLabel, printStatus, lineSelection.LineID, lineSelection.LineCode, string(lineSelection.LineNameJSON), *o.wcID); err != nil {
 				return nil, fmt.Errorf("failed to insert wo_operation: %w", err)
 			}
 		}
 	}
 
+	createdStatus := "Draft"
+	if err := tx.QueryRow(ctx, `SELECT status::text FROM wo_header WHERE wo_id=$1`, woID).Scan(&createdStatus); err != nil {
+		return nil, fmt.Errorf("WO_HEADER_STATUS_QUERY_FAILED: %w", err)
+	}
 	// Write outbox event
 	payload := map[string]interface{}{
 		"wo_id":                        woID,
@@ -326,7 +396,7 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		"item_revision_code":           itemRevisionCode,
 		"quantity":                     input.Quantity,
 		"site_id":                      input.SiteID,
-		"status":                       "Draft",
+		"status":                       createdStatus,
 	}
 	envelope := sharedkernel.CreateEventEnvelope("MES.Execution.WOCreated.v1", "mes-execution-service", input.TraceID, payload)
 	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.WOCreated.v1", envelope); err != nil {
@@ -338,21 +408,25 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	}
 
 	return map[string]interface{}{
-		"wo_id":                        woID,
-		"wo_code":                      woCode,
-		"production_version_id":        pvID,
-		"production_version_code":      pvCode,
-		"production_version_name_i18n": json.RawMessage(pvName),
-		"item_revision_id":             input.ItemRevisionID,
-		"item_revision_code":           itemRevisionCode,
-		"item_code":                    input.ItemCode,
-		"item_name":                    input.ItemName,
-		"quantity":                     input.Quantity,
-		"uom_id":                       input.UOMID,
-		"site_id":                      input.SiteID,
-		"planned_start_at":             input.PlannedStartAt,
-		"planned_end_at":               input.PlannedEndAt,
-		"status":                       "Draft",
-		"created_by":                   createdBy,
+		"wo_id":                         woID,
+		"wo_code":                       woCode,
+		"production_version_id":         pvID,
+		"production_version_code":       pvCode,
+		"production_version_name_i18n":  json.RawMessage(pvName),
+		"item_revision_id":              input.ItemRevisionID,
+		"item_revision_code":            itemRevisionCode,
+		"item_code":                     input.ItemCode,
+		"item_name":                     input.ItemName,
+		"quantity":                      input.Quantity,
+		"uom_id":                        input.UOMID,
+		"site_id":                       input.SiteID,
+		"planned_start_at":              input.PlannedStartAt,
+		"planned_end_at":                input.PlannedEndAt,
+		"status":                        createdStatus,
+		"line_selection_status":         map[bool]string{true: "RESOURCE_HOLD", false: "READY"}[createdStatus == "ResourceHold"],
+		"selected_production_line_id":   finalLineSelection.LineID,
+		"selected_production_line_code": finalLineSelection.LineCode,
+		"fallback_reason":               finalLineSelection.FallbackReason,
+		"created_by":                    createdBy,
 	}, nil
 }

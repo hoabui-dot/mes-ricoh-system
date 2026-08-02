@@ -25,6 +25,8 @@ Events: `MES.Execution.WOCreated.v1`.
 UI: Work Order create screen.
 Evidence: `services/mes-execution-service/internal/infrastructure/http/router.go`, `services/mes-console/src/routes/work-orders/WOCreateScreen.tsx`.
 
+Phase 5 two-line design status: NOT_IMPLEMENTED. ADR-009 extends this workflow later so Work Order creation evaluates Production Version Line Eligibility, snapshots exactly one selected Production Line when a complete line is feasible, or records `RESOURCE_HOLD` when no complete line is feasible.
+
 ## Compute & Check
 
 Business objective: calculate readiness and planning status before approval.
@@ -48,6 +50,8 @@ APIs: `/resource-candidates`, `/resource-allocation`, `/reallocate`, `DELETE /re
 Events: `MES.Execution.WOResourceAllocated.v1`, `WOResourceReallocated.v1`.
 UI: Work Order detail resource-planning panel.
 Evidence: `services/mes-execution-service/internal/infrastructure/http/router.go`, `services/mes-execution-service/internal/application/usecase`, `docs/testing/mes-resource-planning-use-cases.md`.
+
+Phase 5 two-line design status: NOT_IMPLEMENTED. ADR-009 requires future allocation commits to reject candidates outside the Work Order selected Production Line.
 
 ## Work Order Approval
 

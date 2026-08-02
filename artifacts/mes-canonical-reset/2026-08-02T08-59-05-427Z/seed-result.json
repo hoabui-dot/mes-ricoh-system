@@ -1,0 +1,22 @@
+{
+  "success": false,
+  "generated_at": "2026-08-02T08:59:05.428Z",
+  "safety": {
+    "passed": true,
+    "reasons": [],
+    "environment": "development"
+  },
+  "command_results": [
+    {
+      "label": "Build MES Master Data service before importing seed",
+      "command": "npm --prefix services/mes-master-data-service run build",
+      "exit_code": 0,
+      "started_at": "2026-08-02T08:59:05.430Z",
+      "ended_at": "2026-08-02T08:59:12.029Z",
+      "stdout": "\n> mes-master-data-service@1.0.0 build\n> tsc\n\n",
+      "stderr": ""
+    }
+  ],
+  "error": "Structural columns are immutable after Released on md_item_revision",
+  "completed_at": "2026-08-02T08:59:12.287Z"
+}

@@ -113,6 +113,10 @@ export const Sidebar: React.FC = () => {
             <Map className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('resourceFoundation.shopfloors')}</span>
           </NavLink>
+          <NavLink to="/master-data/production-lines" className={linkClass}>
+            <Factory className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.productionLines')}</span>
+          </NavLink>
           <NavLink to="/master-data/work-centers" className={linkClass}>
             <Factory className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.workCenters')}</span>

@@ -1,0 +1,20 @@
+{
+  "success": false,
+  "generated_at": "2026-08-02T09:17:24.467Z",
+  "environment": "development",
+  "e2e": "skipped_by_RUN_MES_CANONICAL_E2E",
+  "command_results": [
+    {
+      "label": "One-line Resource Planning domain/negative matrix",
+      "command": "npm run test:mes:resource-planning-domain:phase1",
+      "exit_code": 1,
+      "passed": false,
+      "started_at": "2026-08-02T09:17:24.469Z",
+      "ended_at": "2026-08-02T09:17:25.386Z",
+      "stdout": "\n> mom-platform@1.0.0 test:mes:resource-planning-domain:phase1\n> MES_ENV=development ALLOW_RESOURCE_PLANNING_MUTATION=true node scripts/test-mes-resource-planning-domain-phase1.mjs\n\n[phase1] run=PHASE1-RP-1785662244693-GG69P pv=PV-FG-WS-CM01-R1 shift=SHIFT-A\n",
+      "stderr": "[phase1] FAILED: Error: No machine-group candidate with a production standard for Phase 1 fixture: {\"blocking_errors\":[{\"code\":\"NO_EFFECTIVE_ASSIGNMENT\"},{\"code\":\"WORKER_CAPACITY_INSUFFICIENT\",\"qualified_available_persons\":0,\"required_persons\":1,\"skill_code\":\"SK-WC-MIX-MASTER\"}],\"candidates\":[],\"current_allocation\":null,\"operation\":{\"id\":\"29f7e73b-505b-49b4-82dc-60092e960233\",\"production_line_id\":\"5ef788d1-e4a0-4b74-88e7-572cda1611bc\",\"sequence\":10,\"work_center_id\":\"70f5c079-5aa0-4f5b-85e6-281b9f4a5d22\"},\"requested_window\":{\"shift_id\":\"ace2c37b-c880-4d10-a78e-a9ba241d7199\",\"start_at\":\"2026-08-03T08:00:00Z\"},\"status\":\"Blocked\",\"warnings\":[],\"work_center\":{\"code\":\"WC-MIXING\",\"id\":\"70f5c079-5aa0-4f5b-85e6-281b9f4a5d22\",\"name\":{\"en\":\"Banbury Mixing Work Center\",\"ja\":\"バンバリー混練ワークセンター\",\"ko\":\"밴버리 혼련 워크센터\",\"vi\":\"Trạm trộn Banbury\"}},\"worker_readiness\":[{\"minimum_level\":\"L3\",\"qualified_available_persons\":0,\"readiness\":\"Insufficient\",\"required_persons\":1,\"skill_code\":\"SK-WC-MIX-MASTER\",\"skill_id\":\"e496e718-17ab-4a55-89ae-061bc63dc93f\",\"workers\":[]}]}\n    at baselineFixture (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:254:31)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async main (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:412:19)\n"
+    }
+  ],
+  "error": "One-line Resource Planning domain/negative matrix failed",
+  "completed_at": "2026-08-02T09:17:25.387Z"
+}

@@ -1,0 +1,37 @@
+{
+  "run_id": "2026-08-02T10-30-00Z",
+  "target_work_order": {
+    "wo_id": "ad71bae7-0252-46db-a1f0-e9e0fad3c468",
+    "wo_code": "WO-20260802-0047",
+    "status": "ResourceHold",
+    "line_selection_mode": "AUTO",
+    "line_selection_status": "RESOURCE_HOLD",
+    "selected_production_line_id": null,
+    "selected_production_line_code": null,
+    "fallback_reason": null
+  },
+  "master_counts": {
+    "production_lines": 3,
+    "line_eligibilities": 3,
+    "work_centers": 12,
+    "workstations": 12,
+    "equipment": 13,
+    "machine_units": 12,
+    "resource_assignments": 12,
+    "skills": 3,
+    "employees": 4,
+    "employee_skills": 4,
+    "employee_shift_schedules": 4,
+    "operation_skill_requirements": 3
+  },
+  "line_eligibility": [
+    { "production_version_code": "PV-FG-WS-CM01-R1", "production_line_code": "LINE-BASE-1", "is_primary": true, "priority_no": 1 },
+    { "production_version_code": "WST-SEED-PV-SEAL-ASM-01", "production_line_code": "WST-SEED-LINE-1", "is_primary": true, "priority_no": 1 },
+    { "production_version_code": "WST-SEED-PV-SEAL-ASM-01", "production_line_code": "WST-SEED-LINE-2", "is_primary": false, "priority_no": 2 }
+  ],
+  "worker_skill_scope_gap": [
+    { "skill_code": "SK-WC-INSPECTION", "scope": "WorkCenter" },
+    { "skill_code": "SK-WC-MIX-MASTER", "scope": "WorkCenter" },
+    { "skill_code": "SK-WC-VULCAN-OPERATOR", "scope": "WorkCenter" }
+  ]
+}

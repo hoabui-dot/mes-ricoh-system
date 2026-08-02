@@ -1,0 +1,33 @@
+{
+  "run_id": "2026-08-02T10-30-00Z",
+  "status": "BACKEND_READY_UI_INCOMPLETE",
+  "routes": [
+    { "path": "/work-orders", "status": "Current", "sidebar": true },
+    { "path": "/work-orders/new", "status": "Current", "sidebar": false },
+    { "path": "/work-orders/:id", "status": "Current", "sidebar": false },
+    { "path": "/master-data/items", "status": "Current", "sidebar": true },
+    { "path": "/master-data/uoms", "status": "Current", "sidebar": true },
+    { "path": "/master-data/material-groups", "status": "Current", "sidebar": true },
+    { "path": "/master-data/mboms", "status": "Current", "sidebar": true },
+    { "path": "/master-data/routings", "status": "Current", "sidebar": true },
+    { "path": "/master-data/production-versions", "status": "Current", "sidebar": true },
+    { "path": "/master-data/eboms", "status": "Current", "sidebar": true },
+    { "path": "/master-data/operations", "status": "Current", "sidebar": true },
+    { "path": "/master-data/production-lines", "status": "Current", "sidebar": true },
+    { "path": "/master-data/work-centers", "status": "Current", "sidebar": true },
+    { "path": "/master-data/workstations", "status": "Current", "sidebar": true },
+    { "path": "/master-data/machines", "status": "Current", "sidebar": true },
+    { "path": "/master-data/equipment", "status": "Needs merge", "sidebar": false },
+    { "path": "/master-data/resource-assignments", "status": "Current", "sidebar": true },
+    { "path": "/master-data/resource-capabilities", "status": "Current", "sidebar": true },
+    { "path": "/master-data/resource-calendars", "status": "Current", "sidebar": true },
+    { "path": "/master-data/operation-skill-requirements", "status": "Current", "sidebar": true },
+    { "path": "/master-data/production-standards", "status": "Current", "sidebar": true },
+    { "path": "/master-data/skills/:scope", "status": "Current", "sidebar": false },
+    { "path": "/employees", "status": "Current", "sidebar": true },
+    { "path": "/shifts", "status": "Current", "sidebar": true },
+    { "path": "/work-calendar", "status": "Current", "sidebar": true },
+    { "path": "/console/mes/skills", "status": "Needs merge", "sidebar": false }
+  ]
+}
+

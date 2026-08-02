@@ -74,6 +74,18 @@ export const mdProductionArea = pgTable('md_production_area', {
   sequenceNo: integer('sequence_no').notNull().default(0),
 });
 
+export const mdProductionLine = pgTable('md_production_line', {
+  ...commonMasterColumns(),
+  name: jsonb('name').$type<Record<string, string>>().notNull(),
+  description: jsonb('description').$type<Record<string, string>>(),
+  siteId: uuid('site_id').notNull(),
+  areaId: uuid('area_id').notNull(),
+  shopfloorId: uuid('shopfloor_id'),
+  defaultShiftId: uuid('default_shift_id'),
+  lineType: varchar('line_type', { length: 50 }).notNull().default('Production'),
+  activeFlag: boolean('active_flag').notNull().default(true),
+});
+
 export const mdUom = pgTable('md_uom', {
   ...commonMasterColumns(),
   uomClass: varchar('uom_class', { length: 50 }).notNull(),
@@ -196,6 +208,27 @@ export const mdProductionVersion = pgTable('md_production_version', {
   isDefault: boolean('is_default').notNull().default(false),
 });
 
+export const mdProductionVersionLineEligibility = pgTable('md_production_version_line_eligibility', {
+  eligibilityId: uuid('eligibility_id').primaryKey().defaultRandom(),
+  productionVersionId: uuid('production_version_id').notNull(),
+  productionLineId: uuid('production_line_id').notNull(),
+  isPrimary: boolean('is_primary').notNull().default(false),
+  priorityNo: integer('priority_no').notNull(),
+  efficiencyFactor: numeric('efficiency_factor', { precision: 8, scale: 4 }).notNull().default('1'),
+  selectionMode: varchar('selection_mode', { length: 40 }).notNull().default('AutoPrimaryThenBackup'),
+  selectionPolicy: varchar('selection_policy', { length: 80 }).notNull().default('PrimaryThenBackup'),
+  lifecycleStatus: masterLifecycleStatus('lifecycle_status').notNull().default('Draft'),
+  effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull().defaultNow(),
+  effectiveTo: timestamp('effective_to', { withTimezone: true }),
+  activeFlag: boolean('active_flag').notNull().default(true),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  rowVersion: integer('row_version').notNull().default(1),
+  attributes: jsonb('attributes').$type<Record<string, unknown>>().notNull().default({}),
+});
+
 export const mdOperation = pgTable('md_operation', {
   ...commonMasterColumns(),
   description: jsonb('description').$type<Record<string, string>>(),
@@ -294,6 +327,22 @@ export const mdWorkCenter = pgTable('md_work_center', {
   maxConcurrentJobs: integer('max_concurrent_jobs').notNull().default(1),
 });
 
+export const mdProductionLineWorkCenter = pgTable('md_production_line_work_center', {
+  lineWorkCenterId: uuid('line_work_center_id').primaryKey().defaultRandom(),
+  productionLineId: uuid('production_line_id').notNull(),
+  workCenterId: uuid('work_center_id').notNull(),
+  sequenceNo: integer('sequence_no').notNull().default(1),
+  mandatoryFlag: boolean('mandatory_flag').notNull().default(true),
+  effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull().defaultNow(),
+  effectiveTo: timestamp('effective_to', { withTimezone: true }),
+  activeFlag: boolean('active_flag').notNull().default(true),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  rowVersion: integer('row_version').notNull().default(1),
+});
+
 export const mdWorkstation = pgTable('md_workstation', {
   ...commonMasterColumns(),
   name: jsonb('name').$type<Record<string, string>>().notNull(),
@@ -384,6 +433,25 @@ export const mdResourceAssignment = pgTable('md_resource_assignment', {
   machineUnitId: uuid('machine_unit_id'),
   requirementType: varchar('requirement_type', { length: 20 }).notNull().default('Required'),
   sequenceNo: integer('sequence_no').notNull().default(1),
+});
+
+export const mdProductionLineResourceScope = pgTable('md_production_line_resource_scope', {
+  scopeId: uuid('scope_id').primaryKey().defaultRandom(),
+  productionLineId: uuid('production_line_id').notNull(),
+  resourceAssignmentId: uuid('resource_assignment_id').notNull(),
+  workCenterId: uuid('work_center_id').notNull(),
+  workstationId: uuid('workstation_id'),
+  equipmentId: uuid('equipment_id'),
+  machineGroupId: uuid('machine_group_id'),
+  machineUnitId: uuid('machine_unit_id'),
+  effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull().defaultNow(),
+  effectiveTo: timestamp('effective_to', { withTimezone: true }),
+  activeFlag: boolean('active_flag').notNull().default(true),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  rowVersion: integer('row_version').notNull().default(1),
 });
 
 export const mdResourceCapability = pgTable('md_resource_capability', {

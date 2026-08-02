@@ -144,10 +144,11 @@ func (m *creationWorkflowManager) run(request creationWorkflowRequest, workflowI
 	}
 	workOrderID, _ := created["wo_id"].(string)
 	workOrderCode, _ := created["wo_code"].(string)
+	createdStatus, _ := created["status"].(string)
 	var operationCount, materialCount int
 	_ = m.pool.QueryRow(ctx, `SELECT COUNT(*) FROM wo_operation WHERE wo_id=$1`, workOrderID).Scan(&operationCount)
 	_ = m.pool.QueryRow(ctx, `SELECT COUNT(*) FROM wo_material_requirement WHERE wo_id=$1`, workOrderID).Scan(&materialCount)
-	result := map[string]interface{}{"workOrderId": workOrderID, "workOrderCode": workOrderCode, "status": "Draft", "operationCount": operationCount, "materialCount": materialCount}
+	result := map[string]interface{}{"workOrderId": workOrderID, "workOrderCode": workOrderCode, "status": createdStatus, "operationCount": operationCount, "materialCount": materialCount, "lineSelectionStatus": created["line_selection_status"], "selectedProductionLineId": created["selected_production_line_id"], "selectedProductionLineCode": created["selected_production_line_code"], "fallbackReason": created["fallback_reason"]}
 	_ = m.publish(ctx, workflowID, correlationID, "step.succeeded", stepPayload("create_transaction", 3, "succeeded", "workOrders.creation.steps.transaction.success", nil, result), workflowStatusRunning, "create_transaction", result)
 
 	// CreateWorkOrder commits the outbox write before returning. This is the only event guarantee exposed here.
@@ -399,9 +400,11 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 		return creationWorkflowRequest{}, fmt.Errorf("INVALID_REQUEST")
 	}
 	start := time.Now().UTC().Truncate(time.Second)
+	startProvided := false
 	if raw, ok := body["planned_start_at"].(string); ok && raw != "" {
 		if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
 			start = parsed
+			startProvided = true
 		}
 	}
 	end := start.Add(24 * time.Hour)
@@ -411,7 +414,10 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 		}
 	} else if raw, ok := body["target_date"].(string); ok && raw != "" {
 		if parsed, err := time.Parse("2006-01-02", raw); err == nil {
-			end = parsed.Add(24 * time.Hour)
+			if !startProvided {
+				start = parsed.Add(8 * time.Hour)
+			}
+			end = start.Add(24 * time.Hour)
 		}
 	}
 	uomID, _ := body["uom_id"].(string)

@@ -1,0 +1,1092 @@
+{
+  "success": false,
+  "status": "FAIL_PHASE_2",
+  "run_id": "PHASE2-RP-1785663469698-XNJC3",
+  "target_date": "2026-08-03",
+  "error": "Error: Revalidation failed: {\"operations\":[{\"valid\":false,\"wo_operation_id\":\"d69825d6-13ef-4a93-ba13-557b3e77e90e\"},{\"valid\":true,\"wo_operation_id\":\"bb5aa227-e98b-4ed4-bafe-f69488b522ab\"},{\"valid\":true,\"wo_operation_id\":\"38ed94fc-109d-4038-8df5-0108d681cc62\"},{\"valid\":true,\"wo_operation_id\":\"38ddcea0-dbb3-4f3f-bff1-e16207ae5259\"},{\"valid\":true,\"wo_operation_id\":\"dac80e5a-2c83-4218-a7c4-e48f2bdfd6d7\"},{\"valid\":true,\"wo_operation_id\":\"3f0a7a5e-f8a9-451c-8749-1bc4dc2bfdc3\"}],\"valid\":false,\"wo_id\":\"fa8781bc-2b6f-480d-b2ee-f8a11d4e98c5\"}\n    at file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-full-flow.mjs:454:44\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async record (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-full-flow.mjs:55:18)\n    at async main (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-full-flow.mjs:449:3)",
+  "cleanup": {
+    "deleted_work_orders": 2,
+    "remaining_target_rows": 0
+  },
+  "steps": [
+    {
+      "name": "authenticate through supported trusted-gateway identity path",
+      "status": "passed",
+      "started_at": "2026-08-02T09:37:49.740Z",
+      "finished_at": "2026-08-02T09:37:49.811Z",
+      "data": {
+        "mode": "trusted-gateway-headers",
+        "user_id_header": "00000000-0000-0000-0000-000000000001",
+        "role_code_header": "PLANT_MANAGER",
+        "status": 200
+      }
+    },
+    {
+      "name": "reuse deterministic released master-data chain",
+      "status": "passed",
+      "started_at": "2026-08-02T09:37:49.811Z",
+      "finished_at": "2026-08-02T09:37:50.418Z",
+      "data": {
+        "version": {
+          "production_version_name": {
+            "en": "Production Version FG-WS-CM01 R1",
+            "ja": "FG-WS-CM01 R1 生産バージョン",
+            "ko": "FG-WS-CM01 R1 생산 버전",
+            "vi": "Phiên bản sản xuất FG-WS-CM01 R1"
+          },
+          "min_lot_size": null,
+          "max_lot_size": null,
+          "item_id": "45516881-e7bc-4e5e-8664-f3d37b87898d",
+          "item_code": "FG-WS-CM01",
+          "item_name": {
+            "en": "FG-WS-CM01 Revision 1",
+            "ja": "FG-WS-CM01 リビジョン 1",
+            "ko": "FG-WS-CM01 개정 1",
+            "vi": "FG-WS-CM01 phiên bản 1"
+          },
+          "item_revision_id": "446fa792-4224-427a-8a13-1e95d80def62",
+          "revision_code": "R1",
+          "revision_status": "Released",
+          "revision_effective_from": "2026-07-21T00:00:00.000Z",
+          "revision_effective_to": null,
+          "base_uom_code": "PCS",
+          "base_uom_id": "94921aea-5927-43cc-a022-726593e7f434",
+          "base_uom_decimal_precision": 0,
+          "base_uom_allow_fraction": false,
+          "production_version_id": "903049df-7124-4ce2-a030-75e8e6788450",
+          "production_version_code": "PV-FG-WS-CM01-R1",
+          "mbom_header_id": "2207718a-eba2-48e8-8bae-12a959847683",
+          "mbom_code": "MBOM-FG-WS-CM01-R1",
+          "mbom_name": {
+            "vi": "MBOM Cao su chân máy ô tô"
+          },
+          "routing_header_id": "6c57c4a4-504d-468c-90b2-b3f0a696cd36",
+          "routing_code": "RT-FG-WS-CM01-R1",
+          "routing_name": {
+            "vi": "Routing Cao su chân máy ô tô"
+          },
+          "site_id": "e2a260d1-1647-4e7c-bddc-c85d653b5f9f",
+          "site_code": "SITE-KZ3",
+          "item_revision": {
+            "id": "446fa792-4224-427a-8a13-1e95d80def62",
+            "code": "R1",
+            "name": {
+              "en": "FG-WS-CM01 Revision 1",
+              "ja": "FG-WS-CM01 リビジョン 1",
+              "ko": "FG-WS-CM01 개정 1",
+              "vi": "FG-WS-CM01 phiên bản 1"
+            }
+          },
+          "mbom": {
+            "id": "2207718a-eba2-48e8-8bae-12a959847683",
+            "code": "MBOM-FG-WS-CM01-R1",
+            "name": {
+              "vi": "MBOM Cao su chân máy ô tô"
+            }
+          },
+          "routing": {
+            "id": "6c57c4a4-504d-468c-90b2-b3f0a696cd36",
+            "code": "RT-FG-WS-CM01-R1",
+            "name": {
+              "vi": "Routing Cao su chân máy ô tô"
+            }
+          },
+          "site": {
+            "id": "e2a260d1-1647-4e7c-bddc-c85d653b5f9f",
+            "code": "SITE-KZ3"
+          },
+          "base_uom": {
+            "id": "94921aea-5927-43cc-a022-726593e7f434",
+            "code": "PCS",
+            "decimal_precision": 0,
+            "allow_fraction": false,
+            "lifecycle_status": "Released"
+          },
+          "valid_from": "2026-07-21T00:00:00.000Z",
+          "valid_to": null,
+          "ready": true,
+          "warnings": [],
+          "display_code": "FG-WS-CM01-R1",
+          "readiness_status": "Ready"
+        },
+        "shift": {
+          "master_id": "3df2a3a3-5793-43f9-93cc-f393ddef600f",
+          "code": "SHIFT-A",
+          "name": "Day Shift",
+          "version_no": 1,
+          "lifecycle_status": "Released",
+          "effective_from": "2026-07-21T00:00:00.000Z",
+          "effective_to": null,
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "created_at": "2026-08-02T09:37:39.727Z",
+          "updated_by": "00000000-0000-0000-0000-000000000001",
+          "updated_at": "2026-08-02T09:37:39.727Z",
+          "approved_by": "00000000-0000-0000-0000-000000000001",
+          "approved_at": "2026-07-21T00:00:00.000Z",
+          "row_version": 1,
+          "attributes": {},
+          "site_id": "e2a260d1-1647-4e7c-bddc-c85d653b5f9f",
+          "start_time": "08:00",
+          "end_time": "17:00",
+          "crosses_midnight": false
+        }
+      }
+    },
+    {
+      "name": "create Work Order from production_version_id and wait workflow",
+      "status": "passed",
+      "started_at": "2026-08-02T09:37:50.418Z",
+      "finished_at": "2026-08-02T09:37:50.632Z",
+      "data": {
+        "current_step": "outbox_queued",
+        "events": [
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "f4a7d5c9-f2e8-4a27-b9bd-800348453ed4",
+            "event_type": "workflow.started",
+            "occurred_at": "2026-08-02T09:37:50.423739303Z",
+            "schema_version": 1,
+            "sequence": 1,
+            "source_service": "mes-execution-service",
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          },
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "8ab41c62-c4c9-4713-8355-7652448c3fc4",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-02T09:37:50.427707593Z",
+            "schema_version": 1,
+            "sequence": 2,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "request_validation",
+              "message_key": "workOrders.creation.steps.request.success",
+              "message_params": null,
+              "order": 1,
+              "result": {
+                "quantity": 2
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.request_validation.title"
+            },
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          },
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "6580dd0e-5e57-48d9-98a2-1b612cf6b6a9",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-02T09:37:50.431692772Z",
+            "schema_version": 1,
+            "sequence": 3,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.running",
+              "message_params": null,
+              "order": 2,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          },
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "75edd09d-5b8e-4613-9340-c088b617bf58",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-02T09:37:50.436737839Z",
+            "schema_version": 1,
+            "sequence": 4,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.success",
+              "message_params": null,
+              "order": 2,
+              "result": {
+                "mbomId": "2207718a-eba2-48e8-8bae-12a959847683",
+                "productionVersionId": "903049df-7124-4ce2-a030-75e8e6788450",
+                "routingId": "6c57c4a4-504d-468c-90b2-b3f0a696cd36"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          },
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "b5ca61b2-31bc-4bbf-b051-a5fd127c35a3",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-02T09:37:50.439472534Z",
+            "schema_version": 1,
+            "sequence": 5,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.running",
+              "message_params": null,
+              "order": 3,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          },
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "5ea5f377-3d2b-4813-9bfc-2b239613cd25",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-02T09:37:50.456016343Z",
+            "schema_version": 1,
+            "sequence": 6,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.success",
+              "message_params": null,
+              "order": 3,
+              "result": {
+                "fallbackReason": "",
+                "lineSelectionStatus": "READY",
+                "materialCount": 5,
+                "operationCount": 6,
+                "selectedProductionLineCode": "LINE-BASE-1",
+                "selectedProductionLineId": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+                "status": "Draft",
+                "workOrderCode": "WO-20260802-0012",
+                "workOrderId": "fa8781bc-2b6f-480d-b2ee-f8a11d4e98c5"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          },
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "25604974-bf31-411b-865f-973ebb1d1761",
+            "event_type": "step.event_queued",
+            "occurred_at": "2026-08-02T09:37:50.459459655Z",
+            "schema_version": 1,
+            "sequence": 7,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "outbox_queued",
+              "message_key": "workOrders.creation.steps.outbox.success",
+              "message_params": null,
+              "order": 4,
+              "result": {
+                "eventType": "MES.Execution.WOCreated.v1"
+              },
+              "status": "event_queued",
+              "title_key": "workOrders.creation.steps.outbox_queued.title"
+            },
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          },
+          {
+            "correlation_id": "ca4e0122-955b-4d52-878b-0b14c40df8a9",
+            "event_id": "8118eaa3-7cc4-4376-8b1c-97277b52950d",
+            "event_type": "workflow.succeeded",
+            "occurred_at": "2026-08-02T09:37:50.4616227Z",
+            "schema_version": 1,
+            "sequence": 8,
+            "source_service": "mes-execution-service",
+            "workflow": {
+              "status": "succeeded",
+              "work_order_code": "WO-20260802-0012",
+              "work_order_id": "fa8781bc-2b6f-480d-b2ee-f8a11d4e98c5"
+            },
+            "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+          }
+        ],
+        "last_sequence": 8,
+        "status": "succeeded",
+        "work_order_code": "WO-20260802-0012",
+        "work_order_id": "fa8781bc-2b6f-480d-b2ee-f8a11d4e98c5",
+        "workflow_id": "e38db7f1-9728-42d0-bf6a-85aa5e3e28af"
+      }
+    },
+    {
+      "name": "load created Work Order routing snapshot",
+      "status": "passed",
+      "started_at": "2026-08-02T09:37:50.632Z",
+      "finished_at": "2026-08-02T09:37:50.638Z",
+      "data": {
+        "approval_logs": null,
+        "header": {
+          "created_at": "2026-08-02T09:37:50.441329Z",
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "demo_print_on_approval": true,
+          "evaluated_line_results": [
+            {
+              "status": "Ready",
+              "blockers": [],
+              "priority": 1,
+              "selection_role": "PRIMARY",
+              "production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+              "production_line_code": "LINE-BASE-1"
+            }
+          ],
+          "fallback_reason": "",
+          "item_code": "FG-WS-CM01-R1",
+          "item_name": "FG-WS-CM01 phiên bản 1",
+          "item_revision_code": "FG-WS-CM01-R1",
+          "item_revision_id": "446fa792-4224-427a-8a13-1e95d80def62",
+          "item_revision_name_i18n": {
+            "en": "FG-WS-CM01 Revision 1",
+            "ja": "FG-WS-CM01 リビジョン 1",
+            "ko": "FG-WS-CM01 개정 1",
+            "vi": "FG-WS-CM01 phiên bản 1"
+          },
+          "line_locked_at": "2026-08-02T09:37:50.441329Z",
+          "line_selection_mode": "PRIMARY",
+          "line_selection_reason": "PRIMARY_LINE_READY",
+          "line_selection_status": "READY",
+          "mbom_code": "MBOM-FG-WS-CM01-R1",
+          "planned_end_at": "2026-08-04T08:00:00Z",
+          "planned_start_at": "2026-08-03T08:00:00Z",
+          "planning_snapshot": {
+            "mbom_id": "2207718a-eba2-48e8-8bae-12a959847683",
+            "shift_id": "3df2a3a3-5793-43f9-93cc-f393ddef600f",
+            "routing_id": "6c57c4a4-504d-468c-90b2-b3f0a696cd36",
+            "production_version_id": "903049df-7124-4ce2-a030-75e8e6788450",
+            "production_version_code": "PV-FG-WS-CM01-R1"
+          },
+          "production_version_code": "PV-FG-WS-CM01-R1",
+          "production_version_id": "903049df-7124-4ce2-a030-75e8e6788450",
+          "production_version_name_i18n": {
+            "en": "Production Version FG-WS-CM01 R1",
+            "ja": "FG-WS-CM01 R1 生産バージョン",
+            "ko": "FG-WS-CM01 R1 생산 버전",
+            "vi": "Phiên bản sản xuất FG-WS-CM01 R1"
+          },
+          "quantity": 2,
+          "resource_hold_reason": {},
+          "routing_code": "RT-FG-WS-CM01-R1",
+          "row_version": 2,
+          "selected_production_line_code": "LINE-BASE-1",
+          "selected_production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+          "selected_production_line_name_i18n": {
+            "en": "Base Resource Planning Line 1",
+            "ja": "基本リソース計画ライン1",
+            "ko": "기본 리소스 계획 라인 1",
+            "vi": "Dây chuyền Resource Planning cơ sở 1"
+          },
+          "shift_id": "3df2a3a3-5793-43f9-93cc-f393ddef600f",
+          "site_id": "e2a260d1-1647-4e7c-bddc-c85d653b5f9f",
+          "status": "Draft",
+          "uom_id": "94921aea-5927-43cc-a022-726593e7f434",
+          "wo_code": "WO-20260802-0012",
+          "wo_id": "fa8781bc-2b6f-480d-b2ee-f8a11d4e98c5"
+        },
+        "material_requirements": [
+          {
+            "backflush_flag": true,
+            "component_item_code": "SFG-ROLL-EPDM",
+            "component_item_revision_id": "0d748435-31e5-4d31-837f-1c965bab12b5",
+            "item_name": {},
+            "phantom_flag": true,
+            "required_qty": 0.3193,
+            "requirement_id": "8b41442b-f98b-4e52-a928-950e5e9381c2",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1582b71e-eb5d-4d88-8a64-b6523c84d90d"
+          },
+          {
+            "backflush_flag": false,
+            "component_item_code": "RM-STL-05",
+            "component_item_revision_id": "7603664c-72b0-4cd9-b160-5e48e634acb0",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2.0301,
+            "requirement_id": "2ca6c258-32af-489e-851e-2f2f01773971",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "94921aea-5927-43cc-a022-726593e7f434"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "SFG-MET-CM01",
+            "component_item_revision_id": "f894e3de-c6b3-4d65-9591-ca825fe317af",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2.02,
+            "requirement_id": "7bbbca5b-65b3-455b-9d86-caeebad88649",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "94921aea-5927-43cc-a022-726593e7f434"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "SFG-RUB-CM01",
+            "component_item_revision_id": "177450ef-ead7-48f4-9f59-24a33f7ffd83",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2.0808,
+            "requirement_id": "c912e15b-da36-4429-a116-a0ddca33a327",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "94921aea-5927-43cc-a022-726593e7f434"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "RM-CHEM-BOND",
+            "component_item_revision_id": "91aae539-0c93-4804-878c-2f9760df2ae5",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 0.0315,
+            "requirement_id": "33e315bf-d124-47c9-b71f-ebd60f93d412",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "a21a6158-ace3-4591-81f7-6b87770aff6c"
+          }
+        ],
+        "operations": [
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-MIX",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Rubber Mixing",
+              "ja": "ゴム混練",
+              "ko": "고무 혼련",
+              "vi": "Luyện cán cao su"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 10,
+            "source_routing_work_center_id": "4a887a3b-a9c0-4bbe-9826-7b1c19721c6e",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "38ed94fc-109d-4038-8df5-0108d681cc62",
+            "work_center_code": "WC-MIXING",
+            "work_center_id": "4a887a3b-a9c0-4bbe-9826-7b1c19721c6e",
+            "work_center_name": {
+              "en": "Banbury Mixing Work Center",
+              "ja": "バンバリー混練ワークセンター",
+              "ko": "밴버리 혼련 워크센터",
+              "vi": "Trạm trộn Banbury"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-PREP",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Metal Core Preparation",
+              "ja": "金属コア準備",
+              "ko": "금속 코어 준비",
+              "vi": "Chuẩn bị lõi kim loại"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 20,
+            "source_routing_work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "38ddcea0-dbb3-4f3f-bff1-e16207ae5259",
+            "work_center_code": "WC-VULCAN-MOLD",
+            "work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+            "work_center_name": {
+              "en": "Heated hydraulic molding work center",
+              "ja": "加熱油圧成形ワークセンター",
+              "ko": "가열 유압 성형 워크센터",
+              "vi": "Cụm máy ép thủy lực gia nhiệt"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-CUT",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Rubber Blank Cutting",
+              "ja": "ゴムブランク切断",
+              "ko": "고무 블랭크 절단",
+              "vi": "Cắt phôi cao su"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 30,
+            "source_routing_work_center_id": "bfa90701-c8e0-430c-a25f-b9d8d2a166ad",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "dac80e5a-2c83-4218-a7c4-e48f2bdfd6d7",
+            "work_center_code": "WC-CUTTING",
+            "work_center_id": "bfa90701-c8e0-430c-a25f-b9d8d2a166ad",
+            "work_center_name": {
+              "en": "Rubber Cutting Work Center",
+              "ja": "ゴム切断ワークセンター",
+              "ko": "고무 절단 워크센터",
+              "vi": "Trạm cắt cao su"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-MOLD",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Compression Molding",
+              "ja": "圧縮成形",
+              "ko": "압축 성형",
+              "vi": "Đúc lưu hóa"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 40,
+            "source_routing_work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "3f0a7a5e-f8a9-451c-8749-1bc4dc2bfdc3",
+            "work_center_code": "WC-VULCAN-MOLD",
+            "work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+            "work_center_name": {
+              "en": "Heated hydraulic molding work center",
+              "ja": "加熱油圧成形ワークセンター",
+              "ko": "가열 유압 성형 워크센터",
+              "vi": "Cụm máy ép thủy lực gia nhiệt"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-TRIM",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Deflashing and Finishing",
+              "ja": "バリ取り・仕上げ",
+              "ko": "버 제거 및 마감",
+              "vi": "Cắt via và hoàn thiện"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 50,
+            "source_routing_work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "d69825d6-13ef-4a93-ba13-557b3e77e90e",
+            "work_center_code": "WC-VULCAN-MOLD",
+            "work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+            "work_center_name": {
+              "en": "Heated hydraulic molding work center",
+              "ja": "加熱油圧成形ワークセンター",
+              "ko": "가열 유압 성형 워크센터",
+              "vi": "Cụm máy ép thủy lực gia nhiệt"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-QC",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Quality Inspection",
+              "ja": "品質検査",
+              "ko": "품질 검사",
+              "vi": "Kiểm tra chất lượng"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "b426fcf4-21ec-41f2-8fca-9d84b771264c",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 60,
+            "source_routing_work_center_id": "415a8758-36a7-43cb-b0db-482409a5db87",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "bb5aa227-e98b-4ed4-bafe-f69488b522ab",
+            "work_center_code": "WC-QC",
+            "work_center_id": "415a8758-36a7-43cb-b0db-482409a5db87",
+            "work_center_name": {
+              "en": "Quality Inspection",
+              "ja": "品質検査ワークセンター",
+              "ko": "품질 검사 워크센터",
+              "vi": "Trạm kiểm tra chất lượng"
+            },
+            "workstation_id": null
+          }
+        ],
+        "print_jobs": null
+      }
+    },
+    {
+      "name": "run Compute and Check",
+      "status": "passed",
+      "started_at": "2026-08-02T09:37:50.638Z",
+      "finished_at": "2026-08-02T09:37:50.651Z",
+      "data": {
+        "status": 409,
+        "body": {
+          "wo_id": "fa8781bc-2b6f-480d-b2ee-f8a11d4e98c5",
+          "total_duration_minutes": 75,
+          "planned_start_at": "2026-08-03T08:00:00Z",
+          "planned_end_at": "2026-08-03T09:15:00Z",
+          "operations": [
+            {
+              "sequence_no": 10,
+              "operation_code": "OP-MIX",
+              "work_center_id": "4a887a3b-a9c0-4bbe-9826-7b1c19721c6e",
+              "duration_minutes": 25,
+              "planned_start_at": "2026-08-03T08:00:00Z",
+              "planned_end_at": "2026-08-03T08:25:00Z",
+              "setup_time_minutes": 20,
+              "cycle_time_seconds": 120,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 4.444444444444445,
+              "calculated_total_minutes": 24.444444444444443,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            },
+            {
+              "sequence_no": 20,
+              "operation_code": "OP-PREP",
+              "work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+              "duration_minutes": 12,
+              "planned_start_at": "2026-08-03T08:25:00Z",
+              "planned_end_at": "2026-08-03T08:37:00Z",
+              "setup_time_minutes": 10,
+              "cycle_time_seconds": 30,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 1.1111111111111112,
+              "calculated_total_minutes": 11.11111111111111,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 30,
+              "operation_code": "OP-CUT",
+              "work_center_id": "bfa90701-c8e0-430c-a25f-b9d8d2a166ad",
+              "duration_minutes": 9,
+              "planned_start_at": "2026-08-03T08:37:00Z",
+              "planned_end_at": "2026-08-03T08:46:00Z",
+              "setup_time_minutes": 8,
+              "cycle_time_seconds": 20,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 0.7407407407407407,
+              "calculated_total_minutes": 8.74074074074074,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            },
+            {
+              "sequence_no": 40,
+              "operation_code": "OP-MOLD",
+              "work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+              "duration_minutes": 17,
+              "planned_start_at": "2026-08-03T08:46:00Z",
+              "planned_end_at": "2026-08-03T09:03:00Z",
+              "setup_time_minutes": 15,
+              "cycle_time_seconds": 45,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.92,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 1.6304347826086956,
+              "calculated_total_minutes": 16.630434782608695,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            },
+            {
+              "sequence_no": 50,
+              "operation_code": "OP-TRIM",
+              "work_center_id": "dfa405ce-f98b-4a3a-9740-48707153639b",
+              "duration_minutes": 6,
+              "planned_start_at": "2026-08-03T09:03:00Z",
+              "planned_end_at": "2026-08-03T09:09:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 15,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 0.5555555555555556,
+              "calculated_total_minutes": 5.555555555555555,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 60,
+              "operation_code": "OP-QC",
+              "work_center_id": "415a8758-36a7-43cb-b0db-482409a5db87",
+              "duration_minutes": 6,
+              "planned_start_at": "2026-08-03T09:09:00Z",
+              "planned_end_at": "2026-08-03T09:15:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 25,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 0.925925925925926,
+              "calculated_total_minutes": 5.925925925925926,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            }
+          ],
+          "capacity_warnings": [],
+          "labor_warnings": [],
+          "labor_shortages": [
+            {
+              "operation_code": "OP-MIX",
+              "skill_code": "SK-WC-MIX-MASTER",
+              "required_persons": 1,
+              "eligible_persons": 0,
+              "mandatory": true
+            },
+            {
+              "operation_code": "OP-MOLD",
+              "skill_code": "SK-WC-VULCAN-OPERATOR",
+              "required_persons": 2,
+              "eligible_persons": 0,
+              "mandatory": true
+            },
+            {
+              "operation_code": "OP-QC",
+              "skill_code": "SK-WC-INSPECTION",
+              "required_persons": 1,
+              "eligible_persons": 0,
+              "mandatory": true
+            }
+          ],
+          "labor_assignments": []
+        }
+      }
+    },
+    {
+      "name": "retrieve candidates and commit one Ready candidate for every operation",
+      "status": "passed",
+      "started_at": "2026-08-02T09:37:50.651Z",
+      "finished_at": "2026-08-02T09:37:51.042Z",
+      "data": [
+        {
+          "operation_code": "OP-MIX",
+          "operation_id": "38ed94fc-109d-4038-8df5-0108d681cc62",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "4386c366-f460-4f26-8b70-2183e046ece5",
+          "allocation_id": "4cadb308-d1e5-4107-a636-07ab88a98986"
+        },
+        {
+          "operation_code": "OP-PREP",
+          "operation_id": "38ddcea0-dbb3-4f3f-bff1-e16207ae5259",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "7873547c-39ca-431b-883e-e0ca43da48ee",
+          "allocation_id": "26bf26c7-1e08-4d17-9ea9-fbdde0f1b77d"
+        },
+        {
+          "operation_code": "OP-CUT",
+          "operation_id": "dac80e5a-2c83-4218-a7c4-e48f2bdfd6d7",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "a0f02142-60be-4ec3-905c-dd02572b54a1",
+          "allocation_id": "777646cf-602b-482e-917a-aa384f7f4a03"
+        },
+        {
+          "operation_code": "OP-MOLD",
+          "operation_id": "3f0a7a5e-f8a9-451c-8749-1bc4dc2bfdc3",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "7873547c-39ca-431b-883e-e0ca43da48ee",
+          "allocation_id": "a8b9eabb-039e-4071-a9b0-f43e610837d2"
+        },
+        {
+          "operation_code": "OP-TRIM",
+          "operation_id": "d69825d6-13ef-4a93-ba13-557b3e77e90e",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "7873547c-39ca-431b-883e-e0ca43da48ee",
+          "allocation_id": "9487d21d-dc91-4043-905c-4847561f672b"
+        },
+        {
+          "operation_code": "OP-QC",
+          "operation_id": "bb5aa227-e98b-4ed4-bafe-f69488b522ab",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "9f4e4f61-8c03-43de-9673-4b5dcac9b52e",
+          "allocation_id": "a9db877a-f1e8-49b1-89e9-a20449685154"
+        }
+      ]
+    },
+    {
+      "name": "repair local print-station readiness for exact allocated print workstations",
+      "status": "passed",
+      "started_at": "2026-08-02T09:37:51.043Z",
+      "finished_at": "2026-08-02T09:37:51.145Z",
+      "data": {
+        "print_operations": 4,
+        "readiness": [
+          {
+            "binding_id": "bb774d9b-f86f-41dd-bd1c-a35b8a808bea",
+            "role": "PRIMARY",
+            "print_station_id": "c8f406e2-ef98-49a2-988a-3874e5bc22e5",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-02T09:37:39.727Z"
+          },
+          {
+            "binding_id": "b4d9656e-071b-46a7-a836-1f7e2b7cf781",
+            "role": "PRIMARY",
+            "print_station_id": "c8f406e2-ef98-49a2-988a-3874e5bc22e5",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-02T09:37:39.727Z"
+          },
+          {
+            "binding_id": "2a3e0ab7-b4ee-4211-911c-1b4eb831e878",
+            "role": "PRIMARY",
+            "print_station_id": "c8f406e2-ef98-49a2-988a-3874e5bc22e5",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-02T09:37:39.727Z"
+          },
+          {
+            "binding_id": "0aeb6817-5e6a-43c5-a137-a147d2678e74",
+            "role": "PRIMARY",
+            "print_station_id": "c8f406e2-ef98-49a2-988a-3874e5bc22e5",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-02T09:37:39.727Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "refresh committed snapshots and revalidate allocations",
+      "status": "failed",
+      "started_at": "2026-08-02T09:37:51.145Z",
+      "finished_at": "2026-08-02T09:37:51.339Z",
+      "error": "Revalidation failed: {\"operations\":[{\"valid\":false,\"wo_operation_id\":\"d69825d6-13ef-4a93-ba13-557b3e77e90e\"},{\"valid\":true,\"wo_operation_id\":\"bb5aa227-e98b-4ed4-bafe-f69488b522ab\"},{\"valid\":true,\"wo_operation_id\":\"38ed94fc-109d-4038-8df5-0108d681cc62\"},{\"valid\":true,\"wo_operation_id\":\"38ddcea0-dbb3-4f3f-bff1-e16207ae5259\"},{\"valid\":true,\"wo_operation_id\":\"dac80e5a-2c83-4218-a7c4-e48f2bdfd6d7\"},{\"valid\":true,\"wo_operation_id\":\"3f0a7a5e-f8a9-451c-8749-1bc4dc2bfdc3\"}],\"valid\":false,\"wo_id\":\"fa8781bc-2b6f-480d-b2ee-f8a11d4e98c5\"}"
+    }
+  ]
+}

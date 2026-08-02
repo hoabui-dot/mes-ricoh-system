@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "mode": "dry-run",
+  "artifactDir": "/home/neurosus/recoh-system/mes-system/artifacts/mes-canonical-reset/2026-08-02T08-58-55-745Z",
+  "dryRun": true,
+  "targetedDatabases": [
+    "master",
+    "execution",
+    "traceability",
+    "kiosk"
+  ],
+  "resetStarted": false
+}

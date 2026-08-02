@@ -1,0 +1,486 @@
+{
+  "tables": [
+    {
+      "table_schema": "public",
+      "table_name": "execution_session"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "material_consumption"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "operation_confirmation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "outbox_events"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_employee"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_employee_shift_schedule"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_employee_skill"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_equipment"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_item_revision"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_mbom_header"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_mbom_line"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_operation_skill_requirement"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_line"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_line_work_center"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_standard"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_version"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_version_line_eligibility"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_resource_calendar"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_resource_capability"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_routing_header"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_routing_operation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_skill"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_work_center"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "schema_migrations"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_approval_log"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_capacity_reservation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_creation_workflow"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_creation_workflow_event"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_header"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_line_selection_audit"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_material_requirement"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_numbering_daily"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_operation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_operation_labor_assignment"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_print_job"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_print_job_attempt"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_print_job_event"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_resource_allocation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_resource_allocation_audit"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_resource_allocation_idempotency"
+    }
+  ],
+  "foreignKeys": [
+    {
+      "child_table": "execution_session",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    },
+    {
+      "child_table": "material_consumption",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "material_consumption",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    },
+    {
+      "child_table": "operation_confirmation",
+      "parent_table": "execution_session",
+      "child_column": "session_id",
+      "parent_column": "session_id"
+    },
+    {
+      "child_table": "operation_confirmation",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    },
+    {
+      "child_table": "rm_employee_shift_schedule",
+      "parent_table": "rm_employee",
+      "child_column": "employee_id",
+      "parent_column": "master_id"
+    },
+    {
+      "child_table": "rm_employee_skill",
+      "parent_table": "rm_employee",
+      "child_column": "employee_id",
+      "parent_column": "master_id"
+    },
+    {
+      "child_table": "rm_employee_skill",
+      "parent_table": "rm_skill",
+      "child_column": "skill_id",
+      "parent_column": "master_id"
+    },
+    {
+      "child_table": "wo_approval_log",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_capacity_reservation",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_capacity_reservation",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    },
+    {
+      "child_table": "wo_capacity_reservation",
+      "parent_table": "wo_resource_allocation",
+      "child_column": "allocation_id",
+      "parent_column": "allocation_id"
+    },
+    {
+      "child_table": "wo_creation_workflow_event",
+      "parent_table": "wo_creation_workflow",
+      "child_column": "workflow_id",
+      "parent_column": "workflow_id"
+    },
+    {
+      "child_table": "wo_line_selection_audit",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_material_requirement",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_operation",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_operation_labor_assignment",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_operation_labor_assignment",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    },
+    {
+      "child_table": "wo_print_job",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_print_job",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    },
+    {
+      "child_table": "wo_print_job_attempt",
+      "parent_table": "wo_print_job",
+      "child_column": "print_job_id",
+      "parent_column": "print_job_id"
+    },
+    {
+      "child_table": "wo_print_job_event",
+      "parent_table": "wo_print_job",
+      "child_column": "print_job_id",
+      "parent_column": "print_job_id"
+    },
+    {
+      "child_table": "wo_resource_allocation",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_resource_allocation",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    },
+    {
+      "child_table": "wo_resource_allocation",
+      "parent_table": "wo_resource_allocation",
+      "child_column": "superseded_by_allocation_id",
+      "parent_column": "allocation_id"
+    },
+    {
+      "child_table": "wo_resource_allocation_audit",
+      "parent_table": "wo_header",
+      "child_column": "wo_id",
+      "parent_column": "wo_id"
+    },
+    {
+      "child_table": "wo_resource_allocation_audit",
+      "parent_table": "wo_operation",
+      "child_column": "wo_operation_id",
+      "parent_column": "wo_operation_id"
+    }
+  ],
+  "relevantTables": [
+    {
+      "table_schema": "public",
+      "table_name": "execution_session"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "material_consumption"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "operation_confirmation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "outbox_events"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_employee"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_employee_shift_schedule"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_employee_skill"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_equipment"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_item_revision"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_mbom_header"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_mbom_line"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_operation_skill_requirement"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_line"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_line_work_center"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_standard"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_version"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_production_version_line_eligibility"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_resource_calendar"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_resource_capability"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_routing_header"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_routing_operation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_skill"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "rm_work_center"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_approval_log"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_capacity_reservation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_creation_workflow"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_creation_workflow_event"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_header"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_line_selection_audit"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_material_requirement"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_numbering_daily"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_operation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_operation_labor_assignment"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_print_job"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_print_job_attempt"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_print_job_event"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_resource_allocation"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_resource_allocation_audit"
+    },
+    {
+      "table_schema": "public",
+      "table_name": "wo_resource_allocation_idempotency"
+    }
+  ]
+}

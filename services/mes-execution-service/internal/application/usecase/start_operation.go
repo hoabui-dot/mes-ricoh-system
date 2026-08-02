@@ -37,6 +37,9 @@ func StartOperation(ctx context.Context, pool *pgxpool.Pool, input StartOperatio
 	if woStatus != "Released" && woStatus != "InProgress" {
 		return nil, fmt.Errorf("work order %s is in status %s, must be Released or InProgress to start operation", input.WOID, woStatus)
 	}
+	if err := requireSelectedLineConsistency(ctx, tx, input.WOID); err != nil {
+		return nil, err
+	}
 
 	// Update WO status to InProgress if Released
 	if woStatus == "Released" {
@@ -60,6 +63,19 @@ func StartOperation(ctx context.Context, pool *pgxpool.Pool, input StartOperatio
 
 	if opStatus == "Finished" || opStatus == "ExecutionError" || opStatus == "InProgress" {
 		return nil, fmt.Errorf("operation %s is already in status %s", input.WOOperationID, opStatus)
+	}
+	var committedAllocationCount int
+	if err := tx.QueryRow(ctx, `
+		SELECT COUNT(*)::int
+		FROM wo_resource_allocation
+		WHERE wo_operation_id=$1
+		  AND wo_id=$2
+		  AND status='Committed'
+		  AND validation_status IN ('Valid','ValidWithWarnings')`, input.WOOperationID, input.WOID).Scan(&committedAllocationCount); err != nil {
+		return nil, err
+	}
+	if committedAllocationCount != 1 {
+		return nil, fmt.Errorf("WO_RESOURCE_ALLOCATION_INVALID")
 	}
 	if predSeq != nil && *predSeq != "" {
 		// Check predecessor operation is Finished

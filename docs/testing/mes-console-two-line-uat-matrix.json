@@ -1,0 +1,51 @@
+{
+  "generated_at": "2026-08-02T10:05:00Z",
+  "canonical_seed": {
+    "latest_seed_artifact": "artifacts/mes-canonical-reset/2026-08-02T09-59-14-659Z/seed-result.json",
+    "latest_verification_artifact": "artifacts/mes-canonical-reset/2026-08-02T09-59-22-109Z/verification-result.json",
+    "latest_full_flow_artifact": "artifacts/mes-canonical-reset/2026-08-02T09-59-26-515Z/full-flow-result.json",
+    "verification": "40/40 checks passed",
+    "print_station_third_party": "SKIPPED_BY_REQUEST"
+  },
+  "canonical_codes": {
+    "site": "SITE-KZ3",
+    "base_production_version": "PV-FG-WS-CM01-R1",
+    "two_line_production_version": "WST-SEED-PV-SEAL-ASM-01",
+    "primary_line": "WST-SEED-LINE-1",
+    "backup_line": "WST-SEED-LINE-2",
+    "target_date": "2026-08-03",
+    "shift": "SHIFT-A",
+    "base_workers": ["EMP-MIX-001", "EMP-VULCAN-001", "EMP-VULCAN-002", "EMP-QC-001"]
+  },
+  "test_cases": [
+    {"id": "TC-01", "name": "Xác minh toàn bộ Master Data của hai line", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase6-production-lines.spec.ts", "e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-02", "name": "Xác minh Item, Revision, EBOM, MBOM, Routing và Production Version", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase4-product-definition.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-03", "name": "Xác minh Production Version Line Eligibility", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-04", "name": "Tạo WO khi Primary Line sẵn sàng", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-05", "name": "Compute & Check trên Primary Line", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-06", "name": "Commit allocations cho toàn bộ operations của Primary Line", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase3-resource-planning.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-07", "name": "Approve và Start Execution trên Primary Line", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "PARTIALLY_IMPLEMENTED", "limitation": "Strict print-station/third-party dispatch is skipped by current verification request."},
+    {"id": "TC-08", "name": "Primary Line hết capacity, fallback sang Backup Line", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-09", "name": "Primary Machine Maintenance, fallback sang Backup Line", "severity": "High", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/machine/machine-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-10", "name": "Primary Line thiếu mandatory resource", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-11", "name": "Both Lines Blocked", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-12", "name": "Mixed-Line allocation rejection", "severity": "Critical", "ui_executable": "backend_protected", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-13", "name": "Stale candidate before commit", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase3-resource-planning.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-14", "name": "Resource becomes invalid after allocation but before approval", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase3-resource-planning.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-15", "name": "Execution start without complete valid allocations", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-16", "name": "Cancel allocation", "severity": "High", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase3-resource-planning.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-17", "name": "Reallocate resource", "severity": "High", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase3-resource-planning.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-18", "name": "Replan or change line before Release", "severity": "High", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-19", "name": "Change line after Release but before Start", "severity": "High", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-20", "name": "Reject line change after Start", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-21", "name": "Idempotency and duplicate-submit protection", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/work-order/numbering.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-22", "name": "Concurrent Work Orders", "severity": "Critical", "ui_executable": "api_or_parallel_browser", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/concurrency/resource-planning-concurrency.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-23", "name": "Persistence after refresh, browser restart, logout/login", "severity": "High", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-24", "name": "Snapshot stability after new master-data version", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase4-product-definition.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-25", "name": "Authorization matrix", "severity": "Critical", "ui_executable": "partial", "automation": "PARTIALLY_AUTOMATED", "existing_specs": [], "status": "IMPLEMENTED_NOT_FULLY_VERIFIED", "limitation": "Real Keycloak users must be confirmed in the target environment."},
+    {"id": "TC-26", "name": "Cross-site access denial", "severity": "High", "ui_executable": "partial", "automation": "NOT_COVERED", "existing_specs": [], "status": "IMPLEMENTED_NOT_FULLY_VERIFIED"},
+    {"id": "TC-27", "name": "Vietnamese translation and error rendering", "severity": "High", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_NOT_FULLY_VERIFIED"},
+    {"id": "TC-28", "name": "Async workflow and reconnect", "severity": "High", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-29", "name": "Exact cleanup and rerun", "severity": "Critical", "ui_executable": "script", "automation": "FULLY_AUTOMATED", "existing_specs": ["scripts/reset-mes-all-data.mjs", "scripts/seed-mes-canonical-dataset.mjs", "scripts/verify-mes-canonical-seed.mjs"], "status": "IMPLEMENTED_AND_VERIFIED"}
+  ]
+}

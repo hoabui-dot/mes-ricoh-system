@@ -1,0 +1,12 @@
+{
+  "run_id": "2026-08-02T10-30-00Z",
+  "traceability": [
+    { "concept": "work_order_creation", "api": "POST /api/mes/execution/work-order-creation-workflows", "ui": "WOCreateScreen.tsx", "status": "Current" },
+    { "concept": "work_order_detail", "api": "GET /api/mes/execution/work-orders/:id", "ui": "WODetailScreen.tsx", "status": "Current" },
+    { "concept": "line_selection", "fields": ["selected_production_line_id", "selected_production_line_code", "line_selection_mode", "line_selection_status", "fallback_reason", "resource_hold_reason"], "ui": "WODetailScreen.tsx", "status": "Partial" },
+    { "concept": "evaluated_line_results", "fields": ["evaluated_line_results"], "ui": "WODetailScreen.tsx", "status": "Partial" },
+    { "concept": "resource_candidates", "api": "GET /work-orders/:id/operations/:opId/resource-candidates", "ui": "WODetailScreen.tsx", "status": "Current" },
+    { "concept": "worker_skill_definitions", "api": "/worker-skills", "ui": "SkillManagementScreen.tsx", "status": "Current" },
+    { "concept": "employee_skill_assignments", "api": "/employees/:id/skills", "ui": "EmployeesScreen.tsx", "status": "Partial" }
+  ]
+}

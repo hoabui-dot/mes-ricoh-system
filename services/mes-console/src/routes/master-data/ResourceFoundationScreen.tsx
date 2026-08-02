@@ -16,13 +16,14 @@ import { StatusSwitchField } from '../../components/StatusSwitchField';
 import { BaseCardGrid, BaseDataTable, type BaseDataTableColumn } from '../../components/base';
 import { formatNumberForDisplay } from '../../lib/numeric/uomNumeric';
 
-type Entity = 'factories' | 'shopfloors' | 'production-areas' | 'work-centers' | 'workstations' | 'equipment' | 'machines' | 'resource-assignments';
+type Entity = 'factories' | 'shopfloors' | 'production-areas' | 'production-lines' | 'work-centers' | 'workstations' | 'equipment' | 'machines' | 'resource-assignments';
 type AnyRecord = Record<string, any>;
 
 const labels: Record<Entity, string> = {
   factories: 'resourceFoundation.factories',
   shopfloors: 'resourceFoundation.shopfloors',
   'production-areas': 'resourceFoundation.productionAreas',
+  'production-lines': 'resourceFoundation.productionLines',
   'work-centers': 'nav.workCenters',
   workstations: 'resourceFoundation.workstations',
   equipment: 'resourceFoundation.machines',
@@ -148,7 +149,7 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
         setForm(normalizedRecord);
         if (isWorkstationForm) setFormSectionsLoading({ basic: false, machineGroups: false, operations: false, skills: false, availability: false });
       } else if (formMode) {
-        const entityType = entity === 'work-centers' ? 'WorkCenter' : entity === 'workstations' ? 'Workstation' : entity === 'machines' || entity === 'equipment' ? 'Machine' : entity === 'factories' ? 'Factory' : entity === 'shopfloors' ? 'Shopfloor' : '';
+        const entityType = entity === 'production-lines' ? 'ProductionLine' : entity === 'work-centers' ? 'WorkCenter' : entity === 'workstations' ? 'Workstation' : entity === 'machines' || entity === 'equipment' ? 'Machine' : entity === 'factories' ? 'Factory' : entity === 'shopfloors' ? 'Shopfloor' : '';
         if (entityType) {
           const reservationResponse = await fetch(`${masterDataBaseUrl()}/business-codes/reservations`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify({ entity_type: entityType }) });
           if (reservationResponse.ok) { const reservation = await reservationResponse.json(); if (!isCurrent()) return; setForm((current) => ({ ...current, code: reservation.data?.code, code_reservation_id: reservation.data?.reservation_id })); }
@@ -250,7 +251,7 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
 
   const set = (key: string, value: any) => setForm((current) => ({ ...current, [key]: value }));
   const releaseResource = async () => {
-    if (!id || entity !== 'workstations') return;
+    if (!id || !['workstations', 'production-lines'].includes(entity)) return;
     setReleasing(true);
     try {
       const response = await fetch(`${masterDataBaseUrl()}/${entity}/${id}/release`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, cache: 'no-store' });
@@ -314,6 +315,8 @@ function ResourceForm({ entity, title, form, set, save, sites, areas, shopfloors
   const siteOptions = sites.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const areaOptions = areas.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const shopfloorOptions = shopfloors.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
+  const productionLineAreaOptions = areas.filter((area: AnyRecord) => !form.site_id || area.site_id === form.site_id).map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
+  const productionLineShopfloorOptions = shopfloors.filter((shopfloor: AnyRecord) => !form.site_id || shopfloor.site_id === form.site_id).map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const wcOptions = workCenters.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const wsOptions = workstations.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const eqOptions = equipment.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
@@ -323,11 +326,12 @@ function ResourceForm({ entity, title, form, set, save, sites, areas, shopfloors
   const workstationLoading = entity === 'workstations' && Object.values(formSectionsLoading || {}).some(Boolean);
   return <form data-testid={machineEntity ? 'machine-form' : entity === 'workstations' ? 'workstation-form' : undefined} onSubmit={save} className="space-y-5"><div className="flex items-center justify-between"><div><h1 className="text-2xl font-black">{id ? `${t('common.edit')} ${title}` : `${t('common.create')} ${title}`}</h1><p className="mt-1 text-sm text-muted-foreground">{t('resourceFoundation.formHelp')}</p></div></div>{workstationLoading ? <Card className="space-y-2 border-action/40 bg-surface-subtle p-4"><div className="font-semibold">{t('common.loading')}</div>{[['basic', t('resourceFoundation.basicData')], ['machineGroups', t('resourceFoundation.machineGroups')], ['skills', t('skills.resourceSkills')], ['availability', t('resourceFoundation.availableUnits')]].map(([key, label]) => <div key={String(key)} className="flex items-center justify-between text-sm"><span>{label}</span><span className="text-muted-foreground">{formSectionsLoading?.[key] ? t('common.loading') : t('resourceFoundation.hydrationReady')}</span></div>)}</Card> : null}<Card className="grid gap-4 p-5 md:grid-cols-2">
     <LocalizedTextInput data-testid={machineEntity ? 'machine-name-input' : entity === 'workstations' ? 'workstation-name-input' : entity === 'resource-assignments' ? 'resource-assignment-name-input' : undefined} label={t('common.name')} required value={form.name || {}} onChange={(value: any) => set('name', value)} />
-    {['factories', 'shopfloors', 'production-areas', 'work-centers', 'workstations', 'equipment', 'machines'].includes(entity) ? <GeneratedCodeField label={t('common.code')} value={form.code} helper={t('resourceFoundation.codePreviewHelp')} /> : null}
+    {['factories', 'shopfloors', 'production-areas', 'production-lines', 'work-centers', 'workstations', 'equipment', 'machines'].includes(entity) ? <GeneratedCodeField label={t('common.code')} value={form.code} helper={t('resourceFoundation.codePreviewHelp')} /> : null}
     {entity === 'shopfloors' ? <label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.factories')}</span><SelectBase value={form.site_id} onValueChange={(value) => set('site_id', value)} options={siteOptions} placeholder={t('resourceFoundation.factories')} required /></label> : null}
     {entity === 'factories' ? <><Field label={t('resourceFoundation.timezone')} value={form.timezone || 'Asia/Ho_Chi_Minh'} onChange={(value) => set('timezone', value)} required /><StatusSwitchField label={t('common.active')} checked={form.lifecycle_status !== 'Inactive'} onCheckedChange={(checked) => set('lifecycle_status', checked ? 'Released' : 'Inactive')} activeLabel={t('common.active')} inactiveLabel={t('common.inactive')} /></> : null}
     {entity === 'production-areas' ? <label className="block space-y-1"><span className="text-sm font-medium">{t('common.site')}</span><SelectBase value={form.site_id} onValueChange={(value) => set('site_id', value)} options={siteOptions} placeholder={t('common.site')} required /></label> : null}
     {entity === 'production-areas' ? <><Field label={t('resourceFoundation.areaType')} value={form.area_type || 'Workshop'} onChange={(value) => set('area_type', value)} /><Field label={t('resourceFoundation.sequence')} type="number" value={form.sequence_no ?? 0} onChange={(value) => set('sequence_no', value)} /><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.parentArea')}</span><SelectBase value={form.parent_area_id} onValueChange={(value) => set('parent_area_id', value)} options={[{ value: '', label: t('common.none') }, ...areaOptions]} placeholder={t('resourceFoundation.parentArea')} /></label></> : null}
+    {entity === 'production-lines' ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('common.site')}</span><SelectBase value={form.site_id} onValueChange={(value) => set('site_id', value)} options={siteOptions} placeholder={t('common.site')} required /></label><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.area')}</span><SelectBase value={form.area_id} onValueChange={(value) => set('area_id', value)} options={productionLineAreaOptions} placeholder={t('resourceFoundation.area')} required /></label><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.shopfloors')}</span><SelectBase value={form.shopfloor_id} onValueChange={(value) => set('shopfloor_id', value)} options={[{ value: '', label: t('common.none') }, ...productionLineShopfloorOptions]} placeholder={t('common.none')} /></label><Field label={t('resourceFoundation.lineType')} value={form.line_type || 'Production'} onChange={(value) => set('line_type', value)} /></> : null}
     {entity === 'work-centers' ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.shopfloors')}</span><SelectBase value={form.shopfloor_id} onValueChange={(value) => set('shopfloor_id', value)} options={shopfloorOptions} placeholder={t('resourceFoundation.shopfloors')} required /></label><ResourceHierarchyContext label={t('resourceFoundation.hierarchyLabel')} factory={text(sites.find((s: AnyRecord) => s.master_id === workCenters.find((w: AnyRecord) => w.master_id === form.master_id)?.site_id)?.name)} shopfloor={text(shopfloors.find((s: AnyRecord) => s.master_id === form.shopfloor_id)?.name)} /></> : null}
     {entity === 'workstations' ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('nav.workCenters')}</span><SelectBase data-testid="workstation-work-center-select" value={form.work_center_id} onValueChange={(value) => set('work_center_id', value)} options={wcOptions} placeholder={t('nav.workCenters')} required /></label><ResourceHierarchyContext label={t('resourceFoundation.hierarchyLabel')} factory={text(sites.find((s: AnyRecord) => s.master_id === workCenters.find((w: AnyRecord) => w.master_id === form.work_center_id)?.site_id)?.name)} shopfloor={text(shopfloors.find((s: AnyRecord) => s.master_id === form.work_center_id)?.name)} workCenter={text(workCenters.find((w: AnyRecord) => w.master_id === form.work_center_id)?.name)} /><MachineRequirementEditor groups={form.machine_groups || []} setGroups={(groups: AnyRecord[]) => set('machine_groups', groups)} machines={equipment} text={text} t={t} />{id ? <><AssignedMachinesPanel assignments={form.assignments || []} text={text} t={t} /><WorkstationReadinessSummary row={form} text={text} t={t} /><AssignmentHistoryPanel assignments={form.assignments || []} text={text} t={t} /></> : <InitialAssignmentNotice t={t} />}</> : null}
     {entity === 'work-centers' ? <><Field label={t('resourceFoundation.resourceType')} value={form.resource_type || 'MachineGroup'} onChange={(value) => set('resource_type', value)} /><Field label={t('resourceFoundation.capacityModel')} value={form.capacity_model || 'TimeBased'} onChange={(value) => set('capacity_model', value)} /></> : null}
@@ -522,8 +526,9 @@ function WorkstationPrintStationDetail({ integration, text, t }: { integration: 
 }
 
 function ResourceDetail({ entity, row, text, t, user, onBack, onRelease, releasing }: AnyRecord) {
-  const canRelease = entity === 'workstations' && ['Draft', 'InReview', 'Inactive'].includes(row.lifecycle_status);
-  return <>{entity === 'workstations' ? <><Card className="flex items-center justify-between gap-3 border-action/40 bg-surface-subtle p-4"><div><div className="font-semibold">{t('resourceFoundation.release')}</div><div className="text-sm text-muted-foreground">{t('resourceFoundation.releaseHelp')}</div></div>{canRelease ? <Button onClick={onRelease} disabled={releasing}><CheckCircle2 className="h-4 w-4" />{t('resourceFoundation.release')}</Button> : null}</Card>{row.print_station_integration ? <WorkstationPrintStationDetail integration={row.print_station_integration} text={text} t={t} /> : null}</> : null}<LegacyResourceDetail entity={entity} row={row} text={text} t={t} user={user} onBack={onBack} onRelease={onRelease} releasing={releasing} /></>;
+  const releasableEntity = ['workstations', 'production-lines'].includes(entity);
+  const canRelease = releasableEntity && ['Draft', 'InReview', 'Inactive'].includes(row.lifecycle_status);
+  return <>{releasableEntity ? <><Card className="flex items-center justify-between gap-3 border-action/40 bg-surface-subtle p-4"><div><div className="font-semibold">{t('resourceFoundation.release')}</div><div className="text-sm text-muted-foreground">{t('resourceFoundation.releaseHelp')}</div></div>{canRelease ? <Button onClick={onRelease} disabled={releasing}><CheckCircle2 className="h-4 w-4" />{t('resourceFoundation.release')}</Button> : null}</Card>{entity === 'workstations' && row.print_station_integration ? <WorkstationPrintStationDetail integration={row.print_station_integration} text={text} t={t} /> : null}</> : null}<LegacyResourceDetail entity={entity} row={row} text={text} t={t} user={user} onBack={onBack} onRelease={onRelease} releasing={releasing} /></>;
 }
 
 function EquipmentReadinessDetail({ row, t }: { row: AnyRecord; t: (key: string, params?: Record<string, unknown>) => string }) {

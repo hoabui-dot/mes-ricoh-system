@@ -1,0 +1,183 @@
+{
+  "generated_at": "2026-08-02T10:05:00Z",
+  "source_basis": [
+    "services/mes-console/src/App.tsx",
+    "services/mes-console/src/components/Sidebar.tsx",
+    "services/mes-console/src/routes/**",
+    "services/mes-console/src/lib/masterDataApi.ts",
+    "services/mes-execution-service/internal/infrastructure/http/router.go",
+    "scripts/seed-mes-canonical-dataset.mjs",
+    "scripts/verify-mes-canonical-seed.mjs"
+  ],
+  "features": [
+    {
+      "feature": "Work Orders",
+      "routes": ["/work-orders", "/work-orders/new", "/work-orders/:id"],
+      "business_objects": ["wo_header", "wo_operation", "wo_material_requirement"],
+      "owner": "MES Execution",
+      "required_before_wo": false,
+      "used_during_planning": true,
+      "used_during_execution": true,
+      "primary_apis": [
+        "GET /api/mes/execution/work-orders",
+        "POST /api/mes/execution/work-order-creation-workflows",
+        "GET /api/mes/execution/work-orders/:id",
+        "POST /api/mes/execution/work-orders/:id/compute-check"
+      ],
+      "test_cases": ["TC-04", "TC-05", "TC-23", "TC-28"],
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "failure_impact": "Không tạo hoặc không xem được WO; toàn bộ UAT bị BLOCKED."
+    },
+    {
+      "feature": "Production Version Line Eligibility",
+      "routes": ["/master-data/production-versions", "/master-data/production-versions/:id/edit"],
+      "business_objects": ["md_production_version", "md_production_version_line_eligibility", "rm_production_version_line_eligibility"],
+      "owner": "MES Master Data; projected to MES Execution",
+      "required_before_wo": true,
+      "used_during_planning": true,
+      "used_during_execution": false,
+      "primary_apis": [
+        "GET /api/mes/master-data/production-versions/:id/line-eligibility",
+        "PUT /api/mes/master-data/production-versions/:id/line-eligibility",
+        "POST /api/mes/execution/work-order-creation-workflows"
+      ],
+      "test_cases": ["TC-03", "TC-04", "TC-08", "TC-11"],
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "failure_impact": "WO không chọn được một line hoàn chỉnh hoặc vào RESOURCE_HOLD."
+    },
+    {
+      "feature": "Resource Planning Candidates and Allocation",
+      "routes": ["/work-orders/:id"],
+      "business_objects": ["wo_resource_allocation", "wo_capacity_reservation", "wo_resource_allocation_audit"],
+      "owner": "MES Execution",
+      "required_before_wo": false,
+      "used_during_planning": true,
+      "used_during_execution": true,
+      "primary_apis": [
+        "GET /api/mes/execution/work-orders/:id/operations/:opId/resource-candidates",
+        "POST /api/mes/execution/work-orders/:id/operations/:opId/resource-allocation",
+        "POST /api/mes/execution/work-orders/:id/operations/:opId/reallocate",
+        "DELETE /api/mes/execution/work-orders/:id/operations/:opId/resource-allocation",
+        "POST /api/mes/execution/work-orders/:id/resource-allocations/revalidate"
+      ],
+      "test_cases": ["TC-05", "TC-06", "TC-12", "TC-13", "TC-16", "TC-17"],
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "failure_impact": "Không thể cam kết nguồn lực hoặc backend từ chối approval/start."
+    },
+    {
+      "feature": "Factory, Lines, Work Centers, Workstations, Machines",
+      "routes": [
+        "/master-data/factories",
+        "/master-data/shopfloors",
+        "/master-data/production-areas",
+        "/master-data/production-lines",
+        "/master-data/work-centers",
+        "/master-data/workstations",
+        "/master-data/machines",
+        "/master-data/equipment"
+      ],
+      "business_objects": ["md_site", "md_shopfloor", "md_production_area", "md_production_line", "md_work_center", "md_workstation", "md_equipment", "md_machine_unit"],
+      "owner": "MES Master Data",
+      "required_before_wo": true,
+      "used_during_planning": true,
+      "used_during_execution": true,
+      "primary_apis": [
+        "GET/POST/PUT/DELETE /api/mes/master-data/<resource>",
+        "GET /api/mes/master-data/production-lines/:id",
+        "PUT /api/mes/master-data/production-lines/:id/work-centers"
+      ],
+      "test_cases": ["TC-01", "TC-08", "TC-09", "TC-10", "TC-11"],
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "failure_impact": "Line readiness hoặc candidate readiness bị Blocked."
+    },
+    {
+      "feature": "Planning Constraints",
+      "routes": [
+        "/master-data/resource-assignments",
+        "/master-data/resource-capabilities",
+        "/master-data/resource-calendars",
+        "/master-data/production-standards",
+        "/master-data/operation-skill-requirements"
+      ],
+      "business_objects": ["md_resource_assignment", "md_resource_capability", "md_resource_calendar", "md_production_standard", "md_operation_skill_requirement"],
+      "owner": "MES Master Data; partial projections to MES Execution",
+      "required_before_wo": true,
+      "used_during_planning": true,
+      "used_during_execution": true,
+      "primary_apis": ["GET/POST/PUT/DELETE /api/mes/master-data/<planning-resource>"],
+      "test_cases": ["TC-01", "TC-05", "TC-08", "TC-14", "TC-15"],
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "failure_impact": "Compute & Check, candidates, allocation revalidation, approval hoặc start bị chặn."
+    },
+    {
+      "feature": "Product Definition",
+      "routes": [
+        "/master-data/items",
+        "/master-data/uoms",
+        "/master-data/material-groups",
+        "/master-data/eboms",
+        "/master-data/mboms",
+        "/master-data/routings",
+        "/master-data/routings/:id/operations",
+        "/master-data/operations",
+        "/master-data/production-versions"
+      ],
+      "business_objects": ["md_item", "md_item_revision", "md_uom", "md_material_group", "md_ebom_header", "md_mbom_header", "md_routing_header", "md_routing_operation", "md_operation", "md_production_version"],
+      "owner": "MES Master Data; snapshots/projected read models in MES Execution",
+      "required_before_wo": true,
+      "used_during_planning": true,
+      "used_during_execution": true,
+      "primary_apis": ["GET/POST/PUT/DELETE /api/mes/master-data/<product-resource>", "GET /api/mes/master-data/production-ready-versions"],
+      "test_cases": ["TC-02", "TC-04", "TC-24"],
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "failure_impact": "Production Version không Ready; WO không tạo được hoặc snapshot sai."
+    },
+    {
+      "feature": "Labor and Skills",
+      "routes": ["/employees", "/shifts", "/work-calendar", "/master-data/skills", "/master-data/skills/workers"],
+      "business_objects": ["md_employee", "md_employee_skill", "md_employee_shift_schedule", "md_shift", "md_skill", "rm_employee", "rm_employee_skill", "rm_employee_shift_schedule", "rm_skill"],
+      "owner": "MES Master Data; projected to MES Execution",
+      "required_before_wo": true,
+      "used_during_planning": true,
+      "used_during_execution": false,
+      "primary_apis": [
+        "GET/POST/PUT /api/mes/master-data/employees",
+        "GET/POST/PUT /api/mes/master-data/skills",
+        "GET/POST/PUT /api/mes/master-data/employee-schedules"
+      ],
+      "test_cases": ["TC-01", "TC-05", "TC-27"],
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "failure_impact": "Compute & Check hiển thị labor_shortages và không đề xuất đủ nhân sự."
+    },
+    {
+      "feature": "Print Stations",
+      "routes": ["/master-data/print-stations"],
+      "business_objects": ["md_print_station", "md_workstation_print_station_binding", "md_print_station_runtime_projection"],
+      "owner": "MES Master Data; print runtime is third-party/environment-dependent",
+      "required_before_wo": false,
+      "used_during_planning": true,
+      "used_during_execution": true,
+      "primary_apis": [
+        "GET/POST /api/mes/master-data/print-stations",
+        "GET /api/mes/master-data/print-stations/:id/workstations",
+        "GET /api/mes/master-data/print-stations/:id/workstation-candidates"
+      ],
+      "test_cases": ["TC-07", "TC-27"],
+      "status": "PARTIALLY_IMPLEMENTED",
+      "failure_impact": "Strict print dispatch/start phụ thuộc môi trường; UAT hiện bỏ qua phần third-party theo chỉ đạo."
+    },
+    {
+      "feature": "i18n Review",
+      "routes": ["/console/mes/i18n-review"],
+      "business_objects": ["i18n_data_quality_flag"],
+      "owner": "MES Master Data",
+      "required_before_wo": false,
+      "used_during_planning": false,
+      "used_during_execution": false,
+      "primary_apis": ["GET /api/mes/master-data/i18n-review"],
+      "test_cases": ["TC-27"],
+      "status": "IMPLEMENTED_NOT_FULLY_VERIFIED",
+      "failure_impact": "Có thể xuất hiện enum thô hoặc thông báo chưa dịch trong UAT."
+    }
+  ]
+}

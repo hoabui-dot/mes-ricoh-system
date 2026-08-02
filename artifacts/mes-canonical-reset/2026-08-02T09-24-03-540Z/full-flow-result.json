@@ -1,0 +1,20 @@
+{
+  "success": false,
+  "generated_at": "2026-08-02T09:24:03.541Z",
+  "environment": "development",
+  "e2e": "skipped_by_RUN_MES_CANONICAL_E2E",
+  "command_results": [
+    {
+      "label": "One-line Resource Planning domain/negative matrix",
+      "command": "npm run test:mes:resource-planning-domain:phase1",
+      "exit_code": 1,
+      "passed": false,
+      "started_at": "2026-08-02T09:24:03.543Z",
+      "ended_at": "2026-08-02T09:24:06.872Z",
+      "stdout": "\n> mom-platform@1.0.0 test:mes:resource-planning-domain:phase1\n> MES_ENV=development ALLOW_RESOURCE_PLANNING_MUTATION=true node scripts/test-mes-resource-planning-domain-phase1.mjs\n\n[phase1] run=PHASE1-RP-1785662643768-HJAUI pv=PV-FG-WS-CM01-R1 shift=SHIFT-A\n[phase1] PASS missing Primary Machine Requirement blocks readiness\n[phase1] PASS insufficient physical Machine Units blocks readiness\n[phase1] PASS expired Resource Assignment blocks readiness\n[phase1] PASS Workstation in another Work Center is not a candidate\n[phase1] PASS Machine Unit in another Site blocks readiness\n[phase1] PASS Machine Unit under maintenance blocks readiness\n[phase1] PASS Machine Unit out of service blocks readiness\n[phase1] PASS Machine Unit not planning eligible blocks readiness\n[phase1] PASS unavailable Resource Calendar blocks readiness\n[phase1] PASS invalid Shift blocks readiness\n[phase1] PASS missing Production Standard blocks readiness\n[phase1] PASS stale candidate is rejected at commit\n[phase1] PASS simultaneous allocation conflict rejects second commit\n[phase1] PASS idempotent replay returns the same allocation response\n[phase1] PASS reused idempotency key with different request fails\n",
+      "stderr": "[phase1] FAILED: TypeError: Cannot read properties of undefined (reading 'workstation')\n    at payloadFor (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:202:31)\n    at allocate (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:216:26)\n    at file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:556:28\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async scenario (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:97:5)\n    at async main (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-domain-phase1.mjs:551:3)\n"
+    }
+  ],
+  "error": "One-line Resource Planning domain/negative matrix failed",
+  "completed_at": "2026-08-02T09:24:06.873Z"
+}

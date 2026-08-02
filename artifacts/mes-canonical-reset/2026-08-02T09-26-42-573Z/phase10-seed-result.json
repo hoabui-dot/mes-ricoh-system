@@ -1,0 +1,117 @@
+{
+  "status": "PASS",
+  "generated_at": "2026-08-02T09:26:49.727Z",
+  "mode": "--seed",
+  "safety": {
+    "passed": true,
+    "mode": "--seed",
+    "environment": "development",
+    "reasons": [],
+    "host": "staging-master",
+    "databases": {
+      "master": {
+        "host": "localhost",
+        "port": "15434",
+        "database": "mes_master_data_db",
+        "user": "mes_master_data_user",
+        "password": "[REDACTED]"
+      },
+      "execution": {
+        "host": "localhost",
+        "port": "15435",
+        "database": "mes_execution_db",
+        "user": "mes_execution_user",
+        "password": "[REDACTED]"
+      },
+      "traceability": {
+        "host": "localhost",
+        "port": "15436",
+        "database": "mes_traceability_db",
+        "user": "traceability_user",
+        "password": "[REDACTED]"
+      }
+    }
+  },
+  "artifact_path": "/home/neurosus/recoh-system/mes-system/artifacts/mes-canonical-reset/2026-08-02T09-26-42-573Z/phase10-seed-result.json",
+  "command_results": [],
+  "cleanup": {
+    "master_line_eligibility": 0,
+    "master_line_resource_scope": 0,
+    "master_line_work_centers": 0,
+    "master_operation_skill_requirements": 0,
+    "master_resource_capabilities": 0,
+    "master_resource_calendars": 0,
+    "master_production_standards": 0,
+    "master_resource_assignments": 0,
+    "master_production_versions_before_resources": 0,
+    "master_routing_operations_before_resources": 0,
+    "master_machine_units": 0,
+    "master_equipment": 0,
+    "master_workstations": 0,
+    "master_production_versions": 0,
+    "master_mbom_lines": 0,
+    "master_ebom_lines": 0,
+    "master_routing_operations": 0,
+    "master_ebom_headers": 0,
+    "master_routing_headers": 0,
+    "master_mbom_headers": 0,
+    "master_item_revisions": 0,
+    "master_items": 0,
+    "master_operations": 0,
+    "master_work_centers": 0,
+    "master_production_lines": 0,
+    "master_outbox_events": 0,
+    "execution_line_eligibility": 0,
+    "execution_line_work_centers": 0,
+    "execution_resource_calendars": 0,
+    "execution_production_standards": 0,
+    "execution_resource_capabilities": 0,
+    "execution_routing_operations": 0,
+    "execution_routing_headers": 0,
+    "execution_mbom_lines": 0,
+    "execution_mbom_headers": 0,
+    "execution_production_versions": 0,
+    "execution_work_centers": 0,
+    "execution_item_revisions": 0,
+    "traceability_policies": 0,
+    "traceability_templates": 0,
+    "traceability_numbering": 0,
+    "traceability_qr_split": 0
+  },
+  "legacy_e2e_seed": {
+    "skipped": true,
+    "reason": "Phase 10 default seed is MES-owned only; legacy E2E seed delegates to WMS and requires a separate WMS seed contract."
+  },
+  "seed": {
+    "production_version_id": "24060f9e-fd7c-4a00-a508-9efc9ff26556",
+    "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+    "item_revision_id": "add33532-7bf6-4ff2-941e-c27dcb7f2e50",
+    "site_id": "8973a270-84ac-4b35-bb90-d3eafa34af2f",
+    "shift_id": "caaf79e0-7302-49b1-af3d-97ae1cf39219",
+    "target_date": "2026-08-03",
+    "line_1_id": "e35ef3bf-bfdb-4f60-81ed-298950e1f158",
+    "line_2_id": "ff3e2aaf-f5fe-4923-a01e-a228d192713a",
+    "operation_count": 4
+  },
+  "counts": {
+    "masterCounts": {
+      "production_lines": 2,
+      "work_centers": 8,
+      "workstations": 8,
+      "equipment": 8,
+      "machine_units": 8,
+      "assignments": 8,
+      "capabilities": 8,
+      "calendars": 8,
+      "operations": 4,
+      "production_versions": 1,
+      "line_eligibilities": 2
+    },
+    "orphanCounts": {
+      "line_work_center_orphans": 0,
+      "assignment_orphans": 0,
+      "eligibility_orphans": 0
+    }
+  },
+  "completed_at": "2026-08-02T09:26:50.149Z"
+}

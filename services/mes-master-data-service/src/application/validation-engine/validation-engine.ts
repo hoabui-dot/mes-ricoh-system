@@ -67,8 +67,11 @@ export async function validateProductionVersion(
   if (!outputItem.rows[0]) failures.push(fail('1', 'ITEM_REVISION.NOT_FOUND'));
   else if (outputItem.rows[0].item_type === 'RM') failures.push(fail('1', 'MBOM.OUTPUT_RAW_MATERIAL'));
 
-  const mbomHeader = await db.query<{ site_id: string; base_uom_id: string; effective_from: string; effective_to: string | null }>(`SELECT site_id, base_uom_id, effective_from, effective_to FROM md_mbom_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.mbom_header_id]);
+  const mbomHeader = await db.query<{ site_id: string; base_uom_id: string; effective_from: string; effective_to: string | null; item_revision_id: string | null }>(`SELECT site_id, base_uom_id, effective_from, effective_to, item_revision_id FROM md_mbom_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.mbom_header_id]);
   if (!mbomHeader.rows[0]) failures.push(fail('2', 'MBOM.NOT_RELEASED'));
+  else if (mbomHeader.rows[0].item_revision_id && mbomHeader.rows[0].item_revision_id !== pv.item_revision_id) {
+    failures.push(fail('2', 'PRODUCTION_VERSION_MBOM_ITEM_REVISION_MISMATCH'));
+  }
   const outputUom = await db.query<{ base_uom_id: string }>(`SELECT base_uom_id FROM md_item_revision WHERE master_id = $1`, [pv.item_revision_id]);
   if (mbomHeader.rows[0] && outputUom.rows[0] && mbomHeader.rows[0].base_uom_id !== outputUom.rows[0].base_uom_id) failures.push(fail('2', 'PRODUCTION_VERSION_MBOM_UOM_MISMATCH'));
 
@@ -113,6 +116,10 @@ export async function validateProductionVersion(
   }
   const routingActive = await exists(db, `SELECT 1 FROM md_routing_header WHERE master_id = $1 AND lifecycle_status = 'Released' AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())`, [pv.routing_header_id]);
   if (!routingActive) failures.push(fail('4', 'ROUTING.NOT_ACTIVE'));
+  const routingHeader = await db.query<{ item_revision_id: string | null }>(`SELECT item_revision_id FROM md_routing_header WHERE master_id = $1`, [pv.routing_header_id]);
+  if (routingHeader.rows[0]?.item_revision_id && routingHeader.rows[0].item_revision_id !== pv.item_revision_id) {
+    failures.push(fail('4', 'PRODUCTION_VERSION_ROUTING_ITEM_REVISION_MISMATCH'));
+  }
   const factoryIds = new Set<string>();
   const seqs = new Set<number>();
   const routingOperationIds = new Set(routingOps.map((operation) => operation.operation_id));
@@ -156,6 +163,17 @@ export async function validateProductionVersion(
   const warnings: ValidationFailure[] = factoryIds.size > 1 ? [{ rule: '5', severity: 'WARN', code: 'INTER_FACTORY_ROUTING' }] : [];
   if (mbomHeader.rows[0] && factoryIds.size === 1 && mbomHeader.rows[0].site_id !== [...factoryIds][0]) {
     failures.push(fail('5', 'PRODUCTION_VERSION.SITE_MISMATCH'));
+  }
+
+  const ebomHeader = await db.query<{ item_revision_id: string }>(
+    `SELECT eb.item_revision_id
+     FROM md_production_version pv
+     JOIN md_ebom_header eb ON eb.master_id = pv.ebom_header_id
+     WHERE pv.master_id = $1`,
+    [productionVersionId],
+  );
+  if (ebomHeader.rows[0] && ebomHeader.rows[0].item_revision_id !== pv.item_revision_id) {
+    failures.push(fail('2', 'PRODUCTION_VERSION_EBOM_ITEM_REVISION_MISMATCH'));
   }
 
   if (!(await exists(db, `SELECT 1 FROM md_resource_calendar WHERE available_from <= NOW() AND available_to > NOW() AND lifecycle_status = 'Released'`, []))) {

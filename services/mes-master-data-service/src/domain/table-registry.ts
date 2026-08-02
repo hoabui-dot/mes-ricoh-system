@@ -38,6 +38,23 @@ export const TABLES: TableDefinition[] = [
     eventType: 'MES.MasterData.ProductionVersionReleased.v1',
     releaseEventName: 'ProductionVersionReleased',
   },
+  {
+    resource: 'production-lines',
+    tableName: 'md_production_line',
+    eventType: 'MES.MasterData.ProductionLineReleased.v1',
+    releaseEventName: 'ProductionLineReleased',
+    protectedAfterRelease: true,
+  },
+  {
+    resource: 'production-line-work-centers',
+    tableName: 'md_production_line_work_center',
+    eventType: 'MES.MasterData.ProductionLineWorkCenterAssigned.v1',
+  },
+  {
+    resource: 'production-version-line-eligibility',
+    tableName: 'md_production_version_line_eligibility',
+    eventType: 'MES.MasterData.ProductionVersionLineEligibilityReleased.v1',
+  },
   { resource: 'ebom-headers', tableName: 'md_ebom_header', protectedAfterRelease: true },
   { resource: 'ebom-lines', tableName: 'md_ebom_line', protectedAfterRelease: true },
   { resource: 'operations', tableName: 'md_operation' },

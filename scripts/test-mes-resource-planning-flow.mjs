@@ -18,6 +18,14 @@ const runId = `E2E-RP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toU
 const client = new Client({ connectionString: executionUrl });
 const created = { workflowIds: [], workOrderIds: [] };
 
+function defaultPlanningDate() {
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function assertSafety() {
   if (!['development', 'local', 'test', 'staging'].includes(environment)) throw new Error('MES_ENV must be development, local, test, or staging.');
   const host = new URL(executionUrl).hostname;
@@ -83,6 +91,34 @@ async function allocate(wo, operation, candidate, shift, start, key) {
   });
 }
 
+async function selectReadyContext(targetDate) {
+  const versions = data((await master('/production-ready-versions?planned_date=' + encodeURIComponent(targetDate) + '&limit=500')).body)
+    .filter((row) => row.readiness_status === 'Ready' && row.production_version_code?.startsWith('PV-'));
+  for (const version of versions) {
+    const shifts = data((await master(`/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`)).body);
+    const shift = shifts.find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
+    if (!shift) continue;
+    let probe;
+    try {
+      probe = await createWorkOrder(version, shift, 1, `PROBE-${version.production_version_code}`);
+      const detailBody = data((await execution(`/work-orders/${probe.work_order_id}`)).body);
+      let cursor = new Date(`${targetDate}T08:00:00.000Z`);
+      let allReady = true;
+      for (const operation of detailBody.operations || []) {
+        const result = await loadCandidates(probe, operation, shift, cursor.toISOString());
+        const ready = result.candidates?.find((candidate) => candidate.readiness !== 'Blocked' && !(candidate.blocking_errors || []).length && !(candidate.capacity_conflicts || []).length);
+        if (!ready) { allReady = false; break; }
+        const duration = Number(ready.estimated_duration_min ?? ready.calculation?.estimated_duration_min ?? 1);
+        cursor = new Date(cursor.getTime() + Math.max(duration, 1) * 60_000);
+      }
+      if (allReady && detailBody.operations?.length) return { version, shift };
+    } catch {
+      // Try the next Ready PV. The created probe, if any, is tracked for exact cleanup.
+    }
+  }
+  throw new Error('No Ready Production Version has Ready candidates for every operation.');
+}
+
 async function cleanup() {
   if (!created.workOrderIds.length) return;
   const ids = created.workOrderIds;
@@ -117,13 +153,8 @@ async function cleanup() {
 async function main() {
   assertSafety();
   await client.connect();
-  const targetDate = process.env.E2E_WO_TARGET_DATE || new Date().toISOString().slice(0, 10);
-  const versions = data((await master('/production-ready-versions?planned_date=' + encodeURIComponent(targetDate) + '&limit=500')).body);
-  const version = versions.find((row) => row.readiness_status === 'Ready' && row.production_version_code?.startsWith('PV-'));
-  if (!version) throw new Error('No released Production Version with readiness Ready was returned.');
-  const shifts = data((await master(`/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`)).body);
-  const shift = shifts.find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
-  if (!shift) throw new Error(`No active shift exists for site ${version.site_code}.`);
+  const targetDate = process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
+  const { version, shift } = await selectReadyContext(targetDate);
   const target = new Date(`${targetDate}T08:00:00.000Z`);
   const start = target.toISOString();
   console.log(`[resource-planning] run=${runId} pv=${version.production_version_code} shift=${shift.code}`);

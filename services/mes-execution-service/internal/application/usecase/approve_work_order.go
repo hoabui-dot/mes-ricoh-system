@@ -43,7 +43,6 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	if input.MasterDataServiceURL == "" {
 		input.MasterDataServiceURL = "http://mes-master-data-service:3020"
 	}
-	input.DemoPrintOnApproval = input.DemoPrintOnApproval || DemoPrintOnApprovalEnabled()
 
 	var pvID, currentStatus string
 	err := pool.QueryRow(ctx, `SELECT production_version_id, status FROM wo_header WHERE wo_id = $1`, input.WOID).Scan(&pvID, &currentStatus)
@@ -142,6 +141,9 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	var operationCount int
 	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM wo_operation WHERE wo_id = $1`, input.WOID).Scan(&operationCount); err != nil || operationCount == 0 {
 		return nil, fmt.Errorf("WO_ROUTING_SNAPSHOT_MISSING")
+	}
+	if err := requireSelectedLineConsistency(ctx, tx, input.WOID); err != nil {
+		return nil, err
 	}
 	if input.DemoPrintOnApproval && currentStatus != "Draft" && currentStatus != "PendingApproval" {
 		var queued int
@@ -250,11 +252,14 @@ func ensureDemoResourceAllocations(ctx context.Context, tx interface {
 	if _, err := tx.Exec(ctx, `SELECT wo_id FROM wo_header WHERE wo_id=$1 FOR UPDATE`, woID); err != nil {
 		return err
 	}
-	var siteID, shiftID string
+	var siteID, shiftID, selectedLineID string
 	var woStart time.Time
 	var quantity float64
-	if err := tx.QueryRow(ctx, `SELECT site_id, shift_id, planned_start_at, quantity FROM wo_header WHERE wo_id=$1`, woID).Scan(&siteID, &shiftID, &woStart, &quantity); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT site_id, shift_id, planned_start_at, quantity, COALESCE(selected_production_line_id::text, '') FROM wo_header WHERE wo_id=$1`, woID).Scan(&siteID, &shiftID, &woStart, &quantity, &selectedLineID); err != nil {
 		return fmt.Errorf("DEMO_RESOURCE_ALLOCATION_FAILED: %w", err)
+	}
+	if selectedLineID == "" {
+		return fmt.Errorf("DEMO_RESOURCE_ALLOCATION_FAILED: WO_LINE_SELECTION_REQUIRED")
 	}
 	if shiftID == "" {
 		return fmt.Errorf("DEMO_RESOURCE_ALLOCATION_FAILED: WORK_ORDER_SHIFT_REQUIRED")
@@ -308,7 +313,7 @@ func ensureDemoResourceAllocations(ctx context.Context, tx interface {
 		allocationID := uuid.New().String()
 		warnings := []byte(`["DEMO_RESOURCE_ALLOCATION_BYPASSED"]`)
 		snapshot := []byte(fmt.Sprintf(`{"demo_mode":true,"base_quantity":%v,"cycle_time_sec":%v,"efficiency_factor":%v,"standard_yield":%v,"total_duration_min":%v}`, b, valueOrDefault(cycle, 0), e, y, duration))
-		if _, err := tx.Exec(ctx, `INSERT INTO wo_resource_allocation (allocation_id,wo_id,wo_operation_id,site_id,planned_work_center_id,planned_workstation_id,planned_shift_id,planned_start_at,planned_end_at,source,status,validation_status,setup_time_min,run_time_min,queue_time_min,move_time_min,total_duration_min,warning_codes,validation_snapshot,allocated_by,change_reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'SystemRecommended','Committed','Valid',$10,$11,$12,$13,$14,$15,$16,$17,$18)`, allocationID, woID, opID, siteID, workCenter, nilIfEmptyPtr(workstation), shiftID, currentStart, end, valueOrDefault(setup, 0), run, valueOrDefault(queue, 0), valueOrDefault(move, 0), duration, warnings, snapshot, userID, "DEMO_PRINT_ON_APPROVAL"); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO wo_resource_allocation (allocation_id,wo_id,wo_operation_id,site_id,planned_production_line_id,planned_work_center_id,planned_workstation_id,planned_shift_id,planned_start_at,planned_end_at,source,status,validation_status,setup_time_min,run_time_min,queue_time_min,move_time_min,total_duration_min,warning_codes,validation_snapshot,allocated_by,change_reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'SystemRecommended','Committed','Valid',$11,$12,$13,$14,$15,$16,$17,$18,$19)`, allocationID, woID, opID, siteID, selectedLineID, workCenter, nilIfEmptyPtr(workstation), shiftID, currentStart, end, valueOrDefault(setup, 0), run, valueOrDefault(queue, 0), valueOrDefault(move, 0), duration, warnings, snapshot, userID, "DEMO_PRINT_ON_APPROVAL"); err != nil {
 			return fmt.Errorf("DEMO_RESOURCE_ALLOCATION_FAILED: %w", err)
 		}
 		currentStart = end
