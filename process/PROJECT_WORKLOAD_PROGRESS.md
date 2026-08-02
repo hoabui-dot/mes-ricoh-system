@@ -6,6 +6,21 @@
 
 ## 📊 Overall Progress Summary
 
+### WMS source extraction (2026-07-30)
+
+- **Status:** Source extraction Phases 1–2 complete; Phase 3 partial; staging,
+  cutover, stabilization, and old-repo cleanup pending.
+- **Target:** `../s-factory-wms`
+- **Safety state:** WMS source, Compose configuration, scripts, and documents
+  remain present in this monorepo. Nothing has been deleted for extraction.
+- **Verification:** independent npm/Go build and tests pass; Compose validates;
+  all five images build from the new repository root.
+- **Next gate:** resolve npm audit findings and organizational decisions, then
+  perform production-like DB restore plus platform staging rehearsal before
+  any Kong cutover or cleanup.
+- **Trace:** `../s-factory-wms/docs/operations/extraction-status.md` and
+  `../s-factory-wms/docs/operations/cutover-and-rollback.md`.
+
 - **Current Progress:** `14 / 15` Milestones Completed (93%)
 - **Current Active Milestone:** Phase 4 Platform E2E Integration
 - **Completed Steps:** 14

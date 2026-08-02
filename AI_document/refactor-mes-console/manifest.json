@@ -1,0 +1,90 @@
+{
+  "package": "MES Console Remediation Prompts",
+  "version": "1.0",
+  "files": [
+    {
+      "path": "AI_document/Phase-00/PROMPT_PHASE_00.md",
+      "bytes": 24282,
+      "lines": 1148,
+      "sha256": "4ef12c585c83c8cbc6a197c4db198dbd2fed03175137d74039d677985cd83ef2"
+    },
+    {
+      "path": "AI_document/Phase-01/PROMPT_PHASE_01.md",
+      "bytes": 11657,
+      "lines": 435,
+      "sha256": "fdb34e9f0efeb30970f47fbaceb7757f44f2e456a24d2da315fb3b6a1300ac43"
+    },
+    {
+      "path": "AI_document/Phase-02/PROMPT_PHASE_02.md",
+      "bytes": 10899,
+      "lines": 457,
+      "sha256": "814a7d23a3422fe474fa6cffbc7ee671852efefe9559e9c787e3be59fa883e16"
+    },
+    {
+      "path": "AI_document/Phase-03/PROMPT_PHASE_03.md",
+      "bytes": 9766,
+      "lines": 411,
+      "sha256": "1ccc10fc86b556da81f73d3d726551ec5eff41ee12ab85f0f6ac86fb4ecbbac3"
+    },
+    {
+      "path": "AI_document/Phase-04/PROMPT_PHASE_04.md",
+      "bytes": 9839,
+      "lines": 447,
+      "sha256": "ea96b76f2adce2004f5a98632ce225f69b8dc8b00abf23e0fb282c4a51dc3701"
+    },
+    {
+      "path": "AI_document/Phase-05/PROMPT_PHASE_05.md",
+      "bytes": 10160,
+      "lines": 444,
+      "sha256": "bc97bed74c5c17edeb8cdcb52ce9eb4f7b94a0c2cad92ee497d1632c64d0c64e"
+    },
+    {
+      "path": "AI_document/Phase-06/PROMPT_PHASE_06.md",
+      "bytes": 9982,
+      "lines": 443,
+      "sha256": "cac7229afeb663b7affbb949d3794f6150f86511e140e9a330dc5c19da4057e3"
+    },
+    {
+      "path": "AI_document/Phase-07/PROMPT_PHASE_07.md",
+      "bytes": 9725,
+      "lines": 414,
+      "sha256": "6c40990acea20e6adeb40f88d11a740784cb17ad726b2625364ef84581c76535"
+    },
+    {
+      "path": "AI_document/Phase-08/PROMPT_PHASE_08.md",
+      "bytes": 10230,
+      "lines": 474,
+      "sha256": "9447f274355a0b06acbac577cfdc8318e25b2359ab41c4e4ccf002cf8ca06eca"
+    },
+    {
+      "path": "AI_document/Phase-09/PROMPT_PHASE_09.md",
+      "bytes": 10671,
+      "lines": 475,
+      "sha256": "92dcd5f5ccb863ce9bc956dc4a501deab36b95e6c5b99c00997964b77e8d828a"
+    },
+    {
+      "path": "AI_document/Phase-10/PROMPT_PHASE_10.md",
+      "bytes": 11553,
+      "lines": 510,
+      "sha256": "8233b26852306aa9cccd030adc169c1ab27a66fb1d6bd1e81a32c4b01fa7242a"
+    },
+    {
+      "path": "AI_document/REMEDIATION_MASTER_RULES.md",
+      "bytes": 19085,
+      "lines": 744,
+      "sha256": "08a40151e4ee939d7f458175e5438c89822f246a822f20d868e07a5b670f1aa3"
+    },
+    {
+      "path": "AI_document/REPORT_TEMPLATE.md",
+      "bytes": 4351,
+      "lines": 281,
+      "sha256": "5d4de3475c13fac15baec080e0b7d2ec9b93422de62fa7c76e882bdb42b01dc8"
+    },
+    {
+      "path": "README.md",
+      "bytes": 941,
+      "lines": 22,
+      "sha256": "1574f0c424f24e8f721c1d55cf8289b749b0913bd111e88e609cfb94be33c5e0"
+    }
+  ]
+}
