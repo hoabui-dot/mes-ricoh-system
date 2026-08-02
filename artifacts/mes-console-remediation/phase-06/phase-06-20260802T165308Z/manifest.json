@@ -1,0 +1,14 @@
+{
+  "phase": "UI-06",
+  "run_id": "phase-06-20260802T165308Z",
+  "generated_at": "2026-08-02T16:56:50Z",
+  "report": "AI_document/Phase-06/REPORT_PHASE_06.md",
+  "source_documents": [
+    "AI_document/refactor-mes-console/PROMPT_PHASE_06.md",
+    "AI_document/refactor-mes-console/REMEDIATION_MASTER_RULES.md"
+  ],
+  "skipped_scope": [
+    "physical print station integration",
+    "third-party integrations"
+  ]
+}

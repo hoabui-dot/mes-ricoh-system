@@ -1,0 +1,3 @@
+{
+  "screenshots": [{"file": "work-order-list-three-states.png", "state": "all three persisted UAT triage states"}, {"file": "work-order-hold-detail-matrix.png", "state": "Resource Hold detail with Primary and Backup matrices"}]
+}

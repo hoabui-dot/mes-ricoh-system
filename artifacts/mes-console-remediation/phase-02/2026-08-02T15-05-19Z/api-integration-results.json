@@ -1,0 +1,16 @@
+{
+  "results": [
+    { "command": "npm run prepare:mes:two-line-uat", "status": "passed", "fixtures_created": 3 },
+    { "command": "npm run prepare:mes:two-line-uat", "status": "passed", "idempotent_reuse": true },
+    { "command": "npm run verify:mes:two-line-uat", "status": "passed", "declared": 3, "executed": 3, "passed": 3, "failed": 0, "skipped": 0 },
+    { "command": "npm run verify:mes:two-line-uat", "status": "passed", "declared": 3, "executed": 3, "passed": 3, "failed": 0, "skipped": 0 },
+    { "command": "npm run cleanup:mes:two-line-uat", "status": "passed", "work_orders_removed": 3, "remaining_work_orders": 0, "leaks": { "reservations": 0, "allocations": 0, "work_orders": 0 } },
+    { "command": "npm run cleanup:mes:two-line-uat", "status": "passed", "work_orders_removed": 0, "remaining_work_orders": 0, "leaks": { "reservations": 0, "allocations": 0, "work_orders": 0 } },
+    { "command": "npm run verify:mes:canonical-seed", "status": "passed", "checks": "40/40" },
+    { "command": "npm run test:mes:worker-skill-domain:phase1", "status": "passed", "declared": 8, "passed": 8 },
+    { "command": "npm run test:mes:two-line-resource-planning:phase7", "status": "passed", "declared": 19, "passed": 19 },
+    { "command": "npm run test:mes:two-line-full-regression:phase9", "status": "passed", "declared": 19, "passed": 19 },
+    { "command": "SKIP_PRINT_STATION_THIRD_PARTY=true npm run test:mes:resource-planning-full-flow:phase2", "status": "passed", "result": "PASS_FOR_PHASE_2_WITH_PRINT_STATION_SKIPPED" },
+    { "command": "Final npm run verify:mes:canonical-seed", "status": "passed", "checks": "40/40", "execution_work_orders": 0 }
+  ]
+}

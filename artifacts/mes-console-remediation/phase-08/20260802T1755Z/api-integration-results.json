@@ -1,0 +1,8 @@
+{
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "checks": ["list returns Primary READY, Backup fallback READY, and Resource Hold", "server hold filter returns only Resource Hold", "detail returns 13 dimensions per evaluated line", "canonical seed verification passed after fixture cleanup"]
+}

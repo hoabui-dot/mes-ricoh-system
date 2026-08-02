@@ -1,0 +1,8 @@
+{
+  "phase": "UI-08",
+  "run_id": "phase-08-20260802T1755Z",
+  "status": "PASSED",
+  "scope": "Work Order list triage and two-line detail diagnostics",
+  "fixture_manifest": "artifacts/mes-two-line-uat/uat-fixture-manifest.json",
+  "screenshots": ["work-order-list-three-states.png", "work-order-hold-detail-matrix.png"]
+}

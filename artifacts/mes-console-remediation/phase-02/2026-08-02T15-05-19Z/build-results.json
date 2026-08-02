@@ -1,0 +1,7 @@
+{
+  "results": [
+    { "command": "npm --prefix services/mes-console run typecheck", "status": "passed" },
+    { "command": "npm --prefix services/mes-console run build", "status": "passed", "note": "Existing Vite chunk-size warning only." },
+    { "command": "go test ./...", "workdir": "services/mes-execution-service", "status": "passed" }
+  ]
+}

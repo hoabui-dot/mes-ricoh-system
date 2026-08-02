@@ -1,0 +1,9 @@
+{
+  "playwright_suite": "e2e/resource-planning/phase6-production-lines.spec.ts",
+  "screenshots_root": "artifacts/playwright/test-results",
+  "tests": [
+    "Production Line authoring route",
+    "Production Line detail tabs and backend readiness",
+    "Planning constraint constrained selectors"
+  ]
+}

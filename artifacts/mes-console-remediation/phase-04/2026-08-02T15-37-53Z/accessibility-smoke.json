@@ -1,0 +1,62 @@
+{
+  "success": true,
+  "generated_at": "2026-08-02T15:38:14.749Z",
+  "declared": 8,
+  "executed": 8,
+  "passed": 8,
+  "failed": 0,
+  "skipped": 0,
+  "checks": [
+    {
+      "name": "page h1 visible",
+      "actual": 1,
+      "expected_min": 1,
+      "passed": true
+    },
+    {
+      "name": "data table visible",
+      "actual": 1,
+      "expected_min": 1,
+      "passed": true
+    },
+    {
+      "name": "status filter has accessible label",
+      "actual": 1,
+      "expected_min": 1,
+      "passed": true
+    },
+    {
+      "name": "item revision filter has accessible label",
+      "actual": 1,
+      "expected_min": 1,
+      "passed": true
+    },
+    {
+      "name": "reset button accessible",
+      "actual": 1,
+      "expected_min": 1,
+      "passed": true
+    },
+    {
+      "name": "refresh button title accessible",
+      "actual": 1,
+      "expected_min": 1,
+      "passed": true
+    },
+    {
+      "name": "detail dialog visible after row click",
+      "actual": 1,
+      "expected_min": 1,
+      "passed": true
+    },
+    {
+      "name": "detail dialog closes with Escape",
+      "actual": 0,
+      "expected_min": 0,
+      "passed": true
+    }
+  ],
+  "screenshots": [
+    "production-version-shared-ui.png"
+  ]
+}

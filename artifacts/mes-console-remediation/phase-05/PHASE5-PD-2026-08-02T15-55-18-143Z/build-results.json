@@ -1,0 +1,30 @@
+{
+  "declared": 5,
+  "executed": 5,
+  "passed": 5,
+  "failed": 0,
+  "skipped": 0,
+  "commands": [
+    {
+      "command": "npm --prefix services/mes-console run typecheck",
+      "status": "passed"
+    },
+    {
+      "command": "npm --prefix services/mes-console run build",
+      "status": "passed",
+      "note": "Existing Vite chunk-size warning only."
+    },
+    {
+      "command": "npm --prefix services/mes-master-data-service run build",
+      "status": "passed"
+    },
+    {
+      "command": "docker build -t mom-platform-mes-master-data-service -f services/mes-master-data-service/Dockerfile .",
+      "status": "passed"
+    },
+    {
+      "command": "docker build -t mom-platform-mes-console -f services/mes-console/Dockerfile --build-arg VITE_KEYCLOAK_URL=http://100.68.50.41:18080 --build-arg VITE_API_BASE_URL=http://100.68.50.41:18000 .",
+      "status": "passed"
+    }
+  ]
+}

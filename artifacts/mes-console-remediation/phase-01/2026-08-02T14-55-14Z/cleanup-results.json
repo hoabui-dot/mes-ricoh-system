@@ -1,0 +1,7 @@
+{
+  "final_verify_command": "npm run verify:mes:canonical-seed",
+  "status": "passed",
+  "execution_work_orders": 0,
+  "invalid_employee_skill_references": 0,
+  "invalid_operation_skill_requirement_references": 0
+}

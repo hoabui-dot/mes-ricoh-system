@@ -1,0 +1,7 @@
+{
+  "missing_allocation_approval_button": "disabled",
+  "reject_with_missing_allocation": "enabled",
+  "strict_approval_negative_case": "passed",
+  "start_without_valid_allocation": "passed",
+  "print_station_approval_and_start": "skipped_by_request"
+}

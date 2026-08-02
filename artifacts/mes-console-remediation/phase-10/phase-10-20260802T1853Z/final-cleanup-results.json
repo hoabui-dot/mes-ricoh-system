@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "uat_work_orders_removed": 0,
+  "reservation_leaks": 0,
+  "allocation_leaks": 0,
+  "canonical_work_orders": 0,
+  "canonical_integrity_orphans": 0
+}

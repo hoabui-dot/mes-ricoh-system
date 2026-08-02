@@ -1,0 +1,5 @@
+{
+  "backend": ["Added additive Work Order list triage fields and server-backed filters", "Added structured detail dimensions, allocation history, and gate summary"],
+  "frontend": ["Added typed Work Order contracts", "Added dense triage columns and server filter controls", "Added backend-driven Primary/Backup matrix, blocker links, consistency and history panels"],
+  "tests": ["Added persisted three-state list/detail Playwright coverage"]
+}

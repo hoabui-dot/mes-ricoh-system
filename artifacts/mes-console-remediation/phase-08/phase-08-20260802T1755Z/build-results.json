@@ -1,0 +1,8 @@
+{
+  "declared": 5,
+  "executed": 5,
+  "passed": 5,
+  "failed": 0,
+  "skipped": 0,
+  "commands": ["npm run typecheck --workspace services/mes-console", "npm run build --workspace services/mes-console", "go test ./...", "docker build execution", "docker build console"]
+}

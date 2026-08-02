@@ -1,0 +1,5 @@
+{
+  "endpoint": "GET /api/mes/execution/work-orders",
+  "filters": ["search", "status", "selected_line", "line_selection_status", "hold", "fallback_used", "production_version", "site", "date_from", "date_to"],
+  "triage_fields": ["selected_production_line_code", "line_selection_status", "primary_evaluation", "backup_evaluation", "fallback_reason", "resource_hold_reason", "approval_state", "execution_state"]
+}

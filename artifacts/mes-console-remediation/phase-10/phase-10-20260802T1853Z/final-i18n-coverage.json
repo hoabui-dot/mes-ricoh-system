@@ -1,0 +1,6 @@
+{
+  "supported_locales": ["vi", "en", "ja", "ko"],
+  "locale_blocks_present": true,
+  "translated_error_and_blocker_paths": "passed",
+  "raw_enum_or_uuid_rendering": "not detected in covered Console flows"
+}

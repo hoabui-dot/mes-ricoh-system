@@ -1,0 +1,9 @@
+{
+  "backend_negative_auth": "passed",
+  "cross_site_and_forged_header_checks": "passed",
+  "viewer_operator_allocation_denied": "passed",
+  "planner_production_manager_allocation_allowed": "passed",
+  "viewer_replan_hidden": "passed",
+  "phase3_browser_authorization_tests": 3,
+  "phase8_browser_authorization_tests": 1
+}

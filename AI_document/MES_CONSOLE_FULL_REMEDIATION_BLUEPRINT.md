@@ -22,16 +22,79 @@ Supporting evidence artifacts:
 | Overall MES Console alignment status | `BACKEND_READY_UI_INCOMPLETE` |
 | Current backend readiness | Mostly ready for resource planning, production version, line selection, replan, allocation, approval, and execution; worker skill scope contract conflicts with seed records. |
 | Current UI readiness | Incomplete. Broad route coverage exists, but table columns, diagnostics, legacy aliases, worker skill UX, and UAT evidence are incomplete. |
-| Current canonical seed readiness | Not ready for UI remediation because worker skill seed identity conflicts with backend Employee-scope contracts. |
-| Worker Skill readiness | `NOT_READY_SEED_OR_DOMAIN_CONFLICT` |
+| Current canonical seed readiness | Ready after Phase UI-01 canonical Worker Skill seed correction and verification. |
+| Worker Skill readiness | `PHASE_UI_01_PASSED_READY_FOR_UI_02` |
 | Two-line Work Order readiness | Resource-hold fixture exists; primary and backup READY UAT fixtures are missing from current runtime state. |
 | Route cleanup readiness | Ready for planned redirect/merge work, not ready for removal without redirect period and E2E migration. |
-| E2E readiness | Partial. Phase 3, 4, 6, 8 coverage exists, but retained-page smoke, worker skill, employee skill, line eligibility, and three persistent UAT WO states are missing. |
+| E2E readiness | Partial. Phase 1 Worker Skill browser coverage and Phase 3, 4, 6, 8 coverage exists; retained-page smoke, line eligibility, and three persistent UAT WO states remain for later phases. |
 | Critical findings | 2 |
 | High findings | 12 |
 | Implementation recommendation | Do not start broad UI remediation until UI-0 approval and UI-1 seed/domain correction are accepted. |
 
-Final gate status: `NOT_READY_SEED_OR_DOMAIN_CONFLICT`
+Phase UI-02 decision gate status: `PHASE_UI_02_PASSED_READY_FOR_UI_03`
+
+Phase UI-02 run: `2026-08-02T15-05-19Z`
+
+Phase UI-02 report: `AI_document/Phase-02/REPORT_PHASE_02.md`
+
+Phase UI-02 artifact directory: `artifacts/mes-console-remediation/phase-02/2026-08-02T15-05-19Z`
+
+Phase UI-02 resolved UAT fixture blockers:
+
+1. Deterministic prepare, verify, and cleanup commands now exist for canonical two-line UAT Work Orders.
+2. Primary READY, Backup fallback READY, and Resource Hold scenarios are created through the supported Work Order creation workflow.
+3. Temporary readiness mutations are bounded to execution read-model resource calendars and restored from captured before-state.
+4. Focused browser smoke loads all three fixtures and verifies persisted line-selection state through current Work Order detail APIs.
+5. Cleanup is idempotent and leaves zero Work Orders, allocations, and reservations for the generated fixture IDs.
+
+Next authorized phase: `UI-03`.
+
+Phase UI-01 decision gate status: `PHASE_UI_01_PASSED_READY_FOR_UI_02`
+
+Phase UI-01 run: `2026-08-02T14-55-14Z`
+
+Phase UI-01 report: `AI_document/Phase-01/REPORT_PHASE_01.md`
+
+Phase UI-01 artifact directory: `artifacts/mes-console-remediation/phase-01/2026-08-02T14-55-14Z`
+
+Phase UI-01 resolved Worker Skill blockers:
+
+1. Canonical Worker Skills are now `SK-EMP-MIX-MASTER`, `SK-EMP-VULCAN-OPERATOR`, and `SK-EMP-INSPECTION` with `scope=Employee`.
+2. Employee Skill assignments and Operation Skill Requirements reference only Employee-scoped Worker Skills.
+3. Generic and specialized Operation Skill Requirement APIs reject non-Employee skill scope, invalid level, and invalid effectivity.
+4. Current Worker Skill, Employee Skill, and Operation Skill Requirement console paths use Employee-scoped skill data.
+5. Final canonical seed verification passed 40/40 with execution Work Orders at 0.
+
+Phase UI-01 next authorized phase: `UI-02`.
+
+Phase UI-00 decision gate status: `READY_FOR_UI_01`
+
+Phase UI-00 initial run: `2026-08-02T14-22-00Z`
+
+Phase UI-00 re-verification run: `2026-08-02T14-35-33Z`
+
+Phase UI-00 decisions are approved for planning:
+
+| Decision | Approved value | Approval date | Evidence |
+| --- | --- | --- | --- |
+| DEC-001 Employee Skill assignment ownership | `EMPLOYEE_MODAL_ONLY` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+| DEC-002 Worker Skill detail mutation | `READ_ONLY_WITH_EMPLOYEE_LINK` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+| DEC-003 UAT Work Order fixture strategy | `IDEMPOTENT_PREPARE_VERIFY_CLEANUP` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+| DEC-004 Canonical route terminology | `MACHINES_CANONICAL` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+| DEC-005 Legacy alias lifetime | `1_RELEASE`, equipment aliases `2_RELEASES` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+| DEC-006 Production Version line readiness visibility | `LIST_SUMMARY_PLUS_DETAIL_TAB` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+| DEC-007 Resource-planning model | `AUTO_LINE_MANUAL_EXACT_RESOURCES` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+| DEC-008 i18n review visibility | `DIAGNOSTIC_ADMIN_ONLY` | 2026-08-02 | `AI_document/Phase-00/PHASE_00_PRODUCT_DECISIONS.md` |
+
+Resolved Phase UI-00 baseline blockers:
+
+1. `npm run reset:seed:verify:mes:canonical` passed and cleared stale disposable execution Work Orders.
+2. `SKIP_PRINT_STATION_THIRD_PARTY=true npm run test:mes:resource-planning-full-flow:phase2` passed with print-station-dependent steps skipped per user instruction.
+3. `npm run test:e2e:resource-planning:phase8` passed after the `mes-console` container was rebuilt and recreated from current source.
+
+Phase UI-00 next authorized phase: `UI-01 Worker Skill Domain and Canonical Seed Correction`.
+
+Original pre-Phase UI-00 gate status: `NOT_READY_SEED_OR_DOMAIN_CONFLICT`
 
 Implementation can proceed safely only after:
 
@@ -599,11 +662,17 @@ Required remediation: define actual Keycloak role names as product-owned constan
 
 ## 9. Worker Skill and Employee Skill Final Design
 
-Current evidence:
+Original audit evidence:
 
 - Seeded skills: `SK-WC-INSPECTION`, `SK-WC-MIX-MASTER`, `SK-WC-VULCAN-OPERATOR`, all `scope=WorkCenter`.
 - APIs requiring Employee scope: `GET /worker-skills`, `POST /worker-skills`, `GET /employees/:id/skills`, `PUT /employees/:id/skills`, `POST /worker-skills/:id/assignments`, `POST /worker-skills/:id/assignments/:employeeId/end`, operation skill requirement create/update validation.
 - UI: `SkillManagementScreen` worker tab uses `/worker-skills`; `EmployeesScreen` loads `/skills?scope=Employee` and saves `/employees/:id/skills`.
+
+Phase UI-01 resolved evidence:
+
+- Canonical Worker Skills now seed as `SK-EMP-INSPECTION`, `SK-EMP-MIX-MASTER`, and `SK-EMP-VULCAN-OPERATOR`, all `scope=Employee`.
+- Employee Skill and Operation Skill Requirement references now join only to Employee-scoped skills in master and execution read models.
+- Focused backend/API/readiness and browser tests are documented in `AI_document/Phase-01/REPORT_PHASE_01.md`.
 
 UX options:
 
@@ -953,12 +1022,44 @@ Cleanup: exact cleanup verification for generated UAT WOs and fixtures; no manda
 | Legacy page replacement paths specified | Complete |
 | API changes identified | Complete |
 | E2E coverage defined | Complete |
-| Product decisions resolved or explicitly accepted | Not yet |
+| Product decisions resolved or explicitly accepted | Complete in Phase UI-00 |
 
-Final status: `NOT_READY_SEED_OR_DOMAIN_CONFLICT`
+Final status after Phase UI-08: `PHASE_UI_08_PASSED_READY_FOR_UI_09`
 
-Implementation must not begin as broad remediation until either:
+Phase UI-03 report: `AI_document/Phase-03/REPORT_PHASE_03.md`
 
-1. The final status becomes `READY_FOR_IMPLEMENTATION` after seed/domain correction and decision acceptance; or
-2. The user explicitly accepts every blocking product decision and authorizes starting with UI-1.
+Phase UI-03 artifacts: `artifacts/mes-console-remediation/phase-03/2026-08-02T15-21-39Z/`
 
+Phase UI-04 report: `AI_document/Phase-04/REPORT_PHASE_04.md`
+
+Phase UI-04 artifacts: `artifacts/mes-console-remediation/phase-04/2026-08-02T15-37-53Z/`
+
+Phase UI-05 report: `AI_document/Phase-05/REPORT_PHASE_05.md`
+
+Phase UI-05 artifacts: `artifacts/mes-console-remediation/phase-05/PHASE5-PD-2026-08-02T15-55-18-143Z/`
+
+Phase UI-06 report: `AI_document/Phase-06/REPORT_PHASE_06.md`
+
+Phase UI-06 artifacts: `artifacts/mes-console-remediation/phase-06/phase-06-20260802T165308Z/`
+
+Phase UI-07 report: `AI_document/Phase-07/REPORT_PHASE_07.md`
+
+Phase UI-07 artifacts: `artifacts/mes-console-remediation/phase-07/phase-07-20260802T171322Z/`
+
+Phase UI-08 report: `AI_document/Phase-08/REPORT_PHASE_08.md`
+
+Phase UI-08 artifacts: `artifacts/mes-console-remediation/phase-08/phase-08-20260802T1755Z/`
+
+Phase UI-09 report: `AI_document/Phase-09/REPORT_PHASE_09.md`
+
+Phase UI-09 artifacts: `artifacts/mes-console-remediation/phase-09/phase-09-20260802T1815Z/`
+
+Final status after Phase UI-09: `PHASE_UI_09_PASSED_READY_FOR_UI_10`
+
+Phase UI-10 report: `AI_document/Phase-10/REPORT_PHASE_10.md`
+
+Phase UI-10 artifacts: `artifacts/mes-console-remediation/phase-10/phase-10-20260802T1853Z/`
+
+Final status after Phase UI-10: `MES_CONSOLE_REMEDIATION_COMPLETE`
+
+The eleven-phase MES Console remediation is complete. Physical print-station and third-party adapter execution remains an approved scope exclusion; Print Station master-data and Console coverage were verified.

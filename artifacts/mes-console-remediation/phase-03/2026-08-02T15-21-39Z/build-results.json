@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-08-02T15:24:00.215Z",
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "commands": [
+    {
+      "command": "npm --prefix services/mes-console run typecheck",
+      "status": "passed"
+    },
+    {
+      "command": "npm --prefix services/mes-console run build",
+      "status": "passed",
+      "note": "Existing Vite chunk-size warning only"
+    },
+    {
+      "command": "docker build -t mom-platform-mes-console -f services/mes-console/Dockerfile --build-arg VITE_KEYCLOAK_URL=http://100.68.50.41:18080 --build-arg VITE_API_BASE_URL=http://100.68.50.41:18000 .",
+      "status": "passed",
+      "note": "Existing npm audit warnings in Docker build output"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "deployment": {
+    "command": "docker rm -f mes-console && docker run ... mom-platform-mes-console",
+    "status": "passed",
+    "url": "http://100.68.50.41:13052"
+  },
+  "compose_note": "docker compose -f infra/docker-compose.mes.yml up -d --build mes-console was not usable standalone because platform-net is defined outside that compose file; container was recreated directly with matching network/env/port."
+}

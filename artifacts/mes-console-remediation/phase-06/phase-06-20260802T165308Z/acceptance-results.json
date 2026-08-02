@@ -1,0 +1,11 @@
+{
+  "gate": "PHASE_UI_06_PASSED_READY_FOR_UI_07",
+  "passed": true,
+  "acceptance": [
+    "Production Line list and detail now expose hierarchy, eligibility, lifecycle/effectivity, backend readiness, and history.",
+    "Work Center and Workstation details show separate planning evidence without making Work Centers execution candidates.",
+    "Machine Definition and Machine Unit distinction remains visible in existing machine panels.",
+    "Planning constraints no longer rely on free-form resource type/status/source method where enums exist.",
+    "Invalid dependent planning selections reset when parent fields change."
+  ]
+}

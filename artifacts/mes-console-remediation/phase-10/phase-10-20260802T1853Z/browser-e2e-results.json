@@ -1,0 +1,8 @@
+{
+  "command": "npm run test:e2e:resource-planning:all",
+  "passed": 25,
+  "failed": 0,
+  "skipped": 0,
+  "project": "chromium",
+  "coverage": ["authorization", "cross-site", "resource lifecycle", "two-line UAT", "routes", "i18n", "loading/error/blocked states", "numbering", "worker skill UX"]
+}

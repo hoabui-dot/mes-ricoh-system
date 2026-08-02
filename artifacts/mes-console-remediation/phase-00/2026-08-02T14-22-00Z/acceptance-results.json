@@ -1,0 +1,11 @@
+{
+  "run_id": "2026-08-02T14-22-00Z",
+  "accepted": false,
+  "final_status": "PHASE_UI_00_BLOCKED",
+  "blocking_reasons": [
+    "Canonical seed verification failed because execution has two Work Orders after seed baseline.",
+    "Phase 2 API full-flow failed during allocation revalidation.",
+    "Phase 8 browser E2E failed 3 of 3 tests."
+  ]
+}
+

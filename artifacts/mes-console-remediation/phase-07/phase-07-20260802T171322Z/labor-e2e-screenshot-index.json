@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-08-02T17:15:19.000Z",
+  "screenshots": [
+    {
+      "file": "worker-skill-readonly-detail.png",
+      "route": "/master-data/skills/workers",
+      "purpose": "Worker Skill read-only dependency and assignment detail"
+    },
+    {
+      "file": "employee-owned-skill-edit.png",
+      "route": "/employees?employee_id=<assignment.employee_id>",
+      "purpose": "Employee-owned skill assignment edit controls"
+    }
+  ]
+}

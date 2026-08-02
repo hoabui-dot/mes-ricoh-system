@@ -1,0 +1,8 @@
+{
+  "previous_gate": "PHASE_UI_05_PASSED_READY_FOR_UI_06",
+  "baseline_observations": [
+    "ResourceFoundationScreen already had generic resource CRUD, Workstation machine requirements, assignments, Machine Unit panels, and Machine readiness summaries.",
+    "Production Line detail lacked tabbed Overview / Work Centers / Eligibility / Readiness / Audit structure.",
+    "PlanningConstraintsScreen used free-form fields for resource calendar resource_type, availability_status, and production standard source_method."
+  ]
+}

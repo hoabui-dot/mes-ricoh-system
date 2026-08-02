@@ -24,6 +24,8 @@ export type BaseDataTableProps<T> = {
   columns: ColumnDef<T, any>[];
   data: T[];
   loading?: boolean;
+  error?: React.ReactNode;
+  onRetry?: () => void;
   toolbar?: React.ReactNode;
   search?: string;
   onSearchChange?: (value: string) => void;
@@ -41,6 +43,7 @@ export type BaseDataTableProps<T> = {
   stickyHeader?: boolean;
   emptyState?: React.ReactNode;
   pageSizeOptions?: number[];
+  filtered?: boolean;
   className?: string;
 };
 
@@ -53,6 +56,8 @@ export function BaseDataTable<T>({
   columns,
   data,
   loading = false,
+  error,
+  onRetry,
   toolbar,
   search,
   onSearchChange,
@@ -70,6 +75,7 @@ export function BaseDataTable<T>({
   stickyHeader = false,
   emptyState,
   pageSizeOptions = DEFAULT_PAGE_SIZES,
+  filtered = false,
   className,
 }: BaseDataTableProps<T>) {
   const { t } = useI18n();
@@ -114,8 +120,8 @@ export function BaseDataTable<T>({
             {table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => { const align = (header.column.columnDef as BaseDataTableColumn<T>).align || 'left'; return <TableHead key={header.id} className={align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : undefined}>{header.isPlaceholder ? null : <Button type="button" variant="ghost" size="sm" className={`h-8 ${align === 'right' ? 'ml-auto' : '-ml-3'}`} onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())}{header.column.getCanSort() && <ArrowUpDown className="h-3 w-3" />}</Button>}</TableHead>; })}</TableRow>)}
           </TableHeader>
           <TableBody>
-            {loading ? <TableRow><TableCell colSpan={columns.length} className="px-4 py-10 text-center text-muted-foreground">{t('common.loading')}</TableCell></TableRow> : rows.map((row) => <React.Fragment key={row.id}><TableRow data-state={row.getIsSelected() ? 'selected' : undefined} className={onRowClick ? 'cursor-pointer' : undefined} onClick={() => onRowClick?.(row.original)}>{row.getVisibleCells().map((cell) => { const align = (cell.column.columnDef as BaseDataTableColumn<T>).align || 'left'; return <TableCell key={cell.id} className={align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>; })}</TableRow>{row.getIsExpanded() && renderExpandedRow ? <TableRow><TableCell colSpan={columns.length}>{renderExpandedRow(row.original)}</TableCell></TableRow> : null}</React.Fragment>)}
-            {!loading && rows.length === 0 && <TableRow><TableCell colSpan={columns.length} className="px-4 py-10 text-center text-muted-foreground">{emptyState ?? t('common.empty')}</TableCell></TableRow>}
+            {error ? <TableRow><TableCell colSpan={columns.length} className="px-4 py-10 text-center text-danger-foreground"><div role="alert" className="space-y-3"><div>{error}</div>{onRetry && <Button type="button" variant="outline" size="sm" onClick={onRetry}>{t('common.retry')}</Button>}</div></TableCell></TableRow> : loading ? <TableRow><TableCell colSpan={columns.length} className="px-4 py-10 text-center text-muted-foreground">{t('common.loading')}</TableCell></TableRow> : rows.map((row) => <React.Fragment key={row.id}><TableRow data-state={row.getIsSelected() ? 'selected' : undefined} className={onRowClick ? 'cursor-pointer' : undefined} onClick={() => onRowClick?.(row.original)}>{row.getVisibleCells().map((cell) => { const align = (cell.column.columnDef as BaseDataTableColumn<T>).align || 'left'; return <TableCell key={cell.id} className={align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : undefined}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>; })}</TableRow>{row.getIsExpanded() && renderExpandedRow ? <TableRow><TableCell colSpan={columns.length}>{renderExpandedRow(row.original)}</TableCell></TableRow> : null}</React.Fragment>)}
+            {!error && !loading && rows.length === 0 && <TableRow><TableCell colSpan={columns.length} className="px-4 py-10 text-center text-muted-foreground">{emptyState ?? (filtered ? t('table.filteredEmpty') : t('common.empty'))}</TableCell></TableRow>}
           </TableBody>
         </UiTable>
       </div>

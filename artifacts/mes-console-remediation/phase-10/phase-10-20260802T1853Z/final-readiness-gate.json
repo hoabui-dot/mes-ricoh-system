@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "gate": "MES_CONSOLE_REMEDIATION_COMPLETE",
+  "mandatory_regressions_failed": 0,
+  "mandatory_browser_skips": 0,
+  "approved_scope_exclusions": ["physical print station and third-party adapter integration"],
+  "canonical_seed_restored": true
+}

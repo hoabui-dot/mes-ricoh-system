@@ -1,0 +1,8 @@
+{
+  "uat_cleanup": "passed",
+  "remaining_uat_work_orders": 0,
+  "remaining_reservations": 0,
+  "remaining_allocations": 0,
+  "canonical_verify_after_cleanup": "passed",
+  "canonical_work_orders_after_cleanup": 0
+}

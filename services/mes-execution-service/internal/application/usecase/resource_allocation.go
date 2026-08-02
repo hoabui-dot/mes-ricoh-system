@@ -456,9 +456,17 @@ func (s *AllocationService) Revalidate(ctx context.Context, woID, userID, traceI
 		}
 		if !ok {
 			valid = false
+			errorCode := "RESOURCE_CANDIDATE_STALE"
+			if blockers, ok := c["blocking_errors"].([]interface{}); ok && len(blockers) > 0 {
+				if blocker, ok := blockers[0].(map[string]interface{}); ok && asString(blocker["code"]) != "" {
+					errorCode = asString(blocker["code"])
+				}
+			}
 			if _, err := s.pool.Exec(ctx, `UPDATE wo_resource_allocation SET validation_status='Stale',row_version=row_version+1 WHERE allocation_id=(SELECT allocation_id FROM wo_resource_allocation WHERE wo_operation_id=$1 AND status IN ('Draft','Validated','Committed') LIMIT 1)`, opID); err != nil {
 				return nil, fmt.Errorf("RESOURCE_REVALIDATION_UPDATE_FAILED: %w", err)
 			}
+			results = append(results, map[string]interface{}{"wo_operation_id": opID, "valid": false, "error_code": errorCode})
+			continue
 		}
 		results = append(results, map[string]interface{}{"wo_operation_id": opID, "valid": ok})
 	}

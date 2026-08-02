@@ -1,0 +1,7 @@
+{
+  "canonical_route_families": ["/work-orders", "/work-orders/new", "/work-orders/:id", "/master-data/*", "/diagnostics"],
+  "legacy_redirects_verified": true,
+  "not_found_behavior_verified": true,
+  "diagnostics_visibility_verified": true,
+  "browser_route_tests_passed": 1
+}

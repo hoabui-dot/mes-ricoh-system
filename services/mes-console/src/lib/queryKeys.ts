@@ -1,4 +1,4 @@
-type FilterInput = Record<string, unknown> | string | undefined;
+export type FilterInput = Record<string, unknown> | string | undefined;
 
 function normalizeFilters(filters: FilterInput) {
   if (!filters) return '';
@@ -37,7 +37,12 @@ export const mesQueryKeys = {
     referenceData: () => ['mboms', 'reference-data'] as const,
   },
   routings: { ...domain('routings'), operations: (id?: string) => ['routings', 'operations', id || 'all'] as const },
-  productionVersions: { ...domain('production-versions'), validation: (id: string) => ['production-versions', 'validation', id] as const },
+  productionVersions: {
+    ...domain('production-versions'),
+    validation: (id: string) => ['production-versions', 'validation', id] as const,
+    lineEligibility: (id: string) => ['production-versions', 'line-eligibility', id] as const,
+    readinessPreview: (id: string, effectiveAt?: string) => ['production-versions', 'readiness-preview', id, effectiveAt || 'now'] as const,
+  },
   resources: domain('resources'),
   resourceCapabilities: domain('resource-capabilities'),
   employees: domain('employees'),

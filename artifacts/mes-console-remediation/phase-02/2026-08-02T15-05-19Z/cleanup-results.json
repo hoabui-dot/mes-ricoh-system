@@ -1,0 +1,24 @@
+{
+  "first_cleanup": {
+    "status": "passed",
+    "work_orders_removed": 3,
+    "remaining_work_orders": 0,
+    "leaks": {
+      "reservations": 0,
+      "allocations": 0,
+      "work_orders": 0
+    }
+  },
+  "idempotent_cleanup_rerun": {
+    "status": "passed",
+    "work_orders_removed": 0,
+    "requested_work_order_ids": 3,
+    "remaining_work_orders": 0,
+    "leaks": {
+      "reservations": 0,
+      "allocations": 0,
+      "work_orders": 0
+    }
+  },
+  "restored_state": "artifacts/mes-console-remediation/phase-02/2026-08-02T15-05-19Z/resource-restored-state.json"
+}

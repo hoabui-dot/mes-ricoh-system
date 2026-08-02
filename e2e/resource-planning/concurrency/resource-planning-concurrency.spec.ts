@@ -58,11 +58,11 @@ async function json(ctx: APIRequestContext, base: string, path: string, init: Pa
   return { response, body: body?.data ?? body };
 }
 
-async function createWorkOrder(ctx: APIRequestContext, base: string, version: any, shift: any, key: string) {
+async function createWorkOrder(ctx: APIRequestContext, base: string, version: any, shift: any, targetDate: string, key: string) {
   const started = await json(ctx, base, '/api/mes/execution/work-order-creation-workflows', {
     method: 'POST',
     headers: { 'Idempotency-Key': key },
-    data: { production_version_id: version.production_version_id, quantity: 2, target_date: new Date().toISOString().slice(0, 10), shift_id: shift.master_id },
+    data: { production_version_id: version.production_version_id, quantity: 2, target_date: targetDate, shift_id: shift.master_id },
   });
   expect(started.response.ok(), JSON.stringify(started.body)).toBeTruthy();
   const workflowId = started.body.workflow_id;
@@ -101,7 +101,9 @@ test('[@concurrency] RP-E2E-063 simultaneous commits allow one exclusive Machine
   try {
     const targetDate = process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
     const versions = await json(clientA, loginResult.base, `/api/mes/master-data/production-ready-versions?planned_date=${targetDate}&limit=500`);
-    const version = (versions.body as any[]).find((row) => row.readiness_status === 'Ready' && row.production_version_code?.startsWith('PV-'));
+    const version = (versions.body as any[])
+      .filter((row) => row.readiness_status === 'Ready' && (row.production_version_code?.startsWith('PV-') || row.production_version_code?.startsWith('WST-SEED-PV-')))
+      .sort((a, b) => Number(b.production_version_code?.startsWith('WST-SEED-PV-')) - Number(a.production_version_code?.startsWith('WST-SEED-PV-')))[0];
     expect(version, 'released Ready Production Version').toBeTruthy();
     const shifts = await json(clientA, loginResult.base, `/api/mes/master-data/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`);
     const shift = (shifts.body as any[]).find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
@@ -109,8 +111,8 @@ test('[@concurrency] RP-E2E-063 simultaneous commits allow one exclusive Machine
 
     const runId = `E2E-RP-CONCURRENCY-${Date.now()}`;
     const [workOrderA, workOrderB] = await Promise.all([
-      createWorkOrder(clientA, loginResult.base, version, shift, `${runId}-A`),
-      createWorkOrder(clientB, loginResult.base, version, shift, `${runId}-B`),
+      createWorkOrder(clientA, loginResult.base, version, shift, targetDate, `${runId}-A`),
+      createWorkOrder(clientB, loginResult.base, version, shift, targetDate, `${runId}-B`),
     ]);
     createdWorkOrderIds = [workOrderA.work_order_id, workOrderB.work_order_id];
     expect(workOrderA.work_order_id).not.toBe(workOrderB.work_order_id);

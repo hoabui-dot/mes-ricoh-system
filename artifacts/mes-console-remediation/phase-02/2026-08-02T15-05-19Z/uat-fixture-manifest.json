@@ -1,0 +1,57 @@
+{
+  "success": true,
+  "generated_at": "2026-08-02T15:02:32.778Z",
+  "api_base": "http://100.68.50.41:18000/api/mes/execution",
+  "target_date": "2026-08-03",
+  "model": {
+    "production_version": {
+      "master_id": "896110e9-fd2c-4e32-9119-75b7c53dd3b0",
+      "code": "WST-SEED-PV-SEAL-ASM-01",
+      "item_revision_id": "f72a7a14-12ea-4a8b-90b9-77cfaea411b2",
+      "site_id": "aa653541-87a2-46b6-a48e-455170734847",
+      "base_uom_id": "740bca9c-a15b-4085-b9cb-487dcb8db1c2"
+    },
+    "primary_line": {
+      "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+      "code": "WST-SEED-LINE-1",
+      "selection_role": "PRIMARY",
+      "priority": 1
+    },
+    "backup_line": {
+      "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+      "code": "WST-SEED-LINE-2",
+      "selection_role": "BACKUP",
+      "priority": 2
+    },
+    "shift": {
+      "master_id": "00000000-0000-0000-0000-000000000001",
+      "code": "SHIFT-A"
+    },
+    "operation_count": 4
+  },
+  "fixtures": [
+    {
+      "scenario": "primary-ready",
+      "workflow_id": "7300b5d1-9c31-44df-a235-c5b3a289206f",
+      "work_order_id": "4757a09f-3efc-471f-87e2-39406361ba1e",
+      "work_order_code": "WO-20260802-0069"
+    },
+    {
+      "scenario": "backup-fallback",
+      "workflow_id": "c2b8feae-d675-4dba-9d99-6084fdbd32e1",
+      "work_order_id": "8f32ee12-70a7-41cd-812a-404f8d7363d9",
+      "work_order_code": "WO-20260802-0070"
+    },
+    {
+      "scenario": "resource-hold",
+      "workflow_id": "ab73f1dc-c4e4-4104-b0eb-d279559ac810",
+      "work_order_id": "c936d80c-f9ed-4f43-b533-d1051526b584",
+      "work_order_code": "WO-20260802-0071"
+    }
+  ],
+  "artifacts": {
+    "before_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat/resource-before-state.json",
+    "mutated_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat/resource-mutated-state.json",
+    "restored_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat/resource-restored-state.json"
+  }
+}

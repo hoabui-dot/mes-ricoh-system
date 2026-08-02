@@ -1,0 +1,33 @@
+{
+  "worker_skills": [
+    {
+      "code": "SK-EMP-INSPECTION",
+      "scope": "Employee",
+      "lifecycle_status": "Released",
+      "legacy_flag": false,
+      "minimum_level": "L2",
+      "group_code": "SKG-EMP-QUALITY"
+    },
+    {
+      "code": "SK-EMP-MIX-MASTER",
+      "scope": "Employee",
+      "lifecycle_status": "Released",
+      "legacy_flag": false,
+      "minimum_level": "L3",
+      "group_code": "SKG-EMP-PROCESS"
+    },
+    {
+      "code": "SK-EMP-VULCAN-OPERATOR",
+      "scope": "Employee",
+      "lifecycle_status": "Released",
+      "legacy_flag": false,
+      "minimum_level": "L2",
+      "group_code": "SKG-EMP-PROCESS"
+    }
+  ],
+  "retired_codes_absent": [
+    "SK-WC-MIX-MASTER",
+    "SK-WC-VULCAN-OPERATOR",
+    "SK-WC-INSPECTION"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "passed": true,
+  "command": "npm run test:e2e:labor-skill-ux:phase7",
+  "playwright_result": "1 passed",
+  "screenshot_index": "labor-e2e-screenshot-index.json"
+}

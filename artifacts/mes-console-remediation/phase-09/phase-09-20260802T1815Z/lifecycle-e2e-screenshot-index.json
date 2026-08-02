@@ -1,0 +1,6 @@
+{
+  "suite": "e2e/resource-planning/phase3-resource-planning.spec.ts",
+  "status": "passed",
+  "available_evidence": ["Playwright test result screenshots and trace generated during live run"],
+  "note": "No new screenshot file was required to pass the lifecycle assertions; the gate and revalidation panels are covered by data-testid assertions."
+}

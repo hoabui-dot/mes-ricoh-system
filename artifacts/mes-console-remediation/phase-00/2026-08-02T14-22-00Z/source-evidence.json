@@ -1,0 +1,27 @@
+{
+  "run_id": "2026-08-02T14-22-00Z",
+  "sources": [
+    "AI_document/refactor-mes-console/REMEDIATION_MASTER_RULES.md",
+    "AI_document/refactor-mes-console/PROMPT_PHASE_00.md",
+    "AI_document/MES_CONSOLE_FULL_REMEDIATION_BLUEPRINT.md",
+    "AI_CONTEXT.md",
+    "UI_AI_CONTEXT.md",
+    "services/mes-console/src/App.tsx",
+    "services/mes-console/src/components/Sidebar.tsx",
+    "services/mes-console/src/context/AuthContext.tsx",
+    "services/mes-console/src/lib/masterDataApi.ts",
+    "services/mes-console/src/routes/master-data/EmployeesScreen.tsx",
+    "services/mes-console/src/routes/master-data/SkillManagementScreen.tsx",
+    "services/mes-master-data-service/src/infrastructure/http/master-data.router.ts",
+    "services/mes-master-data-service/src/infrastructure/db/seed.ts",
+    "services/mes-execution-service/internal/infrastructure/http/router.go",
+    "services/mes-execution-service/internal/application/usecase/line_selection.go",
+    "scripts/verify-mes-canonical-seed.mjs",
+    "scripts/test-mes-resource-planning-domain-phase1.mjs",
+    "scripts/test-mes-resource-planning-full-flow.mjs",
+    "scripts/test-mes-two-line-resource-planning-phase7.mjs",
+    "e2e/resource-planning/phase8-two-line-console.spec.ts"
+  ],
+  "path_mismatch": "README and manifest refer to AI_document/Phase-XX paths, but actual prompt package files are flat under AI_document/refactor-mes-console."
+}
+

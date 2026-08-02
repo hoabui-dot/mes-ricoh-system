@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "generated_at": "2026-08-02T15:37:43.094Z",
+  "declared": 3,
+  "executed": 3,
+  "passed": 3,
+  "failed": 0,
+  "skipped": 0,
+  "checks": [
+    {
+      "name": "GET production-versions?limit=10&lifecycle_status=Released",
+      "status": 200,
+      "passed": true,
+      "count": 2
+    },
+    {
+      "name": "GET item-revisions?limit=10",
+      "status": 200,
+      "passed": true,
+      "count": 5
+    },
+    {
+      "name": "GET items?limit=10",
+      "status": 200,
+      "passed": true,
+      "count": 8
+    }
+  ]
+}

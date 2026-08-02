@@ -1,0 +1,8 @@
+{
+  "backend_endpoint": "POST /api/mes/execution/work-orders/{id}/resource-allocations/revalidate",
+  "operation_level_results": true,
+  "error_code_exposure": true,
+  "missing_allocation_gate": "passed",
+  "changed_resource_revalidation": "passed",
+  "print_station_dependent_revalidation": "skipped_by_request"
+}

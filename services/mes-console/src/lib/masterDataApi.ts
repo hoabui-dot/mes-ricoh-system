@@ -1,6 +1,7 @@
 export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
 import { mesQueryClient } from './queryClient';
-import { mesQueryKeys } from './queryKeys';
+import { mesQueryKeys, normalizedQuery, type FilterInput } from './queryKeys';
+import type { ApiErrorSummary, MesEnvelope, MesListResponse, MesUserContext, ProductionVersionLineEligibility, ProductionVersionReadinessPreview } from './apiTypes';
 
 export function gatewayBaseUrl() {
   const configured = import.meta.env.VITE_API_BASE_URL;
@@ -12,7 +13,7 @@ export function masterDataBaseUrl() {
   return `${gatewayBaseUrl()}/api/mes/master-data`;
 }
 
-export function authHeaders(user?: { userId?: string; roles?: string[] } | null) {
+export function authHeaders(user?: MesUserContext | null) {
   return {
     'X-User-ID': user?.userId || SYSTEM_USER_ID,
     'X-Role-Code': user?.roles?.[0] || 'PROD_MANAGER',
@@ -33,7 +34,39 @@ export class MasterDataApiError extends Error {
   }
 }
 
-export async function fetchResource(resource: string, user?: { userId?: string; roles?: string[] } | null, query = '') {
+export function normalizeApiError(error: unknown, fallback = 'Request failed'): ApiErrorSummary {
+  if (error instanceof MasterDataApiError) return { status: error.status, code: error.code, message: error.message };
+  if (error instanceof Error) {
+    const typed = error as Error & { status?: number; code?: string; details?: unknown };
+    return { status: typed.status, code: typed.code, message: typed.message || fallback, details: typed.details };
+  }
+  if (error && typeof error === 'object') {
+    const typed = error as { status?: number; code?: string; message?: string; error?: string; details?: unknown };
+    return { status: typed.status, code: typed.code || typed.error, message: typed.message || typed.error || fallback, details: typed.details };
+  }
+  return { message: fallback };
+}
+
+export function queryString(filters?: FilterInput) {
+  const normalized = normalizedQuery(filters);
+  return normalized ? `?${normalized}` : '';
+}
+
+export async function fetchResourceEnvelope<T>(resource: string, user?: MesUserContext | null, filters?: FilterInput): Promise<MesListResponse<T>> {
+  const resp = await fetch(`${masterDataBaseUrl()}/${resource}${queryString(filters)}`, { headers: authHeaders(user), cache: 'no-store' });
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new MasterDataApiError(resource, resp.status, payload.message || payload.error || `Cannot load ${resource}`, payload.error);
+  }
+  return {
+    data: Array.isArray(payload.data) ? payload.data : [],
+    total: payload.total,
+    page: payload.page,
+    page_size: payload.page_size,
+  };
+}
+
+export async function fetchResource<T = any>(resource: string, user?: MesUserContext | null, query = ''): Promise<T[]> {
   const resp = await fetch(`${masterDataBaseUrl()}/${resource}${query}`, { headers: authHeaders(user), cache: 'no-store' });
   if (!resp.ok) {
     const error = await resp.json().catch(() => ({}));
@@ -41,6 +74,51 @@ export async function fetchResource(resource: string, user?: { userId?: string; 
   }
   const data = await resp.json();
   return data.data || [];
+}
+
+async function fetchJson<T>(path: string, user?: MesUserContext | null, init: RequestInit = {}, resource = path): Promise<T> {
+  const resp = await fetch(`${masterDataBaseUrl()}${path}`, {
+    ...init,
+    headers: { ...authHeaders(user), ...(init.headers || {}) },
+    cache: init.cache || 'no-store',
+  });
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new MasterDataApiError(resource, resp.status, payload.message || payload.error || `Request failed: ${path}`, payload.error);
+  }
+  return payload as T;
+}
+
+export async function fetchProductionVersionLineEligibility(id: string, user?: MesUserContext | null): Promise<ProductionVersionLineEligibility[]> {
+  const payload = await fetchJson<MesListResponse<ProductionVersionLineEligibility>>(`/production-versions/${id}/line-eligibility`, user, {}, 'production-version-line-eligibility');
+  return payload.data || [];
+}
+
+export async function saveProductionVersionLineEligibility(id: string, lines: ProductionVersionLineEligibility[], user?: MesUserContext | null): Promise<ProductionVersionLineEligibility[]> {
+  const payload = await fetchJson<MesListResponse<ProductionVersionLineEligibility>>(`/production-versions/${id}/line-eligibility`, user, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lines }),
+  }, 'production-version-line-eligibility');
+  await invalidateMesQueries('production-versions');
+  return payload.data || [];
+}
+
+export async function fetchProductionVersionReadinessPreview(id: string, user?: MesUserContext | null, effectiveAt?: string): Promise<ProductionVersionReadinessPreview> {
+  const payload = await fetchJson<MesEnvelope<ProductionVersionReadinessPreview>>(`/production-versions/${id}/line-readiness-preview`, user, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(effectiveAt ? { effective_at: effectiveAt } : {}),
+  }, 'production-version-readiness-preview');
+  return payload.data;
+}
+
+export async function validateProductionVersion(id: string, user?: MesUserContext | null) {
+  return fetchJson<Record<string, unknown>>(`/production-versions/${id}/validate`, user, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  }, 'production-version-validation');
 }
 
 const invalidationMap: Record<string, string[]> = {
@@ -70,7 +148,7 @@ export async function invalidateMesQueries(resource: string) {
   ]));
 }
 
-export async function postResource(resource: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
+export async function postResource(resource: string, payload: Record<string, unknown>, user?: MesUserContext | null) {
   const resp = await fetch(`${masterDataBaseUrl()}/${resource}`, {
     method: 'POST',
     headers: { ...authHeaders(user), 'Content-Type': 'application/json' },
@@ -87,7 +165,7 @@ export async function postResource(resource: string, payload: Record<string, unk
   return result;
 }
 
-export async function putResource(resource: string, id: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
+export async function putResource(resource: string, id: string, payload: Record<string, unknown>, user?: MesUserContext | null) {
   const resp = await fetch(`${masterDataBaseUrl()}/${resource}/${id}`, {
     method: 'PUT',
     headers: { ...authHeaders(user), 'Content-Type': 'application/json' },
@@ -102,7 +180,7 @@ export async function putResource(resource: string, id: string, payload: Record<
   return result;
 }
 
-export async function deleteResource(resource: string, id: string, user?: { userId?: string; roles?: string[] } | null) {
+export async function deleteResource(resource: string, id: string, user?: MesUserContext | null) {
   const resp = await fetch(`${masterDataBaseUrl()}/${resource}/${id}`, {
     method: 'DELETE',
     headers: authHeaders(user),
@@ -116,7 +194,7 @@ export async function deleteResource(resource: string, id: string, user?: { user
   return result;
 }
 
-export async function releaseResource(resource: string, id: string, user?: { userId?: string; roles?: string[] } | null) {
+export async function releaseResource(resource: string, id: string, user?: MesUserContext | null) {
   const resp = await fetch(`${masterDataBaseUrl()}/${resource}/${id}/release`, {
     method: 'POST',
     headers: authHeaders(user),

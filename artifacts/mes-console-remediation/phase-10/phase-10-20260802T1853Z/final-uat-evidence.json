@@ -1,0 +1,7 @@
+{
+  "fixture_manifest": "artifacts/mes-two-line-uat/uat-fixture-manifest.json",
+  "scenarios": ["primary-ready", "backup-fallback", "resource-hold"],
+  "fixture_verification": "3/3 passed",
+  "browser_uat": "passed",
+  "cleanup": "passed"
+}

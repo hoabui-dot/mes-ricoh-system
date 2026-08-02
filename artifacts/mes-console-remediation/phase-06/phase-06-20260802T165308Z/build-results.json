@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "commands": [
+    {
+      "command": "npm run typecheck --workspace services/mes-console",
+      "status": "passed"
+    },
+    {
+      "command": "npm run build --workspace services/mes-master-data-service",
+      "status": "passed"
+    },
+    {
+      "command": "docker build -t mom-platform-mes-master-data-service -f services/mes-master-data-service/Dockerfile .",
+      "status": "passed"
+    },
+    {
+      "command": "docker build -t mom-platform-mes-console -f services/mes-console/Dockerfile --build-arg VITE_KEYCLOAK_URL=http://100.68.50.41:18080 --build-arg VITE_API_BASE_URL=http://100.68.50.41:18000 .",
+      "status": "passed",
+      "warning": "Vite large chunk warning only"
+    }
+  ]
+}

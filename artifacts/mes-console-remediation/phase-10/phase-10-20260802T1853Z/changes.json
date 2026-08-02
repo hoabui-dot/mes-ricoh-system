@@ -1,0 +1,12 @@
+{
+  "scope": "UI-10 final regression and fixture-contract corrections",
+  "changes": [
+    "Resolved SHIFT-A dynamically from the canonical site in two-line UAT fixtures.",
+    "Made canonical WST production-version selection deterministic in maintained tests/scripts.",
+    "Aligned concurrency Work Order target date with candidate planning date.",
+    "Accepted canonical equipment-only candidate shape in stale-resource coverage.",
+    "Accepted the canonical translated Machine Unit blocker wording.",
+    "Added UI-10 reports and evidence artifacts."
+  ],
+  "business_feature_changes": 0
+}

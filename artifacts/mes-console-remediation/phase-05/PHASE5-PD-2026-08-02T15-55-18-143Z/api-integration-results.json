@@ -1,0 +1,26 @@
+{
+  "declared": 14,
+  "executed": 14,
+  "passed": 14,
+  "failed": 0,
+  "skipped": 0,
+  "commands": [
+    {
+      "command": "npm run test:mes:product-definition-ui:phase5",
+      "declared": 6,
+      "executed": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "artifact": "product-definition-phase5-api-results.json"
+    },
+    {
+      "command": "npm run test:mes:worker-skill-domain:phase1",
+      "declared": 8,
+      "executed": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    }
+  ]
+}

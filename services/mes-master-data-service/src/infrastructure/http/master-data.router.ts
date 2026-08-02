@@ -645,7 +645,13 @@ function phase6Error(error: any): { status: number; code: string } | null {
     'PRODUCTION_VERSION_LINE_OPERATION_CAPABILITY_UNRESOLVED',
   ]);
   if (known.has(message)) return { status: message.includes('OVERLAP') ? 409 : 422, code: message };
-  if (error?.code === '23505') return { status: 409, code: 'PRODUCTION_LINE_DUPLICATE' };
+  if (error?.code === '23505') {
+    const constraint = String(error?.constraint || '');
+    if (constraint.includes('ux_md_pv_line_eligibility_priority_current')) return { status: 409, code: 'PRODUCTION_VERSION_LINE_PRIORITY_DUPLICATE' };
+    if (constraint.includes('ux_md_pv_line_eligibility_primary_current')) return { status: 409, code: 'PRODUCTION_VERSION_LINE_PRIMARY_DUPLICATE' };
+    if (constraint.includes('ux_md_pv_line_eligibility_current')) return { status: 409, code: 'PRODUCTION_VERSION_LINE_DUPLICATE' };
+    return { status: 409, code: 'PRODUCTION_LINE_DUPLICATE' };
+  }
   return null;
 }
 
@@ -791,7 +797,16 @@ export function masterDataRouter(pool: Pool): Router {
       const { rows } = await pool.query(`
         SELECT pl.*, s.code AS site_code, s.name AS site_name, pa.code AS area_code, pa.name AS area_name, sf.code AS shopfloor_code, sf.name AS shopfloor_name,
                (SELECT COUNT(*)::INT FROM md_production_line_work_center lwc WHERE lwc.production_line_id = pl.master_id AND lwc.active_flag = TRUE AND (lwc.effective_to IS NULL OR lwc.effective_to > NOW())) AS active_work_center_count,
-               (SELECT COUNT(*)::INT FROM md_production_version_line_eligibility e WHERE e.production_line_id = pl.master_id AND e.active_flag = TRUE AND (e.effective_to IS NULL OR e.effective_to > NOW())) AS active_eligibility_count
+               (SELECT COUNT(*)::INT FROM md_production_version_line_eligibility e WHERE e.production_line_id = pl.master_id AND e.active_flag = TRUE AND (e.effective_to IS NULL OR e.effective_to > NOW())) AS active_eligibility_count,
+               CASE
+                 WHEN NOT EXISTS (SELECT 1 FROM md_production_line_work_center lwc WHERE lwc.production_line_id = pl.master_id AND lwc.active_flag = TRUE AND (lwc.effective_to IS NULL OR lwc.effective_to > NOW())) THEN 'NotReady'
+                 WHEN NOT EXISTS (SELECT 1 FROM md_production_version_line_eligibility e WHERE e.production_line_id = pl.master_id AND e.active_flag = TRUE AND (e.effective_to IS NULL OR e.effective_to > NOW())) THEN 'ReadyWithWarnings'
+                 ELSE 'Ready'
+               END AS readiness_status,
+               (
+                 CASE WHEN NOT EXISTS (SELECT 1 FROM md_production_line_work_center lwc WHERE lwc.production_line_id = pl.master_id AND lwc.active_flag = TRUE AND (lwc.effective_to IS NULL OR lwc.effective_to > NOW())) THEN 1 ELSE 0 END
+                 + CASE WHEN NOT EXISTS (SELECT 1 FROM md_production_version_line_eligibility e WHERE e.production_line_id = pl.master_id AND e.active_flag = TRUE AND (e.effective_to IS NULL OR e.effective_to > NOW())) THEN 1 ELSE 0 END
+               )::INT AS readiness_blocker_count
         FROM md_production_line pl
         JOIN md_site s ON s.master_id = pl.site_id
         JOIN md_production_area pa ON pa.master_id = pl.area_id
@@ -817,7 +832,13 @@ export function masterDataRouter(pool: Pool): Router {
         SELECT e.*, pv.code AS production_version_code, pv.name_i18n AS production_version_name
         FROM md_production_version_line_eligibility e JOIN md_production_version pv ON pv.master_id = e.production_version_id
         WHERE e.production_line_id = $1 ORDER BY e.active_flag DESC, e.priority_no, pv.code`, [req.params['id']]);
-      return res.json({ data: { ...line.rows[0], work_centers: workCenters.rows, production_version_eligibilities: eligibilities.rows } });
+      const activeWorkCenterCount = workCenters.rows.filter((row: any) => row.active_flag !== false && (!row.effective_to || new Date(row.effective_to) > new Date())).length;
+      const activeEligibilityCount = eligibilities.rows.filter((row: any) => row.active_flag !== false && (!row.effective_to || new Date(row.effective_to) > new Date())).length;
+      const blockers = [
+        activeWorkCenterCount ? null : { code: 'PRODUCTION_LINE_WORK_CENTER_REQUIRED' },
+        activeEligibilityCount ? null : { code: 'PRODUCTION_LINE_ELIGIBILITY_NOT_CONFIGURED' },
+      ].filter(Boolean);
+      return res.json({ data: { ...line.rows[0], active_work_center_count: activeWorkCenterCount, active_eligibility_count: activeEligibilityCount, readiness_summary: { status: blockers.length ? (activeWorkCenterCount ? 'ReadyWithWarnings' : 'NotReady') : 'Ready', blocker_count: blockers.length, blockers }, work_centers: workCenters.rows, production_version_eligibilities: eligibilities.rows } });
     } catch (err) { return next(err); }
   });
 
@@ -1317,9 +1338,9 @@ export function masterDataRouter(pool: Pool): Router {
         `SELECT es.*, s.code AS skill_code, s.name AS skill_name
          FROM md_employee_skill es
          JOIN md_skill s ON s.master_id = es.skill_id
-         WHERE es.employee_id = $1 AND es.active_flag = TRUE AND es.effective_to IS NULL
+         WHERE es.employee_id = $1
            AND s.scope = 'Employee' AND s.legacy_flag = FALSE
-         ORDER BY s.code, es.effective_from DESC`,
+         ORDER BY es.active_flag DESC, s.code, es.effective_from DESC`,
         [req.params['id']],
       );
       res.json({ data: rows });
@@ -1377,8 +1398,17 @@ export function masterDataRouter(pool: Pool): Router {
   router.get('/worker-skills', async (_req, res, next) => {
     try {
       const { rows } = await pool.query(`SELECT s.*, sg.code AS skill_group_code, sg.name AS skill_group_name,
-        (SELECT COUNT(*)::int FROM md_employee_skill es WHERE es.skill_id = s.master_id AND es.active_flag = TRUE AND es.effective_to IS NULL) AS active_assignment_count
+        COALESCE(dep.active_assignment_count, 0) AS active_assignment_count,
+        COALESCE(dep.operation_requirement_count, 0) AS operation_requirement_count,
+        COALESCE(dep.production_standard_count, 0) AS production_standard_count,
+        (COALESCE(dep.active_assignment_count, 0) + COALESCE(dep.operation_requirement_count, 0) + COALESCE(dep.production_standard_count, 0)) AS dependency_count
         FROM md_skill s LEFT JOIN md_skill_group sg ON sg.skill_group_id = s.skill_group_id
+        LEFT JOIN LATERAL (
+          SELECT
+            (SELECT COUNT(*)::int FROM md_employee_skill es WHERE es.skill_id = s.master_id AND es.active_flag = TRUE AND es.effective_to IS NULL) AS active_assignment_count,
+            (SELECT COUNT(*)::int FROM md_operation_skill_requirement osr WHERE osr.skill_id = s.master_id AND osr.active_flag = TRUE AND (osr.effective_to IS NULL OR osr.effective_to > NOW())) AS operation_requirement_count,
+            (SELECT COUNT(*)::int FROM md_production_standard ps WHERE ps.skill_id = s.master_id AND ps.lifecycle_status NOT IN ('Inactive','Obsolete') AND (ps.valid_to IS NULL OR ps.valid_to > NOW())) AS production_standard_count
+        ) dep ON TRUE
         WHERE s.scope = 'Employee' AND s.legacy_flag = FALSE
         ORDER BY s.code`);
       return res.json({ data: rows });
@@ -1405,7 +1435,7 @@ export function masterDataRouter(pool: Pool): Router {
       const [assignments, operationRequirements, productionStandards] = await Promise.all([
         pool.query(`SELECT COUNT(*)::int AS count FROM md_employee_skill WHERE skill_id = $1 AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id']]),
         pool.query(`SELECT COUNT(*)::int AS count FROM md_operation_skill_requirement WHERE skill_id = $1 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW())`, [req.params['id']]),
-        pool.query(`SELECT COUNT(*)::int AS count FROM md_production_standard WHERE skill_id = $1 AND active_flag = TRUE`, [req.params['id']]).catch(() => ({ rows: [{ count: 0 }] })),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_production_standard WHERE skill_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete') AND (valid_to IS NULL OR valid_to > NOW())`, [req.params['id']]).catch(() => ({ rows: [{ count: 0 }] })),
       ]);
       return res.json({ data: { active_assignments: assignments.rows[0]?.count || 0, operation_skill_requirements: operationRequirements.rows[0]?.count || 0, production_standards: productionStandards.rows[0]?.count || 0 } });
     } catch (err) { return next(err); }
@@ -1417,7 +1447,7 @@ export function masterDataRouter(pool: Pool): Router {
         pool.query(`SELECT COUNT(*)::int AS count FROM md_resource_skill_assignment WHERE skill_id = $1 AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id']]),
         pool.query(`SELECT COUNT(*)::int AS count FROM md_employee_skill WHERE skill_id = $1 AND active_flag = TRUE AND effective_to IS NULL`, [req.params['id']]),
         pool.query(`SELECT COUNT(*)::int AS count FROM md_operation_skill_requirement WHERE skill_id = $1 AND active_flag = TRUE AND (effective_to IS NULL OR effective_to > NOW())`, [req.params['id']]),
-        pool.query(`SELECT COUNT(*)::int AS count FROM md_production_standard WHERE skill_id = $1 AND active_flag = TRUE`, [req.params['id']]).catch(() => ({ rows: [{ count: 0 }] })),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_production_standard WHERE skill_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete') AND (valid_to IS NULL OR valid_to > NOW())`, [req.params['id']]).catch(() => ({ rows: [{ count: 0 }] })),
       ]);
       const data = {
         resource_assignments: resourceAssignments.rows[0]?.count || 0,
@@ -2283,11 +2313,15 @@ export function masterDataRouter(pool: Pool): Router {
     try {
       const detail = await pool.query(`SELECT wc.*, s.code AS site_code, s.name AS site_name, a.code AS area_code, a.name AS area_name FROM md_work_center wc JOIN md_site s ON s.master_id = wc.site_id JOIN md_production_area a ON a.master_id = wc.area_id WHERE wc.master_id = $1`, [req.params['id']]);
       if (!detail.rows[0]) return res.status(404).json({ error: 'Not Found' });
-      const [workstations, assignments] = await Promise.all([
+      const [workstations, assignments, capabilities, calendars, productionStandards, lineMemberships] = await Promise.all([
         pool.query(`SELECT ws.*, a.code AS area_code, a.name AS area_name FROM md_workstation ws LEFT JOIN md_production_area a ON a.master_id = ws.area_id WHERE ws.work_center_id = $1 ORDER BY ws.code`, [req.params['id']]),
         pool.query(`SELECT ra.*, ws.code AS workstation_code, ws.name AS workstation_name, eq.code AS equipment_code, eq.name AS equipment_name FROM md_resource_assignment ra LEFT JOIN md_workstation ws ON ws.master_id = ra.workstation_id LEFT JOIN md_equipment eq ON eq.master_id = ra.equipment_id WHERE ra.work_center_id = $1 ORDER BY ra.effective_from DESC`, [req.params['id']]),
+        pool.query(`SELECT rc.*, op.code AS operation_code, op.name AS operation_name, eq.code AS equipment_code, eq.name AS equipment_name FROM md_resource_capability rc JOIN md_operation op ON op.master_id = rc.operation_id LEFT JOIN md_equipment eq ON eq.master_id = rc.equipment_id WHERE rc.work_center_id = $1 ORDER BY rc.active_flag DESC, op.code, eq.code NULLS FIRST`, [req.params['id']]),
+        pool.query(`SELECT cal.*, sh.code AS shift_code, sh.name AS shift_name FROM md_resource_calendar cal LEFT JOIN md_shift sh ON sh.master_id = cal.shift_id WHERE cal.resource_type = 'WorkCenter' AND cal.resource_id = $1 ORDER BY cal.calendar_date DESC, sh.code`, [req.params['id']]),
+        pool.query(`SELECT ps.*, ro.seq AS routing_seq, op.code AS operation_code, op.name AS operation_name, eq.code AS equipment_code, eq.name AS equipment_name FROM md_production_standard ps LEFT JOIN md_routing_operation ro ON ro.master_id = ps.routing_operation_id LEFT JOIN md_operation op ON op.master_id = COALESCE(ps.operation_id, ro.operation_id) LEFT JOIN md_equipment eq ON eq.master_id = ps.equipment_id WHERE ps.work_center_id = $1 ORDER BY ps.active_flag DESC, ps.valid_from DESC NULLS LAST, op.code`, [req.params['id']]),
+        pool.query(`SELECT lwc.*, pl.code AS production_line_code, pl.name AS production_line_name FROM md_production_line_work_center lwc JOIN md_production_line pl ON pl.master_id = lwc.production_line_id WHERE lwc.work_center_id = $1 ORDER BY lwc.active_flag DESC, lwc.sequence_no, pl.code`, [req.params['id']]),
       ]);
-      return res.json({ data: { ...detail.rows[0], workstations: workstations.rows, assignments: assignments.rows } });
+      return res.json({ data: { ...detail.rows[0], workstations: workstations.rows, assignments: assignments.rows, operation_capabilities: capabilities.rows, calendars: calendars.rows, production_standards: productionStandards.rows, line_memberships: lineMemberships.rows } });
     } catch (err) { return next(err); }
   });
 
@@ -2332,6 +2366,11 @@ export function masterDataRouter(pool: Pool): Router {
       if (!detail.rows[0]) return res.status(404).json({ error: 'Not Found' });
       const assignments = await pool.query(`SELECT ra.*, wc.code AS work_center_code, wc.name AS work_center_name, eq.code AS equipment_code, eq.name AS equipment_name, mu.code AS machine_unit_code, mg.code AS machine_group_code FROM md_resource_assignment ra JOIN md_work_center wc ON wc.master_id = ra.work_center_id LEFT JOIN md_equipment eq ON eq.master_id = ra.equipment_id LEFT JOIN md_machine_unit mu ON mu.machine_unit_id = ra.machine_unit_id LEFT JOIN md_workstation_machine_group mg ON mg.master_id = ra.machine_group_id WHERE ra.workstation_id = $1 ORDER BY ra.effective_from DESC`, [req.params['id']]);
       const groups = await pool.query(`SELECT mg.*, s.code AS site_code, sf.code AS shopfloor_code, wc.code AS work_center_code, ws.code AS workstation_code FROM md_workstation_machine_group mg JOIN md_site s ON s.master_id = mg.site_id JOIN md_shopfloor sf ON sf.master_id = mg.shopfloor_id JOIN md_work_center wc ON wc.master_id = mg.work_center_id JOIN md_workstation ws ON ws.master_id = mg.workstation_id WHERE mg.workstation_id = $1 AND mg.lifecycle_status NOT IN ('Inactive','Obsolete') AND (mg.effective_to IS NULL OR mg.effective_to > NOW()) ORDER BY mg.code`, [req.params['id']]);
+      const [capabilities, calendars, productionStandards] = await Promise.all([
+        pool.query(`SELECT rc.*, op.code AS operation_code, op.name AS operation_name, eq.code AS equipment_code, eq.name AS equipment_name FROM md_resource_capability rc JOIN md_operation op ON op.master_id = rc.operation_id LEFT JOIN md_equipment eq ON eq.master_id = rc.equipment_id WHERE rc.work_center_id = $1 AND (rc.equipment_id IS NULL OR rc.equipment_id IN (SELECT equipment_id FROM md_resource_assignment WHERE workstation_id = $2 AND equipment_id IS NOT NULL)) ORDER BY rc.active_flag DESC, op.code, eq.code NULLS FIRST`, [detail.rows[0].work_center_id, req.params['id']]),
+        pool.query(`SELECT cal.*, sh.code AS shift_code, sh.name AS shift_name FROM md_resource_calendar cal LEFT JOIN md_shift sh ON sh.master_id = cal.shift_id WHERE (cal.resource_type = 'Workstation' AND cal.resource_id = $1) OR (cal.resource_type = 'WorkCenter' AND cal.resource_id = $2) ORDER BY cal.calendar_date DESC, sh.code`, [req.params['id'], detail.rows[0].work_center_id]),
+        pool.query(`SELECT ps.*, ro.seq AS routing_seq, op.code AS operation_code, op.name AS operation_name, eq.code AS equipment_code, eq.name AS equipment_name FROM md_production_standard ps LEFT JOIN md_routing_operation ro ON ro.master_id = ps.routing_operation_id LEFT JOIN md_operation op ON op.master_id = COALESCE(ps.operation_id, ro.operation_id) LEFT JOIN md_equipment eq ON eq.master_id = ps.equipment_id WHERE ps.work_center_id = $1 ORDER BY ps.active_flag DESC, ps.valid_from DESC NULLS LAST, op.code`, [detail.rows[0].work_center_id]),
+      ]);
       const printStationIntegration = await pool.query(`SELECT b.binding_id, b.allocated_printer_quantity, ps.master_id AS print_station_id, ps.code AS print_station_code, ps.name AS print_station_name, ps.status AS lifecycle_status,
         rt.adapter_id, rt.runtime_status, rt.kafka_status, rt.registered_printer_count, rt.ready_printer_count, rt.active_for_work_printer_count, rt.last_heartbeat_at, rt.last_error,
         COALESCE(rt.printer_snapshot, '[]'::jsonb) AS printers,
@@ -2344,7 +2383,7 @@ export function masterDataRouter(pool: Pool): Router {
         const requirements = await pool.query(`SELECT r.*, eq.code AS machine_code, eq.name AS machine_name FROM md_workstation_machine_requirement r JOIN md_equipment eq ON eq.master_id = r.machine_id WHERE r.machine_group_id = $1 ORDER BY r.sequence_no`, [group.master_id]);
         group.requirements = requirements.rows;
       }
-      return res.json({ data: { ...detail.rows[0], assignments: assignments.rows, machine_groups: groups.rows, print_station_integration: printStationIntegration.rows[0] ?? null } });
+      return res.json({ data: { ...detail.rows[0], assignments: assignments.rows, machine_groups: groups.rows, operation_capabilities: capabilities.rows, calendars: calendars.rows, production_standards: productionStandards.rows, print_station_integration: printStationIntegration.rows[0] ?? null } });
     } catch (err) { return next(err); }
   });
 
@@ -3074,7 +3113,49 @@ export function masterDataRouter(pool: Pool): Router {
         if (filters.length) where = `WHERE ${filters.join(' AND ')}`;
       }
       let query = `SELECT * FROM ${table.tableName} ${where} ORDER BY code, version_no LIMIT $1`;
-      if (table.tableName === 'md_skill') {
+      if (table.tableName === 'md_employee') {
+        query = `SELECT e.*, s.code AS site_code, s.name AS site_name, wc.code AS default_work_center_code, wc.name AS default_work_center_name,
+                        COALESCE(skill_summary.active_skill_count, 0) AS active_skill_count,
+                        COALESCE(skill_summary.inactive_skill_count, 0) AS inactive_skill_count,
+                        COALESCE(skill_summary.active_skill_summary, '[]'::jsonb) AS active_skill_summary,
+                        COALESCE(schedule_summary.today_schedule_count, 0) AS today_schedule_count,
+                        COALESCE(schedule_summary.upcoming_schedule_count, 0) AS upcoming_schedule_count,
+                        schedule_summary.today_shift_code,
+                        schedule_summary.today_shift_name
+                 FROM md_employee e
+                 LEFT JOIN md_site s ON s.master_id = e.site_id
+                 LEFT JOIN md_work_center wc ON wc.master_id = e.default_work_center_id
+                 LEFT JOIN LATERAL (
+                   SELECT
+                     COUNT(*) FILTER (WHERE es.active_flag = TRUE AND es.effective_to IS NULL)::INT AS active_skill_count,
+                     COUNT(*) FILTER (WHERE es.active_flag = FALSE OR es.effective_to IS NOT NULL)::INT AS inactive_skill_count,
+                     jsonb_agg(jsonb_build_object(
+                       'skill_id', es.skill_id,
+                       'skill_code', sk.code,
+                       'skill_name', sk.name,
+                       'level', es.level,
+                       'qualification_status', es.qualification_status
+                     ) ORDER BY sk.code) FILTER (WHERE es.active_flag = TRUE AND es.effective_to IS NULL) AS active_skill_summary
+                   FROM md_employee_skill es
+                   JOIN md_skill sk ON sk.master_id = es.skill_id
+                   WHERE es.employee_id = e.master_id
+                     AND sk.scope = 'Employee'
+                     AND sk.legacy_flag = FALSE
+                 ) skill_summary ON TRUE
+                 LEFT JOIN LATERAL (
+                   SELECT
+                     COUNT(*) FILTER (WHERE sch.schedule_date = CURRENT_DATE)::INT AS today_schedule_count,
+                     COUNT(*) FILTER (WHERE sch.schedule_date >= CURRENT_DATE)::INT AS upcoming_schedule_count,
+                     MAX(sh.code) FILTER (WHERE sch.schedule_date = CURRENT_DATE) AS today_shift_code,
+                     (MAX(sh.name::text) FILTER (WHERE sch.schedule_date = CURRENT_DATE))::jsonb AS today_shift_name
+                   FROM md_employee_shift_schedule sch
+                   JOIN md_shift sh ON sh.master_id = sch.shift_id
+                   WHERE sch.employee_id = e.master_id
+                     AND sch.schedule_status = 'Scheduled'
+                 ) schedule_summary ON TRUE
+                 ${where.replaceAll('default_work_center_id', 'e.default_work_center_id')}
+                 ORDER BY e.code, e.version_no LIMIT $1`;
+      } else if (table.tableName === 'md_skill') {
         const scopeFilter = typeof req.query['scope'] === 'string' && req.query['scope'] ? `AND sk.scope = $2` : '';
         if (scopeFilter) params.push(String(req.query['scope']));
         query = `SELECT sk.*, sg.code AS skill_group_code, sg.name AS skill_group_name FROM md_skill sk LEFT JOIN md_skill_group sg ON sg.skill_group_id = sk.skill_group_id AND sg.legacy_flag = FALSE WHERE sk.legacy_flag = FALSE ${scopeFilter} ORDER BY sk.code LIMIT $1`;
@@ -3086,14 +3167,46 @@ export function masterDataRouter(pool: Pool): Router {
         query = `SELECT r.*, mg.code AS machine_group_code, eq.code AS machine_code, eq.name AS machine_name FROM md_workstation_machine_requirement r JOIN md_workstation_machine_group mg ON mg.master_id = r.machine_group_id JOIN md_equipment eq ON eq.master_id = r.machine_id ORDER BY mg.code, r.sequence_no LIMIT $1`;
       } else if (table.tableName === 'md_production_version') {
         query = `SELECT pv.*, r.item_id, mb.code AS mbom_code, mb.name AS mbom_name,
-                        rt.code AS routing_code, rt.name AS routing_name, s.code AS site_code,
-                        r.revision_code, i.code AS item_code, i.name AS item_name
+                        rt.code AS routing_code, rt.name AS routing_name, eb.code AS ebom_code, eb.name AS ebom_name,
+                        s.code AS site_code, r.revision_code, i.code AS item_code, i.name AS item_name,
+                        COALESCE(line_summary.line_eligibility_count, 0) AS line_eligibility_count,
+                        line_summary.primary_line_code, line_summary.primary_line_name,
+                        COALESCE(line_summary.backup_line_count, 0) AS backup_line_count,
+                        COALESCE(line_summary.line_eligibility_summary, '[]'::jsonb) AS line_eligibility_summary
                  FROM md_production_version pv
                  LEFT JOIN md_mbom_header mb ON mb.master_id = pv.mbom_header_id
                  LEFT JOIN md_routing_header rt ON rt.master_id = pv.routing_header_id
+                 LEFT JOIN md_ebom_header eb ON eb.master_id = pv.ebom_header_id
                  LEFT JOIN md_site s ON s.master_id = pv.site_id
                  LEFT JOIN md_item_revision r ON r.master_id = pv.item_revision_id
                  LEFT JOIN md_item i ON i.master_id = r.item_id
+                 LEFT JOIN LATERAL (
+                   SELECT
+                     COUNT(*)::INT AS line_eligibility_count,
+                     MAX(pl.code) FILTER (WHERE e.is_primary = TRUE) AS primary_line_code,
+                     (MAX(pl.name::text) FILTER (WHERE e.is_primary = TRUE))::jsonb AS primary_line_name,
+                     COUNT(*) FILTER (WHERE e.is_primary = FALSE)::INT AS backup_line_count,
+                     jsonb_agg(jsonb_build_object(
+                       'eligibility_id', e.eligibility_id,
+                       'production_line_id', e.production_line_id,
+                       'production_line_code', pl.code,
+                       'production_line_name', pl.name,
+                       'is_primary', e.is_primary,
+                       'priority_no', e.priority_no,
+                       'efficiency_factor', e.efficiency_factor,
+                       'selection_mode', e.selection_mode,
+                       'selection_policy', e.selection_policy,
+                       'lifecycle_status', e.lifecycle_status,
+                       'effective_from', e.effective_from,
+                       'effective_to', e.effective_to,
+                       'active_flag', e.active_flag
+                     ) ORDER BY e.is_primary DESC, e.priority_no, pl.code) AS line_eligibility_summary
+                   FROM md_production_version_line_eligibility e
+                   JOIN md_production_line pl ON pl.master_id = e.production_line_id
+                   WHERE e.production_version_id = pv.master_id
+                     AND e.active_flag = TRUE
+                     AND (e.effective_to IS NULL OR e.effective_to > NOW())
+                 ) line_summary ON TRUE
                  ${where.replaceAll('md_production_version.', 'pv.')} ORDER BY pv.code, pv.version_no LIMIT $1`;
       } else if (table.tableName === 'md_routing_header') {
         query = `SELECT rt.*, r.revision_code, i.code AS item_code, i.name AS item_name,
@@ -3169,7 +3282,8 @@ export function masterDataRouter(pool: Pool): Router {
                  ORDER BY ps.valid_from DESC, ps.code LIMIT $1`;
       } else if (table.tableName === 'md_operation_skill_requirement') {
         query = `SELECT osr.*, rth.code AS routing_code, ro.code AS routing_operation_code, ro.seq AS operation_seq,
-                        op.code AS operation_code, op.name AS operation_name, sk.code AS skill_code, sk.name AS skill_name
+                        op.code AS operation_code, op.name AS operation_name, sk.code AS skill_code, sk.name AS skill_name,
+                        sk.scope AS skill_scope
                  FROM md_operation_skill_requirement osr
                  LEFT JOIN md_routing_operation ro ON ro.master_id = osr.routing_operation_id
                  LEFT JOIN md_routing_header rth ON rth.master_id = ro.routing_header_id
@@ -4017,11 +4131,14 @@ export function masterDataRouter(pool: Pool): Router {
       if (table.tableName === 'md_operation_skill_requirement') {
         const operation = await client.query(`SELECT ro.operation_id, wc.site_id FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.master_id = $1`, [body['routing_operation_id']]);
         if (!operation.rows[0] || !body['skill_id']) throw Object.assign(new Error('OPERATION_SKILL_ROUTING_REQUIRED'), { statusCode: 422 });
-        const skill = await client.query(`SELECT 1 FROM md_skill WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [body['skill_id']]);
+        const skill = await client.query(`SELECT scope FROM md_skill WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [body['skill_id']]);
         if (!skill.rows[0]) throw Object.assign(new Error('OPERATION_SKILL_INACTIVE'), { statusCode: 422 });
+        if (skill.rows[0].scope !== 'Employee') throw Object.assign(new Error('OPERATION_WORKER_SKILL_SCOPE_INVALID'), { statusCode: 422 });
         body['operation_id'] = operation.rows[0].operation_id;
         body['site_id'] = body['site_id'] || operation.rows[0].site_id;
+        if (body['minimum_level'] !== undefined && !WORKER_SKILL_LEVELS.has(String(body['minimum_level']))) throw Object.assign(new Error('OPERATION_WORKER_SKILL_LEVEL_INVALID'), { statusCode: 422 });
         if (Number(body['required_persons'] || 1) <= 0) throw Object.assign(new Error('OPERATION_SKILL_REQUIRED_PERSONS_INVALID'), { statusCode: 422 });
+        if ((body['effective_from'] && Number.isNaN(new Date(String(body['effective_from'])).getTime())) || (body['effective_to'] && Number.isNaN(new Date(String(body['effective_to'])).getTime())) || (body['effective_from'] && body['effective_to'] && new Date(String(body['effective_to'])) <= new Date(String(body['effective_from'])))) throw Object.assign(new Error('OPERATION_WORKER_SKILL_EFFECTIVE_DATES_INVALID'), { statusCode: 422 });
       }
       if (table.tableName === 'md_routing_operation') {
         const operation = await client.query(`SELECT lifecycle_status FROM md_operation WHERE master_id = $1`, [body['operation_id']]);
@@ -4248,6 +4365,24 @@ export function masterDataRouter(pool: Pool): Router {
       if (body['operation_type'] !== undefined && !['Production', 'Inspection', 'Packing', 'Handling'].includes(String(body['operation_type']))) return res.status(422).json({ error: 'OPERATION_TYPE_INVALID' });
       if (body['confirmation_mode'] !== undefined && !['StartFinish', 'QuantityOnly', 'Auto'].includes(String(body['confirmation_mode']))) return res.status(422).json({ error: 'OPERATION_CONFIRMATION_MODE_INVALID' });
       if (body['quantity_reporting'] !== undefined && !['GoodOnly', 'GoodScrap'].includes(String(body['quantity_reporting']))) return res.status(422).json({ error: 'OPERATION_QUANTITY_REPORTING_INVALID' });
+    }
+    if (table.tableName === 'md_operation_skill_requirement') {
+      const current = await pool.query(`SELECT routing_operation_id, skill_id, effective_from, effective_to FROM md_operation_skill_requirement WHERE master_id = $1`, [req.params['id']]);
+      if (!current.rows[0]) return res.status(404).json({ error: 'Not Found' });
+      const routingOperationId = body['routing_operation_id'] || current.rows[0].routing_operation_id;
+      const skillId = body['skill_id'] || current.rows[0].skill_id;
+      const operation = await pool.query(`SELECT ro.operation_id, wc.site_id FROM md_routing_operation ro JOIN md_work_center wc ON wc.master_id = ro.work_center_id WHERE ro.master_id = $1`, [routingOperationId]);
+      if (!operation.rows[0] || !skillId) return res.status(422).json({ error: 'OPERATION_SKILL_ROUTING_REQUIRED' });
+      const skill = await pool.query(`SELECT scope FROM md_skill WHERE master_id = $1 AND lifecycle_status NOT IN ('Inactive','Obsolete')`, [skillId]);
+      if (!skill.rows[0]) return res.status(422).json({ error: 'OPERATION_SKILL_INACTIVE' });
+      if (skill.rows[0].scope !== 'Employee') return res.status(422).json({ error: 'OPERATION_WORKER_SKILL_SCOPE_INVALID' });
+      body['operation_id'] = operation.rows[0].operation_id;
+      body['site_id'] = body['site_id'] || operation.rows[0].site_id;
+      if (body['minimum_level'] !== undefined && !WORKER_SKILL_LEVELS.has(String(body['minimum_level']))) return res.status(422).json({ error: 'OPERATION_WORKER_SKILL_LEVEL_INVALID' });
+      if (body['required_persons'] !== undefined && Number(body['required_persons']) <= 0) return res.status(422).json({ error: 'OPERATION_SKILL_REQUIRED_PERSONS_INVALID' });
+      const from = new Date(String(body['effective_from'] || current.rows[0].effective_from || new Date().toISOString()));
+      const to = body['effective_to'] !== undefined ? (body['effective_to'] ? new Date(String(body['effective_to'])) : null) : (current.rows[0].effective_to ? new Date(String(current.rows[0].effective_to)) : null);
+      if (Number.isNaN(from.getTime()) || (to && (Number.isNaN(to.getTime()) || to <= from))) return res.status(422).json({ error: 'OPERATION_WORKER_SKILL_EFFECTIVE_DATES_INVALID' });
     }
     validateEngineeringMetadata(table, body);
     const columns = Object.keys(body);

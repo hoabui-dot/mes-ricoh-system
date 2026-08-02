@@ -1,0 +1,143 @@
+{
+  "run_id": "PHASE4-PD-1785696692842-NE2AM",
+  "status": "passed",
+  "target_date": "2026-08-03",
+  "steps": [
+    {
+      "name": "baseline ready production version and validation",
+      "status": "passed",
+      "started_at": "2026-08-02T18:51:32.875Z",
+      "finished_at": "2026-08-02T18:51:33.112Z",
+      "data": {
+        "production_version": "WST-SEED-PV-SEAL-ASM-01",
+        "validation": {
+          "production_version_id": "adf4b247-ae45-40a3-805f-e2991f083b54",
+          "valid": true,
+          "failures": [],
+          "warnings": [],
+          "delegated_rules": [
+            {
+              "rule": "9",
+              "delegated_to": "mes-traceability-service",
+              "reason": "Traceability policy is outside mes-master-data-service ownership."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "work order snapshots production version routing and mbom",
+      "status": "passed",
+      "started_at": "2026-08-02T18:51:33.233Z",
+      "finished_at": "2026-08-02T18:51:33.483Z",
+      "data": {
+        "work_order_id": "df19b96f-adbf-45bb-b2fe-7c6cf2062c77",
+        "operation_count": 4,
+        "material_count": 1,
+        "planning_snapshot": {
+          "mbom_id": "6d6c297d-6942-48e3-a426-6b22857f5e84",
+          "shift_id": "4625b6a8-37dd-4286-acad-79e550ac59ec",
+          "routing_id": "7d8885d2-f4a0-4821-a505-f93f352af7fe",
+          "production_version_id": "adf4b247-ae45-40a3-805f-e2991f083b54",
+          "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
+        }
+      }
+    },
+    {
+      "name": "ebom does not drive work order material requirements",
+      "status": "passed",
+      "started_at": "2026-08-02T18:51:33.483Z",
+      "finished_at": "2026-08-02T18:51:33.490Z",
+      "data": {
+        "wo_material_rows_from_mbom": 1,
+        "released_ebom_lines": 1,
+        "ebom_used_for_material_requirements": false
+      }
+    },
+    {
+      "name": "snapshot immutability after master data changes",
+      "status": "passed",
+      "started_at": "2026-08-02T18:51:33.490Z",
+      "finished_at": "2026-08-02T18:51:33.558Z",
+      "data": {
+        "work_order_id": "df19b96f-adbf-45bb-b2fe-7c6cf2062c77",
+        "unchanged": true
+      }
+    },
+    {
+      "name": "negative validation matrix",
+      "status": "passed",
+      "started_at": "2026-08-02T18:51:33.558Z",
+      "finished_at": "2026-08-02T18:51:33.900Z",
+      "data": {
+        "checks": [
+          {
+            "expectedCode": "ITEM_REVISION.NOT_RELEASED",
+            "validationCodes": [
+              "ITEM_REVISION.NOT_RELEASED"
+            ]
+          },
+          {
+            "expectedCode": "MBOM.NOT_RELEASED",
+            "validationCodes": [
+              "MBOM.NOT_RELEASED"
+            ]
+          },
+          {
+            "expectedCode": "ROUTING.NOT_ACTIVE",
+            "validationCodes": [
+              "ROUTING.NOT_ACTIVE"
+            ]
+          },
+          {
+            "expectedCode": "PRODUCTION_VERSION_MBOM_ITEM_REVISION_MISMATCH",
+            "validationCodes": [
+              "PRODUCTION_VERSION_EBOM_ITEM_REVISION_MISMATCH",
+              "PRODUCTION_VERSION_MBOM_ITEM_REVISION_MISMATCH",
+              "PRODUCTION_VERSION_ROUTING_ITEM_REVISION_MISMATCH"
+            ]
+          },
+          {
+            "expectedCode": "PRODUCTION_VERSION_ISSUE_OPERATION_NOT_IN_ROUTING",
+            "validationCodes": [
+              "PRODUCTION_VERSION_ISSUE_OPERATION_NOT_IN_ROUTING"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "new production version affects only new work orders",
+      "status": "passed",
+      "started_at": "2026-08-02T18:51:33.900Z",
+      "finished_at": "2026-08-02T18:51:34.154Z",
+      "data": {
+        "existing_work_order_pv": "adf4b247-ae45-40a3-805f-e2991f083b54",
+        "new_work_order_pv": "a5c5b8c8-79ee-4ebb-8aec-ccdeb480f6e7"
+      }
+    },
+    {
+      "name": "exact cleanup verification",
+      "status": "passed",
+      "started_at": "2026-08-02T18:51:34.155Z",
+      "finished_at": "2026-08-02T18:51:34.628Z",
+      "data": {
+        "workOrderIds": [
+          "df19b96f-adbf-45bb-b2fe-7c6cf2062c77",
+          "81d4cead-f8f3-410d-8bf8-1926326a2d55"
+        ],
+        "remainingWorkOrders": 0,
+        "wo_header_count": 0
+      }
+    }
+  ],
+  "cleanup": {
+    "workOrderIds": [
+      "df19b96f-adbf-45bb-b2fe-7c6cf2062c77",
+      "81d4cead-f8f3-410d-8bf8-1926326a2d55"
+    ],
+    "remainingWorkOrders": 0,
+    "wo_header_count": 0
+  },
+  "artifact_root": "/home/neurosus/recoh-system/mes-system/artifacts/mes-product-definition-snapshot/PHASE4-PD-1785696692842-NE2AM"
+}

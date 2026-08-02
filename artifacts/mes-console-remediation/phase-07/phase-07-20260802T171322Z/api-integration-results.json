@@ -1,0 +1,86 @@
+{
+  "passed": true,
+  "commands": [
+    "npm run test:mes:worker-skill-domain:phase1",
+    "npm run verify:mes:canonical-seed"
+  ],
+  "worker_skill_artifact": "artifacts/mes-worker-skill-domain/PHASE1-WORKER-SKILL-1785690728220-U0OB5.json",
+  "canonical_seed_artifact": "artifacts/mes-canonical-reset/2026-08-02T17-13-22-549Z/verify-canonical-seed.json",
+  "endpoint_probes": {
+    "employees": {
+      "status": 200,
+      "sample": {
+        "master_id": "00000000-0000-4000-8000-000000000201",
+        "code": "EMP-MIX-001",
+        "name": "Mixing Operator 001",
+        "version_no": 1,
+        "lifecycle_status": "Released",
+        "effective_from": "2026-07-21T00:00:00.000Z",
+        "effective_to": null,
+        "created_by": "00000000-0000-0000-0000-000000000001",
+        "created_at": "2026-08-02T14:49:59.317Z",
+        "updated_by": "00000000-0000-0000-0000-000000000001",
+        "updated_at": "2026-08-02T17:11:46.106Z",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "approved_at": "2026-07-21T00:00:00.000Z",
+        "row_version": 7,
+        "attributes": {},
+        "site_id": "aa653541-87a2-46b6-a48e-455170734847",
+        "default_work_center_id": "d726ff9e-53fb-499b-8d1d-9b6e15113bb3",
+        "employee_status": "Active",
+        "hired_date": "2026-07-21T00:00:00.000Z",
+        "preferred_locale": "en",
+        "site_code": "SITE-KZ3",
+        "site_name": {
+          "en": "S-Factory - Kizuna 3",
+          "ja": "S-Factory - キズナ3",
+          "ko": "S-Factory - 키즈나 3",
+          "vi": "S-Factory - Kizuna 3"
+        },
+        "default_work_center_code": "WC-MIXING",
+        "default_work_center_name": {
+          "en": "Banbury Mixing Work Center",
+          "ja": "バンバリー混練ワークセンター",
+          "ko": "밴버리 혼련 워크센터",
+          "vi": "Trạm trộn Banbury"
+        },
+        "active_skill_count": 1,
+        "inactive_skill_count": 0,
+        "active_skill_summary": [
+          {
+            "level": "L3",
+            "skill_id": "f1cd59ff-ea2f-492b-b6f7-f317956ccc5b",
+            "skill_code": "SK-EMP-MIX-MASTER",
+            "skill_name": {
+              "en": "Advanced rubber mixing employee skill",
+              "ja": "上級ゴム混練従業員スキル",
+              "ko": "고급 고무 혼련 직원 기술",
+              "vi": "Kỹ thuật viên luyện cán cao cấp"
+            },
+            "qualification_status": "Active"
+          }
+        ],
+        "today_schedule_count": 0,
+        "upcoming_schedule_count": 1,
+        "today_shift_code": null,
+        "today_shift_name": null
+      }
+    },
+    "workerSkills": {
+      "status": 200,
+      "count": 3
+    },
+    "employeeSkills": {
+      "status": 200,
+      "count": 1
+    },
+    "dependencies": {
+      "status": 200,
+      "data": {
+        "active_assignments": 1,
+        "operation_skill_requirements": 1,
+        "production_standards": 1
+      }
+    }
+  }
+}

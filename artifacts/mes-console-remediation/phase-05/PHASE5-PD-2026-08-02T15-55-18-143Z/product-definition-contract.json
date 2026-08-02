@@ -1,0 +1,37 @@
+{
+  "objects": [
+    "Item",
+    "Item Revision",
+    "EBOM",
+    "MBOM",
+    "Routing",
+    "Routing Operation",
+    "Production Version",
+    "Production Version Line Eligibility"
+  ],
+  "production_version_authority": "Work Order creation selects production_version_id only; MBOM/Routing/EBOM are displayed from the selected Production Version.",
+  "list_fields": [
+    "code/name",
+    "item revision",
+    "MBOM",
+    "Routing",
+    "status",
+    "line_eligibility_count",
+    "primary_line_code",
+    "backup_line_count",
+    "line_eligibility_summary"
+  ],
+  "line_eligibility_fields": [
+    "production_line_id",
+    "is_primary",
+    "priority_no",
+    "efficiency_factor",
+    "selection_mode",
+    "selection_policy",
+    "effective_from",
+    "effective_to",
+    "active_flag",
+    "lifecycle_status"
+  ],
+  "readiness_authority": "POST /production-versions/:id/line-readiness-preview"
+}

@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "cleanup_required": false,
+  "note": "Focused browser gate is non-mutating. API mutation test leaves canonical seed verification passing."
+}

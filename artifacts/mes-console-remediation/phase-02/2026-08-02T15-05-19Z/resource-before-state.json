@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-08-02T15:02:32.180Z",
+  "calendars": [
+    {
+      "master_id": "88503496-088b-4849-8d6e-3750def5285e",
+      "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+      "production_line_code": "WST-SEED-LINE-1",
+      "work_center_id": "863f3bad-da2c-4817-8468-ae8cc4b6322a",
+      "work_center_code": "WST-SEED-WC-L1-AIRTEST",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    },
+    {
+      "master_id": "1ec5fd4f-7bf4-4c78-ad43-1811ec8c18c8",
+      "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+      "production_line_code": "WST-SEED-LINE-1",
+      "work_center_id": "a891ba86-ba85-4279-9b32-563b2d3474e6",
+      "work_center_code": "WST-SEED-WC-L1-BINDING",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    },
+    {
+      "master_id": "4a731494-0a71-4b55-9d63-8a6d2ed54ecb",
+      "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+      "production_line_code": "WST-SEED-LINE-1",
+      "work_center_id": "4a7dca4a-e7d1-491b-9cf4-0729b54552ba",
+      "work_center_code": "WST-SEED-WC-L1-PACKING",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    },
+    {
+      "master_id": "0d4dc703-91ab-4b86-8a5a-e5fe7490abd2",
+      "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+      "production_line_code": "WST-SEED-LINE-1",
+      "work_center_id": "268801aa-7e72-4a21-88f6-1084e8f1813f",
+      "work_center_code": "WST-SEED-WC-L1-TEST5IN1",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    },
+    {
+      "master_id": "44e83e83-d9ad-48a8-9aaa-d735e2836d1f",
+      "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+      "production_line_code": "WST-SEED-LINE-2",
+      "work_center_id": "e60dda59-22da-49b7-bd04-2f1ecd524cc5",
+      "work_center_code": "WST-SEED-WC-L2-AIRTEST",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    },
+    {
+      "master_id": "53f3ba6b-7d2d-451f-98ec-e8470d8af8b2",
+      "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+      "production_line_code": "WST-SEED-LINE-2",
+      "work_center_id": "6f440c93-83a2-4b46-9f1e-c11f0cd6b8d3",
+      "work_center_code": "WST-SEED-WC-L2-BINDING",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    },
+    {
+      "master_id": "286148b0-384b-4d20-ae31-7efac48f3ae8",
+      "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+      "production_line_code": "WST-SEED-LINE-2",
+      "work_center_id": "fcf554eb-66bc-4774-a943-cd7e16c06e3d",
+      "work_center_code": "WST-SEED-WC-L2-PACKING",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    },
+    {
+      "master_id": "b6789f07-0f8d-42d0-8e31-a449b48feffd",
+      "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+      "production_line_code": "WST-SEED-LINE-2",
+      "work_center_id": "d51fecf5-619c-49fb-b3fc-1da6b9c7fed0",
+      "work_center_code": "WST-SEED-WC-L2-TEST5IN1",
+      "lifecycle_status": "Released",
+      "available_from": "2026-08-03T00:00:00.000Z",
+      "available_to": "2026-08-05T00:00:00.000Z",
+      "capacity_percent": "1.0000"
+    }
+  ]
+}

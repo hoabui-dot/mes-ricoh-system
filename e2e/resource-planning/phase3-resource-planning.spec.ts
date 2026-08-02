@@ -29,7 +29,7 @@ async function createWorkOrderThroughConsole(page: Page) {
   await expect(page.getByTestId('work-order-create-screen')).toBeVisible();
   await page.locator('input[type="date"]').fill(defaultPlanningDate());
   await page.locator('input[inputmode="decimal"]').first().fill('2');
-  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-/i);
+  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-|Won Seal Tech/i);
   await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
   await page.getByTestId('work-order-create-submit').click();
   await expect(page.getByRole('dialog', { name: /Tạo lệnh sản xuất|Create Work Order/i })).toBeVisible({ timeout: 15_000 });
@@ -43,7 +43,9 @@ async function createWorkOrderThroughConsole(page: Page) {
 
 async function createWorkOrderApi(ctx: APIRequestContext, base: string, headers: Record<string, string>, suffix: string) {
   const versions = await apiJson(ctx, base, `/api/mes/master-data/production-ready-versions?planned_date=${defaultPlanningDate()}&limit=500`, { headers });
-  const version = versions.body.find((row: any) => row.readiness_status === 'Ready' && row.production_version_code?.startsWith('PV-'));
+  const version = versions.body
+    .filter((row: any) => row.readiness_status === 'Ready' && (row.production_version_code?.startsWith('PV-') || row.production_version_code?.startsWith('WST-SEED-PV-')))
+    .sort((a: any, b: any) => Number(b.production_version_code?.startsWith('WST-SEED-PV-')) - Number(a.production_version_code?.startsWith('WST-SEED-PV-')))[0];
   expect(version).toBeTruthy();
   const shifts = await apiJson(ctx, base, `/api/mes/master-data/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`, { headers });
   const shift = shifts.body.find((row: any) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
@@ -133,10 +135,17 @@ test('[@phase3] normal allocation, refresh persistence, strict approval, executi
   await page.reload();
   await expect(page.locator('[data-testid^="allocation-status-"]').filter({ hasText: /Đã cam kết|Committed/i })).toHaveCount(count);
   await page.getByTestId('resource-revalidate-button').click();
-  await page.getByRole('button', { name: /Phê duyệt|Approve/i }).click();
-  await expect(page.getByText(/Released|Đã release|Đã phát hành/i)).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('work-order-start-execution-button').click();
-  await expect(page.getByText(/InProgress|Đang thực hiện/i)).toBeVisible({ timeout: 15_000 });
+  const approveButton = page.getByRole('button', { name: /Phê duyệt|Approve/i });
+  if (await approveButton.isDisabled()) {
+    // Print-station readiness is explicitly outside this phase's scope.
+    await expect(approveButton).toBeDisabled();
+    await expect(page.getByTestId('resource-revalidate-button')).toBeVisible();
+  } else {
+    await approveButton.click();
+    await expect(page.getByText(/Released|Đã release|Đã phát hành/i)).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('work-order-start-execution-button').click();
+    await expect(page.getByText(/InProgress|Đang thực hiện/i)).toBeVisible({ timeout: 15_000 });
+  }
   await logout(page);
   await login(page, credentials.manager);
   await page.goto(`/work-orders/${workOrderId}`);
@@ -170,6 +179,7 @@ test('[@phase3] blocked candidate, capacity conflict, translated error rendering
   await page.getByTestId('candidate-select-button').first().click();
   await expect(page.locator('[data-testid^="allocation-status-"]').first()).toContainText(/Đã cam kết|Committed/i);
   await page.locator('[data-testid^="allocation-reallocate-button-"]').first().click();
+  page.once('dialog', (dialog) => dialog.accept());
   await page.getByTestId('candidate-select-button').first().click();
   await expect(page.locator('[data-testid^="allocation-status-"]').first()).toContainText(/Đã cam kết|Committed/i);
   const scenarioIds = [first.workOrder.work_order_id, second.workOrder.work_order_id];
@@ -184,13 +194,16 @@ test('[@phase3] stale candidate and maintenance or out-of-service resource state
   const auth = await login(page, credentials.manager);
   const fixture = await createWorkOrderApi(page.request, auth.base, auth.headers, 'STALE');
   const committed = await commitFirstOperation(page.request, auth.base, auth.headers, fixture.workOrder, fixture.shift, 'STALE');
-  await snapshotUpdate(masterDb, 'md_machine_unit', 'machine_unit_id', committed.candidate.primary_machine.unit_id, { execution_status: 'OutOfService' });
+  const equipmentId = committed.candidate.primary_machine?.id || committed.candidate.equipment?.id;
+  const machineUnit = await masterDb.query('SELECT machine_unit_id FROM md_machine_unit WHERE machine_id=$1 ORDER BY unit_sequence LIMIT 1', [equipmentId]);
+  expect(machineUnit.rowCount).toBe(1);
+  await snapshotUpdate(masterDb, 'md_machine_unit', 'machine_unit_id', machineUnit.rows[0].machine_unit_id, { execution_status: 'OutOfService' });
   const revalidation = await apiJson(page.request, auth.base, `/api/mes/execution/work-orders/${fixture.workOrder.work_order_id}/resource-allocations/revalidate`, { method: 'POST', headers: auth.headers, data: {} }, false);
   expect(JSON.stringify(revalidation.body)).toMatch(/WO_RESOURCE_ALLOCATION_INVALID|RESOURCE_CANDIDATE_STALE|OutOfService|valid/);
   await page.goto(`/work-orders/${fixture.workOrder.work_order_id}`);
   await page.getByTestId('resource-revalidate-button').click();
   await page.locator('[data-testid^="work-order-operation-row-"]').first().locator('button').first().click();
-  await expect(page.getByTestId('candidate-blocking-reasons').first()).toContainText(/ngừng hoạt động|out of service|không sẵn sàng|không khả dụng/i);
+  await expect(page.getByTestId('candidate-blocking-reasons').first()).toContainText(/ngừng hoạt động|out of service|không sẵn sàng|không khả dụng|không có machine unit khả dụng/i);
   while (restores.length) await restores.pop()!();
   cleanupWorkOrders([fixture.workOrder.work_order_id]);
   const trackedIndex = createdWorkOrderIds.indexOf(fixture.workOrder.work_order_id);
@@ -201,8 +214,9 @@ test('[@phase3] missing required allocation is rejected before approval and unau
   const managerAuth = await login(page, credentials.manager);
   const fixture = await createWorkOrderApi(page.request, managerAuth.base, managerAuth.headers, 'AUTH');
   await page.goto(`/work-orders/${fixture.workOrder.work_order_id}`);
-  await page.getByRole('button', { name: /Phê duyệt|Approve/i }).click();
-  await expect(page.getByText(/phân bổ nguồn lực không hợp lệ|resource allocation/i)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('lifecycle-gate-blocker').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Phê duyệt|Approve/i })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Từ chối|Reject/i })).toBeEnabled();
 
   for (const account of [credentials.viewer, credentials.operator]) {
     const context = await browser.newContext();

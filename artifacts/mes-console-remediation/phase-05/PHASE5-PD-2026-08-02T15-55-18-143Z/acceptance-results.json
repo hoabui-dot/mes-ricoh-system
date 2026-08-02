@@ -1,0 +1,49 @@
+{
+  "declared": 10,
+  "executed": 10,
+  "passed": 10,
+  "failed": 0,
+  "skipped": 0,
+  "criteria": [
+    [
+      "Product-definition concepts are distinct",
+      "passed"
+    ],
+    [
+      "Released data remains immutable according to backend policy and UI read-only guard",
+      "passed"
+    ],
+    [
+      "Production Version list shows eligibility summary",
+      "passed"
+    ],
+    [
+      "Production Version detail provides full eligibility contract",
+      "passed"
+    ],
+    [
+      "Exactly one active Primary is enforced",
+      "passed"
+    ],
+    [
+      "Duplicate active priority is enforced",
+      "passed"
+    ],
+    [
+      "Backend provides readiness preview when shown",
+      "passed"
+    ],
+    [
+      "Work Order creation selects only Production Version",
+      "passed"
+    ],
+    [
+      "CRUD/lifecycle/API/E2E regressions pass",
+      "passed"
+    ],
+    [
+      "No mandatory test skipped",
+      "passed"
+    ]
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "run_id": "PHASE5-PD-2026-08-02T15-53-44-668Z",
+  "status": "failed",
+  "declared": 6,
+  "executed": 4,
+  "passed": 3,
+  "failed": 1,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "production version list exposes line eligibility summary",
+      "status": "passed",
+      "started_at": "2026-08-02T15:53:44.670Z",
+      "finished_at": "2026-08-02T15:53:44.762Z",
+      "data": {
+        "production_version_id": "896110e9-fd2c-4e32-9119-75b7c53dd3b0",
+        "code": "WST-SEED-PV-SEAL-ASM-01",
+        "line_eligibility_count": 2,
+        "primary_line_code": "WST-SEED-LINE-1"
+      }
+    },
+    {
+      "name": "line eligibility endpoint returns primary and backup rows",
+      "status": "passed",
+      "started_at": "2026-08-02T15:53:44.762Z",
+      "finished_at": "2026-08-02T15:53:44.782Z",
+      "data": [
+        {
+          "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+          "code": "WST-SEED-LINE-1",
+          "is_primary": true,
+          "priority_no": 1
+        },
+        {
+          "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+          "code": "WST-SEED-LINE-2",
+          "is_primary": false,
+          "priority_no": 2
+        }
+      ]
+    },
+    {
+      "name": "readiness preview is backend authored",
+      "status": "passed",
+      "started_at": "2026-08-02T15:53:44.782Z",
+      "finished_at": "2026-08-02T15:53:44.854Z",
+      "data": {
+        "effective_at": "2026-08-02T15:53:44.834Z",
+        "readiness": [
+          {
+            "code": "WST-SEED-LINE-1",
+            "status": "Ready",
+            "blockers": 0
+          },
+          {
+            "code": "WST-SEED-LINE-2",
+            "status": "Ready",
+            "blockers": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "production version validation remains authoritative",
+      "status": "failed",
+      "started_at": "2026-08-02T15:53:44.854Z",
+      "finished_at": "2026-08-02T15:53:44.916Z",
+      "error": "POST /production-versions/896110e9-fd2c-4e32-9119-75b7c53dd3b0/validate -> 422: {\"production_version_id\":\"896110e9-fd2c-4e32-9119-75b7c53dd3b0\",\"valid\":false,\"failures\":[{\"rule\":\"6\",\"severity\":\"ERROR\",\"code\":\"WORKCENTER_OPERATION_NOT_SUPPORTED\",\"params\":{\"routingOperationId\":\"78d1809d-7e9d-45a9-816a-ff447f0c2786\"}},{\"rule\":\"6\",\"severity\":\"ERROR\",\"code\":\"WORKCENTER_OPERATION_NOT_SUPPORTED\",\"params\":{\"routingOperationId\":\"98db5ac1-4907-4eda-ac6d-d35f95c83ce6\"}},{\"rule\":\"6\",\"severity\":\"ERROR\",\"code\":\"WORKCENTER_OPERATION_NOT_SUPPORTED\",\"params\":{\"routingOperationId\":\"136c3100-9b3d-4c84-8726-f1fdfd16f256\"}},{\"rule\":\"6\",\"severity\":\"ERROR\",\"code\":\"WORKCENTER_OPERATION_NOT_SUPPORTED\",\"params\":{\"routingOperationId\":\"171f6600-eca9-40f4-b5b2-ec7ce32f085d\"}}],\"warnings\":[],\"delegated_rules\":[{\"rule\":\"9\",\"delegated_to\":\"mes-traceability-service\",\"reason\":\"Traceability policy is outside mes-master-data-service ownership.\"}]}"
+    }
+  ]
+}

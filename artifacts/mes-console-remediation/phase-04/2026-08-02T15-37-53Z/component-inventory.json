@@ -1,0 +1,159 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "concerns": [
+    {
+      "concern": "table",
+      "implementations": [
+        "components/base/BaseDataTable.tsx",
+        "components/ui/table.tsx",
+        "page-local HTML tables in older screens"
+      ],
+      "consumers": [
+        "ProductionVersionScreen",
+        "ItemsScreen",
+        "MbomScreen",
+        "ResourceFoundationScreen",
+        "WOListScreen"
+      ],
+      "decision": "KEEP BaseDataTable; MERGE representative screens over phases; DEPRECATE page-local business tables"
+    },
+    {
+      "concern": "pagination",
+      "implementations": [
+        "components/base/BasePagination.tsx",
+        "BaseDataTable internal pagination"
+      ],
+      "consumers": [
+        "BaseDataTable",
+        "BaseCardGrid"
+      ],
+      "decision": "KEEP; use table-integrated pagination for tables"
+    },
+    {
+      "concern": "modal/dialog",
+      "implementations": [
+        "components/base/BaseModal.tsx",
+        "components/ui/modal.tsx compatibility export",
+        "components/ui/dialog.tsx primitive"
+      ],
+      "consumers": [
+        "ProductionVersionScreen",
+        "ResourceFoundationScreen",
+        "MbomScreen",
+        "SkillManagementScreen"
+      ],
+      "decision": "KEEP BaseModal; ui/modal remains compatibility alias; dialog primitive is implementation detail"
+    },
+    {
+      "concern": "confirmation",
+      "implementations": [
+        "components/ui/confirmation.tsx",
+        "components/ui/alert-dialog.tsx primitive"
+      ],
+      "consumers": [
+        "ItemsScreen",
+        "MbomScreen",
+        "ResourceFoundationScreen"
+      ],
+      "decision": "KEEP Confirmation via BaseModal; migrate destructive flows gradually"
+    },
+    {
+      "concern": "tabs",
+      "implementations": [
+        "components/base/BaseStates.tsx BaseTabs",
+        "page-local tab buttons"
+      ],
+      "consumers": [
+        "WODetailScreen",
+        "SkillManagementScreen"
+      ],
+      "decision": "KEEP BaseTabs; migrate page-local tabs in later phases"
+    },
+    {
+      "concern": "status badge",
+      "implementations": [
+        "components/StatusBadge.tsx",
+        "raw spans in older screens"
+      ],
+      "consumers": [
+        "ProductionVersionScreen",
+        "ResourceHierarchy",
+        "WOListScreen"
+      ],
+      "decision": "KEEP typed StatusBadge; DEPRECATE raw enum spans"
+    },
+    {
+      "concern": "loading/error/empty",
+      "implementations": [
+        "components/base/BaseStates.tsx",
+        "ErrorBoundaryCard.tsx",
+        "BaseDataTable states",
+        "page-local text"
+      ],
+      "consumers": [
+        "RouteErrorBoundary",
+        "ProductionVersionScreen",
+        "generic screens"
+      ],
+      "decision": "KEEP BaseStates and BaseDataTable states; ErrorBoundaryCard remains route-level error fallback"
+    },
+    {
+      "concern": "form field wrapper",
+      "implementations": [
+        "BaseForm",
+        "LocalizedTextInput/Fields",
+        "ui/form primitives",
+        "page-local labels"
+      ],
+      "consumers": [
+        "CRUD screens"
+      ],
+      "decision": "KEEP BaseForm and field primitives; migrate by screen phase"
+    },
+    {
+      "concern": "detail header",
+      "implementations": [
+        "RouteHeader",
+        "PageDetailButton",
+        "page-local headers"
+      ],
+      "consumers": [
+        "App shell and screens"
+      ],
+      "decision": "KEEP shell RouteHeader; page-local headers are PAGE-SPECIFIC"
+    },
+    {
+      "concern": "warning panel",
+      "implementations": [
+        "BaseBlockerList",
+        "page-local warning cards"
+      ],
+      "consumers": [
+        "future WO/PV/resource screens"
+      ],
+      "decision": "KEEP BaseBlockerList for backend blockers"
+    },
+    {
+      "concern": "dependency panel",
+      "implementations": [
+        "BaseDependencyPanel",
+        "page-local dependency cards"
+      ],
+      "consumers": [
+        "ProductionVersionDetail representative migration"
+      ],
+      "decision": "KEEP"
+    },
+    {
+      "concern": "audit history",
+      "implementations": [
+        "BaseAuditTimeline",
+        "page-local audit snippets"
+      ],
+      "consumers": [
+        "ProductionVersionDetail representative migration"
+      ],
+      "decision": "KEEP foundation; no backend audit API added"
+    }
+  ]
+}

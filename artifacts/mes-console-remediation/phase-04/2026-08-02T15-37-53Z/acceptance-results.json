@@ -1,0 +1,56 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "success": true,
+  "declared": 11,
+  "executed": 11,
+  "passed": 11,
+  "failed": 0,
+  "skipped": 0,
+  "criteria": [
+    {
+      "criterion": "One canonical wrapper exists for each approved shared concern",
+      "passed": true
+    },
+    {
+      "criterion": "No new duplicate table/modal/status implementation introduced",
+      "passed": true
+    },
+    {
+      "criterion": "Modified server-state paths use TanStack Query consistently",
+      "passed": true
+    },
+    {
+      "criterion": "Modified API contracts are typed",
+      "passed": true
+    },
+    {
+      "criterion": "Representative retained screens use shared foundation",
+      "passed": true
+    },
+    {
+      "criterion": "Loading/error/empty/retry behavior is consistent",
+      "passed": true
+    },
+    {
+      "criterion": "Accessibility smoke passes",
+      "passed": true
+    },
+    {
+      "criterion": "Retained-route smoke passes",
+      "passed": true
+    },
+    {
+      "criterion": "No domain behavior changed",
+      "passed": true
+    },
+    {
+      "criterion": "No mandatory test skipped",
+      "passed": true
+    },
+    {
+      "criterion": "Report authorizes UI-05",
+      "passed": true
+    }
+  ],
+  "final_gate": "PHASE_UI_04_PASSED_READY_FOR_UI_05"
+}

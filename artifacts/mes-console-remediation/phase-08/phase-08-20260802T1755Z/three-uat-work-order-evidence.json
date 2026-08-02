@@ -1,0 +1,6 @@
+{
+  "manifest": "artifacts/mes-two-line-uat/uat-fixture-manifest.json",
+  "scenarios": ["primary-ready", "backup-fallback", "resource-hold"],
+  "verified": true,
+  "cleanup_verified": true
+}

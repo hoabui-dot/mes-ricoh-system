@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "declared": 2,
+  "executed": 2,
+  "passed": 2,
+  "failed": 0,
+  "skipped": 0,
+  "commands": [
+    {
+      "command": "npm run cleanup:mes:two-line-uat",
+      "status": "passed",
+      "work_orders_removed": 3,
+      "remaining_work_orders": 0,
+      "leaks": {
+        "reservations": 0,
+        "allocations": 0,
+        "work_orders": 0
+      }
+    },
+    {
+      "command": "npm run verify:mes:canonical-seed",
+      "status": "passed",
+      "checks": 40,
+      "execution_work_orders": 0
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "entry_gate": "PHASE_UI_03_PASSED_READY_FOR_UI_04",
+  "representative_screen_before": "ProductionVersionScreen used useEffect/useState ad hoc fetch, untyped any rows, no URL-backed filters, and route-level ErrorBoundaryCard",
+  "existing_foundation": [
+    "BaseDataTable",
+    "BaseModal",
+    "BasePagination",
+    "BaseStates",
+    "BaseForm",
+    "StatusBadge",
+    "mesQueryKeys",
+    "mesQueryClient"
+  ]
+}

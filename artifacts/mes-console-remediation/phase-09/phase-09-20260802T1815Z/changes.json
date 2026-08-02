@@ -1,0 +1,6 @@
+{
+  "backend": ["services/mes-execution-service/internal/infrastructure/http/router.go", "services/mes-execution-service/internal/application/usecase/resource_allocation.go"],
+  "frontend": ["services/mes-console/src/routes/work-orders/WODetailScreen.tsx", "services/mes-console/src/routes/work-orders/workOrderContracts.ts", "services/mes-console/src/i18n.ts"],
+  "e2e": ["e2e/resource-planning/phase3-resource-planning.spec.ts"],
+  "behaviors": ["backend gate summary", "operation-level revalidation error codes", "allocation replacement confirmation", "disabled approval with visible blockers", "revalidation result evidence", "allocation history refresh"]
+}

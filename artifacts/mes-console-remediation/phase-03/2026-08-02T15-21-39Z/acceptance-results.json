@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-08-02T15:24:00.215Z",
+  "success": true,
+  "declared": 10,
+  "executed": 10,
+  "passed": 10,
+  "failed": 0,
+  "skipped": 0,
+  "criteria": [
+    {
+      "criterion": "Canonical routes remain reachable",
+      "passed": true
+    },
+    {
+      "criterion": "Every approved alias redirects correctly",
+      "passed": true
+    },
+    {
+      "criterion": "/console/mes/skills no longer renders generic Tier2 screen",
+      "passed": true
+    },
+    {
+      "criterion": "Machines is canonical route and label",
+      "passed": true
+    },
+    {
+      "criterion": "No route physically deleted; aliases retained as redirects",
+      "passed": true
+    },
+    {
+      "criterion": "i18n review absent from normal navigation",
+      "passed": true
+    },
+    {
+      "criterion": "Production Area navigation visible per UI-00 decision",
+      "passed": true
+    },
+    {
+      "criterion": "Internal links use canonical machine routes",
+      "passed": true
+    },
+    {
+      "criterion": "Redirect E2E passes with zero mandatory skips",
+      "passed": true
+    },
+    {
+      "criterion": "Existing UAT fixture navigation remains valid",
+      "passed": true
+    }
+  ],
+  "final_gate": "PHASE_UI_03_PASSED_READY_FOR_UI_04"
+}

@@ -1,0 +1,5 @@
+{
+  "domain_phase_1": {"declared": 20, "executed": 20, "passed": 20, "failed": 0, "skipped": 0},
+  "full_flow_phase_2": {"status": "PASS_FOR_PHASE_2_WITH_PRINT_STATION_SKIPPED", "run_id": "PHASE2-RP-1785694330834-EZC6Y", "allocation_commit": "passed", "cleanup": {"deleted_work_orders": 2, "remaining_target_rows": 0}, "skipped_print_operations": 4},
+  "canonical_seed": "passed"
+}

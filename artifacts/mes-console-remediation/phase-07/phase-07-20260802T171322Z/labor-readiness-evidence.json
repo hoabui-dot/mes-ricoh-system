@@ -1,0 +1,225 @@
+{
+  "generated_at": "2026-08-02T17:15:19.000Z",
+  "request": {
+    "site_id": "aa653541-87a2-46b6-a48e-455170734847",
+    "product_revision_id": "238354f2-a38a-48a6-90f0-6437c44e4a83",
+    "routing_operation_id": "76a9c683-9bc0-4289-94ae-fea63474e894",
+    "work_center_id": "d726ff9e-53fb-499b-8d1d-9b6e15113bb3",
+    "shift_id": "6e2b33e1-f676-465a-b34a-da7bfd9ae693",
+    "planned_date": "2026-08-03",
+    "quantity": 10
+  },
+  "response_status": 200,
+  "response": {
+    "status": "ReadyWithWarnings",
+    "work_center": {
+      "id": "d726ff9e-53fb-499b-8d1d-9b6e15113bb3",
+      "code": "WC-MIXING",
+      "name": {
+        "en": "Banbury Mixing Work Center",
+        "ja": "バンバリー混練ワークセンター",
+        "ko": "밴버리 혼련 워크센터",
+        "vi": "Trạm trộn Banbury"
+      }
+    },
+    "operation": {
+      "id": "76a9c683-9bc0-4289-94ae-fea63474e894",
+      "code": "OP-MIX",
+      "name": {
+        "en": "Rubber mixing",
+        "ja": "ゴム混練",
+        "ko": "고무 혼련",
+        "vi": "Luyện cán cao su"
+      },
+      "sequence": 10
+    },
+    "worker_readiness": [
+      {
+        "skill_id": "f1cd59ff-ea2f-492b-b6f7-f317956ccc5b",
+        "skill_code": "SK-EMP-MIX-MASTER",
+        "minimum_level": "L3",
+        "required_persons": 1,
+        "qualified_available_persons": 1,
+        "readiness": "Available",
+        "workers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000201",
+            "code": "EMP-MIX-001",
+            "name": "Mixing Operator 001",
+            "level": "L3"
+          }
+        ]
+      }
+    ],
+    "candidates": [
+      {
+        "workstation": {
+          "id": "39b1ed5c-537b-4602-b45a-5eab38ecd65b",
+          "code": "WS-MIXING-01",
+          "name": {
+            "vi": "Mixing Workstation"
+          }
+        },
+        "machine_group": {
+          "id": "6f0d86b8-7b64-4cdd-b59e-8dc31a8e609c",
+          "code": "MG-MIXING-01",
+          "name": {
+            "en": "Mixing machine group 01",
+            "ja": "混練マシングループ01",
+            "ko": "혼련 머신 그룹 01",
+            "vi": "Nhóm máy trộn 01"
+          },
+          "minimum_required_machines": 1
+        },
+        "primary_machine": {
+          "id": "03bbffd6-7a64-4e36-8629-d02783a5a049",
+          "code": "EQ-MIX-BANBURY01",
+          "name": {
+            "vi": "Banbury mixer 01"
+          },
+          "unit_id": "08b94d36-2b10-4faf-8f09-4cf8ab13ca56",
+          "unit_code": "UNIT-MIX-BANBURY01-01"
+        },
+        "supporting_machines": [],
+        "equipment": {
+          "id": "03bbffd6-7a64-4e36-8629-d02783a5a049",
+          "code": "EQ-MIX-BANBURY01",
+          "name": {
+            "vi": "Banbury mixer 01"
+          },
+          "execution_status": "Available"
+        },
+        "assignment": {
+          "id": "05e8c011-3e99-4cb3-8198-b534c7b6c053",
+          "role": "Primary"
+        },
+        "capability": {
+          "id": "c9261820-08d6-4eab-b4ad-6c4450b6f453",
+          "code": "CAP-MIX",
+          "priority_no": 1,
+          "speed_factor": "1.0000",
+          "specificity": "WorkCenter"
+        },
+        "calendar": {
+          "id": "6c6e4367-e4e0-406b-88df-a6f8b96806b6",
+          "resource_type": "Equipment",
+          "resource_id": "03bbffd6-7a64-4e36-8629-d02783a5a049",
+          "source_type": "Equipment",
+          "source_id": "03bbffd6-7a64-4e36-8629-d02783a5a049",
+          "availability_status": "Available",
+          "available_minutes": 540,
+          "capacity_factor": "1.0000"
+        },
+        "production_standard": {
+          "id": "689f7e8e-66c2-4ec4-846b-1c23f2747c29",
+          "code": "STD-FG-WS-CM01-MIX",
+          "level": "WorkCenter"
+        },
+        "estimated_duration_min": 42.222,
+        "calculation": {
+          "adjusted_cycle_time_sec": 133.33333333333334,
+          "run_duration_min": 22.222222222222225,
+          "setup_time_min": 20,
+          "queue_time_min": 0,
+          "formula": "group primary standard plus required supporting availability"
+        },
+        "readiness": "ReadyWithWarnings",
+        "equipment_readiness": {
+          "status": "ReadyWithWarnings",
+          "evaluated_at": "2026-08-02T17:15:16.541Z",
+          "equipment": {
+            "id": "03bbffd6-7a64-4e36-8629-d02783a5a049",
+            "code": "EQ-MIX-BANBURY01",
+            "name": {
+              "vi": "Banbury mixer 01"
+            },
+            "execution_status": "Available"
+          },
+          "machine_unit": {
+            "status": "Available",
+            "unit_id": "08b94d36-2b10-4faf-8f09-4cf8ab13ca56",
+            "unit_code": "UNIT-MIX-BANBURY01-01"
+          },
+          "assignment": {
+            "status": "Valid",
+            "id": "05e8c011-3e99-4cb3-8198-b534c7b6c053",
+            "role": "Primary"
+          },
+          "capability": {
+            "status": "Matched"
+          },
+          "calendar": {
+            "status": "Available"
+          },
+          "capacity": {
+            "status": "PendingExecutionCheck"
+          },
+          "maintenance": {
+            "status": "Unknown"
+          },
+          "calibration": {
+            "status": "Unknown"
+          },
+          "operational_state": {
+            "status": "Available",
+            "state_source": "md_equipment",
+            "freshness": "Unknown"
+          },
+          "blocking_errors": [],
+          "warnings": [
+            {
+              "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+            },
+            {
+              "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+            },
+            {
+              "code": "EQUIPMENT_STATE_STALE"
+            },
+            {
+              "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+            },
+            {
+              "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+            },
+            {
+              "code": "EQUIPMENT_STATE_STALE"
+            }
+          ]
+        },
+        "blocking_errors": [],
+        "warnings": [
+          {
+            "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+          },
+          {
+            "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+          },
+          {
+            "code": "EQUIPMENT_STATE_STALE"
+          }
+        ],
+        "worker_readiness": [
+          {
+            "skill_id": "f1cd59ff-ea2f-492b-b6f7-f317956ccc5b",
+            "skill_code": "SK-EMP-MIX-MASTER",
+            "minimum_level": "L3",
+            "required_persons": 1,
+            "qualified_available_persons": 1,
+            "readiness": "Available",
+            "workers": [
+              {
+                "id": "00000000-0000-4000-8000-000000000201",
+                "code": "EMP-MIX-001",
+                "name": "Mixing Operator 001",
+                "level": "L3"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "blocking_errors": [],
+    "warnings": []
+  }
+}

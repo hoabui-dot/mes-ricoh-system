@@ -1,0 +1,29 @@
+{
+  "run_id": "2026-08-02T14-35-33Z",
+  "commands": [
+    {
+      "command": "npm --prefix services/mes-console run typecheck",
+      "exit_code": 0,
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm --prefix services/mes-console run build",
+      "exit_code": 0,
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "warning": "Vite chunk size warning for index JS bundle above 500 kB."
+    },
+    {
+      "command": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.mes.yml build mes-console && docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.mes.yml up -d --no-build --force-recreate mes-console",
+      "exit_code": 0,
+      "purpose": "Refresh served MES Console bundle on port 13052 before browser E2E."
+    }
+  ]
+}

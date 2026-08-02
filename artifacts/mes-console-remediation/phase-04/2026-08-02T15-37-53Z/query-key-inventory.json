@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "query_key_source": "services/mes-console/src/lib/queryKeys.ts",
+  "standardized_keys_used_now": [
+    "mesQueryKeys.productionVersions.list(filters)",
+    "mesQueryKeys.itemRevisions.selector({limit:500})",
+    "mesQueryKeys.items.list({limit:500})"
+  ],
+  "invalidation_source": "services/mes-console/src/lib/masterDataApi.ts invalidateMesQueries(resource)",
+  "changed_contracts": [
+    "fetchResourceEnvelope<T>() typed list envelope",
+    "normalizeApiError()",
+    "queryString(filters)"
+  ],
+  "legacy_kept": [
+    "fetchResource<T=any>() remains compatible for active screens"
+  ]
+}

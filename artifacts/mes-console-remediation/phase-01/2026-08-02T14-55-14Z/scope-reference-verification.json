@@ -1,0 +1,15 @@
+{
+  "employee_skill_assignments": [
+    { "employee": "EMP-MIX-001", "skill": "SK-EMP-MIX-MASTER", "level": "L3", "scope": "Employee" },
+    { "employee": "EMP-QC-001", "skill": "SK-EMP-INSPECTION", "level": "L2", "scope": "Employee" },
+    { "employee": "EMP-VULCAN-001", "skill": "SK-EMP-VULCAN-OPERATOR", "level": "L2", "scope": "Employee" },
+    { "employee": "EMP-VULCAN-002", "skill": "SK-EMP-VULCAN-OPERATOR", "level": "L2", "scope": "Employee" }
+  ],
+  "operation_skill_requirements": [
+    { "requirement": "REQ-OP-MIX-SKILL", "routing_operation": "RT-FG-WS-CM01-R1-010", "skill": "SK-EMP-MIX-MASTER", "minimum_level": "L3", "required_persons": 1, "scope": "Employee" },
+    { "requirement": "REQ-OP-MOLD-SKILL", "routing_operation": "RT-FG-WS-CM01-R1-040", "skill": "SK-EMP-VULCAN-OPERATOR", "minimum_level": "L2", "required_persons": 2, "scope": "Employee" },
+    { "requirement": "REQ-OP-QC-SKILL", "routing_operation": "RT-FG-WS-CM01-R1-060", "skill": "SK-EMP-INSPECTION", "minimum_level": "L2", "required_persons": 1, "scope": "Employee" }
+  ],
+  "invalid_employee_skill_references": 0,
+  "invalid_operation_skill_requirement_references": 0
+}

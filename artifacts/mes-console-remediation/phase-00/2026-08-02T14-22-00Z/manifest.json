@@ -1,0 +1,15 @@
+{
+  "run_id": "2026-08-02T14-22-00Z",
+  "phase": "UI-00",
+  "files": [
+    "decisions.json",
+    "role-matrix.json",
+    "source-evidence.json",
+    "build-results.json",
+    "api-integration-results.json",
+    "browser-e2e-results.json",
+    "cleanup-results.json",
+    "acceptance-results.json",
+    "readiness-gate.json"
+  ]
+}

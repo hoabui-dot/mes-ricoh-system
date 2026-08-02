@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-08-02T15:24:00.215Z",
+  "files_changed": [
+    "package.json",
+    "services/mes-console/src/App.tsx",
+    "services/mes-console/src/components/PageDetailButton.tsx",
+    "services/mes-console/src/components/ResourceHierarchy.tsx",
+    "services/mes-console/src/components/Sidebar.tsx"
+  ],
+  "route_changes": {
+    "after_route_count": 96,
+    "legacy_redirect_routes": [
+      {
+        "path": "/console/mes/work-orders/*",
+        "element": "<LegacyRedirect from=\"/console/mes/work-orders\" to=\"/work-orders\" />"
+      },
+      {
+        "path": "/master-data/product-recipes/*",
+        "element": "<LegacyRedirect from=\"/master-data/product-recipes\" to=\"/master-data/production-versions\" />"
+      },
+      {
+        "path": "/console/mes/items/*",
+        "element": "<LegacyRedirect from=\"/console/mes/items\" to=\"/master-data/items\" />"
+      },
+      {
+        "path": "/console/mes/routings/*",
+        "element": "<LegacyRedirect from=\"/console/mes/routings\" to=\"/master-data/routings\" />"
+      },
+      {
+        "path": "/console/mes/production-versions/*",
+        "element": "<LegacyRedirect from=\"/console/mes/production-versions\" to=\"/master-data/production-versions\" />"
+      },
+      {
+        "path": "/console/mes/employees/*",
+        "element": "<LegacyRedirect from=\"/console/mes/employees\" to=\"/employees\" />"
+      },
+      {
+        "path": "/console/mes/shifts/*",
+        "element": "<LegacyRedirect from=\"/console/mes/shifts\" to=\"/shifts\" />"
+      },
+      {
+        "path": "/console/mes/work-calendar/*",
+        "element": "<LegacyRedirect from=\"/console/mes/work-calendar\" to=\"/work-calendar\" />"
+      },
+      {
+        "path": "/console/mes/mboms/*",
+        "element": "<LegacyRedirect from=\"/console/mes/mboms\" to=\"/master-data/mboms\" />"
+      },
+      {
+        "path": "/console/mes/work-centers/*",
+        "element": "<LegacyRedirect from=\"/console/mes/work-centers\" to=\"/master-data/work-centers\" />"
+      },
+      {
+        "path": "/master-data/equipment/*",
+        "element": "<LegacyRedirect from=\"/master-data/equipment\" to=\"/master-data/machines\" />"
+      },
+      {
+        "path": "/console/mes/equipment/*",
+        "element": "<LegacyRedirect from=\"/console/mes/equipment\" to=\"/master-data/machines\" />"
+      },
+      {
+        "path": "/master-data/worker-skills/*",
+        "element": "<LegacyRedirect from=\"/master-data/worker-skills\" to=\"/master-data/skills/workers\" />"
+      },
+      {
+        "path": "/master-data/employee-skills/*",
+        "element": "<LegacyRedirect from=\"/master-data/employee-skills\" to=\"/employees\" />"
+      },
+      {
+        "path": "/worker-skills/*",
+        "element": "<LegacyRedirect from=\"/worker-skills\" to=\"/master-data/skills/workers\" />"
+      },
+      {
+        "path": "/console/mes/skills/*",
+        "element": "<LegacyRedirect from=\"/console/mes/skills\" to=\"/master-data/skills/workers\" />"
+      }
+    ]
+  },
+  "navigation_changes": [
+    "Production Areas added under Master Data Tier 2 navigation",
+    "i18n review removed from normal Sidebar navigation; direct diagnostic route retained",
+    "Equipment aliases now redirect to Machines; ResourceHierarchy links use /master-data/machines",
+    "Work Orders sidebar active state now covers list, create, and detail routes",
+    "/console/mes/skills redirects to /master-data/skills/workers instead of rendering generic Tier2 skills",
+    "/master-data/employee-skills redirects to /employees"
+  ],
+  "api_changes": [],
+  "seed_or_migration_changes": []
+}

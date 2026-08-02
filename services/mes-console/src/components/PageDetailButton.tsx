@@ -169,11 +169,11 @@ const details: Array<{ match: RegExp; detail: Detail }> = [
     },
   },
   {
-    match: /^\/(console\/mes\/)?master-data\/equipment|^\/(console\/mes\/)?master-data\/production-standards|^\/(console\/mes\/)?master-data\/reason-codes|^\/(console\/mes\/)?master-data\/skills/,
+    match: /^\/master-data\/machines|^\/master-data\/production-standards|^\/master-data\/reason-codes|^\/master-data\/skills/,
     detail: {
       ...baseMes,
       title: l('Master Data Tier 2', 'Tier 2 master data', 'Tier 2マスタ', 'Tier 2 마스터 데이터'),
-      summary: l('Danh mục hỗ trợ vận hành: equipment, production standards, reason codes và skills.', 'Operational support catalogs: equipment, production standards, reason codes, and skills.', '設備、生産標準、理由コード、スキルの運用支援マスタです。', '설비, 생산 표준, 사유 코드, 스킬 운영 지원 마스터입니다.'),
+      summary: l('Danh mục hỗ trợ vận hành: machines, production standards, reason codes và worker skills.', 'Operational support catalogs: machines, production standards, reason codes, and worker skills.', '機械、生産標準、理由コード、ワーカースキルの運用支援マスタです。', '머신, 생산 표준, 사유 코드, 작업자 스킬 운영 지원 마스터입니다.'),
     },
   },
   {

@@ -1,0 +1,8 @@
+{
+  "run_id": "2026-08-02T14-22-00Z",
+  "phase": "UI-00",
+  "blueprint_status": "BLOCKED_BY_BASELINE_REGRESSION",
+  "final_status": "PHASE_UI_00_BLOCKED",
+  "next_authorized_phase": null
+}
+

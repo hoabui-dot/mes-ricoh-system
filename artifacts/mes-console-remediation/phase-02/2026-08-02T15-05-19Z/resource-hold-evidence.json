@@ -1,0 +1,289 @@
+{
+  "header": {
+    "created_at": "2026-08-02T15:02:32.648714Z",
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "demo_print_on_approval": true,
+    "evaluated_line_results": [
+      {
+        "status": "Blocked",
+        "blockers": [
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+            "operation_id": "ac722a9b-337a-45ea-bd08-4049a2b3b7b0",
+            "operation_code": "WST-SEED-OP-BINDING",
+            "routing_operation_id": "78d1809d-7e9d-45a9-816a-ff447f0c2786"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+            "operation_id": "7f2a2c9c-5280-4e15-b9b1-1361317b78c9",
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "routing_operation_id": "98db5ac1-4907-4eda-ac6d-d35f95c83ce6"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+            "operation_id": "569fc86a-bb07-4c44-ab1a-f827f746fd7b",
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "routing_operation_id": "136c3100-9b3d-4c84-8726-f1fdfd16f256"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+            "operation_id": "c1110398-fbc4-498d-ae6f-f8fe42490485",
+            "operation_code": "WST-SEED-OP-PACKING",
+            "routing_operation_id": "171f6600-eca9-40f4-b5b2-ec7ce32f085d"
+          }
+        ],
+        "priority": 1,
+        "selection_role": "PRIMARY",
+        "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+        "production_line_code": "WST-SEED-LINE-1"
+      },
+      {
+        "status": "Blocked",
+        "blockers": [
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+            "operation_id": "ac722a9b-337a-45ea-bd08-4049a2b3b7b0",
+            "operation_code": "WST-SEED-OP-BINDING",
+            "routing_operation_id": "78d1809d-7e9d-45a9-816a-ff447f0c2786"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+            "operation_id": "7f2a2c9c-5280-4e15-b9b1-1361317b78c9",
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "routing_operation_id": "98db5ac1-4907-4eda-ac6d-d35f95c83ce6"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+            "operation_id": "569fc86a-bb07-4c44-ab1a-f827f746fd7b",
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "routing_operation_id": "136c3100-9b3d-4c84-8726-f1fdfd16f256"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+            "operation_id": "c1110398-fbc4-498d-ae6f-f8fe42490485",
+            "operation_code": "WST-SEED-OP-PACKING",
+            "routing_operation_id": "171f6600-eca9-40f4-b5b2-ec7ce32f085d"
+          }
+        ],
+        "priority": 2,
+        "selection_role": "BACKUP",
+        "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+        "production_line_code": "WST-SEED-LINE-2"
+      }
+    ],
+    "fallback_reason": "",
+    "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_name": "Won Seal Tech Seal Assembly A",
+    "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_revision_id": "f72a7a14-12ea-4a8b-90b9-77cfaea411b2",
+    "item_revision_name_i18n": {
+      "en": "Won Seal Tech Seal Assembly A",
+      "ja": "Won Seal Tech Seal Assembly A",
+      "ko": "Won Seal Tech Seal Assembly A",
+      "vi": "Won Seal Tech Seal Assembly A"
+    },
+    "line_locked_at": null,
+    "line_selection_mode": "AUTO",
+    "line_selection_reason": "NO_COMPLETE_FEASIBLE_LINE",
+    "line_selection_status": "RESOURCE_HOLD",
+    "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+    "planned_end_at": "2026-08-03T12:00:00Z",
+    "planned_start_at": "2026-08-03T08:00:00Z",
+    "planning_snapshot": {
+      "mbom_id": "0cc1eeef-0d22-4c8f-addd-b7f4c64ab33c",
+      "shift_id": "00000000-0000-0000-0000-000000000001",
+      "routing_id": "e0eb5b46-7c46-45f2-8616-7b5cf7f57a24",
+      "production_version_id": "896110e9-fd2c-4e32-9119-75b7c53dd3b0",
+      "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
+    },
+    "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+    "production_version_id": "896110e9-fd2c-4e32-9119-75b7c53dd3b0",
+    "production_version_name_i18n": {
+      "en": "Won Seal Tech two-line seal production version",
+      "ja": "Won Seal Tech two-line seal production version",
+      "ko": "Won Seal Tech two-line seal production version",
+      "vi": "Won Seal Tech two-line seal production version"
+    },
+    "quantity": 2,
+    "resource_hold_reason": {
+      "code": "NO_COMPLETE_FEASIBLE_LINE",
+      "evaluated_lines": [
+        {
+          "status": "Blocked",
+          "blockers": [
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+              "operation_id": "ac722a9b-337a-45ea-bd08-4049a2b3b7b0",
+              "operation_code": "WST-SEED-OP-BINDING",
+              "routing_operation_id": "78d1809d-7e9d-45a9-816a-ff447f0c2786"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+              "operation_id": "7f2a2c9c-5280-4e15-b9b1-1361317b78c9",
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "routing_operation_id": "98db5ac1-4907-4eda-ac6d-d35f95c83ce6"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+              "operation_id": "569fc86a-bb07-4c44-ab1a-f827f746fd7b",
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "routing_operation_id": "136c3100-9b3d-4c84-8726-f1fdfd16f256"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+              "operation_id": "c1110398-fbc4-498d-ae6f-f8fe42490485",
+              "operation_code": "WST-SEED-OP-PACKING",
+              "routing_operation_id": "171f6600-eca9-40f4-b5b2-ec7ce32f085d"
+            }
+          ],
+          "priority": 1,
+          "selection_role": "PRIMARY",
+          "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+          "production_line_code": "WST-SEED-LINE-1"
+        },
+        {
+          "status": "Blocked",
+          "blockers": [
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+              "operation_id": "ac722a9b-337a-45ea-bd08-4049a2b3b7b0",
+              "operation_code": "WST-SEED-OP-BINDING",
+              "routing_operation_id": "78d1809d-7e9d-45a9-816a-ff447f0c2786"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+              "operation_id": "7f2a2c9c-5280-4e15-b9b1-1361317b78c9",
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "routing_operation_id": "98db5ac1-4907-4eda-ac6d-d35f95c83ce6"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+              "operation_id": "569fc86a-bb07-4c44-ab1a-f827f746fd7b",
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "routing_operation_id": "136c3100-9b3d-4c84-8726-f1fdfd16f256"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+              "operation_id": "c1110398-fbc4-498d-ae6f-f8fe42490485",
+              "operation_code": "WST-SEED-OP-PACKING",
+              "routing_operation_id": "171f6600-eca9-40f4-b5b2-ec7ce32f085d"
+            }
+          ],
+          "priority": 2,
+          "selection_role": "BACKUP",
+          "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+          "production_line_code": "WST-SEED-LINE-2"
+        }
+      ]
+    },
+    "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+    "row_version": 2,
+    "selected_production_line_code": "",
+    "selected_production_line_id": "",
+    "selected_production_line_name_i18n": {},
+    "shift_id": "00000000-0000-0000-0000-000000000001",
+    "site_id": "aa653541-87a2-46b6-a48e-455170734847",
+    "status": "ResourceHold",
+    "uom_id": "740bca9c-a15b-4085-b9cb-487dcb8db1c2",
+    "wo_code": "WO-20260802-0071",
+    "wo_id": "c936d80c-f9ed-4f43-b533-d1051526b584"
+  },
+  "evaluated_line_results": [
+    {
+      "status": "Blocked",
+      "blockers": [
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+          "operation_id": "ac722a9b-337a-45ea-bd08-4049a2b3b7b0",
+          "operation_code": "WST-SEED-OP-BINDING",
+          "routing_operation_id": "78d1809d-7e9d-45a9-816a-ff447f0c2786"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+          "operation_id": "7f2a2c9c-5280-4e15-b9b1-1361317b78c9",
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "routing_operation_id": "98db5ac1-4907-4eda-ac6d-d35f95c83ce6"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+          "operation_id": "569fc86a-bb07-4c44-ab1a-f827f746fd7b",
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "routing_operation_id": "136c3100-9b3d-4c84-8726-f1fdfd16f256"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+          "operation_id": "c1110398-fbc4-498d-ae6f-f8fe42490485",
+          "operation_code": "WST-SEED-OP-PACKING",
+          "routing_operation_id": "171f6600-eca9-40f4-b5b2-ec7ce32f085d"
+        }
+      ],
+      "priority": 1,
+      "selection_role": "PRIMARY",
+      "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+      "production_line_code": "WST-SEED-LINE-1"
+    },
+    {
+      "status": "Blocked",
+      "blockers": [
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+          "operation_id": "ac722a9b-337a-45ea-bd08-4049a2b3b7b0",
+          "operation_code": "WST-SEED-OP-BINDING",
+          "routing_operation_id": "78d1809d-7e9d-45a9-816a-ff447f0c2786"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+          "operation_id": "7f2a2c9c-5280-4e15-b9b1-1361317b78c9",
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "routing_operation_id": "98db5ac1-4907-4eda-ac6d-d35f95c83ce6"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+          "operation_id": "569fc86a-bb07-4c44-ab1a-f827f746fd7b",
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "routing_operation_id": "136c3100-9b3d-4c84-8726-f1fdfd16f256"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+          "operation_id": "c1110398-fbc4-498d-ae6f-f8fe42490485",
+          "operation_code": "WST-SEED-OP-PACKING",
+          "routing_operation_id": "171f6600-eca9-40f4-b5b2-ec7ce32f085d"
+        }
+      ],
+      "priority": 2,
+      "selection_role": "BACKUP",
+      "production_line_id": "055b196a-0e2c-47a8-a616-4d68030f4e32",
+      "production_line_code": "WST-SEED-LINE-2"
+    }
+  ],
+  "operation_line_ids": [
+    "",
+    "",
+    "",
+    ""
+  ]
+}

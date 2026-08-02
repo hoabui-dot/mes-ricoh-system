@@ -1,0 +1,15 @@
+{
+  "endpoint": "/api/mes/master-data/production-lines",
+  "fields": [
+    "active_work_center_count",
+    "active_eligibility_count",
+    "readiness_status",
+    "readiness_blocker_count"
+  ],
+  "sample": {
+    "master_id": "407b1b41-9bc7-4194-a66c-c4dec76553bb",
+    "code": "LINE-BASE-1",
+    "readiness_status": "Ready",
+    "readiness_blocker_count": 0
+  }
+}

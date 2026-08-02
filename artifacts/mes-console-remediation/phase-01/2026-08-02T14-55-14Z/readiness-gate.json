@@ -1,0 +1,6 @@
+{
+  "gate": "UI-01 exit",
+  "status": "PHASE_UI_01_PASSED_READY_FOR_UI_02",
+  "may_start_next_phase": "UI-02",
+  "must_not_start_in_this_execution": true
+}

@@ -1,0 +1,10 @@
+{
+  "previous_gate": "PHASE_UI_04_PASSED_READY_FOR_UI_05",
+  "previous_report": "AI_document/Phase-04/REPORT_PHASE_04.md",
+  "canonical_pv": "WST-SEED-PV-SEAL-ASM-01",
+  "baseline_findings": [
+    "Production Version list had no compact active line eligibility projection before UI-05.",
+    "Production Version detail did not display full backend line eligibility/readiness preview.",
+    "Validation rule 6 still depended on workstation capability composition and rejected the canonical two-line PV before remediation."
+  ]
+}

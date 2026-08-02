@@ -147,14 +147,14 @@ export const SEED_LOCALIZED_TEXT: Record<string, Record<string, Record<string, L
     },
   },
   md_skill: {
-    'SK-WC-MIX-MASTER': {
-      name: localized('Kỹ thuật luyện cán cao cấp', 'Advanced rubber mixing skill', '上級ゴム混練スキル', '고급 고무 혼련 기술'),
+    'SK-EMP-MIX-MASTER': {
+      name: localized('Kỹ thuật viên luyện cán cao cấp', 'Advanced rubber mixing employee skill', '上級ゴム混練従業員スキル', '고급 고무 혼련 직원 기술'),
     },
-    'SK-WC-VULCAN-OPERATOR': {
-      name: localized('Vận hành máy ép lưu hóa áp lực cao', 'High-pressure vulcanizing press operation', '高圧加硫プレス操作', '고압 가황 프레스 운전'),
+    'SK-EMP-VULCAN-OPERATOR': {
+      name: localized('Nhân sự vận hành ép lưu hóa', 'Vulcanizing press employee operation skill', '加硫プレス従業員操作スキル', '가황 프레스 직원 운전 기술'),
     },
-    'SK-WC-INSPECTION': {
-      name: localized('Kỹ thuật viên QC', 'QC technician skill', 'QC 技術者スキル', 'QC 기술자 역량'),
+    'SK-EMP-INSPECTION': {
+      name: localized('Nhân sự kiểm tra chất lượng', 'Quality inspection employee skill', '品質検査従業員スキル', '품질 검사 직원 기술'),
     },
   },
   md_work_instruction: {

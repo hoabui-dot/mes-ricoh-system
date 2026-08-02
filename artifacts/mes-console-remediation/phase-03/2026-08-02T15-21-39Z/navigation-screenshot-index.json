@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-08-02T15:22:14.190Z",
+  "screenshots": [
+    {
+      "route": "/work-orders",
+      "file": "work-orders.png"
+    },
+    {
+      "route": "/master-data/machines",
+      "file": "master-data-machines.png"
+    },
+    {
+      "route": "/master-data/production-areas",
+      "file": "master-data-production-areas.png"
+    },
+    {
+      "route": "/master-data/skills/workers",
+      "file": "master-data-skills-workers.png"
+    }
+  ]
+}

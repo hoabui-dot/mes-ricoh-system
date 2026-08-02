@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-08-02T15:24:00.215Z",
+  "declared": 2,
+  "executed": 2,
+  "passed": 2,
+  "failed": 0,
+  "skipped": 0,
+  "commands": [
+    {
+      "command": "npm run test:e2e:route-navigation:phase3",
+      "status": "passed",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "note": "Final run passed after fixing test fixture/history assertions."
+    },
+    {
+      "command": "npm run test:e2e:two-line-uat:phase2",
+      "status": "passed",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "route_redirect_summary": {
+    "generated_at": "2026-08-02T15:23:11.268Z",
+    "declared": 4,
+    "executed": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "redirects": [
+      {
+        "from": "/console/mes/work-orders/729709b4-01c0-48d2-bd83-40a89cadea62?source=ui03#resource",
+        "expected": "/work-orders/729709b4-01c0-48d2-bd83-40a89cadea62?source=ui03#resource",
+        "actual": "/work-orders/729709b4-01c0-48d2-bd83-40a89cadea62?source=ui03#resource",
+        "passed": true
+      },
+      {
+        "from": "/console/mes/skills?source=ui03",
+        "expected": "/master-data/skills/workers?source=ui03",
+        "actual": "/master-data/skills/workers?source=ui03",
+        "passed": true
+      },
+      {
+        "from": "/master-data/equipment?source=ui03",
+        "expected": "/master-data/machines?source=ui03",
+        "actual": "/master-data/machines?source=ui03",
+        "passed": true
+      },
+      {
+        "from": "/master-data/product-recipes?source=ui03",
+        "expected": "/master-data/production-versions?source=ui03",
+        "actual": "/master-data/production-versions?source=ui03",
+        "passed": true
+      }
+    ]
+  }
+}

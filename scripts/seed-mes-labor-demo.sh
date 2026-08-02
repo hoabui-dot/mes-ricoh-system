@@ -39,9 +39,9 @@ BEGIN
   SELECT master_id INTO wc_cutting FROM md_work_center WHERE code = 'WC-CUTTING' AND version_no = 1;
   SELECT master_id INTO wc_mold FROM md_work_center WHERE code = 'WC-VULCAN-MOLD' AND version_no = 1;
   SELECT master_id INTO wc_qc FROM md_work_center WHERE code = 'WC-QC' AND version_no = 1;
-  SELECT master_id INTO skill_mix FROM md_skill WHERE code = 'SK-WC-MIX-MASTER' AND version_no = 1;
-  SELECT master_id INTO skill_vulcan FROM md_skill WHERE code = 'SK-WC-VULCAN-OPERATOR' AND version_no = 1;
-  SELECT master_id INTO skill_qc FROM md_skill WHERE code = 'SK-WC-INSPECTION' AND version_no = 1;
+  SELECT master_id INTO skill_mix FROM md_skill WHERE code = 'SK-EMP-MIX-MASTER' AND version_no = 1;
+  SELECT master_id INTO skill_vulcan FROM md_skill WHERE code = 'SK-EMP-VULCAN-OPERATOR' AND version_no = 1;
+  SELECT master_id INTO skill_qc FROM md_skill WHERE code = 'SK-EMP-INSPECTION' AND version_no = 1;
 
   IF site_id IS NULL OR shift_a IS NULL OR wc_mixing IS NULL OR wc_cutting IS NULL OR wc_mold IS NULL OR wc_qc IS NULL
      OR skill_mix IS NULL OR skill_vulcan IS NULL OR skill_qc IS NULL THEN

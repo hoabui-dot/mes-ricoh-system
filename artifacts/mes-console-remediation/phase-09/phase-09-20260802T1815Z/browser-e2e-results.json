@@ -1,0 +1,9 @@
+{
+  "suite": "e2e/resource-planning/phase3-resource-planning.spec.ts",
+  "declared": 6,
+  "executed": 6,
+  "passed": 6,
+  "failed": 0,
+  "skipped": 0,
+  "scope_note": "Print-dependent approval/start path is conditionally observed as a backend blocker when print readiness is unavailable."
+}

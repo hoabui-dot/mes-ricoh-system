@@ -37,7 +37,13 @@ import { NotFoundScreen } from './routes/NotFoundScreen';
 import { WOListScreen } from './routes/work-orders/WOListScreen';
 import { WOCreateScreen } from './routes/work-orders/WOCreateScreen';
 import { WODetailScreen } from './routes/work-orders/WODetailScreen';
-import { Wrench, Gauge, AlertTriangle, Award } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+
+function LegacyRedirect({ from, to }: { from: string; to: string }) {
+  const location = useLocation();
+  const suffix = location.pathname.startsWith(from) ? location.pathname.slice(from.length) : '';
+  return <Navigate to={`${to}${suffix}${location.search}${location.hash}`} replace />;
+}
 
 const AppRoutes: React.FC = () => {
   const location = useLocation();
@@ -51,9 +57,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/work-orders" element={<WOListScreen />} />
         <Route path="/work-orders/new" element={<WOCreateScreen />} />
         <Route path="/work-orders/:id" element={<WODetailScreen />} />
-        <Route path="/console/mes/work-orders" element={<WOListScreen />} />
-        <Route path="/console/mes/work-orders/new" element={<WOCreateScreen />} />
-        <Route path="/console/mes/work-orders/:id" element={<WODetailScreen />} />
+        <Route path="/console/mes/work-orders/*" element={<LegacyRedirect from="/console/mes/work-orders" to="/work-orders" />} />
 
         {/* Area A: Tier 1 Master Data Admin */}
         <Route path="/master-data/items" element={<ItemsScreen />} />
@@ -91,18 +95,17 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/shopfloors/new" element={<ResourceFoundationScreen entity="shopfloors" />} />
         <Route path="/master-data/shopfloors/:id" element={<ResourceFoundationScreen entity="shopfloors" />} />
         <Route path="/master-data/shopfloors/:id/edit" element={<ResourceFoundationScreen entity="shopfloors" />} />
-        <Route path="/master-data/product-recipes" element={<Navigate to="/master-data/production-versions" replace />} />
-        <Route path="/console/mes/items" element={<ItemsScreen />} />
-        <Route path="/console/mes/routings" element={<RoutingScreen />} />
-        <Route path="/console/mes/production-versions" element={<ProductionVersionScreen />} />
+        <Route path="/master-data/product-recipes/*" element={<LegacyRedirect from="/master-data/product-recipes" to="/master-data/production-versions" />} />
+        <Route path="/console/mes/items/*" element={<LegacyRedirect from="/console/mes/items" to="/master-data/items" />} />
+        <Route path="/console/mes/routings/*" element={<LegacyRedirect from="/console/mes/routings" to="/master-data/routings" />} />
+        <Route path="/console/mes/production-versions/*" element={<LegacyRedirect from="/console/mes/production-versions" to="/master-data/production-versions" />} />
         <Route path="/employees" element={<EmployeesScreen />} />
         <Route path="/shifts" element={<ShiftsScreen />} />
         <Route path="/work-calendar" element={<WorkCalendarScreen />} />
-        <Route path="/console/mes/employees" element={<EmployeesScreen />} />
-        <Route path="/console/mes/shifts" element={<ShiftsScreen />} />
-        <Route path="/console/mes/work-calendar" element={<WorkCalendarScreen />} />
-        <Route path="/console/mes/mboms" element={<MbomScreen />} />
-        <Route path="/console/mes/mboms/:id" element={<MbomScreen />} />
+        <Route path="/console/mes/employees/*" element={<LegacyRedirect from="/console/mes/employees" to="/employees" />} />
+        <Route path="/console/mes/shifts/*" element={<LegacyRedirect from="/console/mes/shifts" to="/shifts" />} />
+        <Route path="/console/mes/work-calendar/*" element={<LegacyRedirect from="/console/mes/work-calendar" to="/work-calendar" />} />
+        <Route path="/console/mes/mboms/*" element={<LegacyRedirect from="/console/mes/mboms" to="/master-data/mboms" />} />
 
         {/* Area A: Tier 2 Master Data Admin */}
         <Route path="/master-data/work-centers" element={<WorkCentersScreen />} />
@@ -128,37 +131,14 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/operation-skill-requirements/new" element={<PlanningConstraintsScreen entity="operation-skill-requirements" />} />
         <Route path="/master-data/operation-skill-requirements/:id" element={<PlanningConstraintsScreen entity="operation-skill-requirements" />} />
         <Route path="/master-data/operation-skill-requirements/:id/edit" element={<PlanningConstraintsScreen entity="operation-skill-requirements" />} />
-        <Route path="/console/mes/work-centers" element={<WorkCentersScreen />} />
+        <Route path="/console/mes/work-centers/*" element={<LegacyRedirect from="/console/mes/work-centers" to="/master-data/work-centers" />} />
         <Route path="/console/mes/i18n-review" element={<I18nReviewScreen />} />
-        <Route
-          path="/master-data/equipment"
-          element={
-            <Tier2AdminScreen
-              entityType="equipment"
-              titleKey="tier2.equipment.title"
-              subtitleKey="tier2.equipment.subtitle"
-              icon={Wrench}
-            />
-          }
-        />
-        <Route path="/master-data/equipment/new" element={<ResourceFoundationScreen entity="equipment" />} />
-        <Route path="/master-data/equipment/:id" element={<ResourceFoundationScreen entity="equipment" />} />
-        <Route path="/master-data/equipment/:id/edit" element={<ResourceFoundationScreen entity="equipment" />} />
+        <Route path="/master-data/equipment/*" element={<LegacyRedirect from="/master-data/equipment" to="/master-data/machines" />} />
         <Route path="/master-data/machines" element={<ResourceFoundationScreen entity="machines" />} />
         <Route path="/master-data/machines/new" element={<ResourceFoundationScreen entity="machines" />} />
         <Route path="/master-data/machines/:id" element={<ResourceFoundationScreen entity="machines" />} />
         <Route path="/master-data/machines/:id/edit" element={<ResourceFoundationScreen entity="machines" />} />
-        <Route
-          path="/console/mes/equipment"
-          element={
-            <Tier2AdminScreen
-              entityType="equipment"
-              titleKey="tier2.equipment.title"
-              subtitleKey="tier2.equipment.subtitle"
-              icon={Wrench}
-            />
-          }
-        />
+        <Route path="/console/mes/equipment/*" element={<LegacyRedirect from="/console/mes/equipment" to="/master-data/machines" />} />
         <Route
           path="/master-data/production-standards"
           element={<PlanningConstraintsScreen entity="production-standards" />}
@@ -197,20 +177,10 @@ const AppRoutes: React.FC = () => {
           element={<SkillManagementScreen />}
         />
         <Route path="/master-data/skills/:scope" element={<SkillManagementScreen />} />
-        <Route path="/master-data/worker-skills" element={<Navigate to="/master-data/skills/workers" replace />} />
-        <Route path="/master-data/employee-skills" element={<Navigate to="/master-data/skills/workers" replace />} />
-        <Route path="/worker-skills" element={<Navigate to="/master-data/skills/workers" replace />} />
-        <Route
-          path="/console/mes/skills"
-          element={
-            <Tier2AdminScreen
-              entityType="skills"
-              titleKey="tier2.skills.title"
-              subtitleKey="tier2.skills.subtitle"
-              icon={Award}
-            />
-          }
-        />
+        <Route path="/master-data/worker-skills/*" element={<LegacyRedirect from="/master-data/worker-skills" to="/master-data/skills/workers" />} />
+        <Route path="/master-data/employee-skills/*" element={<LegacyRedirect from="/master-data/employee-skills" to="/employees" />} />
+        <Route path="/worker-skills/*" element={<LegacyRedirect from="/worker-skills" to="/master-data/skills/workers" />} />
+        <Route path="/console/mes/skills/*" element={<LegacyRedirect from="/console/mes/skills" to="/master-data/skills/workers" />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>
     </RouteErrorBoundary>

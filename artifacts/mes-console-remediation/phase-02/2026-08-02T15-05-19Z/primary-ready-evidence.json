@@ -1,0 +1,84 @@
+{
+  "header": {
+    "created_at": "2026-08-02T15:02:32.304608Z",
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "demo_print_on_approval": true,
+    "evaluated_line_results": [
+      {
+        "status": "Ready",
+        "blockers": [],
+        "priority": 1,
+        "selection_role": "PRIMARY",
+        "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+        "production_line_code": "WST-SEED-LINE-1"
+      }
+    ],
+    "fallback_reason": "",
+    "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_name": "Won Seal Tech Seal Assembly A",
+    "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_revision_id": "f72a7a14-12ea-4a8b-90b9-77cfaea411b2",
+    "item_revision_name_i18n": {
+      "en": "Won Seal Tech Seal Assembly A",
+      "ja": "Won Seal Tech Seal Assembly A",
+      "ko": "Won Seal Tech Seal Assembly A",
+      "vi": "Won Seal Tech Seal Assembly A"
+    },
+    "line_locked_at": "2026-08-02T15:02:32.304608Z",
+    "line_selection_mode": "PRIMARY",
+    "line_selection_reason": "PRIMARY_LINE_READY",
+    "line_selection_status": "READY",
+    "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+    "planned_end_at": "2026-08-03T12:00:00Z",
+    "planned_start_at": "2026-08-03T08:00:00Z",
+    "planning_snapshot": {
+      "mbom_id": "0cc1eeef-0d22-4c8f-addd-b7f4c64ab33c",
+      "shift_id": "00000000-0000-0000-0000-000000000001",
+      "routing_id": "e0eb5b46-7c46-45f2-8616-7b5cf7f57a24",
+      "production_version_id": "896110e9-fd2c-4e32-9119-75b7c53dd3b0",
+      "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
+    },
+    "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+    "production_version_id": "896110e9-fd2c-4e32-9119-75b7c53dd3b0",
+    "production_version_name_i18n": {
+      "en": "Won Seal Tech two-line seal production version",
+      "ja": "Won Seal Tech two-line seal production version",
+      "ko": "Won Seal Tech two-line seal production version",
+      "vi": "Won Seal Tech two-line seal production version"
+    },
+    "quantity": 2,
+    "resource_hold_reason": {},
+    "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+    "row_version": 2,
+    "selected_production_line_code": "WST-SEED-LINE-1",
+    "selected_production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+    "selected_production_line_name_i18n": {
+      "en": "Won Seal Tech Line 1",
+      "ja": "Won Seal Tech Line 1",
+      "ko": "Won Seal Tech Line 1",
+      "vi": "Won Seal Tech Line 1"
+    },
+    "shift_id": "00000000-0000-0000-0000-000000000001",
+    "site_id": "aa653541-87a2-46b6-a48e-455170734847",
+    "status": "Draft",
+    "uom_id": "740bca9c-a15b-4085-b9cb-487dcb8db1c2",
+    "wo_code": "WO-20260802-0069",
+    "wo_id": "4757a09f-3efc-471f-87e2-39406361ba1e"
+  },
+  "evaluated_line_results": [
+    {
+      "status": "Ready",
+      "blockers": [],
+      "priority": 1,
+      "selection_role": "PRIMARY",
+      "production_line_id": "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+      "production_line_code": "WST-SEED-LINE-1"
+    }
+  ],
+  "operation_line_ids": [
+    "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+    "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+    "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4",
+    "845ea1fc-7e3e-4d4d-acdf-78df8d38b1b4"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "entry_gate": "PHASE_UI_06_PASSED_READY_FOR_UI_07",
+  "phase_06_report": "AI_document/Phase-06/REPORT_PHASE_06.md",
+  "worker_skill_count_before_gate": 3,
+  "canonical_seed_verified_after_phase_06": true
+}

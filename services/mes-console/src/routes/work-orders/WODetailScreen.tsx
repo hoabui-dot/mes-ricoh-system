@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum } from '../../lib/i18nLabels';
 import { normalizeWorkOrderDetail, localizedText } from './workOrderDetail';
+import type { LineEvaluationResult, WorkOrderDetail } from './workOrderContracts';
 import { gatewayBaseUrl } from '../../lib/masterDataApi';
 import { translateWorkOrderError } from '../../lib/errorMessages';
 import { FieldHelpPopover } from '../../components/ui';
@@ -18,7 +19,7 @@ export const WODetailScreen: React.FC = () => {
   const { t, formatDate } = useI18n();
   const navigate = useNavigate();
 
-  const [wo, setWo] = useState<any>(null);
+  const [wo, setWo] = useState<(WorkOrderDetail & Record<string, any>) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
 
@@ -35,12 +36,13 @@ export const WODetailScreen: React.FC = () => {
   const [candidateBlockers, setCandidateBlockers] = useState<any[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [allocating, setAllocating] = useState(false);
+  const [revalidationResult, setRevalidationResult] = useState<any>(null);
   const [showLineReplanModal, setShowLineReplanModal] = useState(false);
   const [lineReplanReason, setLineReplanReason] = useState('');
 
   const canApprove = hasRole('EXECUTIVE') || hasRole('PLANT_MANAGER') || hasRole('PROD_MANAGER');
   const canPlanResources = hasRole('EXECUTIVE') || hasRole('PLANT_MANAGER') || hasRole('PROD_MANAGER') || hasRole('PLANNER');
-  const resourceOperations = Array.isArray(wo?.operations) ? wo.operations : [];
+  const resourceOperations: any[] = Array.isArray(wo?.operations) ? wo.operations : [];
   const printOperations = resourceOperations.filter((operation: any) => operation.execution_target_type === 'PRINT_STATION' || operation.requires_output_label);
   const printJobs = Array.isArray(wo?.print_jobs) ? wo.print_jobs : [];
   const committedResourceCount = resourceOperations.filter((operation: any) => {
@@ -68,7 +70,7 @@ export const WODetailScreen: React.FC = () => {
   const allocationStatusLabel = (status?: string | null) => status ? translatedEnum(t, 'allocation.status', status) : t('woDetail.resourceNotAllocated');
   const readinessLabel = (status?: string | null) => status ? translatedEnum(t, 'resourceReadiness.status', status) : t('common.notAvailable');
   const lineResultStatusClass = (status?: string) => status === 'Ready' ? 'border-emerald-700 text-emerald-300' : 'border-rose-800 text-rose-300';
-  const evaluatedLineResults = Array.isArray(wo?.evaluated_line_results) ? wo.evaluated_line_results : [];
+  const evaluatedLineResults: LineEvaluationResult[] = Array.isArray(wo?.evaluated_line_results) ? wo.evaluated_line_results : [];
   const lineLocked = Boolean(wo?.line_locked_at);
   const canReplanLine = canPlanResources && ['Draft', 'PendingApproval', 'Released', 'ResourceHold'].includes(wo?.status);
   const lineReplanBlockedAfterStart = ['InProgress', 'Completed', 'Closed'].includes(wo?.status);
@@ -164,8 +166,9 @@ export const WODetailScreen: React.FC = () => {
     try {
       const start = plannedStartForOperation(selectedOperation);
       const hasAllocation = Boolean(selectedOperation.resource_allocation?.allocation_id);
+      if (hasAllocation && !window.confirm(t('woDetail.reallocateConfirm'))) return;
       const endpoint = hasAllocation ? 'reallocate' : 'resource-allocation';
-      const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/operations/${selectedOperation.wo_operation_id}/${endpoint}`, { method: 'POST', headers: apiHeaders({ 'Content-Type': 'application/json', 'Idempotency-Key': `${endpoint}-${id}-${selectedOperation.wo_operation_id}-${candidate.machine_group?.id || candidate.equipment?.id || candidate.workstation?.id}-${start}` }), body: JSON.stringify({ workstation_id: candidate.workstation?.id, equipment_id: candidate.primary_machine?.id || candidate.equipment?.id, machine_group_id: candidate.machine_group?.id, shift_id: selectedOperation.resource_allocation?.planned_shift_id || wo.shift_id, planned_start_at: start, candidate_reference: `${candidate.assignment?.id || ''}:${candidate.machine_group?.id || ''}:${candidate.capability?.id || ''}`, row_version: wo.row_version, change_reason: hasAllocation ? t('woDetail.reallocateReason') : undefined }) });
+      const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/operations/${selectedOperation.wo_operation_id}/${endpoint}`, { method: 'POST', headers: apiHeaders({ 'Content-Type': 'application/json', 'Idempotency-Key': `${endpoint}-${id}-${selectedOperation.wo_operation_id}-${candidate.machine_group?.id || candidate.equipment?.id || candidate.workstation?.id}-${start}` }), body: JSON.stringify({ workstation_id: candidate.workstation?.id, equipment_id: candidate.primary_machine?.id || candidate.equipment?.id, machine_group_id: candidate.machine_group?.id, shift_id: selectedOperation.resource_allocation?.planned_shift_id || wo?.shift_id, planned_start_at: start, candidate_reference: `${candidate.assignment?.id || ''}:${candidate.machine_group?.id || ''}:${candidate.capability?.id || ''}`, row_version: wo?.row_version, change_reason: hasAllocation ? t('woDetail.reallocateReason') : undefined }) });
       const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(translateWorkOrderError(body.message || body.error, t) || t('woDetail.resourceAllocationFailed'));
       toast.success(t(hasAllocation ? 'woDetail.resourceReallocated' : 'woDetail.resourceAllocated')); setSelectedOperation(null); await fetchWODetail();
     } catch (err: any) { toast.error(err.message || t('woDetail.resourceAllocationFailed')); } finally { setAllocating(false); }
@@ -178,6 +181,7 @@ export const WODetailScreen: React.FC = () => {
       const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/resource-allocations/revalidate`, { method: 'POST', headers: apiHeaders({ 'Content-Type': 'application/json' }), body: '{}' });
       if (!response.ok) throw new Error(await parseApiError(response, 'woDetail.revalidateFailed'));
       const body = await response.json().catch(() => ({}));
+      setRevalidationResult(body);
       toast[body.valid ? 'success' : 'warning'](body.valid ? t('woDetail.revalidated') : t('woDetail.revalidateInvalid'));
       await fetchWODetail();
     } catch (err: any) {
@@ -213,7 +217,7 @@ export const WODetailScreen: React.FC = () => {
       const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/line-replan`, {
         method: 'POST',
         headers: apiHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ reason: lineReplanReason.trim(), row_version: wo.row_version }),
+        body: JSON.stringify({ reason: lineReplanReason.trim(), row_version: wo?.row_version }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(translateWorkOrderError(body.message || body.error, t) || t('woDetail.lineReplanFailed'));
@@ -353,8 +357,7 @@ export const WODetailScreen: React.FC = () => {
             <>
               <button
                 onClick={() => setShowRejectModal(true)}
-                disabled={submittingAction || !resourcesReadyForApproval}
-                title={!resourcesReadyForApproval ? t('woDetail.resourceApprovalBlocked') : undefined}
+                disabled={submittingAction}
                 className="px-4 py-2.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 font-semibold text-sm rounded-md flex items-center space-x-2 transition"
               >
                 <XCircle className="w-4 h-4" />
@@ -362,7 +365,8 @@ export const WODetailScreen: React.FC = () => {
               </button>
               <button
                 onClick={handleApprove}
-                disabled={submittingAction}
+                disabled={submittingAction || wo.gate_summary?.approval_eligible === false}
+                title={wo.gate_summary?.blockers?.length ? wo.gate_summary.blockers.map((code: string) => translateWorkOrderError(code, t) || code).join(', ') : undefined}
                 className="px-5 py-2.5 bg-action hover:bg-action-hover text-white font-bold text-sm rounded-md flex items-center space-x-2 transition shadow-lg shadow-orange-600/20"
               >
                 {submittingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
@@ -464,16 +468,20 @@ export const WODetailScreen: React.FC = () => {
         </div>
         {wo.line_selection_status === 'RESOURCE_HOLD' && <div data-testid="line-resource-hold-warning" className="rounded-md border border-rose-800 bg-rose-950/30 p-3 text-sm text-rose-200"><div className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />{t('woDetail.resourceHold')}</div><p className="mt-1 text-xs text-rose-100">{translateWorkOrderError(wo.resource_hold_reason?.code, t) || wo.resource_hold_reason?.code || t('woDetail.lineNotReady')}</p></div>}
         <div className="grid gap-3 md:grid-cols-2">
-          {evaluatedLineResults.map((result: any) => (
+          {evaluatedLineResults.map((result: LineEvaluationResult) => (
             <div key={`${result.production_line_id}-${result.selection_role}`} className={`rounded-md border bg-slate-950 p-3 ${lineResultStatusClass(result.status)}`} data-testid={`line-result-${String(result.selection_role || '').toLowerCase()}`}>
               <div className="flex items-start justify-between gap-3">
                 <div><div className="text-xs font-semibold uppercase text-slate-500">{lineSelectionLabel('role', result.selection_role || '')}</div><div className="font-semibold text-slate-100">{result.production_line_code || t('common.notAvailable')}</div></div>
                 <span className="text-xs font-semibold">{translatedEnum(t, 'resourceReadiness.status', result.status || 'Unknown')}</span>
               </div>
-              {(result.blockers || []).map((blocker: any) => <div key={`${blocker.code}-${blocker.operation_code}`} className="mt-2 text-xs text-rose-300" data-testid="line-blocking-reason">{translateWorkOrderError(blocker.code, t) || blocker.code}{blocker.operation_code ? ` · ${blocker.operation_code}` : ''}</div>)}
+              {(result.blockers || []).map((blocker) => <div key={`${blocker.code}-${blocker.operation_code}`} className="mt-2 text-xs text-rose-300" data-testid="line-blocking-reason"><span>{translateWorkOrderError(blocker.code, t) || blocker.code}{blocker.operation_code ? ` · ${blocker.operation_code}` : ''}</span>{blocker.operation_code && <Link to={`/master-data/routings?operation_code=${encodeURIComponent(blocker.operation_code)}`} className="ml-2 inline-flex items-center text-amber-300" title={t('common.detail')}><ExternalLink className="h-3 w-3" /></Link>}</div>)}
+              <div className="mt-3 overflow-x-auto" data-testid={`line-dimension-matrix-${String(result.selection_role || '').toLowerCase()}`}><table className="w-full text-left text-xs"><thead className="text-slate-500"><tr><th className="py-1 pr-3">{t('woDetail.dimension')}</th><th className="py-1">{t('common.status')}</th></tr></thead><tbody>{(result.dimensions || []).map((dimension) => <tr key={dimension.key} className="border-t border-slate-800"><td className="py-1 pr-3 text-slate-300">{t(`woDetail.dimension.${dimension.key}`)}</td><td className={dimension.status === 'Ready' || dimension.status === 'Evaluated' ? 'py-1 text-emerald-300' : dimension.status === 'Blocked' ? 'py-1 text-rose-300' : 'py-1 text-slate-500'}>{dimension.status === 'NotPersisted' ? t('woDetail.dimensionNotPersisted') : translatedEnum(t, 'resourceReadiness.status', dimension.status)}</td></tr>)}</tbody></table></div>
             </div>
           ))}
         </div>
+        <div className="grid gap-3 md:grid-cols-2" data-testid="work-order-operation-line-consistency"><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.operationLineConsistency')}</div><div className="mt-1 text-sm text-slate-200">{resourceOperations.length === 0 ? t('common.notAvailable') : resourceOperations.every((operation: any) => !operation.production_line_code || operation.production_line_code === wo.selected_production_line_code) ? t('woDetail.operationLineConsistent') : t('woDetail.operationLineMismatch')}</div></div><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.gateSummary')}</div><div className="mt-1 text-xs text-slate-300">{wo.gate_summary?.approval_state || t('common.notAvailable')} · {wo.gate_summary?.execution_state || t('common.notAvailable')} · {wo.gate_summary?.resource_allocation_state || t('common.notAvailable')}</div>{wo.gate_summary?.blockers?.map((code: string) => <div key={code} className="mt-1 text-xs text-rose-300" data-testid="lifecycle-gate-blocker">{translateWorkOrderError(code, t) || code}</div>)}</div></div>
+        {revalidationResult && <div className="rounded-md border border-slate-800 bg-slate-950 p-3" data-testid="revalidation-results"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.revalidationResults')}</div><div className="mt-2 space-y-1 text-xs">{(revalidationResult.operations || []).map((result: any) => <div key={result.wo_operation_id} className={result.valid ? 'text-emerald-300' : 'text-rose-300'}>{result.wo_operation_id} · {result.valid ? t('woDetail.revalidationValid') : translateWorkOrderError(result.error_code, t) || t('woDetail.revalidationInvalid')}</div>)}</div></div>}
+        {Array.isArray(wo.allocation_history) && wo.allocation_history.length > 0 && <div data-testid="work-order-allocation-history" className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.allocationHistory')}</div><div className="mt-2 space-y-1 text-xs text-slate-300">{wo.allocation_history.map((entry: any) => <div key={`${entry.allocation_id}-${entry.operation_code}`} className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-800 pt-1"><span>{entry.operation_code}</span><span>{entry.status || t('common.notAvailable')}</span><span>{entry.validation_status || t('common.notAvailable')}</span><span className="text-slate-500">{entry.planned_production_line_id || t('common.notAvailable')}</span></div>)}</div></div>}
         {lineReplanBlockedAfterStart && <p className="text-xs text-slate-400">{t('woDetail.lineTransferRequiresExecutionSegment')}</p>}
       </section>
 
@@ -538,7 +546,7 @@ export const WODetailScreen: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button data-testid="resource-revalidate-button" type="button" onClick={handleRevalidateAllocations} disabled={submittingAction} className="inline-flex items-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50"><RefreshCw className="h-4 w-4" />{t('woDetail.revalidateAllocations')}</button>
-            {(wo.status === 'Released' || wo.status === 'InProgress') && <button data-testid="work-order-start-execution-button" type="button" onClick={handleStartExecution} disabled={submittingAction} className="inline-flex items-center gap-2 rounded-md border border-emerald-700 bg-emerald-950/50 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50"><Play className="h-4 w-4" />{t('woDetail.startExecution')}</button>}
+            {(wo.status === 'Released' || wo.status === 'InProgress') && <button data-testid="work-order-start-execution-button" type="button" onClick={handleStartExecution} disabled={submittingAction || wo.gate_summary?.execution_eligible === false} title={wo.gate_summary?.blockers?.length ? wo.gate_summary.blockers.map((code: string) => translateWorkOrderError(code, t) || code).join(', ') : undefined} className="inline-flex items-center gap-2 rounded-md border border-emerald-700 bg-emerald-950/50 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50"><Play className="h-4 w-4" />{t('woDetail.startExecution')}</button>}
             <button type="button" onClick={() => { const first = (wo.operations || []).find((op: any) => !op.resource_allocation?.allocation_id); if (first) loadCandidates(first); }} className="inline-flex items-center gap-2 rounded-md border border-action/60 bg-action/10 px-3 py-2 text-xs font-semibold text-amber-200"><Settings2 className="h-4 w-4" />{t('woDetail.resourceRecommend')}</button>
           </div>
         </div>

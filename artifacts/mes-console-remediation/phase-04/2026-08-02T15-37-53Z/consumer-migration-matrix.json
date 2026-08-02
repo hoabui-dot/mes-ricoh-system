@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "migrated_now": [
+    {
+      "consumer": "ProductionVersionScreen",
+      "changes": [
+        "TanStack Query server state",
+        "typed API contracts",
+        "BaseFilterBar",
+        "BaseDataTable error/retry/filtered empty",
+        "typed StatusBadge",
+        "BaseDependencyPanel",
+        "BaseAuditTimeline"
+      ]
+    }
+  ],
+  "deferred": [
+    {
+      "consumer": "Work Order list/detail",
+      "target_phase": "UI-08/UI-09",
+      "reason": "Business diagnostics and lifecycle actions are later phase scope"
+    },
+    {
+      "consumer": "Resource foundation screens",
+      "target_phase": "UI-06",
+      "reason": "Readiness panels and resource-specific constraints are later phase scope"
+    },
+    {
+      "consumer": "Worker Skill and Employees",
+      "target_phase": "UI-07",
+      "reason": "Ownership UX is later phase scope"
+    },
+    {
+      "consumer": "MBOM/Routing/Items CRUD",
+      "target_phase": "UI-05 or screen-specific follow-up",
+      "reason": "Product-definition behavior must remain untouched in UI-04"
+    }
+  ]
+}

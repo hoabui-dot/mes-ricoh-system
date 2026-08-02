@@ -1,0 +1,9 @@
+{
+  "canonical_production_version": "WST-SEED-PV-SEAL-ASM-01",
+  "primary_line": "WST-SEED-LINE-1",
+  "backup_line": "WST-SEED-LINE-2",
+  "target_date": "2026-08-03",
+  "canonical_calendar_count": 8,
+  "base_seed_changes": "none",
+  "migration_changes": "none"
+}

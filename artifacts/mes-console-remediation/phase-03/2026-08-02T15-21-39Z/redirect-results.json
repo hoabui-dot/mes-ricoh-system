@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-08-02T15:23:11.268Z",
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "redirects": [
+    {
+      "from": "/console/mes/work-orders/729709b4-01c0-48d2-bd83-40a89cadea62?source=ui03#resource",
+      "expected": "/work-orders/729709b4-01c0-48d2-bd83-40a89cadea62?source=ui03#resource",
+      "actual": "/work-orders/729709b4-01c0-48d2-bd83-40a89cadea62?source=ui03#resource",
+      "passed": true
+    },
+    {
+      "from": "/console/mes/skills?source=ui03",
+      "expected": "/master-data/skills/workers?source=ui03",
+      "actual": "/master-data/skills/workers?source=ui03",
+      "passed": true
+    },
+    {
+      "from": "/master-data/equipment?source=ui03",
+      "expected": "/master-data/machines?source=ui03",
+      "actual": "/master-data/machines?source=ui03",
+      "passed": true
+    },
+    {
+      "from": "/master-data/product-recipes?source=ui03",
+      "expected": "/master-data/production-versions?source=ui03",
+      "actual": "/master-data/production-versions?source=ui03",
+      "passed": true
+    }
+  ]
+}

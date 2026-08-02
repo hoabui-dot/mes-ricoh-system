@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "decisions": [
+    {
+      "component": "BaseDataTable",
+      "decision": "KEEP",
+      "reason": "Canonical typed TanStack wrapper; enhanced with error/retry and filtered empty state"
+    },
+    {
+      "component": "BaseFilterBar",
+      "decision": "KEEP",
+      "reason": "Canonical URL/query-state friendly filter contract with dependent reset support"
+    },
+    {
+      "component": "BaseModal",
+      "decision": "KEEP",
+      "reason": "Canonical dialog wrapper with focus/escape behavior delegated to Radix Dialog"
+    },
+    {
+      "component": "Confirmation",
+      "decision": "KEEP",
+      "reason": "Uses BaseModal; no duplicate confirmation wrapper introduced"
+    },
+    {
+      "component": "StatusBadge",
+      "decision": "KEEP",
+      "reason": "Typed variants for lifecycle/work-order/readiness/line-selection/resource states"
+    },
+    {
+      "component": "BaseBlockerList",
+      "decision": "KEEP",
+      "reason": "Backend blocker code translation and diagnostic expansion foundation"
+    },
+    {
+      "component": "BaseDependencyPanel",
+      "decision": "KEEP",
+      "reason": "Common dependency presentation without domain calculation"
+    },
+    {
+      "component": "BaseAuditTimeline",
+      "decision": "KEEP",
+      "reason": "Audit display foundation using supplied events only"
+    },
+    {
+      "component": "page-local tables/modals/status spans",
+      "decision": "DEPRECATE",
+      "reason": "Active consumers remain; migrate by later phase ownership"
+    }
+  ]
+}

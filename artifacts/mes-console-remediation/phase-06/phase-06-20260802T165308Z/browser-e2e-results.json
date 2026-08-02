@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "commands": [
+    {
+      "command": "npm run test:e2e:resource-planning:phase6",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "command": "npm run test:e2e:product-definition-ui:phase5",
+      "status": "passed"
+    },
+    {
+      "command": "npm run test:e2e:shared-ui:phase4",
+      "status": "passed"
+    },
+    {
+      "command": "npm run test:e2e:route-navigation:phase3",
+      "status": "passed_after_fixture_refresh"
+    },
+    {
+      "command": "npm run test:e2e:resource-planning:phase4",
+      "status": "passed"
+    }
+  ],
+  "skipped": [
+    {
+      "command": "npm run test:e2e:resource-planning:phase3",
+      "reason": "Optional broader allocation suite entered print-on-approval path; skipped per instruction to skip print station / third-party cases."
+    }
+  ]
+}

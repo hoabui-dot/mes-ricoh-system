@@ -1,0 +1,9 @@
+{
+  "backend_owns_candidate_and_gate_decisions": true,
+  "selected_line_constraint_enforced": true,
+  "exact_commit_idempotency_and_row_version": "passed_by_domain_matrix",
+  "reallocation_and_cancel_history": "passed_by_domain_matrix_and_e2e",
+  "revalidation_detail_visible": true,
+  "approval_and_start_strict_gating": "passed_or_explicitly_blocked_by_print_scope",
+  "phase_gate": "PHASE_UI_09_PASSED_READY_FOR_UI_10"
+}

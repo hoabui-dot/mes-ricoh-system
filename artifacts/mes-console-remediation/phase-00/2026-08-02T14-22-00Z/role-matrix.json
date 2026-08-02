@@ -1,0 +1,9 @@
+{
+  "run_id": "2026-08-02T14-22-00Z",
+  "confirmed_roles": ["PLANT_MANAGER", "PROD_MANAGER", "PLANNER", "OPERATOR", "EXECUTIVE"],
+  "test_credential_role": "plant.manager",
+  "allocation_mutation_allowed_roles": ["PLANT_MANAGER", "PROD_MANAGER", "PLANNER", "EXECUTIVE"],
+  "unresolved_roles": ["ADMIN", "VIEWER"],
+  "later_phase_blocker": "UI-10 authorization remediation requires real role fixtures, gateway boundary verification, and cross-site tests."
+}
+

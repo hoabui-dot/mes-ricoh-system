@@ -1,0 +1,673 @@
+{
+  "header": {
+    "created_at": "2026-08-02T18:46:47.291338Z",
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "demo_print_on_approval": true,
+    "evaluated_line_results": [
+      {
+        "blockers": [
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+            "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+            "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+            "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+            "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+          }
+        ],
+        "dimensions": [
+          {
+            "blockers": [],
+            "key": "eligibility",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "work_centers",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "workstations",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "machine_requirements",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "equipment_units",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "assignments",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "capability",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "calendar_shift",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "production_standard",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "capacity",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "worker_skill_labor",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+                "operation_code": "WST-SEED-OP-BINDING",
+                "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+                "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+              },
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+                "operation_code": "WST-SEED-OP-TEST5IN1",
+                "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+                "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+              },
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+                "operation_code": "WST-SEED-OP-AIRTEST",
+                "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+                "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+              },
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+                "operation_code": "WST-SEED-OP-PACKING",
+                "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+                "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+              }
+            ],
+            "key": "final_result",
+            "status": "Blocked"
+          },
+          {
+            "blockers": [],
+            "key": "selection_reason",
+            "status": "NotPersisted"
+          }
+        ],
+        "priority": 1,
+        "production_line_code": "WST-SEED-LINE-1",
+        "production_line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+        "selection_role": "PRIMARY",
+        "status": "Blocked"
+      },
+      {
+        "blockers": [
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+            "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+            "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+            "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+          },
+          {
+            "code": "LINE_RESOURCE_CALENDAR_MISSING",
+            "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+            "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+          }
+        ],
+        "dimensions": [
+          {
+            "blockers": [],
+            "key": "eligibility",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "work_centers",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "workstations",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "machine_requirements",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "equipment_units",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "assignments",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "capability",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "calendar_shift",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "production_standard",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "capacity",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [],
+            "key": "worker_skill_labor",
+            "status": "NotPersisted"
+          },
+          {
+            "blockers": [
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+                "operation_code": "WST-SEED-OP-BINDING",
+                "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+                "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+              },
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+                "operation_code": "WST-SEED-OP-TEST5IN1",
+                "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+                "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+              },
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+                "operation_code": "WST-SEED-OP-AIRTEST",
+                "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+                "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+              },
+              {
+                "code": "LINE_RESOURCE_CALENDAR_MISSING",
+                "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+                "operation_code": "WST-SEED-OP-PACKING",
+                "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+                "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+              }
+            ],
+            "key": "final_result",
+            "status": "Blocked"
+          },
+          {
+            "blockers": [],
+            "key": "selection_reason",
+            "status": "NotPersisted"
+          }
+        ],
+        "priority": 2,
+        "production_line_code": "WST-SEED-LINE-2",
+        "production_line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+        "selection_role": "BACKUP",
+        "status": "Blocked"
+      }
+    ],
+    "fallback_reason": "",
+    "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_name": "Won Seal Tech Seal Assembly A",
+    "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_revision_id": "022512f3-b719-488f-9d78-c70de335e6f4",
+    "item_revision_name_i18n": {
+      "en": "Won Seal Tech Seal Assembly A",
+      "ja": "Won Seal Tech Seal Assembly A",
+      "ko": "Won Seal Tech Seal Assembly A",
+      "vi": "Won Seal Tech Seal Assembly A"
+    },
+    "line_locked_at": null,
+    "line_selection_mode": "AUTO",
+    "line_selection_reason": "NO_COMPLETE_FEASIBLE_LINE",
+    "line_selection_status": "RESOURCE_HOLD",
+    "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+    "planned_end_at": "2026-08-03T12:00:00Z",
+    "planned_start_at": "2026-08-03T08:00:00Z",
+    "planning_snapshot": {
+      "mbom_id": "6d6c297d-6942-48e3-a426-6b22857f5e84",
+      "shift_id": "4625b6a8-37dd-4286-acad-79e550ac59ec",
+      "routing_id": "7d8885d2-f4a0-4821-a505-f93f352af7fe",
+      "production_version_id": "adf4b247-ae45-40a3-805f-e2991f083b54",
+      "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
+    },
+    "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+    "production_version_id": "adf4b247-ae45-40a3-805f-e2991f083b54",
+    "production_version_name_i18n": {
+      "en": "Won Seal Tech two-line seal production version",
+      "ja": "Won Seal Tech two-line seal production version",
+      "ko": "Won Seal Tech two-line seal production version",
+      "vi": "Won Seal Tech two-line seal production version"
+    },
+    "quantity": 2,
+    "resource_hold_reason": {
+      "code": "NO_COMPLETE_FEASIBLE_LINE",
+      "evaluated_lines": [
+        {
+          "status": "Blocked",
+          "blockers": [
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+              "operation_code": "WST-SEED-OP-BINDING",
+              "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+              "operation_code": "WST-SEED-OP-PACKING",
+              "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+            }
+          ],
+          "priority": 1,
+          "selection_role": "PRIMARY",
+          "production_line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+          "production_line_code": "WST-SEED-LINE-1"
+        },
+        {
+          "status": "Blocked",
+          "blockers": [
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+              "operation_code": "WST-SEED-OP-BINDING",
+              "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+              "operation_code": "WST-SEED-OP-PACKING",
+              "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+            }
+          ],
+          "priority": 2,
+          "selection_role": "BACKUP",
+          "production_line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+          "production_line_code": "WST-SEED-LINE-2"
+        }
+      ]
+    },
+    "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+    "row_version": 2,
+    "selected_production_line_code": "",
+    "selected_production_line_id": "",
+    "selected_production_line_name_i18n": {},
+    "shift_id": "4625b6a8-37dd-4286-acad-79e550ac59ec",
+    "site_id": "6c2893a0-6d8f-4b78-88bb-6d006cd1c459",
+    "status": "ResourceHold",
+    "uom_id": "de0618b9-b5b0-460a-933c-b13486047d03",
+    "wo_code": "WO-20260802-0010",
+    "wo_id": "72075758-7895-416e-99dc-882201859825"
+  },
+  "evaluated_line_results": [
+    {
+      "blockers": [
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+          "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+          "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+          "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+          "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+        }
+      ],
+      "dimensions": [
+        {
+          "blockers": [],
+          "key": "eligibility",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "work_centers",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "workstations",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "machine_requirements",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "equipment_units",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "assignments",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "capability",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "calendar_shift",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "production_standard",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "capacity",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "worker_skill_labor",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_code": "WST-SEED-OP-BINDING",
+              "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+              "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+              "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+              "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+              "operation_code": "WST-SEED-OP-PACKING",
+              "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+              "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+            }
+          ],
+          "key": "final_result",
+          "status": "Blocked"
+        },
+        {
+          "blockers": [],
+          "key": "selection_reason",
+          "status": "NotPersisted"
+        }
+      ],
+      "priority": 1,
+      "production_line_code": "WST-SEED-LINE-1",
+      "production_line_id": "24b0619d-7453-4408-b115-897f5fd408c7",
+      "selection_role": "PRIMARY",
+      "status": "Blocked"
+    },
+    {
+      "blockers": [
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+          "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+          "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+          "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+        },
+        {
+          "code": "LINE_RESOURCE_CALENDAR_MISSING",
+          "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+          "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+        }
+      ],
+      "dimensions": [
+        {
+          "blockers": [],
+          "key": "eligibility",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "work_centers",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "workstations",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "machine_requirements",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "equipment_units",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "assignments",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "capability",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "calendar_shift",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "production_standard",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "capacity",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [],
+          "key": "worker_skill_labor",
+          "status": "NotPersisted"
+        },
+        {
+          "blockers": [
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_code": "WST-SEED-OP-BINDING",
+              "operation_id": "469cadb9-b8d5-4836-bcf2-0a9e78e26a78",
+              "routing_operation_id": "a9899a3f-eb99-4692-b0b3-58ea54bad2c2"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "operation_id": "19fe02fa-165e-4fec-aa9d-c0c91e8be1ba",
+              "routing_operation_id": "c24df80d-96b1-4b20-8422-4d3816d7651b"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "operation_id": "ca4aa5a0-d71a-42c7-93f5-1320b25ef8b3",
+              "routing_operation_id": "cb258970-d683-4083-a61c-9999cafbc30c"
+            },
+            {
+              "code": "LINE_RESOURCE_CALENDAR_MISSING",
+              "line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+              "operation_code": "WST-SEED-OP-PACKING",
+              "operation_id": "66bca821-3b6a-4225-abfb-8885eaf1882f",
+              "routing_operation_id": "0a47810b-9588-4683-a1e0-44e9d9074c61"
+            }
+          ],
+          "key": "final_result",
+          "status": "Blocked"
+        },
+        {
+          "blockers": [],
+          "key": "selection_reason",
+          "status": "NotPersisted"
+        }
+      ],
+      "priority": 2,
+      "production_line_code": "WST-SEED-LINE-2",
+      "production_line_id": "1124521e-ee76-4e6e-9531-057eda909fda",
+      "selection_role": "BACKUP",
+      "status": "Blocked"
+    }
+  ],
+  "operation_line_ids": [
+    "",
+    "",
+    "",
+    ""
+  ]
+}

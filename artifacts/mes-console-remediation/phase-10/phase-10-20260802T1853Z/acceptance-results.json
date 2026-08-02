@@ -1,0 +1,10 @@
+{
+  "authorization": "passed",
+  "negative_auth_and_cross_site": "passed",
+  "i18n_vi_en_ja_ko": "passed",
+  "raw_enum_uuid_rendering": "passed",
+  "loading_error_empty_forbidden_mutation_states": "passed",
+  "accessibility_source_and_semantic_control_audit": "passed",
+  "mandatory_mes_console_tests_skipped": 0,
+  "physical_print_station_or_third_party_tests": "approved_scope_exclusion"
+}

@@ -1,0 +1,57 @@
+{
+  "success": false,
+  "run_id": "PHASE1-WORKER-SKILL-1785682051910-K0KFL",
+  "error": "Error: GET /worker-skills -> 500: {\"message\":\"failed the initial dns/balancer resolve for 'mes-master-data-service' with: dns server error: 2 server failure\",\"request_id\":\"0958ab1de066d6720b1d7465bb446a61\"}\n    at request (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-worker-skill-domain-phase1.mjs:62:65)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-worker-skill-domain-phase1.mjs:131:24\n    at async record (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-worker-skill-domain-phase1.mjs:37:18)\n    at async main (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-worker-skill-domain-phase1.mjs:130:26)",
+  "declared": 8,
+  "executed": 3,
+  "passed": 2,
+  "failed": 2,
+  "skipped": 0,
+  "steps": [
+    {
+      "name": "canonical Worker Skills are Employee scoped and duplicate-free",
+      "status": "passed",
+      "started_at": "2026-08-02T14:47:31.953Z",
+      "finished_at": "2026-08-02T14:47:31.964Z",
+      "data": {
+        "rows": [
+          {
+            "code": "SK-EMP-INSPECTION",
+            "scope": "Employee",
+            "lifecycle_status": "Released",
+            "legacy_flag": false
+          },
+          {
+            "code": "SK-EMP-MIX-MASTER",
+            "scope": "Employee",
+            "lifecycle_status": "Released",
+            "legacy_flag": false
+          },
+          {
+            "code": "SK-EMP-VULCAN-OPERATOR",
+            "scope": "Employee",
+            "lifecycle_status": "Released",
+            "legacy_flag": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "canonical references use Employee scoped Worker Skills",
+      "status": "passed",
+      "started_at": "2026-08-02T14:47:31.965Z",
+      "finished_at": "2026-08-02T14:47:31.971Z",
+      "data": {
+        "employee_invalid_references": 0,
+        "operation_requirement_invalid_references": 0
+      }
+    },
+    {
+      "name": "Worker Skill API returns Employee scoped definitions",
+      "status": "failed",
+      "started_at": "2026-08-02T14:47:31.971Z",
+      "finished_at": "2026-08-02T14:47:32.035Z",
+      "error": "GET /worker-skills -> 500: {\"message\":\"failed the initial dns/balancer resolve for 'mes-master-data-service' with: dns server error: 2 server failure\",\"request_id\":\"0958ab1de066d6720b1d7465bb446a61\"}"
+    }
+  ]
+}

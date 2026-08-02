@@ -344,7 +344,7 @@ async function seedPlanningMatrix(manifest, context, targetDate) {
   const assignment = (await master.query(`SELECT equipment_id FROM md_resource_assignment WHERE site_id=$1 AND work_center_id=$2 AND workstation_id=$3 AND scheduling_flag=TRUE AND effective_to IS NULL ORDER BY equipment_id NULLS LAST LIMIT 1`, [context.site.master_id, context.workCenter.master_id, context.workstation.master_id])).rows[0];
   const resourceType = assignment?.equipment_id ? 'Equipment' : 'Workstation';
   const resourceId = assignment?.equipment_id || context.workstation.master_id;
-  const skill = (await master.query(`SELECT master_id FROM md_skill WHERE code='SK-WC-VULCAN-OPERATOR' AND lifecycle_status='Released' LIMIT 1`)).rows[0];
+  const skill = (await master.query(`SELECT master_id FROM md_skill WHERE code='SK-EMP-VULCAN-OPERATOR' AND scope='Employee' AND lifecycle_status='Released' LIMIT 1`)).rows[0];
   const routingOperations = (await master.query(`SELECT master_id, operation_id, seq FROM md_routing_operation WHERE routing_header_id=$1 AND effective_to IS NULL ORDER BY seq`, [manifest.routing.master_id])).rows;
 
   // Resource planning is evaluated against the selected shift, not merely the

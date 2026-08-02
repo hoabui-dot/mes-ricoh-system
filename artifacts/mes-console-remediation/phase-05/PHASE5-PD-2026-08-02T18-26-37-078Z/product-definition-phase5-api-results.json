@@ -1,0 +1,92 @@
+{
+  "run_id": "PHASE5-PD-2026-08-02T18-26-37-078Z",
+  "status": "passed",
+  "declared": 6,
+  "executed": 6,
+  "passed": 6,
+  "failed": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "production version list exposes line eligibility summary",
+      "status": "passed",
+      "started_at": "2026-08-02T18:26:37.080Z",
+      "finished_at": "2026-08-02T18:26:37.178Z",
+      "data": {
+        "production_version_id": "76837c2f-2eeb-4d0f-837a-0c57d0303c45",
+        "code": "WST-SEED-PV-SEAL-ASM-01",
+        "line_eligibility_count": 2,
+        "primary_line_code": "WST-SEED-LINE-1"
+      }
+    },
+    {
+      "name": "line eligibility endpoint returns primary and backup rows",
+      "status": "passed",
+      "started_at": "2026-08-02T18:26:37.179Z",
+      "finished_at": "2026-08-02T18:26:37.188Z",
+      "data": [
+        {
+          "production_line_id": "2d6ce7c8-dac9-4045-b462-facf08f1a670",
+          "code": "WST-SEED-LINE-1",
+          "is_primary": true,
+          "priority_no": 1
+        },
+        {
+          "production_line_id": "c2ea34ea-c986-4906-b65e-d7aec50b9a65",
+          "code": "WST-SEED-LINE-2",
+          "is_primary": false,
+          "priority_no": 2
+        }
+      ]
+    },
+    {
+      "name": "readiness preview is backend authored",
+      "status": "passed",
+      "started_at": "2026-08-02T18:26:37.189Z",
+      "finished_at": "2026-08-02T18:26:37.208Z",
+      "data": {
+        "effective_at": "2026-08-02T18:26:37.195Z",
+        "readiness": [
+          {
+            "code": "WST-SEED-LINE-1",
+            "status": "Ready",
+            "blockers": 0
+          },
+          {
+            "code": "WST-SEED-LINE-2",
+            "status": "Ready",
+            "blockers": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "production version validation remains authoritative",
+      "status": "passed",
+      "started_at": "2026-08-02T18:26:37.208Z",
+      "finished_at": "2026-08-02T18:26:37.276Z",
+      "data": {
+        "valid": true,
+        "failures": []
+      }
+    },
+    {
+      "name": "line eligibility duplicate primary validation is rejected before mutation",
+      "status": "passed",
+      "started_at": "2026-08-02T18:26:37.276Z",
+      "finished_at": "2026-08-02T18:26:37.283Z",
+      "data": {
+        "error": "PRODUCTION_VERSION_LINE_PRIMARY_REQUIRED"
+      }
+    },
+    {
+      "name": "line eligibility duplicate active priority is rejected and rolled back",
+      "status": "passed",
+      "started_at": "2026-08-02T18:26:37.283Z",
+      "finished_at": "2026-08-02T18:26:37.306Z",
+      "data": {
+        "error": "PRODUCTION_VERSION_LINE_PRIORITY_DUPLICATE"
+      }
+    }
+  ]
+}

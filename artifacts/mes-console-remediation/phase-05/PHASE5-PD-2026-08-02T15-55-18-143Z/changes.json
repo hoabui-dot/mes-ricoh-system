@@ -1,0 +1,19 @@
+{
+  "backend": [
+    "Added active Production Version line eligibility summary fields to GET /production-versions list rows.",
+    "Mapped Production Version line uniqueness database constraints to stable validation error codes.",
+    "Aligned Production Version validation rule 6 with current line eligibility plus md_resource_capability coverage.",
+    "Added validation checks for active line eligibility, exactly one active Primary, and unique active priority."
+  ],
+  "frontend": [
+    "Production Version list shows compact Production Line eligibility summary.",
+    "Production Version detail loads backend line eligibility and readiness preview, displays Primary/Backup rows and blockers, and links to WO creation.",
+    "Production Version create/edit saves line eligibility through the backend endpoint and resets line rows when the selected site changes.",
+    "Released Production Version edit path is rendered read-only in the console."
+  ],
+  "tests": [
+    "Added scripts/test-mes-product-definition-ui-phase5.mjs.",
+    "Added e2e/resource-planning/phase5-product-definition-ui.spec.ts.",
+    "Added package scripts test:mes:product-definition-ui:phase5 and test:e2e:product-definition-ui:phase5."
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "checks": [
+    "Employee Skill assignment mutation path is under Employees.",
+    "Worker Skill Detail has no assignment mutation controls.",
+    "Worker Skill dependencies and assignment references visible.",
+    "Operation Skill Requirement and labor readiness continue to consume Employee-scoped skills.",
+    "Canonical seed verification passed after API/browser gates."
+  ]
+}

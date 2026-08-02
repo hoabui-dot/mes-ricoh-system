@@ -1,0 +1,35 @@
+{
+  "phase": "UI-03",
+  "title": "Route, Navigation, and Legacy Redirect Cleanup",
+  "generated_at": "2026-08-02T15:24:00.215Z",
+  "artifact_dir": "artifacts/mes-console-remediation/phase-03/2026-08-02T15-21-39Z",
+  "previous_gate": "PHASE_UI_02_PASSED_READY_FOR_UI_03",
+  "completion_gate": "PHASE_UI_03_PASSED_READY_FOR_UI_04",
+  "files_changed": [
+    "package.json",
+    "services/mes-console/src/App.tsx",
+    "services/mes-console/src/components/PageDetailButton.tsx",
+    "services/mes-console/src/components/ResourceHierarchy.tsx",
+    "services/mes-console/src/components/Sidebar.tsx"
+  ],
+  "route_map_before": "route-map-before.json",
+  "route_map_after": "route-map-after.json",
+  "screenshots": [
+    {
+      "route": "/work-orders",
+      "file": "work-orders.png"
+    },
+    {
+      "route": "/master-data/machines",
+      "file": "master-data-machines.png"
+    },
+    {
+      "route": "/master-data/production-areas",
+      "file": "master-data-production-areas.png"
+    },
+    {
+      "route": "/master-data/skills/workers",
+      "file": "master-data-skills-workers.png"
+    }
+  ]
+}

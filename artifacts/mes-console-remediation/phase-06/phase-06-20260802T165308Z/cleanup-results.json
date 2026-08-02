@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "commands": [
+    {
+      "command": "npm run prepare:mes:two-line-uat",
+      "status": "passed"
+    },
+    {
+      "command": "npm run verify:mes:two-line-uat",
+      "status": "passed"
+    },
+    {
+      "command": "npm run cleanup:mes:two-line-uat",
+      "status": "passed",
+      "remaining_work_orders": 0
+    },
+    {
+      "command": "npm run verify:mes:canonical-seed",
+      "status": "passed",
+      "execution_work_orders": 0
+    }
+  ]
+}

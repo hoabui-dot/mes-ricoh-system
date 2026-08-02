@@ -93,7 +93,8 @@ async function allocate(wo, operation, candidate, shift, start, key) {
 
 async function selectReadyContext(targetDate) {
   const versions = data((await master('/production-ready-versions?planned_date=' + encodeURIComponent(targetDate) + '&limit=500')).body)
-    .filter((row) => row.readiness_status === 'Ready' && row.production_version_code?.startsWith('PV-'));
+    .filter((row) => row.readiness_status === 'Ready' && (row.production_version_code?.startsWith('PV-') || row.production_version_code?.startsWith('WST-SEED-PV-')))
+    .sort((a, b) => Number(b.production_version_code?.startsWith('WST-SEED-PV-')) - Number(a.production_version_code?.startsWith('WST-SEED-PV-')));
   for (const version of versions) {
     const shifts = data((await master(`/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`)).body);
     const shift = shifts.find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');

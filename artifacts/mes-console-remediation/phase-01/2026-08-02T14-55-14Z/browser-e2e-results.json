@@ -1,0 +1,6 @@
+{
+  "results": [
+    { "command": "npm run test:e2e:worker-skill-domain:phase1", "status": "passed", "passed": 1, "failed": 0 },
+    { "command": "npm run test:e2e:resource-planning:phase8", "status": "passed", "passed": 3, "failed": 0 }
+  ]
+}

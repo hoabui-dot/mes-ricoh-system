@@ -1,0 +1,6 @@
+{
+  "dimensions": ["eligibility", "work_centers", "workstations", "machine_requirements", "equipment_units", "assignments", "capability", "calendar_shift", "production_standard", "capacity", "worker_skill_labor", "final_result", "selection_reason"],
+  "ownership": "backend",
+  "unpersisted_dimension_status": "NotPersisted",
+  "frontend_recomputation": false
+}

@@ -1,0 +1,7 @@
+{
+  "semantic_roles_and_labels": "passed",
+  "keyboard_reachable_controls": "passed in covered browser flows",
+  "stable_test_ids_and_state_regions": "passed",
+  "responsive_overlap_regression": "passed in covered browser flows",
+  "automated_axe_dependency": "not configured"
+}

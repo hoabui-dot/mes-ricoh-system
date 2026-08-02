@@ -1,0 +1,8 @@
+{
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "suites": ["persisted list triage/detail matrix: 1", "existing Phase UI-08 line-selection regression: 3"]
+}

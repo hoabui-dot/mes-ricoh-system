@@ -1,0 +1,9 @@
+{
+  "results": [
+    { "command": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.mes.yml build mes-master-data-service mes-console", "status": "passed" },
+    { "command": "docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.mes.yml up -d --no-build --force-recreate mes-master-data-service mes-console kong", "status": "passed" },
+    { "command": "npm --prefix services/mes-master-data-service run build", "status": "passed" },
+    { "command": "npm --prefix services/mes-console run typecheck", "status": "passed" },
+    { "command": "npm --prefix services/mes-console run build", "status": "passed", "note": "Existing Vite chunk-size warning only." }
+  ]
+}

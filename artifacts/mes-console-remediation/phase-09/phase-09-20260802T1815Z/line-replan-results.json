@@ -1,0 +1,6 @@
+{
+  "line_replan_contract": "retained",
+  "row_version_submitted": true,
+  "reason_required": true,
+  "line_replan_execution_segment_rule": "retained_and_visible"
+}

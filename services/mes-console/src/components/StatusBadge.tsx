@@ -5,6 +5,7 @@ import { translatedEnum } from '../lib/i18nLabels';
 
 type StatusBadgeProps = Omit<BadgeProps, 'variant'> & {
   status?: string | null;
+  kind?: 'resource' | 'lifecycle' | 'workOrder' | 'lineSelection' | 'readiness' | 'active';
   variant?: BadgeVariant;
 };
 
@@ -16,8 +17,17 @@ function toneForStatus(status?: string | null): BadgeVariant {
   return 'neutral';
 }
 
-export function StatusBadge({ status, variant, ...props }: StatusBadgeProps) {
+function prefixForKind(kind: NonNullable<StatusBadgeProps['kind']>) {
+  if (kind === 'workOrder') return 'status.wo';
+  if (kind === 'readiness') return 'resourceReadiness.status';
+  if (kind === 'lineSelection') return 'woDetail.lineSelectionStatus';
+  if (kind === 'lifecycle') return 'status.master';
+  if (kind === 'active') return 'status.resource';
+  return 'status.resource';
+}
+
+export function StatusBadge({ status, kind = 'resource', variant, ...props }: StatusBadgeProps) {
   const { t } = useI18n();
-  const label = translatedEnum(t, 'status.resource', status || 'Unknown');
+  const label = translatedEnum(t, prefixForKind(kind), status || 'Unknown');
   return <Badge variant={variant || toneForStatus(status)} {...props}>{label}</Badge>;
 }

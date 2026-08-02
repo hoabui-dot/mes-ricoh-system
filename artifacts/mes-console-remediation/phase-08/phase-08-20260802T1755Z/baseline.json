@@ -1,0 +1,4 @@
+{
+  "entry_gate": "PHASE_UI_07_PASSED_READY_FOR_UI_08",
+  "pre_change_defects": ["Work Order list exposed only minimal fields and browser-filtered status", "detail did not expose a complete structured evaluation matrix", "detail had no allocation history or gate summary contract"]
+}

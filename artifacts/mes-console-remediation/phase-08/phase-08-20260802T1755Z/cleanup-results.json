@@ -1,0 +1,8 @@
+{
+  "fixture_cleanup": "passed",
+  "work_orders_removed": 3,
+  "remaining_work_orders": 0,
+  "allocation_leaks": 0,
+  "reservation_leaks": 0,
+  "calendar_state_restored": true
+}

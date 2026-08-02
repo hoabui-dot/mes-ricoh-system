@@ -1,0 +1,13 @@
+{
+  "resource_planning_domain_phase1": {"passed": 20, "failed": 0, "skipped": 0},
+  "resource_planning_full_flow_phase2": {"passed": 20, "failed": 0, "authorized_print_station_skipped": 4},
+  "two_line_resource_planning_phase7": {"passed": 19, "failed": 0, "skipped": 0},
+  "two_line_full_regression_phase9": {"passed": 19, "failed": 0, "skipped": 0},
+  "worker_skill_phase1": {"passed": 8, "failed": 0, "skipped": 0},
+  "product_definition_snapshot_phase4": {"passed": 7, "failed": 0, "skipped": 0},
+  "product_definition_ui_phase5": {"passed": 6, "failed": 0, "skipped": 0},
+  "two_line_master_data_phase6": {"passed": 8, "failed": 0, "skipped": 0},
+  "machine_flow": {"passed": 15, "failed": 0, "skipped": 0},
+  "print_station_master_data": {"passed": 5, "failed": 0, "skipped": 0},
+  "canonical_seed_verify": "passed"
+}

@@ -1,0 +1,14 @@
+{
+  "entry_gate": "PHASE_UI_09_PASSED_READY_FOR_UI_10",
+  "canonical_seed": "verified",
+  "canonical_work_orders": 0,
+  "canonical_lines": 2,
+  "canonical_work_centers": 8,
+  "canonical_workstations": 8,
+  "canonical_equipment": 8,
+  "canonical_machine_units": 8,
+  "canonical_calendars": 8,
+  "canonical_worker_skills": 3,
+  "canonical_workers": 4,
+  "canonical_traceability_policies": 4
+}

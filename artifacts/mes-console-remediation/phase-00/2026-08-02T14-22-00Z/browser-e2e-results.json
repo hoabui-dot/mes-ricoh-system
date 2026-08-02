@@ -1,0 +1,25 @@
+{
+  "run_id": "2026-08-02T14-22-00Z",
+  "commands": [
+    {
+      "command": "npm run test:e2e:resource-planning:phase8",
+      "exit_code": 1,
+      "declared": 3,
+      "executed": 3,
+      "passed": 0,
+      "failed": 3,
+      "skipped": 0,
+      "artifacts": [
+        "artifacts/playwright/test-results/resource-planning-phase8-t-77a6f-lan-and-refresh-persistence-chromium/trace.zip",
+        "artifacts/playwright/test-results/resource-planning-phase8-t-97b2c-plan-from-unauthorized-role-chromium/trace.zip",
+        "artifacts/playwright/test-results/resource-planning-phase8-t-50a6b-ocks-in-place-line-transfer-chromium/trace.zip"
+      ],
+      "failures": [
+        "work-order-line-selection-panel not visible for phase8-backup",
+        "work-order-line-selection-panel not visible for phase8-hold",
+        "one complete Production Line explanatory text not visible on create UI"
+      ]
+    }
+  ]
+}
+

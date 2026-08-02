@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "commands": [
+    {
+      "command": "MES_ENV=development ALLOW_TWO_LINE_MASTER_DATA_MUTATION=true npm run test:mes:two-line-master-data:phase6",
+      "status": "passed"
+    }
+  ],
+  "coverage": [
+    "production line CRUD/lifecycle",
+    "same-site validation",
+    "Work Center line assignment",
+    "ownership overlap rejection",
+    "PV line eligibility",
+    "backend readiness preview",
+    "dependency-aware delete",
+    "outbox events",
+    "exact cleanup"
+  ]
+}

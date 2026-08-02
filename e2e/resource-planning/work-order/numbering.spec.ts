@@ -70,7 +70,9 @@ test('[@numbering] RP-E2E-130/131 Work Order codes remain unique sequentially an
   try {
     const date = new Date().toISOString().slice(0, 10);
     const versions = await json(ctx, auth.base, `/api/mes/master-data/production-ready-versions?planned_date=${date}&limit=500`);
-    const version = versions.find((row: any) => row.readiness_status === 'Ready' && row.production_version_code?.startsWith('PV-'));
+    const version = versions
+      .filter((row: any) => row.readiness_status === 'Ready' && (row.production_version_code?.startsWith('PV-') || row.production_version_code?.startsWith('WST-SEED-PV-')))
+      .sort((a: any, b: any) => Number(b.production_version_code?.startsWith('WST-SEED-PV-')) - Number(a.production_version_code?.startsWith('WST-SEED-PV-')))[0];
     expect(version).toBeTruthy();
     const shifts = await json(ctx, auth.base, `/api/mes/master-data/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`);
     const shift = shifts.find((row: any) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');

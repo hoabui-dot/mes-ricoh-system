@@ -1,0 +1,486 @@
+{
+  "source": "working tree App.tsx after Phase UI-03 edits",
+  "route_count": 96,
+  "routes": [
+    {
+      "path": "/",
+      "element": "<Navigate to=\"/work-orders\" replace />",
+      "status": "redirect"
+    },
+    {
+      "path": "/work-orders",
+      "element": "<WOListScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/work-orders/new",
+      "element": "<WOCreateScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/work-orders/:id",
+      "element": "<WODetailScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/console/mes/work-orders/*",
+      "element": "<LegacyRedirect from=\"/console/mes/work-orders\" to=\"/work-orders\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/master-data/items",
+      "element": "<ItemsScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/uoms",
+      "element": "<UomManagementScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/material-groups",
+      "element": "<MaterialGroupManagementScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/mboms",
+      "element": "<MbomScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/mboms/new",
+      "element": "<MbomCreateScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/mboms/:id",
+      "element": "<MbomScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/routings",
+      "element": "<RoutingScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/routings/new",
+      "element": "<RoutingCreateScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/routings/:id/edit",
+      "element": "<RoutingCreateScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/routings/:id/operations",
+      "element": "<RoutingOperationsScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-versions",
+      "element": "<ProductionVersionScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-versions/new",
+      "element": "<ProductionVersionCrudScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-versions/:id/edit",
+      "element": "<ProductionVersionCrudScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/eboms",
+      "element": "<EbomScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/eboms/:id",
+      "element": "<EbomScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operations",
+      "element": "<OperationCatalogScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operations/new",
+      "element": "<OperationCatalogScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operations/:id",
+      "element": "<OperationCatalogScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operations/:id/edit",
+      "element": "<OperationCatalogScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-areas",
+      "element": "<ResourceFoundationScreen entity=\"production-areas\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-areas/new",
+      "element": "<ResourceFoundationScreen entity=\"production-areas\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-areas/:id",
+      "element": "<ResourceFoundationScreen entity=\"production-areas\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-areas/:id/edit",
+      "element": "<ResourceFoundationScreen entity=\"production-areas\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-lines",
+      "element": "<ResourceFoundationScreen entity=\"production-lines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-lines/new",
+      "element": "<ResourceFoundationScreen entity=\"production-lines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-lines/:id",
+      "element": "<ResourceFoundationScreen entity=\"production-lines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-lines/:id/edit",
+      "element": "<ResourceFoundationScreen entity=\"production-lines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/factories",
+      "element": "<ResourceFoundationScreen entity=\"factories\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/factories/new",
+      "element": "<ResourceFoundationScreen entity=\"factories\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/factories/:id",
+      "element": "<ResourceFoundationScreen entity=\"factories\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/factories/:id/edit",
+      "element": "<ResourceFoundationScreen entity=\"factories\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/shopfloors",
+      "element": "<ResourceFoundationScreen entity=\"shopfloors\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/shopfloors/new",
+      "element": "<ResourceFoundationScreen entity=\"shopfloors\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/shopfloors/:id",
+      "element": "<ResourceFoundationScreen entity=\"shopfloors\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/shopfloors/:id/edit",
+      "element": "<ResourceFoundationScreen entity=\"shopfloors\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/product-recipes/*",
+      "element": "<LegacyRedirect from=\"/master-data/product-recipes\" to=\"/master-data/production-versions\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/items/*",
+      "element": "<LegacyRedirect from=\"/console/mes/items\" to=\"/master-data/items\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/routings/*",
+      "element": "<LegacyRedirect from=\"/console/mes/routings\" to=\"/master-data/routings\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/production-versions/*",
+      "element": "<LegacyRedirect from=\"/console/mes/production-versions\" to=\"/master-data/production-versions\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/employees",
+      "element": "<EmployeesScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/shifts",
+      "element": "<ShiftsScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/work-calendar",
+      "element": "<WorkCalendarScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/console/mes/employees/*",
+      "element": "<LegacyRedirect from=\"/console/mes/employees\" to=\"/employees\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/shifts/*",
+      "element": "<LegacyRedirect from=\"/console/mes/shifts\" to=\"/shifts\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/work-calendar/*",
+      "element": "<LegacyRedirect from=\"/console/mes/work-calendar\" to=\"/work-calendar\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/mboms/*",
+      "element": "<LegacyRedirect from=\"/console/mes/mboms\" to=\"/master-data/mboms\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/master-data/work-centers",
+      "element": "<WorkCentersScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/work-centers/new",
+      "element": "<ResourceFoundationScreen entity=\"work-centers\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/work-centers/:id",
+      "element": "<ResourceFoundationScreen entity=\"work-centers\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/work-centers/:id/edit",
+      "element": "<ResourceFoundationScreen entity=\"work-centers\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/workstations",
+      "element": "<ResourceFoundationScreen entity=\"workstations\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/workstations/new",
+      "element": "<ResourceFoundationScreen entity=\"workstations\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/workstations/:id",
+      "element": "<ResourceFoundationScreen entity=\"workstations\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/workstations/:id/edit",
+      "element": "<ResourceFoundationScreen entity=\"workstations\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/print-stations",
+      "element": "<PrintStationsScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-assignments",
+      "element": "<ResourceFoundationScreen entity=\"resource-assignments\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-assignments/new",
+      "element": "<ResourceFoundationScreen entity=\"resource-assignments\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-capabilities",
+      "element": "<PlanningConstraintsScreen entity=\"resource-capabilities\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-capabilities/new",
+      "element": "<PlanningConstraintsScreen entity=\"resource-capabilities\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-capabilities/:id",
+      "element": "<PlanningConstraintsScreen entity=\"resource-capabilities\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-capabilities/:id/edit",
+      "element": "<PlanningConstraintsScreen entity=\"resource-capabilities\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-calendars",
+      "element": "<PlanningConstraintsScreen entity=\"resource-calendars\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-calendars/new",
+      "element": "<PlanningConstraintsScreen entity=\"resource-calendars\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-calendars/:id",
+      "element": "<PlanningConstraintsScreen entity=\"resource-calendars\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/resource-calendars/:id/edit",
+      "element": "<PlanningConstraintsScreen entity=\"resource-calendars\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operation-skill-requirements",
+      "element": "<PlanningConstraintsScreen entity=\"operation-skill-requirements\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operation-skill-requirements/new",
+      "element": "<PlanningConstraintsScreen entity=\"operation-skill-requirements\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operation-skill-requirements/:id",
+      "element": "<PlanningConstraintsScreen entity=\"operation-skill-requirements\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/operation-skill-requirements/:id/edit",
+      "element": "<PlanningConstraintsScreen entity=\"operation-skill-requirements\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/console/mes/work-centers/*",
+      "element": "<LegacyRedirect from=\"/console/mes/work-centers\" to=\"/master-data/work-centers\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/i18n-review",
+      "element": "<I18nReviewScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/equipment/*",
+      "element": "<LegacyRedirect from=\"/master-data/equipment\" to=\"/master-data/machines\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/master-data/machines",
+      "element": "<ResourceFoundationScreen entity=\"machines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/machines/new",
+      "element": "<ResourceFoundationScreen entity=\"machines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/machines/:id",
+      "element": "<ResourceFoundationScreen entity=\"machines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/machines/:id/edit",
+      "element": "<ResourceFoundationScreen entity=\"machines\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/console/mes/equipment/*",
+      "element": "<LegacyRedirect from=\"/console/mes/equipment\" to=\"/master-data/machines\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/master-data/production-standards",
+      "element": "<PlanningConstraintsScreen entity=\"production-standards\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-standards/new",
+      "element": "<PlanningConstraintsScreen entity=\"production-standards\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-standards/:id",
+      "element": "<PlanningConstraintsScreen entity=\"production-standards\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/production-standards/:id/edit",
+      "element": "<PlanningConstraintsScreen entity=\"production-standards\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/console/mes/production-standards",
+      "element": "<PlanningConstraintsScreen entity=\"production-standards\" />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/reason-codes",
+      "element": "<Tier2AdminScreen entityType=\"reason-codes\" titleKey=\"tier2.reasonCodes.title\" subtitleKey=\"tier2.reasonCodes.subtitle\" icon={AlertTriangle",
+      "status": "rendered"
+    },
+    {
+      "path": "/console/mes/reason-codes",
+      "element": "<Tier2AdminScreen entityType=\"reason-codes\" titleKey=\"tier2.reasonCodes.title\" subtitleKey=\"tier2.reasonCodes.subtitle\" icon={AlertTriangle",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/skills",
+      "element": "<SkillManagementScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/skills/:scope",
+      "element": "<SkillManagementScreen />",
+      "status": "rendered"
+    },
+    {
+      "path": "/master-data/worker-skills/*",
+      "element": "<LegacyRedirect from=\"/master-data/worker-skills\" to=\"/master-data/skills/workers\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/master-data/employee-skills/*",
+      "element": "<LegacyRedirect from=\"/master-data/employee-skills\" to=\"/employees\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/worker-skills/*",
+      "element": "<LegacyRedirect from=\"/worker-skills\" to=\"/master-data/skills/workers\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "/console/mes/skills/*",
+      "element": "<LegacyRedirect from=\"/console/mes/skills\" to=\"/master-data/skills/workers\" />",
+      "status": "redirect"
+    },
+    {
+      "path": "*",
+      "element": "<NotFoundScreen />",
+      "status": "rendered"
+    }
+  ]
+}

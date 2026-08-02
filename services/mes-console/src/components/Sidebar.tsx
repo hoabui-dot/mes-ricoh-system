@@ -11,7 +11,6 @@ import {
   Gauge,
   AlertTriangle,
   Award,
-  Languages,
   Users,
   Clock,
   CalendarDays,
@@ -39,7 +38,7 @@ export const Sidebar: React.FC = () => {
       <div>
         <div className={navSectionClass}>{t('nav.operations')}</div>
         <div className="space-y-1">
-          <NavLink to="/work-orders" className={linkClass} end>
+          <NavLink to="/work-orders" className={linkClass}>
             <ClipboardList className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.workOrders')}</span>
           </NavLink>
@@ -113,6 +112,10 @@ export const Sidebar: React.FC = () => {
             <Map className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('resourceFoundation.shopfloors')}</span>
           </NavLink>
+          <NavLink to="/master-data/production-areas" className={linkClass}>
+            <Map className="mes-nav-icon h-4 w-4 text-info" />
+            <span>{t('resourceFoundation.productionAreas')}</span>
+          </NavLink>
           <NavLink to="/master-data/production-lines" className={linkClass}>
             <Factory className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('resourceFoundation.productionLines')}</span>
@@ -160,10 +163,6 @@ export const Sidebar: React.FC = () => {
           <NavLink to="/master-data/skills" className={linkClass}>
             <Award className="mes-nav-icon h-4 w-4 text-info" />
             <span>{t('nav.skills')}</span>
-          </NavLink>
-          <NavLink to="/console/mes/i18n-review" className={linkClass}>
-            <Languages className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.i18nReview')}</span>
           </NavLink>
         </div>
       </div>

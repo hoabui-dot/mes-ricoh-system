@@ -1,0 +1,42 @@
+{
+  "resource_calendars": {
+    "resource_type": [
+      "Equipment",
+      "WorkCenter",
+      "Workstation"
+    ],
+    "availability_status": [
+      "Available",
+      "PlannedDown",
+      "Holiday"
+    ],
+    "dependent_reset": [
+      "site_id -> resource_id",
+      "resource_type -> resource_id"
+    ]
+  },
+  "resource_capabilities": {
+    "dependent_reset": [
+      "site_id -> work_center_id,equipment_id",
+      "work_center_id -> equipment_id"
+    ],
+    "selectors": [
+      "site_id",
+      "operation_id",
+      "work_center_id",
+      "equipment_id"
+    ]
+  },
+  "production_standards": {
+    "source_method": [
+      "Engineering",
+      "TimeStudy",
+      "Imported",
+      "ApprovedOverride"
+    ],
+    "dependent_reset": [
+      "site_id -> work_center_id,routing_operation_id,equipment_id",
+      "work_center_id -> routing_operation_id,equipment_id"
+    ]
+  }
+}

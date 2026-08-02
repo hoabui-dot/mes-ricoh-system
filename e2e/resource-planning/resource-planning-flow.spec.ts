@@ -56,7 +56,7 @@ test('[@smoke] creates a Work Order and commits every Ready resource candidate t
   const dateInput = page.locator('input[type="date"]').first();
   if (await dateInput.count()) await dateInput.fill(targetDate);
   await page.locator('input[inputmode="decimal"]').first().fill('2');
-  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-/i);
+  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-|Won Seal Tech/i);
   await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
   await page.getByTestId('work-order-create-submit').click();
   await expect(page.getByRole('dialog', { name: /Tạo lệnh sản xuất|Create Work Order/i })).toBeVisible({ timeout: 15_000 });
@@ -112,7 +112,7 @@ test('[@validation] blocks an invalid Work Order quantity before submit', async 
   const dateInput = page.locator('input[type="date"]').first();
   if (await dateInput.count()) await dateInput.fill(targetDate);
   await page.locator('input[inputmode="decimal"]').first().fill('0');
-  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-/i);
+  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-|Won Seal Tech/i);
   await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
   await expect(page.getByTestId('work-order-create-submit')).toBeDisabled();
   await expect(page.getByTestId('work-order-create-screen')).not.toContainText('[object Object]');

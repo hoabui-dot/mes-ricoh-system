@@ -1,0 +1,16 @@
+{
+  "files_changed": [
+    "services/mes-master-data-service/src/infrastructure/http/master-data.router.ts",
+    "services/mes-console/src/routes/master-data/EmployeesScreen.tsx",
+    "services/mes-console/src/routes/master-data/SkillManagementScreen.tsx",
+    "services/mes-console/src/i18n.ts",
+    "e2e/resource-planning/phase7-labor-skill-ux.spec.ts",
+    "package.json"
+  ],
+  "summary": [
+    "Employee list now exposes site, Work Center, active skill, and schedule summaries from backend data.",
+    "Employee modal owns skill assignment mutation with level, qualification status, expiry, and history visibility.",
+    "Worker Skill list/detail remains Employee-scoped and read-only for assignments while showing dependencies and employee edit links.",
+    "Worker Skill API exposes dependency counts without frontend readiness calculation."
+  ]
+}

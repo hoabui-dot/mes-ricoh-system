@@ -1,0 +1,18 @@
+{
+  "phase": "UI-02",
+  "accepted": true,
+  "final_status": "PHASE_UI_02_PASSED_READY_FOR_UI_03",
+  "next_authorized_phase": "UI-03",
+  "criteria": {
+    "prepare_verify_cleanup_commands_exist": true,
+    "preparation_idempotent": true,
+    "three_uat_scenarios_available": true,
+    "primary_selects_primary": true,
+    "fallback_selects_backup": true,
+    "hold_selects_no_line": true,
+    "operations_line_consistent": true,
+    "cleanup_restores_mutations": true,
+    "canonical_seed_passes_after_cleanup": true,
+    "browser_smoke_passes": true
+  }
+}

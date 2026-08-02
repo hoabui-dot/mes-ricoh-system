@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-08-02T15:24:00.215Z",
+  "before_route_count": 102,
+  "prior_legacy_rendered_routes": [
+    "/console/mes/work-orders",
+    "/console/mes/work-orders/new",
+    "/console/mes/work-orders/:id",
+    "/console/mes/items",
+    "/console/mes/routings",
+    "/console/mes/production-versions",
+    "/console/mes/employees",
+    "/console/mes/shifts",
+    "/console/mes/work-calendar",
+    "/console/mes/mboms",
+    "/console/mes/mboms/:id",
+    "/console/mes/work-centers",
+    "/console/mes/i18n-review",
+    "/console/mes/equipment",
+    "/console/mes/production-standards",
+    "/console/mes/reason-codes",
+    "/console/mes/skills"
+  ],
+  "prior_equipment_rendered_routes": [
+    "/master-data/equipment",
+    "/master-data/equipment/new",
+    "/master-data/equipment/:id",
+    "/master-data/equipment/:id/edit",
+    "/console/mes/equipment"
+  ],
+  "prior_sidebar_findings": [
+    "Production Areas route existed but was not in Sidebar",
+    "i18n review was visible in Sidebar",
+    "Work Orders sidebar used exact active matching"
+  ]
+}

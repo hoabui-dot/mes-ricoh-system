@@ -199,15 +199,15 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const skillGroupResult = await client.query(`
       INSERT INTO md_skill_group (code, name, description, scope, legacy_flag, lifecycle_status, created_by)
       VALUES
-        ('SKG-WC-PROCESS', jsonb_build_object('vi','Năng lực công đoạn Work Center','en','Work Center Process Capabilities','ja','ワークセンター工程能力','ko','Work Center 공정 역량'), jsonb_build_object('vi','Kỹ năng dùng cho năng lực công đoạn sản xuất.','en','Skills used for production process capability.','ja','生産工程能力に使用するスキル。','ko','생산 공정 역량에 사용하는 기술입니다.'), 'WorkCenter', FALSE, 'Released', $1),
-        ('SKG-WC-QUALITY', jsonb_build_object('vi','Năng lực kiểm tra Work Center','en','Work Center Inspection Capabilities','ja','ワークセンター検査能力','ko','Work Center 검사 역량'), jsonb_build_object('vi','Kỹ năng dùng cho kiểm tra chất lượng.','en','Skills used for quality inspection capability.','ja','品質検査能力に使用するスキル。','ko','품질 검사 역량에 사용하는 기술입니다.'), 'WorkCenter', FALSE, 'Released', $1)
+        ('SKG-EMP-PROCESS', jsonb_build_object('vi','Kỹ năng nhân sự công đoạn','en','Employee Process Skills','ja','従業員工程スキル','ko','직원 공정 기술'), jsonb_build_object('vi','Kỹ năng nhân sự dùng cho phân công lao động công đoạn sản xuất.','en','Employee skills used for production operation labor readiness.','ja','生産工程の作業者準備判定に使用する従業員スキル。','ko','생산 공정 작업자 준비 판정에 사용하는 직원 기술입니다.'), 'Employee', FALSE, 'Released', $1),
+        ('SKG-EMP-QUALITY', jsonb_build_object('vi','Kỹ năng nhân sự kiểm tra','en','Employee Inspection Skills','ja','従業員検査スキル','ko','직원 검사 기술'), jsonb_build_object('vi','Kỹ năng nhân sự dùng cho kiểm tra chất lượng.','en','Employee skills used for quality inspection labor readiness.','ja','品質検査の作業者準備判定に使用する従業員スキル。','ko','품질 검사 작업자 준비 판정에 사용하는 직원 기술입니다.'), 'Employee', FALSE, 'Released', $1)
       ON CONFLICT (code) DO UPDATE SET legacy_flag = FALSE, scope = EXCLUDED.scope
       RETURNING skill_group_id, code
     `, [ADMIN_USER_ID]);
     const skillGroups = new Map(skillGroupResult.rows.map((row: { code: string; skill_group_id: string }) => [row.code, row.skill_group_id]));
-	    const skillMixId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-WC-MIX-MASTER', name: 'Kỹ thuật luyện cán cao cấp', skill_group: 'Production', skill_group_id: skillGroups.get('SKG-WC-PROCESS'), scope: 'WorkCenter', legacy_flag: false, minimum_level: 'L3' });
-	    const skillVulcanId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-WC-VULCAN-OPERATOR', name: 'Vận hành máy ép lưu hóa áp lực cao', skill_group: 'Production', skill_group_id: skillGroups.get('SKG-WC-PROCESS'), scope: 'WorkCenter', legacy_flag: false, minimum_level: 'L2' });
-	    const skillInspectionId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-WC-INSPECTION', name: 'Kỹ thuật viên QC', skill_group: 'Quality', skill_group_id: skillGroups.get('SKG-WC-QUALITY'), scope: 'WorkCenter', legacy_flag: false, minimum_level: 'L2' });
+	    const skillMixId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-EMP-MIX-MASTER', name: 'Kỹ thuật viên luyện cán cao cấp', skill_group: 'Employee', skill_group_id: skillGroups.get('SKG-EMP-PROCESS'), scope: 'Employee', legacy_flag: false, minimum_level: 'L3' });
+	    const skillVulcanId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-EMP-VULCAN-OPERATOR', name: 'Nhân sự vận hành ép lưu hóa', skill_group: 'Employee', skill_group_id: skillGroups.get('SKG-EMP-PROCESS'), scope: 'Employee', legacy_flag: false, minimum_level: 'L2' });
+	    const skillInspectionId = await upsertMaster(client, 'md_skill', { ...common, code: 'SK-EMP-INSPECTION', name: 'Nhân sự kiểm tra chất lượng', skill_group: 'Employee', skill_group_id: skillGroups.get('SKG-EMP-QUALITY'), scope: 'Employee', legacy_flag: false, minimum_level: 'L2' });
 	    const eqMixId = await upsertMaster(client, 'md_equipment', { ...common, code: 'EQ-MIX-BANBURY01', name: 'Banbury mixer 01', site_id: siteId, work_center_id: wcMixId, equipment_type: 'Mixer', active_flag: true, planning_resource_flag: true, execution_status: 'Available' });
 	    const mixUnitResult = await client.query(`
 	      INSERT INTO md_machine_unit (machine_id, code, unit_sequence, serial_number, execution_status, active_flag, lifecycle_status, physical_identity_status, planning_resource_flag)
@@ -390,8 +390,12 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	    for (const [index, wcId] of [wcMixId, wcMoldId, wcCutId, wcQcId].entries()) {
 	      await client.query(`
 	        INSERT INTO md_production_line_work_center (production_line_id, work_center_id, sequence_no, mandatory_flag, effective_from, active_flag, created_by)
-	        VALUES ($1, $2, $3, TRUE, $4, TRUE, $5)
-	        ON CONFLICT DO NOTHING
+	        SELECT $1, $2, $3, TRUE, $4, TRUE, $5
+	        WHERE NOT EXISTS (
+	          SELECT 1 FROM md_production_line_work_center
+	          WHERE production_line_id = $1 AND work_center_id = $2
+	            AND active_flag = TRUE AND effective_to IS NULL
+	        )
 	      `, [baseLineId, wcId, index + 1, now, SYSTEM_USER_ID]);
 	    }
 	    await client.query(`

@@ -1,0 +1,126 @@
+{
+  "success": true,
+  "run_id": "PHASE1-WORKER-SKILL-1785686139938-J3WLX",
+  "declared": 8,
+  "executed": 8,
+  "passed": 8,
+  "failed": 0,
+  "skipped": 0,
+  "canonical": {
+    "employee_invalid_references": 0,
+    "operation_requirement_invalid_references": 0
+  },
+  "workerSkills": {
+    "count": 3,
+    "codes": [
+      "SK-EMP-INSPECTION",
+      "SK-EMP-MIX-MASTER",
+      "SK-EMP-VULCAN-OPERATOR"
+    ]
+  },
+  "steps": [
+    {
+      "name": "canonical Worker Skills are Employee scoped and duplicate-free",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:39.985Z",
+      "finished_at": "2026-08-02T15:55:39.995Z",
+      "data": {
+        "rows": [
+          {
+            "code": "SK-EMP-INSPECTION",
+            "scope": "Employee",
+            "lifecycle_status": "Released",
+            "legacy_flag": false
+          },
+          {
+            "code": "SK-EMP-MIX-MASTER",
+            "scope": "Employee",
+            "lifecycle_status": "Released",
+            "legacy_flag": false
+          },
+          {
+            "code": "SK-EMP-VULCAN-OPERATOR",
+            "scope": "Employee",
+            "lifecycle_status": "Released",
+            "legacy_flag": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "canonical references use Employee scoped Worker Skills",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:39.996Z",
+      "finished_at": "2026-08-02T15:55:40.002Z",
+      "data": {
+        "employee_invalid_references": 0,
+        "operation_requirement_invalid_references": 0
+      }
+    },
+    {
+      "name": "Worker Skill API returns Employee scoped definitions",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:40.002Z",
+      "finished_at": "2026-08-02T15:55:40.065Z",
+      "data": {
+        "count": 3,
+        "codes": [
+          "SK-EMP-INSPECTION",
+          "SK-EMP-MIX-MASTER",
+          "SK-EMP-VULCAN-OPERATOR"
+        ]
+      }
+    },
+    {
+      "name": "Employee Skill API returns and accepts Employee scoped definitions",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:40.066Z",
+      "finished_at": "2026-08-02T15:55:40.128Z",
+      "data": {
+        "employee_id": "00000000-0000-4000-8000-000000000201",
+        "skill_id": "f1cd59ff-ea2f-492b-b6f7-f317956ccc5b"
+      }
+    },
+    {
+      "name": "Employee Skill API rejects WorkCenter scoped skill assignment",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:40.128Z",
+      "finished_at": "2026-08-02T15:55:40.189Z",
+      "data": {
+        "status": 422
+      }
+    },
+    {
+      "name": "Operation Skill Requirement APIs use Employee scope and reject WorkCenter scope",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:40.189Z",
+      "finished_at": "2026-08-02T15:55:40.275Z",
+      "data": {
+        "listed": 1,
+        "rejected_status": 422,
+        "accepted_requirement_id": "09aa8411-b6c5-413f-8d37-9e793358c6c3"
+      }
+    },
+    {
+      "name": "Operation Skill Requirement API rejects invalid effectivity",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:40.275Z",
+      "finished_at": "2026-08-02T15:55:40.293Z",
+      "data": {
+        "status": 422
+      }
+    },
+    {
+      "name": "labor readiness consumes corrected Employee scoped identity",
+      "status": "passed",
+      "started_at": "2026-08-02T15:55:40.293Z",
+      "finished_at": "2026-08-02T15:55:40.312Z",
+      "data": {
+        "sufficient_gaps": 0,
+        "missing_gap_verified": true,
+        "insufficient_level_verified": true
+      }
+    }
+  ],
+  "artifact": "/home/neurosus/recoh-system/mes-system/artifacts/mes-worker-skill-domain/PHASE1-WORKER-SKILL-1785686139938-J3WLX.json"
+}

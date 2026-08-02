@@ -1,0 +1,16 @@
+{
+  "backend": [
+    "Added backend-authored Production Line list readiness_status/readiness_blocker_count plus detail readiness_summary.",
+    "Extended Work Center detail with line_memberships, operation_capabilities, calendars, and production_standards.",
+    "Extended Workstation detail with operation_capabilities, calendars, and production_standards inherited from parent Work Center / assigned resources."
+  ],
+  "frontend": [
+    "Added Production Line list columns for shopfloor, Work Center count, eligible PV count, backend readiness, and effectivity.",
+    "Added Production Line detail tabs for Overview, Work Centers, Eligibility, Readiness, and Audit / History.",
+    "Added Work Center / Workstation planning evidence panels for capabilities, calendars, standards, and line membership.",
+    "Constrained planning selector fields and reset dependent selections when Site / Work Center / resource type changes."
+  ],
+  "tests": [
+    "Expanded phase6-production-lines Playwright spec from 1 smoke test to 3 UI tests."
+  ]
+}

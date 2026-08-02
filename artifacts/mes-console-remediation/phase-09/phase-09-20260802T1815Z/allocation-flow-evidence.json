@@ -1,0 +1,9 @@
+{
+  "candidate_retrieval": "passed",
+  "manual_exact_commit": "passed",
+  "selected_line_enforcement": "passed",
+  "stale_candidate": "passed",
+  "idempotent_replay": "passed",
+  "idempotency_conflict": "passed",
+  "row_version_and_lifecycle_authority": "passed"
+}

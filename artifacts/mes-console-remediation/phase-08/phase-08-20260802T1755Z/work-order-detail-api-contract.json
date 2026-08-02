@@ -1,0 +1,5 @@
+{
+  "endpoint": "GET /api/mes/execution/work-orders/{id}",
+  "additive_fields": ["allocation_history", "gate_summary"],
+  "header_fields": ["production_version_code", "selected_production_line_code", "line_selection_status", "line_locked_at", "fallback_reason", "resource_hold_reason", "evaluated_line_results"]
+}

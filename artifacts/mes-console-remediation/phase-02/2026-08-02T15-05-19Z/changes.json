@@ -1,0 +1,14 @@
+{
+  "files_changed": [
+    "scripts/mes-two-line-uat-fixtures.mjs",
+    "e2e/resource-planning/phase2-two-line-uat-fixtures.spec.ts",
+    "package.json",
+    "AI_document/Phase-02/REPORT_PHASE_02.md"
+  ],
+  "api_changes": "none",
+  "database_changes": "none",
+  "temporary_mutations": [
+    "rm_resource_calendar.lifecycle_status for primary line calendars",
+    "rm_resource_calendar.lifecycle_status for primary and backup line calendars"
+  ]
+}

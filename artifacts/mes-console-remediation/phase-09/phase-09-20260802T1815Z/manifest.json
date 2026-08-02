@@ -1,0 +1,8 @@
+{
+  "phase": "UI-09",
+  "run_id": "phase-09-20260802T1815Z",
+  "scope": "Resource Planning and Work Order lifecycle action alignment",
+  "status": "passed",
+  "gate": "PHASE_UI_09_PASSED_READY_FOR_UI_10",
+  "print_station_third_party_scope": "skipped_by_request"
+}

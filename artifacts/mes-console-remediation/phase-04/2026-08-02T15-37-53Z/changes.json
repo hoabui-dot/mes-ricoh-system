@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "files_changed": [
+    "package.json",
+    "services/mes-console/src/App.tsx",
+    "services/mes-console/src/components/PageDetailButton.tsx",
+    "services/mes-console/src/components/ResourceHierarchy.tsx",
+    "services/mes-console/src/components/Sidebar.tsx",
+    "services/mes-console/src/components/StatusBadge.tsx",
+    "services/mes-console/src/components/base/BaseDataTable.tsx",
+    "services/mes-console/src/components/base/BaseStates.tsx",
+    "services/mes-console/src/components/base/index.ts",
+    "services/mes-console/src/i18n.ts",
+    "services/mes-console/src/lib/masterDataApi.ts",
+    "services/mes-console/src/lib/queryKeys.ts",
+    "services/mes-console/src/routes/master-data/PlanningConstraintsScreen.tsx",
+    "services/mes-console/src/routes/master-data/ProductionVersionScreen.tsx"
+  ],
+  "api_changes": [],
+  "backend_changes": [],
+  "seed_or_migration_changes": [],
+  "frontend_changes": [
+    "Shared BaseFilterBar added",
+    "Shared BaseBlockerList added",
+    "Dependency and audit panel foundations added",
+    "BaseDataTable error/retry/filtered-empty added",
+    "BaseStates error/forbidden added",
+    "StatusBadge typed kind added",
+    "Typed API contracts and fetchResourceEnvelope added",
+    "ProductionVersionScreen migrated as representative retained screen"
+  ]
+}

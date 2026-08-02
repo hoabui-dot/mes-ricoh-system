@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "generated_at": "2026-08-02T15:22:43.944Z",
+  "checks": [
+    {
+      "name": "GET machines",
+      "status": 200,
+      "passed": true,
+      "count": 1
+    },
+    {
+      "name": "GET production-areas",
+      "status": 200,
+      "passed": true,
+      "count": 1
+    },
+    {
+      "name": "GET work-orders",
+      "status": 200,
+      "passed": true,
+      "count": 1
+    }
+  ],
+  "declared": 3,
+  "executed": 3,
+  "passed": 3,
+  "failed": 0,
+  "skipped": 0
+}

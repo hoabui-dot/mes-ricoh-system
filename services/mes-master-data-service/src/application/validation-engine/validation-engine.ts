@@ -134,12 +134,36 @@ export async function validateProductionVersion(
     if (!workCenter.rows[0]) failures.push(fail('5', 'ROUTING_WORKCENTER_INVALID', { routingOperationId: op.master_id }));
     else factoryIds.add(workCenter.rows[0].site_id);
     if (!(await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND lifecycle_status = 'Released'`, [op.operation_id]))) failures.push(fail('5', 'ROUTING_OPERATION_INACTIVE', { routingOperationId: op.master_id }));
-    if (!(await exists(db, `
+    const workstationCapabilitySupported = await exists(db, `
       SELECT 1 FROM md_work_center wc
       JOIN md_work_center_composition c ON c.work_center_id = wc.master_id AND c.active_flag = TRUE AND (c.effective_to IS NULL OR c.effective_to > NOW())
       JOIN md_workstation ws ON ws.master_id = c.workstation_id AND ws.active_flag = TRUE AND ws.lifecycle_status NOT IN ('Inactive', 'Obsolete')
       JOIN md_workstation_operation_capability capability ON capability.workstation_id = ws.master_id AND capability.operation_id = $2 AND capability.active_flag = TRUE AND (capability.effective_to IS NULL OR capability.effective_to > NOW())
-      WHERE wc.master_id = $1 AND wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.work_center_id, op.operation_id]))) failures.push(fail('6', 'WORKCENTER_OPERATION_NOT_SUPPORTED', { routingOperationId: op.master_id }));
+      WHERE wc.master_id = $1 AND wc.active_flag = TRUE AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')`, [op.work_center_id, op.operation_id]);
+    const lineCapabilitySupported = await exists(db, `
+      SELECT 1
+      FROM md_production_version_line_eligibility e
+      WHERE e.production_version_id = $1
+        AND e.active_flag = TRUE
+        AND e.effective_from <= NOW()
+        AND (e.effective_to IS NULL OR e.effective_to > NOW())
+        AND NOT EXISTS (
+          SELECT 1
+          FROM md_production_line_work_center lwc
+          JOIN md_resource_capability rc ON rc.work_center_id = lwc.work_center_id
+            AND rc.operation_id = $2
+            AND rc.eligibility = TRUE
+            AND rc.active_flag = TRUE
+            AND rc.lifecycle_status = 'Released'
+            AND rc.effective_from <= NOW()
+            AND (rc.effective_to IS NULL OR rc.effective_to > NOW())
+          WHERE lwc.production_line_id = e.production_line_id
+            AND lwc.active_flag = TRUE
+            AND lwc.effective_from <= NOW()
+            AND (lwc.effective_to IS NULL OR lwc.effective_to > NOW())
+        )
+      LIMIT 1`, [productionVersionId, op.operation_id]);
+    if (!workstationCapabilitySupported && lineCapabilitySupported) failures.push(fail('6', 'WORKCENTER_OPERATION_NOT_SUPPORTED', { routingOperationId: op.master_id }));
     const schedulable = await exists(db, `SELECT 1 FROM md_operation WHERE master_id = $1 AND is_schedulable = TRUE`, [op.operation_id]);
     if (schedulable && !(await exists(db, `
       SELECT 1 FROM md_operation operation
@@ -158,6 +182,22 @@ export async function validateProductionVersion(
   }
   if (routingOps.some((op) => op.predecessor_seq === op.seq)) {
     failures.push(fail('4', 'ROUTING.CYCLE'));
+  }
+
+  const lineEligibility = await db.query<{ active_count: number; primary_count: number; priority_count: number }>(`
+    SELECT COUNT(*)::INT AS active_count,
+           COUNT(*) FILTER (WHERE is_primary = TRUE)::INT AS primary_count,
+           COUNT(DISTINCT priority_no)::INT AS priority_count
+    FROM md_production_version_line_eligibility
+    WHERE production_version_id = $1
+      AND active_flag = TRUE
+      AND effective_from <= NOW()
+      AND (effective_to IS NULL OR effective_to > NOW())`, [productionVersionId]);
+  const eligibilityCounts = lineEligibility.rows[0];
+  if (!eligibilityCounts || Number(eligibilityCounts.active_count) < 1) failures.push(fail('11', 'PRODUCTION_VERSION_LINE_ELIGIBILITY_REQUIRED'));
+  else {
+    if (Number(eligibilityCounts.primary_count) !== 1) failures.push(fail('11', 'PRODUCTION_VERSION_LINE_PRIMARY_REQUIRED'));
+    if (Number(eligibilityCounts.priority_count) !== Number(eligibilityCounts.active_count)) failures.push(fail('11', 'PRODUCTION_VERSION_LINE_PRIORITY_DUPLICATE'));
   }
 
   const warnings: ValidationFailure[] = factoryIds.size > 1 ? [{ rule: '5', severity: 'WARN', code: 'INTER_FACTORY_ROUTING' }] : [];

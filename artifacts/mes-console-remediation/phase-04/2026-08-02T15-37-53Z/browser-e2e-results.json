@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "declared": 3,
+  "executed": 3,
+  "passed": 3,
+  "failed": 0,
+  "skipped": 0,
+  "commands": [
+    {
+      "command": "npm run test:e2e:shared-ui:phase4",
+      "status": "passed",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:e2e:route-navigation:phase3",
+      "status": "passed after UAT fixture prepare",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:e2e:two-line-uat:phase2",
+      "status": "passed",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    }
+  ]
+}

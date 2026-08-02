@@ -1,0 +1,52 @@
+{
+  "source": "npm run test:mes:product-definition-ui:phase5",
+  "duplicate_primary": {
+    "name": "line eligibility duplicate primary validation is rejected before mutation",
+    "status": "passed",
+    "started_at": "2026-08-02T15:55:18.343Z",
+    "finished_at": "2026-08-02T15:55:18.349Z",
+    "data": {
+      "error": "PRODUCTION_VERSION_LINE_PRIMARY_REQUIRED"
+    }
+  },
+  "duplicate_priority": {
+    "name": "line eligibility duplicate active priority is rejected and rolled back",
+    "status": "passed",
+    "started_at": "2026-08-02T15:55:18.349Z",
+    "finished_at": "2026-08-02T15:55:18.377Z",
+    "data": {
+      "error": "PRODUCTION_VERSION_LINE_PRIORITY_DUPLICATE"
+    }
+  },
+  "readiness_preview": {
+    "name": "readiness preview is backend authored",
+    "status": "passed",
+    "started_at": "2026-08-02T15:55:18.266Z",
+    "finished_at": "2026-08-02T15:55:18.293Z",
+    "data": {
+      "effective_at": "2026-08-02T15:55:18.284Z",
+      "readiness": [
+        {
+          "code": "WST-SEED-LINE-1",
+          "status": "Ready",
+          "blockers": 0
+        },
+        {
+          "code": "WST-SEED-LINE-2",
+          "status": "Ready",
+          "blockers": 0
+        }
+      ]
+    }
+  },
+  "production_version_validation": {
+    "name": "production version validation remains authoritative",
+    "status": "passed",
+    "started_at": "2026-08-02T15:55:18.293Z",
+    "finished_at": "2026-08-02T15:55:18.343Z",
+    "data": {
+      "valid": true,
+      "failures": []
+    }
+  }
+}

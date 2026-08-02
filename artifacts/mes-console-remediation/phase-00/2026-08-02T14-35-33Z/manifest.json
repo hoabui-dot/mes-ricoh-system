@@ -1,0 +1,12 @@
+{
+  "run_id": "2026-08-02T14-35-33Z",
+  "phase": "UI-00",
+  "supersedes_run_id": "2026-08-02T14-22-00Z",
+  "files": [
+    "build-results.json",
+    "api-integration-results.json",
+    "browser-e2e-results.json",
+    "acceptance-results.json",
+    "readiness-gate.json"
+  ]
+}

@@ -10,6 +10,7 @@ const masterUrl = process.env.MES_MASTER_DATA_DATABASE_URL || 'postgresql://mes_
 const executionUrl = process.env.MES_EXECUTION_DATABASE_URL || 'postgresql://mes_execution_user:mes_execution_pass@localhost:15435/mes_execution_db';
 const traceabilityUrl = process.env.MES_TRACEABILITY_DATABASE_URL || 'postgresql://traceability_user:traceability_pass@localhost:15436/mes_traceability_db';
 const namespace = 'WST-SEED';
+const workerSkillCodes = "'SK-EMP-MIX-MASTER','SK-EMP-VULCAN-OPERATOR','SK-EMP-INSPECTION'";
 const json = (value) => JSON.stringify(value, null, 2);
 
 async function writeArtifact(name, value) {
@@ -48,11 +49,11 @@ async function main() {
         (SELECT COUNT(*)::int FROM md_production_version WHERE code='${namespace}-PV-SEAL-ASM-01' AND lifecycle_status='Released') AS canonical_production_version,
         (SELECT COUNT(*)::int FROM md_production_version_line_eligibility e JOIN md_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code='${namespace}-PV-SEAL-ASM-01' AND e.active_flag=TRUE) AS canonical_line_eligibilities,
         (SELECT COUNT(*)::int FROM md_production_version_line_eligibility e JOIN md_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code='${namespace}-PV-SEAL-ASM-01' AND e.is_primary=TRUE AND e.active_flag=TRUE) AS canonical_primary_lines,
-        (SELECT COUNT(*)::int FROM md_skill WHERE code IN ('SK-WC-MIX-MASTER','SK-WC-VULCAN-OPERATOR','SK-WC-INSPECTION') AND lifecycle_status='Released') AS worker_skills,
+        (SELECT COUNT(*)::int FROM md_skill WHERE code IN (${workerSkillCodes}) AND scope='Employee' AND lifecycle_status='Released') AS worker_skills,
         (SELECT COUNT(*)::int FROM md_employee WHERE code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND lifecycle_status='Released' AND employee_status='Active') AS workers,
-        (SELECT COUNT(*)::int FROM md_employee_skill es JOIN md_employee e ON e.master_id=es.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND es.active_flag=TRUE AND es.effective_to IS NULL AND es.qualification_status='Active') AS worker_skill_assignments,
+        (SELECT COUNT(*)::int FROM md_employee_skill es JOIN md_employee e ON e.master_id=es.employee_id JOIN md_skill s ON s.master_id=es.skill_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND s.scope='Employee' AND es.active_flag=TRUE AND es.effective_to IS NULL AND es.qualification_status='Active') AS worker_skill_assignments,
         (SELECT COUNT(*)::int FROM md_employee_shift_schedule sch JOIN md_employee e ON e.master_id=sch.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND sch.schedule_date=DATE '2026-08-03' AND sch.schedule_status='Scheduled') AS worker_shift_schedules,
-        (SELECT COUNT(*)::int FROM md_operation_skill_requirement r JOIN md_routing_operation ro ON ro.master_id=r.routing_operation_id JOIN md_routing_header rh ON rh.master_id=ro.routing_header_id JOIN md_production_version pv ON pv.routing_header_id=rh.master_id WHERE pv.code='PV-FG-WS-CM01-R1' AND r.lifecycle_status='Released' AND r.active_flag=TRUE AND r.effective_to IS NULL) AS base_operation_skill_requirements
+        (SELECT COUNT(*)::int FROM md_operation_skill_requirement r JOIN md_routing_operation ro ON ro.master_id=r.routing_operation_id JOIN md_routing_header rh ON rh.master_id=ro.routing_header_id JOIN md_production_version pv ON pv.routing_header_id=rh.master_id JOIN md_skill s ON s.master_id=r.skill_id WHERE pv.code='PV-FG-WS-CM01-R1' AND s.scope='Employee' AND r.lifecycle_status='Released' AND r.active_flag=TRUE AND r.effective_to IS NULL) AS base_operation_skill_requirements
     `)).rows[0];
     const integrity = (await query(master, `
       SELECT
@@ -67,7 +68,7 @@ async function main() {
         (SELECT COUNT(*)::int FROM rm_production_version WHERE code='${namespace}-PV-SEAL-ASM-01' AND lifecycle_status='Released') AS rm_production_version,
         (SELECT COUNT(*)::int FROM rm_production_line WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS rm_lines,
         (SELECT COUNT(*)::int FROM rm_production_version_line_eligibility e JOIN rm_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code='${namespace}-PV-SEAL-ASM-01' AND e.active_flag=TRUE) AS rm_line_eligibilities,
-        (SELECT COUNT(*)::int FROM rm_skill WHERE code IN ('SK-WC-MIX-MASTER','SK-WC-VULCAN-OPERATOR','SK-WC-INSPECTION') AND lifecycle_status='Released') AS rm_worker_skills,
+        (SELECT COUNT(*)::int FROM rm_skill WHERE code IN (${workerSkillCodes}) AND lifecycle_status='Released') AS rm_worker_skills,
         (SELECT COUNT(*)::int FROM rm_employee WHERE code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND lifecycle_status='Released' AND employee_status='Active') AS rm_workers,
         (SELECT COUNT(*)::int FROM rm_employee_skill es JOIN rm_employee e ON e.master_id=es.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001')) AS rm_worker_skill_assignments,
         (SELECT COUNT(*)::int FROM rm_employee_shift_schedule sch JOIN rm_employee e ON e.master_id=sch.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND sch.schedule_date=DATE '2026-08-03' AND sch.schedule_status='Scheduled') AS rm_worker_shift_schedules,

@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "phase1": "20/20",
+  "phase2": "passed with approved print exclusion",
+  "phase7": "19/19",
+  "phase9": "19/19",
+  "worker_skill": "8/8",
+  "product_definition": "7/7 plus 6/6 UI API checks",
+  "master_data": "8/8",
+  "machine_flow": "15/15"
+}

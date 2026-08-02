@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "command": "npm run test:e2e:two-line-uat:phase2",
+      "status": "passed",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "screenshots": [
+        "primary-ready-detail.png",
+        "backup-fallback-detail.png",
+        "resource-hold-detail.png"
+      ]
+    }
+  ]
+}

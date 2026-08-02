@@ -1,0 +1,24 @@
+{
+  "phase": "UI-04",
+  "title": "Shared UI Components and Server-State Standardization",
+  "generated_at": "2026-08-02T15:39:14.665Z",
+  "artifact_dir": "artifacts/mes-console-remediation/phase-04/2026-08-02T15-37-53Z",
+  "previous_gate": "PHASE_UI_03_PASSED_READY_FOR_UI_04",
+  "completion_gate": "PHASE_UI_04_PASSED_READY_FOR_UI_05",
+  "files_changed": [
+    "package.json",
+    "services/mes-console/src/App.tsx",
+    "services/mes-console/src/components/PageDetailButton.tsx",
+    "services/mes-console/src/components/ResourceHierarchy.tsx",
+    "services/mes-console/src/components/Sidebar.tsx",
+    "services/mes-console/src/components/StatusBadge.tsx",
+    "services/mes-console/src/components/base/BaseDataTable.tsx",
+    "services/mes-console/src/components/base/BaseStates.tsx",
+    "services/mes-console/src/components/base/index.ts",
+    "services/mes-console/src/i18n.ts",
+    "services/mes-console/src/lib/masterDataApi.ts",
+    "services/mes-console/src/lib/queryKeys.ts",
+    "services/mes-console/src/routes/master-data/PlanningConstraintsScreen.tsx",
+    "services/mes-console/src/routes/master-data/ProductionVersionScreen.tsx"
+  ]
+}

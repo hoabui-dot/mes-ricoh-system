@@ -1,0 +1,49 @@
+{
+  "declared": 5,
+  "executed": 5,
+  "passed": 5,
+  "failed": 0,
+  "skipped": 0,
+  "commands": [
+    {
+      "command": "npm run test:e2e:product-definition-ui:phase5",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:e2e:worker-skill-domain:phase1",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:e2e:route-navigation:phase3",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:e2e:shared-ui:phase4",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "npm run test:e2e:two-line-uat:phase2",
+      "declared": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    }
+  ]
+}

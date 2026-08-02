@@ -1,0 +1,6 @@
+{
+  "backend_authority": true,
+  "frontend_readiness_algorithm_added": false,
+  "existing_domain_negative_matrix": {"declared": 20, "executed": 20, "passed": 20, "failed": 0, "skipped": 0},
+  "canonical_seed_verification": "passed"
+}

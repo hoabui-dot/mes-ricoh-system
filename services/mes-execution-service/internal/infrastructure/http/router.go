@@ -18,6 +18,41 @@ import (
 
 const systemUserID = "00000000-0000-0000-0000-000000000001"
 
+var lineEvaluationDimensionKeys = []string{"eligibility", "work_centers", "workstations", "machine_requirements", "equipment_units", "assignments", "capability", "calendar_shift", "production_standard", "capacity", "worker_skill_labor", "final_result", "selection_reason"}
+
+func normalizeLineEvaluationDimensions(raw []byte) []byte {
+	var evaluations []map[string]interface{}
+	if err := json.Unmarshal(raw, &evaluations); err != nil {
+		return raw
+	}
+	for _, evaluation := range evaluations {
+		if _, exists := evaluation["dimensions"]; exists {
+			continue
+		}
+		dimensions := make([]map[string]interface{}, 0, len(lineEvaluationDimensionKeys))
+		for _, key := range lineEvaluationDimensionKeys {
+			status := "NotPersisted"
+			if key == "final_result" {
+				if value, ok := evaluation["status"].(string); ok {
+					status = value
+				}
+			}
+			dimensions = append(dimensions, map[string]interface{}{"key": key, "status": status, "blockers": func() interface{} {
+				if key == "final_result" {
+					return evaluation["blockers"]
+				}
+				return []interface{}{}
+			}()})
+		}
+		evaluation["dimensions"] = dimensions
+	}
+	result, err := json.Marshal(evaluations)
+	if err != nil {
+		return raw
+	}
+	return result
+}
+
 func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient, resourcePlanningClient *client.ResourcePlanningClient) http.Handler {
 	r := chi.NewRouter()
 	creationWorkflows := newCreationWorkflowManager(pool)
@@ -743,6 +778,7 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		_ = rows.Scan(&id, &code, &pvID, &pvCode, &pvNameI18n, &itemRevID, &itemRevCode, &itemRevNameI18n, &itemCode, &itemName, &mbomCode, &routingCode, &planningSnapshot, &qty, &uomID, &siteID, &shiftID, &plannedStartAt, &plannedEndAt, &status, &createdBy, &createdAt, &rowVersion, &selectedLineID, &selectedLineCode, &selectedLineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &resourceHoldReason, &evaluatedLineResults, &lineLockedAt)
 		rows.Close()
 
+		evaluatedLineResults = normalizeLineEvaluationDimensions(evaluatedLineResults)
 		header = map[string]interface{}{
 			"wo_id":                              id,
 			"wo_code":                            code,
@@ -895,6 +931,46 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			printRows.Close()
 		}
 
+		allocationRows, _ := pool.Query(r.Context(), `SELECT a.allocation_id, o.operation_code, a.status, a.validation_status, COALESCE(a.planned_production_line_id::text, ''), a.planned_start_at, a.planned_end_at, COALESCE(a.warning_codes, '[]'::jsonb) FROM wo_resource_allocation a JOIN wo_operation o ON o.wo_operation_id = a.wo_operation_id WHERE a.wo_id = $1 ORDER BY a.created_at DESC`, woID)
+		var allocationHistory []map[string]interface{}
+		for allocationRows != nil && allocationRows.Next() {
+			var allocationID, operationCode, allocationStatus, validationStatus, allocationLineID string
+			var plannedStart, plannedEnd *time.Time
+			var warningCodes []byte
+			_ = allocationRows.Scan(&allocationID, &operationCode, &allocationStatus, &validationStatus, &allocationLineID, &plannedStart, &plannedEnd, &warningCodes)
+			var warnings interface{}
+			_ = json.Unmarshal(warningCodes, &warnings)
+			allocationHistory = append(allocationHistory, map[string]interface{}{"allocation_id": allocationID, "operation_code": operationCode, "status": allocationStatus, "validation_status": validationStatus, "planned_production_line_id": allocationLineID, "planned_start_at": plannedStart, "planned_end_at": plannedEnd, "warning_codes": warnings})
+		}
+		if allocationRows != nil {
+			allocationRows.Close()
+		}
+		var operationCount, validAllocationCount, activeAllocationCount int
+		_ = pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM wo_operation WHERE wo_id=$1`, woID).Scan(&operationCount)
+		_ = pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM wo_resource_allocation WHERE wo_id=$1 AND status='Committed' AND validation_status IN ('Valid','ValidWithWarnings')`, woID).Scan(&validAllocationCount)
+		_ = pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM wo_resource_allocation WHERE wo_id=$1 AND status IN ('Draft','Validated','Committed')`, woID).Scan(&activeAllocationCount)
+		gateBlockers := []string{}
+		if lineStatus != "READY" {
+			gateBlockers = append(gateBlockers, "WO_LINE_NOT_READY")
+		}
+		if operationCount != validAllocationCount {
+			gateBlockers = append(gateBlockers, "WO_OPERATION_ALLOCATION_MISSING")
+		}
+		approvalEligible := status == "Draft" && len(gateBlockers) == 0
+		executionEligible := status == "Released" && len(gateBlockers) == 0
+		gateSummary := map[string]interface{}{"approval_state": "Pending", "execution_state": "NotStarted", "line_selection_status": lineStatus, "resource_allocation_state": "NotEvaluated", "operation_count": operationCount, "active_allocation_count": activeAllocationCount, "valid_allocation_count": validAllocationCount, "approval_eligible": approvalEligible, "execution_eligible": executionEligible, "blockers": gateBlockers}
+		if status == "Approved" || status == "Released" || status == "InProgress" || status == "Completed" || status == "Closed" {
+			gateSummary["approval_state"] = "Approved"
+		}
+		if status == "InProgress" {
+			gateSummary["execution_state"] = "InProgress"
+		} else if status == "Completed" || status == "Closed" {
+			gateSummary["execution_state"] = status
+		}
+		if len(allocationHistory) > 0 {
+			gateSummary["resource_allocation_state"] = "HasHistory"
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"header":                header,
@@ -902,6 +978,8 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			"material_requirements": reqs,
 			"approval_logs":         logs,
 			"print_jobs":            printJobs,
+			"allocation_history":    allocationHistory,
+			"gate_summary":          gateSummary,
 		})
 	}
 }
@@ -914,7 +992,51 @@ func handleListWorkOrders(pool *pgxpool.Pool) http.HandlerFunc {
 			limit = l
 		}
 
-		rows, err := pool.Query(r.Context(), `SELECT wo_id, wo_code, item_code, quantity, status, created_at FROM wo_header ORDER BY created_at DESC LIMIT $1`, limit)
+		where := []string{"1=1"}
+		args := []interface{}{}
+		add := func(clause string, value interface{}) {
+			args = append(args, value)
+			where = append(where, fmt.Sprintf(clause, len(args)))
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("search")); value != "" {
+			args = append(args, value)
+			n := len(args)
+			where = append(where, fmt.Sprintf("(wo_code ILIKE '%%' || $%d || '%%' OR item_code ILIKE '%%' || $%d || '%%' OR item_name ILIKE '%%' || $%d || '%%')", n, n, n))
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("status")); value != "" && value != "ALL" {
+			add("status = $%d", value)
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("selected_line")); value != "" {
+			add("selected_production_line_code = $%d", value)
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("line_selection_status")); value != "" && value != "ALL" {
+			add("line_selection_status = $%d", value)
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("hold")); value == "true" {
+			where = append(where, "line_selection_status = 'RESOURCE_HOLD'")
+		} else if value == "false" {
+			where = append(where, "line_selection_status <> 'RESOURCE_HOLD'")
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("fallback_used")); value == "true" {
+			where = append(where, "NULLIF(fallback_reason, '') IS NOT NULL")
+		} else if value == "false" {
+			where = append(where, "NULLIF(fallback_reason, '') IS NULL")
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("production_version")); value != "" {
+			add("production_version_code = $%d", value)
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("site")); value != "" {
+			add("site_id::text = $%d", value)
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("date_from")); value != "" {
+			add("planned_start_at >= $%d::timestamptz", value)
+		}
+		if value := strings.TrimSpace(r.URL.Query().Get("date_to")); value != "" {
+			add("planned_start_at < ($%d::date + INTERVAL '1 day')", value)
+		}
+		args = append(args, limit)
+		query := fmt.Sprintf(`SELECT wo_id, wo_code, item_code, item_name, quantity, uom_id, site_id, production_version_id, COALESCE(production_version_code, ''), planned_start_at, planned_end_at, status, created_at, COALESCE(selected_production_line_code, ''), COALESCE(selected_production_line_name_i18n, '{}'::jsonb), line_selection_mode, line_selection_status, COALESCE(line_selection_reason, ''), COALESCE(fallback_reason, ''), COALESCE(resource_hold_reason, '{}'::jsonb), COALESCE(evaluated_line_results, '[]'::jsonb), line_locked_at FROM wo_header WHERE %s ORDER BY planned_start_at ASC, created_at DESC LIMIT $%d`, strings.Join(where, " AND "), len(args))
+		rows, err := pool.Query(r.Context(), query, args...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -923,17 +1045,40 @@ func handleListWorkOrders(pool *pgxpool.Pool) http.HandlerFunc {
 
 		var data []map[string]interface{}
 		for rows.Next() {
-			var id, code, itemCode, status string
+			var id, code, itemCode, itemName, uomID, siteID, pvID, pvCode, status, lineCode, lineMode, lineStatus, lineReason, fallbackReason string
+			var lineName, holdReason, evaluated []byte
 			var qty float64
-			var createdAt time.Time
-			_ = rows.Scan(&id, &code, &itemCode, &qty, &status, &createdAt)
+			var plannedStart, plannedEnd, createdAt time.Time
+			var lineLockedAt *time.Time
+			_ = rows.Scan(&id, &code, &itemCode, &itemName, &qty, &uomID, &siteID, &pvID, &pvCode, &plannedStart, &plannedEnd, &status, &createdAt, &lineCode, &lineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &holdReason, &evaluated, &lineLockedAt)
+			var evaluations []map[string]interface{}
+			_ = json.Unmarshal(evaluated, &evaluations)
+			primary, backup := map[string]interface{}{}, map[string]interface{}{}
+			for _, evaluation := range evaluations {
+				if role, _ := evaluation["selection_role"].(string); role == "PRIMARY" {
+					primary = evaluation
+				} else if role == "BACKUP" {
+					backup = evaluation
+				}
+			}
+			approvalState := "Pending"
+			if status == "Approved" || status == "Released" || status == "InProgress" || status == "Completed" || status == "Closed" {
+				approvalState = "Approved"
+			}
+			executionState := "NotStarted"
+			if status == "InProgress" {
+				executionState = "InProgress"
+			} else if status == "Completed" || status == "Closed" {
+				executionState = status
+			}
 			data = append(data, map[string]interface{}{
-				"wo_id":      id,
-				"wo_code":    code,
-				"item_code":  itemCode,
-				"quantity":   qty,
-				"status":     status,
-				"created_at": createdAt,
+				"wo_id": id, "wo_code": code, "item_code": itemCode, "item_name": itemName, "quantity": qty, "uom_id": uomID,
+				"site_id": siteID, "production_version_id": pvID, "production_version_code": pvCode, "planned_start_at": plannedStart, "planned_end_at": plannedEnd,
+				"status": status, "created_at": createdAt, "selected_production_line_code": lineCode, "selected_production_line_name_i18n": json.RawMessage(lineName),
+				"line_selection_mode": lineMode, "line_selection_status": lineStatus, "line_selection_reason": lineReason, "fallback_reason": fallbackReason,
+				"resource_hold_reason": json.RawMessage(holdReason), "primary_evaluation": primary, "backup_evaluation": backup, "line_locked_at": lineLockedAt,
+				"approval_state":  approvalState,
+				"execution_state": executionState,
 			})
 		}
 
