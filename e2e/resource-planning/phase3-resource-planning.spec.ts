@@ -118,20 +118,23 @@ test.afterAll(async () => {
 test('[@phase3] normal allocation, refresh persistence, strict approval, execution start, logout/login persistence, and no raw enum/UUID rendering', async ({ page }) => {
   await login(page, credentials.manager);
   const workOrderId = await createWorkOrderThroughConsole(page);
+  const dimensionMatrices = page.locator('[data-testid^="line-dimension-matrix-"]');
+  await expect(dimensionMatrices.first()).toBeVisible();
+  const dimensionText = (await dimensionMatrices.allInnerTexts()).join('\n');
+  expect(dimensionText).not.toContain('woDetail.dimension.');
+  expect(dimensionText).toMatch(/Điều kiện Production Version|Production Version eligibility|Production Version 適格性|Production Version 적격성/);
+  expect(dimensionText).toMatch(/Work Center thuộc dây chuyền|Line Work Centers|ラインの Work Center|라인 Work Center/);
+  expect(dimensionText).toMatch(/Workstation khả dụng|Available Workstations|利用可能な Workstation|사용 가능한 Workstation/);
   await page.getByRole('button', { name: /Compute|Tính toán/i }).click();
   await expect(page.getByTestId('work-order-compute-result')).toBeVisible({ timeout: 15_000 });
   const rows = page.locator('[data-testid^="work-order-operation-row-"]');
   const count = await rows.count();
   expect(count).toBeGreaterThan(0);
-  for (let index = 0; index < count; index += 1) {
-    await rows.nth(index).locator('button').first().click();
-    await expect(page.getByTestId('candidate-workstation-list')).toBeVisible();
-    const selectableCandidate = page.locator('[data-testid="candidate-select-button"]:not(:disabled)').first();
-    await expect(selectableCandidate).toBeEnabled({ timeout: 15_000 });
-    await selectableCandidate.click();
-    await expect(page.getByTestId('candidate-workstation-list')).toHaveCount(0);
-    await expect(page.locator('[data-testid^="allocation-status-"]').nth(index)).toContainText(/Đã cam kết|Committed/i);
-  }
+  await expect(page.locator('[data-testid^="resource-proposal-candidate-"]')).toHaveCount(count, { timeout: 15_000 });
+  await expect(page.locator('[data-testid^="allocation-status-"]').filter({ hasText: /Chưa phân bổ|Not allocated/i })).toHaveCount(count);
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByTestId('resource-commit-all-button').click();
+  await expect(page.locator('[data-testid^="allocation-status-"]').filter({ hasText: /Đã cam kết|Committed/i })).toHaveCount(count, { timeout: 15_000 });
   await page.reload();
   await expect(page.locator('[data-testid^="allocation-status-"]').filter({ hasText: /Đã cam kết|Committed/i })).toHaveCount(count);
   await page.getByTestId('resource-revalidate-button').click();
@@ -177,7 +180,9 @@ test('[@phase3] blocked candidate, capacity conflict, translated error rendering
   await expect(page.locator('[data-testid^="allocation-status-"]').first()).toContainText(/Chưa phân bổ|Not allocated/i);
   await page.locator('[data-testid^="work-order-operation-row-"]').first().locator('button').first().click();
   await page.getByTestId('candidate-select-button').first().click();
-  await expect(page.locator('[data-testid^="allocation-status-"]').first()).toContainText(/Đã cam kết|Committed/i);
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByTestId('resource-commit-all-button').click();
+  await expect(page.locator('[data-testid^="allocation-status-"]').first()).toContainText(/Đã cam kết|Committed/i, { timeout: 15_000 });
   await page.locator('[data-testid^="allocation-reallocate-button-"]').first().click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByTestId('candidate-select-button').first().click();
@@ -240,7 +245,9 @@ test('[@phase3] Planner and Production Manager can commit candidates after real 
     const selectableCandidate = page.locator('[data-testid="candidate-select-button"]:not(:disabled)').first();
     await expect(selectableCandidate).toBeEnabled({ timeout: 15_000 });
     await selectableCandidate.click();
-    await expect(page.locator('[data-testid^="allocation-status-"]').first()).toContainText(/Đã cam kết|Committed/i);
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByTestId('resource-commit-all-button').click();
+    await expect(page.locator('[data-testid^="allocation-status-"]').first()).toContainText(/Đã cam kết|Committed/i, { timeout: 15_000 });
     cleanupWorkOrders([fixture.workOrder.work_order_id]);
     const trackedIndex = createdWorkOrderIds.indexOf(fixture.workOrder.work_order_id);
     if (trackedIndex >= 0) createdWorkOrderIds.splice(trackedIndex, 1);

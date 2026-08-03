@@ -1,0 +1,5 @@
+{
+  "behavior": ["auto-load proposals for Draft and READY Work Orders", "stage recommendations without persistence", "allow alternative selection", "explicit confirmed bulk commit", "preserve existing allocations unless individually confirmed"],
+  "test_ids": ["resource-auto-propose-button", "resource-commit-all-button", "resource-proposal-candidate-*"],
+  "browser": {"declared": 6, "executed": 6, "passed": 6, "failed": 0, "skipped": 0, "duration_seconds": 44.2}
+}

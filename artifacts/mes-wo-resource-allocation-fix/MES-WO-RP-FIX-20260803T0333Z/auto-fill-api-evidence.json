@@ -1,0 +1,7 @@
+{
+  "endpoint": "GET /api/mes/execution/work-orders/{id}/resource-allocation-proposals",
+  "side_effect_free": true,
+  "pv01": {"complete": true, "operations": 4, "allocations_before": 0, "allocations_after": 0, "reservations_before": 0, "reservations_after": 0},
+  "pv02": {"complete": true, "operations": 4, "allocations_before": 0, "allocations_after": 0, "reservations_before": 0, "reservations_after": 0},
+  "contract_fields": ["recommended_candidate", "alternatives", "blocking_errors", "selection_reasons", "requested_window", "freshness_token", "proposal_version"]
+}

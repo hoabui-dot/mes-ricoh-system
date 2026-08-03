@@ -1,0 +1,18 @@
+{
+  "track_a_page_by_page": {
+    "documented_page_families": 30,
+    "documented_use_cases": 120,
+    "complete_under_prompt_definition": 0,
+    "incomplete": 30
+  },
+  "track_b_ready_to_run": {
+    "certification_id": "WO-CERT-001",
+    "status": "CERTIFIED_MES_CONSOLE_AND_READY_TO_RUN_WO",
+    "steps": 10,
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0
+  },
+  "overall": "NOT_CERTIFIED",
+  "reason": "Track A requires complete page-level validation, accessibility, i18n, cleanup, and automated evidence for every retained page family."
+}

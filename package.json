@@ -61,6 +61,7 @@
     "reset:mes:all-data": "MES_ENV=development ALLOW_DESTRUCTIVE_SEED=true ALLOW_MES_FULL_RESET=true CONFIRM_MES_FULL_RESET=YES_RESET_ALL_MES_DATA node scripts/reset-mes-all-data.mjs --reset",
     "seed:mes:canonical": "MES_ENV=development ALLOW_DESTRUCTIVE_SEED=true node scripts/seed-mes-canonical-dataset.mjs",
     "verify:mes:canonical-seed": "MES_ENV=development node scripts/verify-mes-canonical-seed.mjs",
+    "certify:mes:ready-to-run-wo": "node scripts/certify-mes-ready-to-run-wo.mjs",
     "reset:seed:verify:mes:canonical": "MES_ENV=development ALLOW_DESTRUCTIVE_SEED=true ALLOW_MES_FULL_RESET=true CONFIRM_MES_FULL_RESET=YES_RESET_ALL_MES_DATA node scripts/reset-mes-all-data.mjs --reset && MES_ENV=development ALLOW_DESTRUCTIVE_SEED=true node scripts/seed-mes-canonical-dataset.mjs && MES_ENV=development node scripts/verify-mes-canonical-seed.mjs",
     "test:mes:canonical-full-flow": "MES_ENV=development node scripts/test-mes-canonical-full-flow.mjs",
     "test:mes:two-line-resource-planning:phase7": "MES_ENV=development ALLOW_TWO_LINE_RESOURCE_PLANNING_MUTATION=true node scripts/test-mes-two-line-resource-planning-phase7.mjs",

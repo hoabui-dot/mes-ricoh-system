@@ -1,0 +1,51 @@
+{
+  "success": false,
+  "generated_at": "2026-08-03T03:04:37.178Z",
+  "safety": {
+    "passed": true,
+    "reasons": [],
+    "environment": "development"
+  },
+  "command_results": [
+    {
+      "label": "Build MES Master Data service before importing seed",
+      "command": "npm --prefix services/mes-master-data-service run build",
+      "exit_code": 0,
+      "started_at": "2026-08-03T03:04:37.180Z",
+      "ended_at": "2026-08-03T03:04:44.024Z",
+      "stdout": "\n> mes-master-data-service@1.0.0 build\n> tsc\n\n",
+      "stderr": ""
+    },
+    {
+      "label": "Apply canonical two-line MES dataset",
+      "command": "/usr/bin/node scripts/mes-phase10-reset-seed-verify.mjs --seed",
+      "exit_code": 1,
+      "started_at": "2026-08-03T03:04:44.543Z",
+      "ended_at": "2026-08-03T03:04:45.068Z",
+      "stdout": "",
+      "stderr": "PRODUCTION_VERSION_LINE_OPERATION_CAPABILITY_UNRESOLVED\n"
+    }
+  ],
+  "base_seed": {
+    "status": "applied",
+    "source": "services/mes-master-data-service/src/infrastructure/db/seed.ts"
+  },
+  "base_execution_projection": {
+    "status": "rebuilt",
+    "production_version_code": "PV-FG-WS-CM01-R1",
+    "routing_operations": 6,
+    "mbom_lines": 5,
+    "work_centers": 4,
+    "production_lines": 1,
+    "line_work_centers": 4,
+    "capabilities": 6,
+    "calendars": 8,
+    "skills": 3,
+    "employees": 4,
+    "employee_skills": 4,
+    "employee_schedules": 4,
+    "operation_skill_requirements": 3
+  },
+  "error": "Apply canonical two-line MES dataset failed with exit 1",
+  "completed_at": "2026-08-03T03:04:45.068Z"
+}

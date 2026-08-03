@@ -1,0 +1,6 @@
+{
+  "phase1_negative_matrix": {"declared": 20, "executed": 20, "passed": 20, "failed": 0, "skipped": 0},
+  "pv01_full_flow": {"run_id": "PHASE2-RP-1785727911813-IOYJ2", "declared": 14, "executed": 14, "passed": 14, "failed": 0, "skipped": 0},
+  "pv02_full_flow": {"run_id": "PHASE2-RP-1785727920977-JOSJB", "declared": 14, "executed": 14, "passed": 14, "failed": 0, "skipped": 0},
+  "pv03_negative_assertion": {"run_id": "PHASE2-RP-1785727932964-LEKRP", "expected_rejection": true, "blocker": "WO_LINE_RESOURCE_HOLD", "cleanup_passed": true}
+}

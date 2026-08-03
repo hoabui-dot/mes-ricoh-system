@@ -58,6 +58,22 @@ func containsID(candidate map[string]interface{}, key, value string) bool {
 	return value == "" || asString(candidate[key]) == value
 }
 
+func hasListEntries(value interface{}) bool {
+	switch list := value.(type) {
+	case []interface{}:
+		return len(list) > 0
+	case []map[string]interface{}:
+		return len(list) > 0
+	default:
+		return false
+	}
+}
+
+func proposalCandidateReady(candidate map[string]interface{}) bool {
+	readiness := strings.ToLower(asString(candidate["readiness"]))
+	return readiness != "blocked" && !hasListEntries(candidate["blocking_errors"]) && !hasListEntries(candidate["capacity_conflicts"])
+}
+
 func (s *AllocationService) workOrderContext(ctx context.Context, woID, opID string) (map[string]interface{}, error) {
 	var site, product, woStatus, lineStatus, selectedLine string
 	var shift *string
@@ -155,6 +171,147 @@ func (s *AllocationService) Candidates(ctx context.Context, woID, opID, plannedS
 		}
 	}
 	return result, nil
+}
+
+// Proposals builds one backend-owned recommendation per Work Order operation.
+// It intentionally delegates readiness and ordering to Candidates and creates
+// no allocation or reservation records.
+func (s *AllocationService) Proposals(ctx context.Context, woID, userID, traceID string) (map[string]interface{}, error) {
+	var lineID, lineCode, lineStatus, shiftID string
+	var lineName []byte
+	var plannedStart time.Time
+	var rowVersion int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(selected_production_line_id::text,''), COALESCE(selected_production_line_code,''),
+		       COALESCE(selected_production_line_name_i18n,'{}'::jsonb), line_selection_status,
+		       COALESCE(shift_id::text,''), planned_start_at, row_version
+		FROM wo_header WHERE wo_id=$1
+	`, woID).Scan(&lineID, &lineCode, &lineName, &lineStatus, &shiftID, &plannedStart, &rowVersion); err != nil {
+		return nil, fmt.Errorf("work order not found: %w", err)
+	}
+
+	base := map[string]interface{}{
+		"work_order_id": woID,
+		"selected_production_line": map[string]interface{}{
+			"id": lineID, "code": lineCode, "name_i18n": json.RawMessage(lineName),
+		},
+		"generated_at":           time.Now().UTC().Format(time.RFC3339Nano),
+		"work_order_row_version": rowVersion,
+	}
+	if lineStatus == "RESOURCE_HOLD" || lineID == "" {
+		code := "WO_LINE_SELECTION_REQUIRED"
+		if lineStatus == "RESOURCE_HOLD" {
+			code = "WO_LINE_RESOURCE_HOLD"
+		}
+		base["complete"] = false
+		base["blocking_errors"] = []map[string]interface{}{{"code": code}}
+		base["operations"] = []interface{}{}
+		hash := sha256.Sum256([]byte(fmt.Sprintf("%s|%d|%s", woID, rowVersion, code)))
+		base["proposal_version"] = hex.EncodeToString(hash[:])
+		return base, nil
+	}
+	if shiftID == "" {
+		base["complete"] = false
+		base["blocking_errors"] = []map[string]interface{}{{"code": "SHIFT_REQUIRED"}}
+		base["operations"] = []interface{}{}
+		return base, nil
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT wo_operation_id::text, operation_code, sequence_no,
+		       COALESCE(production_line_id::text,''), COALESCE(production_line_code,'')
+		FROM wo_operation WHERE wo_id=$1 ORDER BY sequence_no, wo_operation_id
+	`, woID)
+	if err != nil {
+		return nil, fmt.Errorf("RESOURCE_PROPOSAL_OPERATION_QUERY_FAILED: %w", err)
+	}
+	defer rows.Close()
+	type operationRow struct {
+		ID, Code, LineID, LineCode string
+		Sequence                   int
+	}
+	operations := []operationRow{}
+	for rows.Next() {
+		var operation operationRow
+		if err := rows.Scan(&operation.ID, &operation.Code, &operation.Sequence, &operation.LineID, &operation.LineCode); err != nil {
+			return nil, fmt.Errorf("RESOURCE_PROPOSAL_OPERATION_SCAN_FAILED: %w", err)
+		}
+		operations = append(operations, operation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("RESOURCE_PROPOSAL_OPERATION_ROWS_FAILED: %w", err)
+	}
+
+	complete := len(operations) > 0
+	proposalOperations := make([]map[string]interface{}, 0, len(operations))
+	versionParts := []string{woID, fmt.Sprint(rowVersion), lineID, shiftID}
+	cursor := plannedStart
+	for _, operation := range operations {
+		item := map[string]interface{}{
+			"operation_id": operation.ID, "operation_code": operation.Code, "sequence": operation.Sequence,
+			"production_line": map[string]interface{}{"id": operation.LineID, "code": operation.LineCode},
+			"blocking_errors": []interface{}{}, "alternatives": []interface{}{},
+		}
+		if operation.LineID != lineID {
+			item["blocking_errors"] = []map[string]interface{}{{"code": "WO_LINE_MIXED_ALLOCATION_REJECTED"}}
+			complete = false
+			proposalOperations = append(proposalOperations, item)
+			continue
+		}
+		candidateResult, err := s.Candidates(ctx, woID, operation.ID, cursor.UTC().Format(time.RFC3339), shiftID, userID, traceID)
+		if err != nil {
+			return nil, err
+		}
+		item["requested_window"] = candidateResult["requested_window"]
+		item["current_allocation"] = candidateResult["current_allocation"]
+		item["warnings"] = candidateResult["warnings"]
+		operationBlocked := hasListEntries(candidateResult["blocking_errors"])
+		if operationBlocked {
+			item["blocking_errors"] = candidateResult["blocking_errors"]
+		}
+		alternatives := []interface{}{}
+		var recommended map[string]interface{}
+		if candidates, ok := candidateResult["candidates"].([]interface{}); ok {
+			for _, raw := range candidates {
+				candidate, _ := raw.(map[string]interface{})
+				if candidate == nil {
+					continue
+				}
+				candidate["production_line"] = map[string]interface{}{"id": lineID, "code": lineCode}
+				candidate["freshness_token"] = fmt.Sprintf("%d:%s:%s:%s", rowVersion, asString(nested(candidate, "workstation")["id"]), asString(nested(candidate, "equipment")["id"]), cursor.UTC().Format(time.RFC3339))
+				alternatives = append(alternatives, candidate)
+				if !operationBlocked && recommended == nil && proposalCandidateReady(candidate) {
+					recommended = candidate
+				}
+			}
+		}
+		item["alternatives"] = alternatives
+		if recommended == nil {
+			complete = false
+			if !hasListEntries(item["blocking_errors"]) {
+				item["blocking_errors"] = []map[string]interface{}{{"code": "RESOURCE_READY_CANDIDATE_MISSING"}}
+			}
+		} else {
+			recommended["selection_reasons"] = []string{"AUTHORITATIVE_CANDIDATE_ORDER", "READY", "SELECTED_LINE_ONLY", "NO_CAPACITY_OR_RESERVATION_CONFLICT"}
+			item["recommended_candidate"] = recommended
+			item["selected_candidate"] = recommended
+			duration := asFloat(recommended["estimated_duration_min"])
+			if duration == 0 {
+				duration = asFloat(nested(recommended, "calculation")["estimated_duration_min"])
+			}
+			if duration < 1 {
+				duration = 1
+			}
+			cursor = cursor.Add(time.Duration(duration * float64(time.Minute)))
+			versionParts = append(versionParts, operation.ID, asString(recommended["freshness_token"]))
+		}
+		proposalOperations = append(proposalOperations, item)
+	}
+	base["complete"] = complete
+	base["operations"] = proposalOperations
+	hash := sha256.Sum256([]byte(strings.Join(versionParts, "|")))
+	base["proposal_version"] = hex.EncodeToString(hash[:])
+	return base, nil
 }
 
 func (s *AllocationService) addCapacityView(ctx context.Context, c map[string]interface{}, start, end time.Time, excludeAllocationID string) {

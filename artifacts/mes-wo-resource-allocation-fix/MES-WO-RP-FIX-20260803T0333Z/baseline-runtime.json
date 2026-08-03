@@ -1,0 +1,7 @@
+{
+  "run_id": "MES-WO-RP-FIX-20260803T0333Z",
+  "baseline_issue": "Console required per-operation manual initial selection while the API runner searched for another allocatable Production Version and repaired Print Station rows directly.",
+  "runtime": "local Docker Compose non-production",
+  "baseline_result": "discrepancy reproduced",
+  "authoritative_services": ["mes-master-data-service", "mes-execution-service", "mes-traceability-service", "mes-kiosk-gateway-service", "mes-console"]
+}

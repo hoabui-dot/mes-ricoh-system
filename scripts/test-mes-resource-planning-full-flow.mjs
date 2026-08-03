@@ -2,8 +2,8 @@
 
 /*
  * Phase 2 guarded full API verification for MES Resource Planning.
- * The script is API-first. Direct DB writes are limited to local disposable
- * print-station readiness repair and exact cleanup of generated Work Orders.
+ * The script is API-first. Direct DB writes are limited to exact cleanup of
+ * Work Orders created by this disposable verification run.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -15,7 +15,6 @@ const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '
 const apiBase = (process.env.MES_EXECUTION_URL || 'http://100.68.50.41:18000/api/mes/execution').replace(/\/$/, '');
 const masterBase = (process.env.MES_MASTER_DATA_URL || 'http://100.68.50.41:18000/api/mes/master-data').replace(/\/$/, '');
 const executionUrl = process.env.MES_EXECUTION_DATABASE_URL || 'postgresql://mes_execution_user:mes_execution_pass@localhost:15435/mes_execution_db';
-const masterUrl = process.env.MES_MASTER_DATA_DATABASE_URL || 'postgresql://mes_master_data_user:mes_master_data_pass@localhost:15434/mes_master_data_db';
 const environment = String(process.env.MES_ENV || '').toLowerCase();
 const allowMutation = process.env.ALLOW_RESOURCE_PLANNING_MUTATION === 'true';
 const skipPrintStationThirdParty = process.env.SKIP_PRINT_STATION_THIRD_PARTY === 'true' || process.env.SKIP_THIRD_PARTY_INTEGRATIONS === 'true';
@@ -28,9 +27,7 @@ const resultArtifact = path.join(artifactRoot, 'phase2-full-flow.json');
 const markdownArtifact = path.join(artifactRoot, 'phase2-full-flow.md');
 const targetDate = process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
 const executionDb = new Client({ connectionString: executionUrl });
-const masterDb = new Client({ connectionString: masterUrl });
 const created = { workflowIds: [], workOrderIds: [] };
-const restores = [];
 const steps = [];
 
 function defaultPlanningDate() {
@@ -44,7 +41,7 @@ function defaultPlanningDate() {
 function assertSafety() {
   if (!['development', 'local', 'test', 'staging'].includes(environment)) throw new Error('MES_ENV must be development, local, test, or staging.');
   if (!allowMutation) throw new Error('Set ALLOW_RESOURCE_PLANNING_MUTATION=true to run this disposable Phase 2 flow.');
-  for (const url of [executionUrl, masterUrl]) {
+  for (const url of [executionUrl]) {
     const host = new URL(url).hostname;
     if (!['localhost', '127.0.0.1', '::1'].includes(host)) throw new Error(`Database URL must use a local/test host: ${host}`);
   }
@@ -143,40 +140,15 @@ async function detail(workOrderId) {
   return (await execution(`/work-orders/${workOrderId}`)).body;
 }
 
-async function loadCandidates(workOrderId, operationId, shift, start) {
-  return (await execution(`/work-orders/${workOrderId}/operations/${operationId}/resource-candidates?planned_start_at=${encodeURIComponent(start)}&shift_id=${encodeURIComponent(shift.master_id)}`)).body;
-}
-
-function readyCandidate(candidates) {
-  return candidates.find((candidate) => candidate.readiness !== 'Blocked' && !(candidate.blocking_errors || []).length && !(candidate.capacity_conflicts || []).length);
-}
-
-async function selectReadyContextWithAllocatableOperations() {
-  const versions = (await master(`/production-ready-versions?planned_date=${encodeURIComponent(targetDate)}&limit=500`)).body
-    .filter((row) => row.readiness_status === 'Ready' && (row.production_version_code?.startsWith('PV-') || row.production_version_code?.startsWith('WST-SEED-PV-')))
-    .sort((a, b) => Number(b.production_version_code?.startsWith('WST-SEED-PV-')) - Number(a.production_version_code?.startsWith('WST-SEED-PV-')));
-  for (const version of versions) {
-    const shifts = (await master(`/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`)).body;
-    const shift = shifts.find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
-    if (!shift) continue;
-    try {
-      const probe = await createWorkOrder(version, shift);
-      const snapshot = await detail(probe.work_order_id);
-      let cursor = new Date(`${targetDate}T08:00:00.000Z`);
-      let allReady = true;
-      for (const operation of snapshot.operations || []) {
-        const candidates = await loadCandidates(probe.work_order_id, operation.wo_operation_id, shift, cursor.toISOString());
-        const candidate = readyCandidate(candidates.candidates || []);
-        if (!candidate) { allReady = false; break; }
-        const duration = Number(candidate.estimated_duration_min ?? candidate.calculation?.estimated_duration_min ?? 1);
-        cursor = new Date(cursor.getTime() + Math.max(duration, 1) * 60_000);
-      }
-      if (allReady && snapshot.operations?.length) return { version, shift };
-    } catch {
-      // Continue probing; any created Work Order remains in the exact cleanup set.
-    }
-  }
-  throw new Error('No released Ready Production Version has Ready candidates for every operation.');
+async function selectCanonicalContext() {
+  const requestedCode = process.env.MES_RESOURCE_PLANNING_PV_CODE || 'WST-UAT-PV-01-PRIMARY-READY';
+  const versions = (await master(`/production-ready-versions?planned_date=${encodeURIComponent(targetDate)}&limit=500`)).body;
+  const version = versions.find((row) => row.production_version_code === requestedCode);
+  if (!version) throw new Error(`Requested Production Version was not returned: ${requestedCode}`);
+  const shifts = (await master(`/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`)).body;
+  const shift = shifts.find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
+  if (!shift) throw new Error(`No active shift exists for requested Production Version: ${requestedCode}`);
+  return { version, shift };
 }
 
 function allocationPayload(candidate, shift, start, rowVersion) {
@@ -197,97 +169,6 @@ async function commitCandidate(workOrderId, operation, candidate, shift, start, 
     headers: { 'Idempotency-Key': `${runId}-ALLOC-${operation.wo_operation_id}` },
     body: JSON.stringify(allocationPayload(candidate, shift, start, rowVersion)),
   })).body;
-}
-
-async function snapshotUpdate(client, table, idColumn, id, changes) {
-  const columns = Object.keys(changes);
-  if (!/^[a-z_]+$/.test(table) || !/^[a-z_]+$/.test(idColumn) || columns.some((column) => !/^[a-z_]+$/.test(column))) {
-    throw new Error(`Unsafe snapshot update target ${table}.${idColumn}`);
-  }
-  const before = await client.query(`SELECT ${columns.join(', ')} FROM ${table} WHERE ${idColumn}=$1`, [id]);
-  if (before.rowCount !== 1) throw new Error(`Expected one row in ${table} for ${id}`);
-  const assignments = columns.map((column, index) => `${column}=$${index + 2}`).join(', ');
-  await client.query(`UPDATE ${table} SET ${assignments} WHERE ${idColumn}=$1`, [id, ...columns.map((column) => changes[column])]);
-  const old = before.rows[0];
-  restores.push(async () => {
-    const restoreAssignments = columns.map((column, index) => `${column}=$${index + 2}`).join(', ');
-    await client.query(`UPDATE ${table} SET ${restoreAssignments} WHERE ${idColumn}=$1`, [id, ...columns.map((column) => old[column])]);
-  });
-}
-
-async function restoreFixtures() {
-  while (restores.length) {
-    const restore = restores.pop();
-    await restore();
-  }
-}
-
-async function ensurePrintStationReady(workstationId) {
-  if (!workstationId) throw new Error('PRINT_STATION_BINDING_MISSING');
-  const station = await masterDb.query(`SELECT master_id FROM md_print_station ORDER BY code LIMIT 1`);
-  if (station.rowCount !== 1) throw new Error('PRINT_STATION_MASTER_MISSING');
-  const stationId = station.rows[0].master_id;
-  const binding = await masterDb.query(`
-    SELECT binding_id, print_station_id
-    FROM md_workstation_print_station_binding
-    WHERE workstation_id=$1 AND role='PRIMARY' AND is_active=TRUE AND (effective_to IS NULL OR effective_to > NOW())
-    ORDER BY created_at DESC LIMIT 1`, [workstationId]);
-  if (binding.rowCount === 0) {
-    const bindingId = cryptoRandomUuid();
-    await masterDb.query(`
-      INSERT INTO md_workstation_print_station_binding
-        (binding_id, workstation_id, print_station_id, role, effective_from, is_active, created_by, allocated_printer_quantity)
-      VALUES ($1, $2, $3, 'PRIMARY', NOW(), TRUE, $4, 1)`, [bindingId, workstationId, stationId, userId]);
-    restores.push(async () => {
-      await masterDb.query(`DELETE FROM md_workstation_print_station_binding WHERE binding_id=$1`, [bindingId]);
-    });
-  }
-  await snapshotUpdate(masterDb, 'md_print_station', 'master_id', stationId, {
-    status: 'ONLINE',
-    is_active: true,
-    configured_allocation_limit: 10,
-  });
-  const projection = await masterDb.query(`SELECT print_station_id FROM md_print_station_runtime_projection WHERE print_station_id=$1`, [stationId]);
-  if (projection.rowCount === 0) {
-    await masterDb.query(`
-      INSERT INTO md_print_station_runtime_projection
-        (print_station_id, station_code, adapter_id, runtime_status, kafka_status, printer_count, online_printer_count, error_printer_count, last_heartbeat_at, last_status_change_at, ready_printer_count, active_for_work_printer_count, registered_printer_count, busy_printer_count, offline_printer_count)
-      SELECT master_id, code, 'PRINT-ADAPTER-01', 'ONLINE', 'CONNECTED', 1, 1, 0, NOW(), NOW(), 1, 1, 1, 0, 0
-      FROM md_print_station WHERE master_id=$1`, [stationId]);
-    restores.push(async () => {
-      await masterDb.query(`DELETE FROM md_print_station_runtime_projection WHERE print_station_id=$1`, [stationId]);
-    });
-  } else {
-    await snapshotUpdate(masterDb, 'md_print_station_runtime_projection', 'print_station_id', stationId, {
-      runtime_status: 'ONLINE',
-      kafka_status: 'CONNECTED',
-      printer_count: 1,
-      online_printer_count: 1,
-      error_printer_count: 0,
-      ready_printer_count: 1,
-      active_for_work_printer_count: 1,
-      registered_printer_count: 1,
-      busy_printer_count: 0,
-      offline_printer_count: 0,
-    });
-  }
-  const readiness = await master(`/workstations/${workstationId}/print-station-readiness`);
-  const ready = readiness.body.ready === true || (
-    readiness.body.print_station_id
-    && readiness.body.runtime_status === 'ONLINE'
-    && readiness.body.kafka_status === 'CONNECTED'
-    && Number(readiness.body.ready_printer_count || 0) > 0
-    && Number(readiness.body.active_for_work_printer_count || 0) > 0
-  );
-  if (!ready) throw new Error(`PRINT_STATION_READINESS_NOT_REPAIRED: ${JSON.stringify(readiness.body)}`);
-  return readiness.body;
-}
-
-function cryptoRandomUuid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
-    const value = Math.floor(Math.random() * 16);
-    return (char === 'x' ? value : (value & 0x3) | 0x8).toString(16);
-  });
 }
 
 async function cleanupWorkOrders() {
@@ -409,7 +290,6 @@ async function main() {
   assertSafety();
   await fs.mkdir(artifactRoot, { recursive: true });
   await executionDb.connect();
-  await masterDb.connect();
 
   await record('authenticate through supported trusted-gateway identity path', async () => {
     const health = await execution('/work-orders?limit=1');
@@ -417,7 +297,7 @@ async function main() {
   });
 
   const masterContext = await record('reuse deterministic released master-data chain', async () => {
-    return selectReadyContextWithAllocatableOperations();
+    return selectCanonicalContext();
   });
 
   const workOrder = await record('create Work Order from production_version_id and wait workflow', async () => createWorkOrder(masterContext.version, masterContext.shift));
@@ -429,30 +309,39 @@ async function main() {
 
   await record('run Compute and Check', async () => execution(`/work-orders/${workOrder.work_order_id}/compute-check`, { method: 'POST', body: '{}' }, [409]));
 
+  const proposals = await record('retrieve side-effect-free backend proposals for every operation', async () => {
+    const before = (await executionDb.query(`SELECT (SELECT COUNT(*)::int FROM wo_resource_allocation WHERE wo_id=$1) AS allocations, (SELECT COUNT(*)::int FROM wo_capacity_reservation WHERE wo_id=$1) AS reservations`, [workOrder.work_order_id])).rows[0];
+    const result = (await execution(`/work-orders/${workOrder.work_order_id}/resource-allocation-proposals`)).body;
+    const after = (await executionDb.query(`SELECT (SELECT COUNT(*)::int FROM wo_resource_allocation WHERE wo_id=$1) AS allocations, (SELECT COUNT(*)::int FROM wo_capacity_reservation WHERE wo_id=$1) AS reservations`, [workOrder.work_order_id])).rows[0];
+    if (result.complete !== true || result.operations?.length !== initialDetail.operations.length || result.operations.some((operation) => !operation.recommended_candidate)) throw new Error(`RESOURCE_PROPOSAL_INCOMPLETE: ${JSON.stringify(result)}`);
+    if (JSON.stringify(before) !== JSON.stringify(after)) throw new Error(`RESOURCE_PROPOSAL_SIDE_EFFECT_DETECTED: ${JSON.stringify({ before, after })}`);
+    return { ...result, side_effect_counts_before: before, side_effect_counts_after: after };
+  });
+
   const allocations = await record('retrieve candidates and commit one Ready candidate for every operation', async () => {
     const committed = [];
-    let cursor = new Date(`${targetDate}T08:00:00.000Z`);
     for (const operation of initialDetail.operations) {
-      const start = cursor.toISOString();
-      const candidates = await loadCandidates(workOrder.work_order_id, operation.wo_operation_id, masterContext.shift, start);
-      const candidate = readyCandidate(candidates.candidates || []);
-      if (!candidate) throw new Error(`No Ready candidate for ${operation.operation_code}: ${JSON.stringify(candidates)}`);
+      const proposal = proposals.operations.find((item) => item.operation_id === operation.wo_operation_id);
+      const start = proposal?.requested_window?.start_at;
+      const candidate = proposal?.recommended_candidate;
+      if (!candidate || !start) throw new Error(`No proposed Ready candidate for ${operation.operation_code}: ${JSON.stringify(proposal)}`);
       const allocation = await commitCandidate(workOrder.work_order_id, operation, candidate, masterContext.shift, start, initialDetail.row_version);
       committed.push({ operation_code: operation.operation_code, operation_id: operation.wo_operation_id, execution_target_type: operation.execution_target_type, workstation_id: candidate.workstation?.id, allocation_id: allocation.allocation_id });
-      const duration = Number(candidate.estimated_duration_min ?? candidate.calculation?.estimated_duration_min ?? 1);
-      cursor = new Date(cursor.getTime() + Math.max(duration, 1) * 60_000);
     }
     return committed;
   });
   const printAllocations = allocations.filter((item) => item.execution_target_type === 'PRINT_STATION');
 
-  await record('repair local print-station readiness for exact allocated print workstations', async () => {
+  await record('verify canonical print-station readiness for exact allocated print workstations', async () => {
     if (skipPrintStationThirdParty && printAllocations.length) {
       return { skipped: true, reason: 'Print-station/third-party integration checks are skipped by request.', print_operations: printAllocations.length };
     }
     const readiness = [];
     for (const allocation of printAllocations) {
-      readiness.push(await ensurePrintStationReady(allocation.workstation_id));
+      const result = await master(`/workstations/${allocation.workstation_id}/print-station-readiness`);
+      const ready = result.body.ready === true || (result.body.print_station_id && result.body.runtime_status === 'ONLINE' && result.body.kafka_status === 'CONNECTED' && Number(result.body.ready_printer_count || 0) > 0 && Number(result.body.active_for_work_printer_count || 0) > 0);
+      if (!ready) throw new Error(`CANONICAL_PRINT_STATION_NOT_READY: ${JSON.stringify(result.body)}`);
+      readiness.push(result.body);
     }
     return { print_operations: printAllocations.length, readiness };
   });
@@ -464,7 +353,6 @@ async function main() {
     const persistence = recordSkipped('verify allocation reservation audit and outbox persistence', 'Skipped because print dispatch/outbox persistence is third-party dependent.');
     const cleanup = await record('clean up exact generated Work Order IDs and disposable fixtures', async () => {
       const cleaned = await cleanupWorkOrders();
-      await restoreFixtures();
       if (cleaned.remaining_target_rows !== 0) throw new Error(`Cleanup left ${cleaned.remaining_target_rows} target rows.`);
       return cleaned;
     });
@@ -529,7 +417,6 @@ async function main() {
 
   const cleanup = await record('clean up exact generated Work Order IDs and disposable fixtures', async () => {
     const cleaned = await cleanupWorkOrders();
-    await restoreFixtures();
     if (cleaned.remaining_target_rows !== 0) throw new Error(`Cleanup left ${cleaned.remaining_target_rows} target rows.`);
     return cleaned;
   });
@@ -563,12 +450,10 @@ async function main() {
 
 main().catch(async (error) => {
   const cleanup = await cleanupWorkOrders().catch((cleanupError) => ({ error: cleanupError.message }));
-  await restoreFixtures().catch((restoreError) => { cleanup.restore_error = restoreError.message; });
   const summary = { success: false, status: 'FAIL_PHASE_2', run_id: runId, target_date: targetDate, error: error.stack || error.message, cleanup, steps };
   await writeArtifacts(summary).catch(() => undefined);
   console.error(`[phase2] FAILED: ${error.stack || error.message}`);
   process.exitCode = 1;
 }).finally(async () => {
   try { await executionDb.end(); } catch {}
-  try { await masterDb.end(); } catch {}
 });

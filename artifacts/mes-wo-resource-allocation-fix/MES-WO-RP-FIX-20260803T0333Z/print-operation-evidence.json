@@ -1,0 +1,16 @@
+{
+  "work_order_quantity": 2,
+  "non_print_operations": ["WST-SEED-OP-BINDING", "WST-SEED-OP-TEST5IN1", "WST-SEED-OP-AIRTEST"],
+  "non_print_target": "KIOSK_DEMO",
+  "final_print_operations": ["WST-SEED-OP-PACKING", "WST-SEED-UAT-OP-BACKUP-PACKING"],
+  "final_print_target": "PRINT_STATION",
+  "base_quantity": 1,
+  "operation_cycle_count": 2,
+  "label_count": 2,
+  "copies_per_label": 1,
+  "print_copies": 2,
+  "canonical_station": "PS-CANONICAL-01",
+  "packing_bindings": 2,
+  "mes_runtime": {"runtime_status": "ONLINE", "kafka_status": "CONNECTED", "ready_printer_count": 1},
+  "physical_third_party_scope": "excluded by user request"
+}

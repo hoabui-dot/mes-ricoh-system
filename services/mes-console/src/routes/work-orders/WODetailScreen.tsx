@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
@@ -36,6 +36,11 @@ export const WODetailScreen: React.FC = () => {
   const [candidateBlockers, setCandidateBlockers] = useState<any[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [allocating, setAllocating] = useState(false);
+  const [resourceProposal, setResourceProposal] = useState<any>(null);
+  const [proposalSelections, setProposalSelections] = useState<Record<string, any>>({});
+  const [loadingProposal, setLoadingProposal] = useState(false);
+  const [committingProposal, setCommittingProposal] = useState(false);
+  const proposalLoadKey = useRef('');
   const [revalidationResult, setRevalidationResult] = useState<any>(null);
   const [showLineReplanModal, setShowLineReplanModal] = useState(false);
   const [lineReplanReason, setLineReplanReason] = useState('');
@@ -79,6 +84,14 @@ export const WODetailScreen: React.FC = () => {
     const key = `lineSelection.${group}.${value}`;
     const translated = t(key);
     return translated === key ? value : translated;
+  };
+  const lineDimensionLabel = (value?: string | null) => {
+    if (!value) return t('common.notAvailable');
+    const key = `woDetail.dimension.${value}`;
+    const translated = t(key);
+    if (translated !== key) return translated;
+    const readable = value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+    return t('woDetail.dimensionUnknown', { dimension: readable });
   };
 
   const fetchWODetail = async () => {
@@ -126,6 +139,34 @@ export const WODetailScreen: React.FC = () => {
     fetchWODetail();
   }, [id]);
 
+  const loadResourceProposal = async (force = false) => {
+    if (!id || !canPlanResources) return;
+    const key = `${id}:${wo?.row_version}:${wo?.selected_production_line_id || ''}`;
+    if (!force && proposalLoadKey.current === key) return;
+    proposalLoadKey.current = key;
+    setLoadingProposal(true);
+    try {
+      const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/resource-allocation-proposals`, { headers: apiHeaders() });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(translateWorkOrderError(body.message || body.error, t) || t('woDetail.resourcePlanningLoadFailed'));
+      const selections: Record<string, any> = {};
+      for (const operation of body.operations || []) {
+        if (operation.recommended_candidate) selections[operation.operation_id] = operation.recommended_candidate;
+      }
+      setResourceProposal(body);
+      setProposalSelections(selections);
+    } catch (err: any) {
+      proposalLoadKey.current = '';
+      toast.error(err.message || t('woDetail.resourcePlanningLoadFailed'));
+    } finally {
+      setLoadingProposal(false);
+    }
+  };
+
+  useEffect(() => {
+    if (wo?.line_selection_status === 'READY' && wo?.status === 'Draft') loadResourceProposal();
+  }, [id, wo?.row_version, wo?.selected_production_line_id, wo?.line_selection_status, wo?.status]);
+
   const handleComputeCheck = async () => {
     if (!id) return;
     setComputing(true);
@@ -172,6 +213,52 @@ export const WODetailScreen: React.FC = () => {
       const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(translateWorkOrderError(body.message || body.error, t) || t('woDetail.resourceAllocationFailed'));
       toast.success(t(hasAllocation ? 'woDetail.resourceReallocated' : 'woDetail.resourceAllocated')); setSelectedOperation(null); await fetchWODetail();
     } catch (err: any) { toast.error(err.message || t('woDetail.resourceAllocationFailed')); } finally { setAllocating(false); }
+  };
+
+  const selectProposalCandidate = (candidate: any) => {
+    if (!selectedOperation) return;
+    if (selectedOperation.resource_allocation?.allocation_id) {
+      commitCandidate(candidate);
+      return;
+    }
+    setProposalSelections((current) => ({ ...current, [selectedOperation.wo_operation_id]: candidate }));
+    setSelectedOperation(null);
+  };
+
+  const commitResourceProposal = async () => {
+    if (!id || !resourceProposal?.complete) return;
+    const pending = resourceOperations.filter((operation: any) => !operation.resource_allocation?.allocation_id && proposalSelections[operation.wo_operation_id]);
+    if (pending.length === 0) return;
+    if (!window.confirm(t('woDetail.resourceCommitConfirm', { count: pending.length }))) return;
+    setCommittingProposal(true);
+    const created: any[] = [];
+    try {
+      for (const operation of pending) {
+        const candidate = proposalSelections[operation.wo_operation_id];
+        const start = candidate?.requested_window?.start_at || resourceProposal.operations?.find((entry: any) => entry.operation_id === operation.wo_operation_id)?.requested_window?.start_at || plannedStartForOperation(operation);
+        const response = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/operations/${operation.wo_operation_id}/resource-allocation`, {
+          method: 'POST',
+          headers: apiHeaders({ 'Content-Type': 'application/json', 'Idempotency-Key': `proposal-${resourceProposal.proposal_version}-${operation.wo_operation_id}-${candidate.freshness_token || start}` }),
+          body: JSON.stringify({ workstation_id: candidate.workstation?.id, equipment_id: candidate.primary_machine?.id || candidate.equipment?.id, machine_group_id: candidate.machine_group?.id, shift_id: wo?.shift_id, planned_start_at: start, candidate_reference: `${candidate.assignment?.id || ''}:${candidate.machine_group?.id || ''}:${candidate.capability?.id || ''}`, row_version: resourceProposal.work_order_row_version }),
+        });
+        if (!response.ok) throw new Error(await parseApiError(response, 'woDetail.resourceAllocationFailed'));
+        created.push(operation);
+      }
+      toast.success(t('woDetail.resourceCommitComplete', { count: created.length }));
+      proposalLoadKey.current = '';
+      setResourceProposal(null);
+      setProposalSelections({});
+      await fetchWODetail();
+    } catch (err: any) {
+      for (const operation of created.reverse()) {
+        await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}/operations/${operation.wo_operation_id}/resource-allocation`, { method: 'DELETE', headers: apiHeaders() }).catch(() => undefined);
+      }
+      toast.error(`${err.message || t('woDetail.resourceAllocationFailed')} · ${t('woDetail.resourceCommitCompensated')}`);
+      proposalLoadKey.current = '';
+      await fetchWODetail();
+    } finally {
+      setCommittingProposal(false);
+    }
   };
 
   const handleRevalidateAllocations = async () => {
@@ -475,11 +562,11 @@ export const WODetailScreen: React.FC = () => {
                 <span className="text-xs font-semibold">{translatedEnum(t, 'resourceReadiness.status', result.status || 'Unknown')}</span>
               </div>
               {(result.blockers || []).map((blocker) => <div key={`${blocker.code}-${blocker.operation_code}`} className="mt-2 text-xs text-rose-300" data-testid="line-blocking-reason"><span>{translateWorkOrderError(blocker.code, t) || blocker.code}{blocker.operation_code ? ` · ${blocker.operation_code}` : ''}</span>{blocker.operation_code && <Link to={`/master-data/routings?operation_code=${encodeURIComponent(blocker.operation_code)}`} className="ml-2 inline-flex items-center text-amber-300" title={t('common.detail')}><ExternalLink className="h-3 w-3" /></Link>}</div>)}
-              <div className="mt-3 overflow-x-auto" data-testid={`line-dimension-matrix-${String(result.selection_role || '').toLowerCase()}`}><table className="w-full text-left text-xs"><thead className="text-slate-500"><tr><th className="py-1 pr-3">{t('woDetail.dimension')}</th><th className="py-1">{t('common.status')}</th></tr></thead><tbody>{(result.dimensions || []).map((dimension) => <tr key={dimension.key} className="border-t border-slate-800"><td className="py-1 pr-3 text-slate-300">{t(`woDetail.dimension.${dimension.key}`)}</td><td className={dimension.status === 'Ready' || dimension.status === 'Evaluated' ? 'py-1 text-emerald-300' : dimension.status === 'Blocked' ? 'py-1 text-rose-300' : 'py-1 text-slate-500'}>{dimension.status === 'NotPersisted' ? t('woDetail.dimensionNotPersisted') : translatedEnum(t, 'resourceReadiness.status', dimension.status)}</td></tr>)}</tbody></table></div>
+              <div className="mt-3 overflow-x-auto" data-testid={`line-dimension-matrix-${String(result.selection_role || '').toLowerCase()}`}><table className="w-full text-left text-xs"><thead className="text-slate-500"><tr><th className="py-1 pr-3">{t('woDetail.dimension')}</th><th className="py-1">{t('common.status')}</th></tr></thead><tbody>{(result.dimensions || []).map((dimension) => <tr key={dimension.key} className="border-t border-slate-800"><td className="py-1 pr-3 text-slate-300">{lineDimensionLabel(dimension.key)}</td><td className={dimension.status === 'Ready' || dimension.status === 'Evaluated' ? 'py-1 text-emerald-300' : dimension.status === 'Blocked' ? 'py-1 text-rose-300' : 'py-1 text-slate-500'}>{dimension.status === 'NotPersisted' ? t('woDetail.dimensionNotPersisted') : translatedEnum(t, 'resourceReadiness.status', dimension.status)}</td></tr>)}</tbody></table></div>
             </div>
           ))}
         </div>
-        <div className="grid gap-3 md:grid-cols-2" data-testid="work-order-operation-line-consistency"><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.operationLineConsistency')}</div><div className="mt-1 text-sm text-slate-200">{resourceOperations.length === 0 ? t('common.notAvailable') : resourceOperations.every((operation: any) => !operation.production_line_code || operation.production_line_code === wo.selected_production_line_code) ? t('woDetail.operationLineConsistent') : t('woDetail.operationLineMismatch')}</div></div><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.gateSummary')}</div><div className="mt-1 text-xs text-slate-300">{wo.gate_summary?.approval_state || t('common.notAvailable')} · {wo.gate_summary?.execution_state || t('common.notAvailable')} · {wo.gate_summary?.resource_allocation_state || t('common.notAvailable')}</div>{wo.gate_summary?.blockers?.map((code: string) => <div key={code} className="mt-1 text-xs text-rose-300" data-testid="lifecycle-gate-blocker">{translateWorkOrderError(code, t) || code}</div>)}</div></div>
+        <div className="grid gap-3 md:grid-cols-2" data-testid="work-order-operation-line-consistency"><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.operationLineConsistency')}</div><div className="mt-1 text-sm text-slate-200">{resourceOperations.length === 0 ? t('common.notAvailable') : resourceOperations.every((operation: any) => !operation.production_line_code || operation.production_line_code === wo.selected_production_line_code) ? t('woDetail.operationLineConsistent') : t('woDetail.operationLineMismatch')}</div></div><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.gateSummary')}</div><dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">{[['woDetail.gateWorkOrder', wo.status], ['woDetail.gateExecution', wo.gate_summary?.execution_state], ['woDetail.gateLineSelection', wo.line_selection_status], ['woDetail.gateAllocation', wo.gate_summary?.resource_allocation_state], ['woDetail.gateCapacity', (wo.gate_summary as any)?.capacity_state], ['woDetail.gateApproval', wo.gate_summary?.approval_state]].map(([label, value]) => <div key={label}><dt className="text-slate-500">{t(label)}</dt><dd className="text-slate-200">{value || t('woDetail.dimensionNotPersisted')}</dd></div>)}</dl>{wo.gate_summary?.blockers?.map((code: string) => <div key={code} className="mt-1 text-xs text-rose-300" data-testid="lifecycle-gate-blocker">{translateWorkOrderError(code, t) || code}</div>)}</div></div>
         {revalidationResult && <div className="rounded-md border border-slate-800 bg-slate-950 p-3" data-testid="revalidation-results"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.revalidationResults')}</div><div className="mt-2 space-y-1 text-xs">{(revalidationResult.operations || []).map((result: any) => <div key={result.wo_operation_id} className={result.valid ? 'text-emerald-300' : 'text-rose-300'}>{result.wo_operation_id} · {result.valid ? t('woDetail.revalidationValid') : translateWorkOrderError(result.error_code, t) || t('woDetail.revalidationInvalid')}</div>)}</div></div>}
         {Array.isArray(wo.allocation_history) && wo.allocation_history.length > 0 && <div data-testid="work-order-allocation-history" className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.allocationHistory')}</div><div className="mt-2 space-y-1 text-xs text-slate-300">{wo.allocation_history.map((entry: any) => <div key={`${entry.allocation_id}-${entry.operation_code}`} className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-800 pt-1"><span>{entry.operation_code}</span><span>{entry.status || t('common.notAvailable')}</span><span>{entry.validation_status || t('common.notAvailable')}</span><span className="text-slate-500">{entry.planned_production_line_id || t('common.notAvailable')}</span></div>)}</div></div>}
         {lineReplanBlockedAfterStart && <p className="text-xs text-slate-400">{t('woDetail.lineTransferRequiresExecutionSegment')}</p>}
@@ -547,13 +634,16 @@ export const WODetailScreen: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button data-testid="resource-revalidate-button" type="button" onClick={handleRevalidateAllocations} disabled={submittingAction} className="inline-flex items-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50"><RefreshCw className="h-4 w-4" />{t('woDetail.revalidateAllocations')}</button>
             {(wo.status === 'Released' || wo.status === 'InProgress') && <button data-testid="work-order-start-execution-button" type="button" onClick={handleStartExecution} disabled={submittingAction || wo.gate_summary?.execution_eligible === false} title={wo.gate_summary?.blockers?.length ? wo.gate_summary.blockers.map((code: string) => translateWorkOrderError(code, t) || code).join(', ') : undefined} className="inline-flex items-center gap-2 rounded-md border border-emerald-700 bg-emerald-950/50 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50"><Play className="h-4 w-4" />{t('woDetail.startExecution')}</button>}
-            <button type="button" onClick={() => { const first = (wo.operations || []).find((op: any) => !op.resource_allocation?.allocation_id); if (first) loadCandidates(first); }} className="inline-flex items-center gap-2 rounded-md border border-action/60 bg-action/10 px-3 py-2 text-xs font-semibold text-amber-200"><Settings2 className="h-4 w-4" />{t('woDetail.resourceRecommend')}</button>
+            <button data-testid="resource-auto-propose-button" type="button" onClick={() => loadResourceProposal(true)} disabled={loadingProposal || committingProposal || wo.line_selection_status !== 'READY'} className="inline-flex items-center gap-2 rounded-md border border-action/60 bg-action/10 px-3 py-2 text-xs font-semibold text-amber-200 disabled:opacity-50">{loadingProposal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}{t('woDetail.resourceAutoPropose')}</button>
+            <button data-testid="resource-commit-all-button" type="button" onClick={commitResourceProposal} disabled={committingProposal || !resourceProposal?.complete || resourceOperations.every((operation: any) => operation.resource_allocation?.allocation_id || !proposalSelections[operation.wo_operation_id])} className="inline-flex items-center gap-2 rounded-md bg-action px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{committingProposal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{t('woDetail.resourceCommitAll')}</button>
           </div>
         </div>
         <div className="grid gap-2 md:grid-cols-2" data-testid="work-order-operation-list">
           {(wo.operations || []).map((op: any) => {
             const allocation = op.resource_allocation;
             const hasAllocation = Boolean(allocation?.allocation_id);
+            const proposed = proposalSelections[op.wo_operation_id];
+            const proposalOperation = resourceProposal?.operations?.find((entry: any) => entry.operation_id === op.wo_operation_id);
             return (
               <div data-testid={`work-order-operation-row-${op.wo_operation_id}`} key={op.wo_operation_id} className="rounded-md border border-slate-800 bg-slate-950 p-3 hover:border-action/70">
                 <button type="button" onClick={() => loadCandidates(op)} className="flex w-full items-center justify-between text-left">
@@ -562,6 +652,8 @@ export const WODetailScreen: React.FC = () => {
                     <span className="block text-sm text-slate-200">{hasAllocation ? t('woDetail.resourceAllocated') : t('woDetail.resourceNotAllocated')}</span>
                     <span className="block text-xs text-slate-500">{t('woDetail.selectedProductionLine')}: {op.production_line_code || wo.selected_production_line_code || t('common.notAvailable')}</span>
                     {allocation?.planned_start_at && <span className="block text-xs text-slate-500">{formatDate(allocation.planned_start_at)} - {formatDate(allocation.planned_end_at)}</span>}
+                    {!hasAllocation && proposed && <span data-testid={`resource-proposal-candidate-${op.wo_operation_id}`} className="mt-1 block text-xs text-emerald-300">{t('woDetail.resourceProposed')}: {proposed.machine_group?.code || proposed.equipment?.code || proposed.workstation?.code || t('common.notAvailable')}</span>}
+                    {!hasAllocation && proposalOperation?.blocking_errors?.map((blocker: any) => <span key={blocker.code} className="mt-1 block text-xs text-rose-300">{translateWorkOrderError(blocker.code, t) || blocker.code}</span>)}
                   </span>
                   <span data-testid={`allocation-status-${op.wo_operation_id}`} className={`rounded border px-2 py-1 text-xs ${allocation?.validation_status === 'Stale' ? 'border-rose-700 text-rose-300' : hasAllocation ? 'border-emerald-700 text-emerald-300' : 'border-slate-700 text-slate-400'}`}>{allocationStatusLabel(allocation?.status)}</span>
                 </button>
@@ -571,13 +663,14 @@ export const WODetailScreen: React.FC = () => {
                     <button data-testid={`allocation-cancel-button-${op.wo_operation_id}`} type="button" onClick={(event) => cancelAllocation(op, event)} className="inline-flex items-center gap-1 rounded border border-rose-800 px-2 py-1 text-xs text-rose-300"><Trash2 className="h-3.5 w-3.5" />{t('woDetail.cancelAllocation')}</button>
                   </div>
                 )}
+                {!hasAllocation && proposed && <div className="mt-3 flex justify-end"><button data-testid={`resource-proposal-reset-${op.wo_operation_id}`} type="button" onClick={() => setProposalSelections((current) => ({ ...current, [op.wo_operation_id]: proposalOperation?.recommended_candidate }))} className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-1 text-xs text-slate-300"><RotateCcw className="h-3.5 w-3.5" />{t('woDetail.resourceResetRecommendation')}</button></div>}
               </div>
             );
           })}
         </div>
       </div>
 
-      {selectedOperation && <div data-testid="candidate-workstation-list" className="bg-slate-900 border border-action/50 rounded-md p-6 space-y-4"><div className="flex items-center justify-between"><div><h3 className="text-base font-bold text-slate-100">{localizedText(selectedOperation.operation_name) || selectedOperation.operation_code}</h3><p className="text-xs text-slate-400">{t('woDetail.resourceCandidatesSubtitle')}</p><p className="mt-1 text-xs text-amber-200">{t('woDetail.selectedProductionLine')}: {selectedOperation.production_line_code || wo.selected_production_line_code || t('common.notAvailable')}</p></div><button type="button" onClick={() => setSelectedOperation(null)} className="text-xs text-slate-400 hover:text-white">{t('common.cancel')}</button></div>{loadingCandidates ? <Loader2 className="h-5 w-5 animate-spin text-action" /> : candidates.length === 0 ? <>{candidateBlockers.map((blocker: any) => <p data-testid="candidate-blocking-reasons" key={blocker.code} className="text-sm text-rose-300">{translateWorkOrderError(blocker.code, t) || blocker.message || blocker.code}</p>)}<p className="text-sm text-slate-400">{t('woDetail.resourceNoCandidates')}</p></> : <div className="grid gap-3 md:grid-cols-2">{candidates.map((candidate, index) => <div data-testid={`candidate-workstation-card-${candidate.workstation?.id || candidate.equipment?.id || index}`} key={`${candidate.machine_group?.id || candidate.equipment?.id || candidate.workstation?.id}-${index}`} className="rounded-md border border-slate-800 bg-slate-950 p-4"><div className="flex items-center justify-between"><div><span className="text-xs font-bold text-amber-300">#{index + 1}</span><h4 className="font-semibold text-slate-100">{localizedText(candidate.machine_group?.name) || localizedText(candidate.equipment?.name) || candidate.equipment?.code || localizedText(candidate.workstation?.name) || candidate.workstation?.code || t('common.notAvailable')}</h4><p className="text-xs text-slate-500">{t('woDetail.resourceMachineGroup')}: {candidate.machine_group?.code || candidate.equipment?.code || candidate.workstation?.code || t('common.notAvailable')}</p><p className="text-xs text-slate-500">{t('woDetail.selectedProductionLine')}: {selectedOperation.production_line_code || wo.selected_production_line_code || t('common.notAvailable')}</p></div><div className="flex items-center gap-2"><span data-testid="candidate-workstation-status" className={candidate.readiness === 'Ready' || candidate.readiness === 'Eligible' ? 'text-emerald-300' : candidate.readiness === 'ReadyWithWarnings' ? 'text-amber-300' : 'text-rose-300'}>{t('woDetail.resourceReadiness')}: {readinessLabel(candidate.readiness)}</span>{candidate.equipment?.id ? <Link to={`/master-data/machines/${candidate.equipment.id}`} title={t('resourceFoundation.openEquipment')} className="rounded p-1 text-amber-300 hover:bg-slate-800"><ExternalLink className="h-4 w-4" /></Link> : null}</div></div>{candidate.primary_machine && <div data-testid="candidate-machine-requirement" className="mt-2 text-xs text-slate-300">{t('resourceFoundation.primaryMachine')}: {localizedText(candidate.primary_machine.name) || candidate.primary_machine.code} · {candidate.primary_machine.unit_code || ''}</div>}{candidate.supporting_machines?.length ? <div className="mt-1 text-xs text-slate-400">{t('resourceFoundation.supportingMachines')}: {candidate.supporting_machines.map((member: any) => member.code).join(', ')}</div> : null}<div className="mt-3 space-y-1 text-xs text-slate-400">{candidate.equipment_readiness ? <div className="mb-2 rounded border border-slate-800 p-2"><div>{t('resourceFoundation.machineUnits')}: {readinessLabel(candidate.equipment_readiness.machine_unit?.status)}</div><div>{t('resourceFoundation.assignments')}: {readinessLabel(candidate.equipment_readiness.assignment?.status)}</div><div>{t('resourceFoundation.capabilities')}: {readinessLabel(candidate.equipment_readiness.capability?.status)}</div><div>{t('resourceFoundation.calendars')}: {readinessLabel(candidate.equipment_readiness.calendar?.status)}</div><div>{t('resourceFoundation.capacity')}: {readinessLabel(candidate.equipment_readiness.capacity?.status)}</div></div> : null}<div>{t('woDetail.resourceDuration')}: {formatNumberForDisplay(candidate.estimated_duration_min ?? candidate.calculation?.estimated_duration_min)} min</div><div>{t('woDetail.resourceCapacity')}: {formatNumberForDisplay(candidate.calendar?.available_minutes)} min</div>{(candidate.blocking_errors || []).map((blocker: any) => <div data-testid="candidate-blocking-reasons" key={blocker.code} className="text-rose-300">{translateWorkOrderError(blocker.code, t) || blocker.message || blocker.code}</div>)}{(candidate.warnings || []).map((warning: any) => <div key={warning.code} className="text-amber-300">{translateWorkOrderError(warning.code, t) || warning.message || warning.code}</div>)}{(candidate.capacity_conflicts || []).map((conflict: any) => <div data-testid="candidate-blocking-reasons" key={conflict.code} className="text-rose-300">{translateWorkOrderError(conflict.code, t) || conflict.message || conflict.code}</div>)}</div><button data-testid="candidate-select-button" type="button" disabled={!canPlanResources || allocating || candidate.readiness === 'Blocked' || (candidate.capacity_conflicts || []).length > 0} onClick={() => commitCandidate(candidate)} className="mt-4 inline-flex items-center gap-2 rounded-md bg-action px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Check className="h-4 w-4" />{selectedOperation.resource_allocation?.allocation_id ? t('woDetail.reallocate') : t('woDetail.resourceSelect')}</button></div>)}</div>}</div>}
+      {selectedOperation && <div data-testid="candidate-workstation-list" className="bg-slate-900 border border-action/50 rounded-md p-6 space-y-4"><div className="flex items-center justify-between"><div><h3 className="text-base font-bold text-slate-100">{localizedText(selectedOperation.operation_name) || selectedOperation.operation_code}</h3><p className="text-xs text-slate-400">{t('woDetail.resourceCandidatesSubtitle')}</p><p className="mt-1 text-xs text-amber-200">{t('woDetail.selectedProductionLine')}: {selectedOperation.production_line_code || wo.selected_production_line_code || t('common.notAvailable')}</p></div><button type="button" onClick={() => setSelectedOperation(null)} className="text-xs text-slate-400 hover:text-white">{t('common.cancel')}</button></div>{loadingCandidates ? <Loader2 className="h-5 w-5 animate-spin text-action" /> : candidates.length === 0 ? <>{candidateBlockers.map((blocker: any) => <p data-testid="candidate-blocking-reasons" key={blocker.code} className="text-sm text-rose-300">{translateWorkOrderError(blocker.code, t) || blocker.message || blocker.code}</p>)}<p className="text-sm text-slate-400">{t('woDetail.resourceNoCandidates')}</p></> : <div className="grid gap-3 md:grid-cols-2">{candidates.map((candidate, index) => <div data-testid={`candidate-workstation-card-${candidate.workstation?.id || candidate.equipment?.id || index}`} key={`${candidate.machine_group?.id || candidate.equipment?.id || candidate.workstation?.id}-${index}`} className="rounded-md border border-slate-800 bg-slate-950 p-4"><div className="flex items-center justify-between"><div><span className="text-xs font-bold text-amber-300">#{index + 1}</span><h4 className="font-semibold text-slate-100">{localizedText(candidate.machine_group?.name) || localizedText(candidate.equipment?.name) || candidate.equipment?.code || localizedText(candidate.workstation?.name) || candidate.workstation?.code || t('common.notAvailable')}</h4><p className="text-xs text-slate-500">{t('woDetail.resourceMachineGroup')}: {candidate.machine_group?.code || candidate.equipment?.code || candidate.workstation?.code || t('common.notAvailable')}</p><p className="text-xs text-slate-500">{t('woDetail.selectedProductionLine')}: {selectedOperation.production_line_code || wo.selected_production_line_code || t('common.notAvailable')}</p></div><div className="flex items-center gap-2"><span data-testid="candidate-workstation-status" className={candidate.readiness === 'Ready' || candidate.readiness === 'Eligible' ? 'text-emerald-300' : candidate.readiness === 'ReadyWithWarnings' ? 'text-amber-300' : 'text-rose-300'}>{t('woDetail.resourceReadiness')}: {readinessLabel(candidate.readiness)}</span>{candidate.equipment?.id ? <Link to={`/master-data/machines/${candidate.equipment.id}`} title={t('resourceFoundation.openEquipment')} className="rounded p-1 text-amber-300 hover:bg-slate-800"><ExternalLink className="h-4 w-4" /></Link> : null}</div></div>{candidate.primary_machine && <div data-testid="candidate-machine-requirement" className="mt-2 text-xs text-slate-300">{t('resourceFoundation.primaryMachine')}: {localizedText(candidate.primary_machine.name) || candidate.primary_machine.code} · {candidate.primary_machine.unit_code || ''}</div>}{candidate.supporting_machines?.length ? <div className="mt-1 text-xs text-slate-400">{t('resourceFoundation.supportingMachines')}: {candidate.supporting_machines.map((member: any) => member.code).join(', ')}</div> : null}<div className="mt-3 space-y-1 text-xs text-slate-400">{candidate.equipment_readiness ? <div className="mb-2 rounded border border-slate-800 p-2"><div>{t('resourceFoundation.machineUnits')}: {readinessLabel(candidate.equipment_readiness.machine_unit?.status)}</div><div>{t('resourceFoundation.assignments')}: {readinessLabel(candidate.equipment_readiness.assignment?.status)}</div><div>{t('resourceFoundation.capabilities')}: {readinessLabel(candidate.equipment_readiness.capability?.status)}</div><div>{t('resourceFoundation.calendars')}: {readinessLabel(candidate.equipment_readiness.calendar?.status)}</div><div>{t('resourceFoundation.capacity')}: {readinessLabel(candidate.equipment_readiness.capacity?.status)}</div></div> : null}<div>{t('woDetail.resourceDuration')}: {formatNumberForDisplay(candidate.estimated_duration_min ?? candidate.calculation?.estimated_duration_min)} min</div><div>{t('woDetail.resourceCapacity')}: {formatNumberForDisplay(candidate.calendar?.available_minutes)} min</div>{(candidate.blocking_errors || []).map((blocker: any) => <div data-testid="candidate-blocking-reasons" key={blocker.code} className="text-rose-300">{translateWorkOrderError(blocker.code, t) || blocker.message || blocker.code}</div>)}{(candidate.warnings || []).map((warning: any) => <div key={warning.code} className="text-amber-300">{translateWorkOrderError(warning.code, t) || warning.message || warning.code}</div>)}{(candidate.capacity_conflicts || []).map((conflict: any) => <div data-testid="candidate-blocking-reasons" key={conflict.code} className="text-rose-300">{translateWorkOrderError(conflict.code, t) || conflict.message || conflict.code}</div>)}</div><button data-testid="candidate-select-button" type="button" disabled={!canPlanResources || allocating || candidate.readiness === 'Blocked' || (candidate.capacity_conflicts || []).length > 0} onClick={() => selectProposalCandidate(candidate)} className="mt-4 inline-flex items-center gap-2 rounded-md bg-action px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Check className="h-4 w-4" />{selectedOperation.resource_allocation?.allocation_id ? t('woDetail.reallocate') : t('woDetail.resourceSelect')}</button></div>)}</div>}</div>}
 
       <div className="bg-slate-900 border border-slate-800 rounded-md p-6 space-y-4">
         <h3 className="text-base font-bold text-slate-100 uppercase tracking-wider text-xs inline-flex items-center gap-1">

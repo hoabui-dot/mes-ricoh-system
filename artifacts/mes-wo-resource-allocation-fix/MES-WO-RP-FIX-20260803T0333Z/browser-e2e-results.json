@@ -1,0 +1,11 @@
+{
+  "command": "npx playwright test e2e/resource-planning/phase3-resource-planning.spec.ts --project=chromium --reporter=line",
+  "declared": 6,
+  "executed": 6,
+  "passed": 6,
+  "failed": 0,
+  "skipped": 0,
+  "duration_seconds": 44.2,
+  "last_run": "artifacts/playwright/test-results/.last-run.json",
+  "report": "artifacts/playwright/report/index.html"
+}

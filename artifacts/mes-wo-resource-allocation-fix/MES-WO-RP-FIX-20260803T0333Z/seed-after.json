@@ -1,0 +1,9 @@
+{
+  "source": "artifacts/mes-canonical-reset/2026-08-03T03-26-58-347Z/verification-result.json",
+  "verification": {"declared": 44, "executed": 44, "passed": 44, "failed": 0, "skipped": 0},
+  "canonical": {"lines": 2, "work_centers": 8, "workstations": 8, "equipment": 8, "capabilities": 12, "calendars": 8, "operations": 6, "routing_operations": 12},
+  "labor": {"skills": 3, "workers": 4, "skill_assignments": 4, "shift_schedules": 4, "candidate_gaps": 0},
+  "uat_production_versions": 3,
+  "uat_line_eligibilities": 6,
+  "idempotency_runs": ["wo-fix-idempotency-1b", "wo-fix-idempotency-2"]
+}

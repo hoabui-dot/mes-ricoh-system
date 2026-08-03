@@ -1,0 +1,956 @@
+{
+  "success": false,
+  "status": "FAIL_PHASE_2",
+  "run_id": "PHASE2-RP-1785727932964-LEKRP",
+  "target_date": "2026-08-03",
+  "error": "Error: RESOURCE_PROPOSAL_INCOMPLETE: {\"blocking_errors\":[{\"code\":\"WO_LINE_RESOURCE_HOLD\"}],\"complete\":false,\"generated_at\":\"2026-08-03T03:32:13.62605023Z\",\"operations\":[],\"proposal_version\":\"753275d438e90b7b33e861bae2dd0fd4ccf233c7316aa2333c78353468ef1a10\",\"selected_production_line\":{\"code\":\"\",\"id\":\"\",\"name_i18n\":{}},\"work_order_id\":\"00a357eb-c68d-444e-96fd-86fbaf963881\",\"work_order_row_version\":2}\n    at file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-full-flow.mjs:316:181\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async record (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-full-flow.mjs:53:18)\n    at async main (file:///home/neurosus/recoh-system/mes-system/scripts/test-mes-resource-planning-full-flow.mjs:312:21)",
+  "cleanup": {
+    "deleted_work_orders": 1,
+    "remaining_target_rows": 0
+  },
+  "steps": [
+    {
+      "name": "authenticate through supported trusted-gateway identity path",
+      "status": "passed",
+      "started_at": "2026-08-03T03:32:12.997Z",
+      "finished_at": "2026-08-03T03:32:13.045Z",
+      "data": {
+        "mode": "trusted-gateway-headers",
+        "user_id_header": "00000000-0000-0000-0000-000000000001",
+        "role_code_header": "PLANT_MANAGER",
+        "status": 200
+      }
+    },
+    {
+      "name": "reuse deterministic released master-data chain",
+      "status": "passed",
+      "started_at": "2026-08-03T03:32:13.045Z",
+      "finished_at": "2026-08-03T03:32:13.369Z",
+      "data": {
+        "version": {
+          "production_version_name": {
+            "en": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked",
+            "ja": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked",
+            "ko": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked",
+            "vi": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked"
+          },
+          "min_lot_size": "1.000000",
+          "max_lot_size": "1000.000000",
+          "item_id": "c76d8e85-6aa3-48a4-a5a3-232040769bb6",
+          "item_code": "WST-SEED-FG-SEAL-ASM-01",
+          "item_name": {
+            "en": "Won Seal Tech Seal Assembly A",
+            "ja": "Won Seal Tech Seal Assembly A",
+            "ko": "Won Seal Tech Seal Assembly A",
+            "vi": "Won Seal Tech Seal Assembly A"
+          },
+          "item_revision_id": "bf1ac0ea-6efb-4e2e-8339-1f6f32935f84",
+          "revision_code": "A",
+          "revision_status": "Released",
+          "revision_effective_from": "2026-08-03T03:26:57.746Z",
+          "revision_effective_to": null,
+          "base_uom_code": "PCS",
+          "base_uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f",
+          "base_uom_decimal_precision": 0,
+          "base_uom_allow_fraction": false,
+          "production_version_id": "e41cfe1e-9dbb-4a01-98a6-49b4fa28f48e",
+          "production_version_code": "WST-UAT-PV-03-BOTH-LINES-HOLD",
+          "mbom_header_id": "2c4cbcbd-e645-47b9-911c-8b1af7ae2d5f",
+          "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+          "mbom_name": {
+            "en": "Won Seal Tech Seal Assembly MBOM",
+            "ja": "Won Seal Tech Seal Assembly MBOM",
+            "ko": "Won Seal Tech Seal Assembly MBOM",
+            "vi": "Won Seal Tech Seal Assembly MBOM"
+          },
+          "routing_header_id": "a67ea6fa-12b6-4adf-85d7-383e703ffd00",
+          "routing_code": "WST-SEED-UAT-ROUTING-BOTH-HOLD",
+          "routing_name": {
+            "en": "UAT both lines hold routing",
+            "ja": "UAT both lines hold routing",
+            "ko": "UAT both lines hold routing",
+            "vi": "UAT both lines hold routing"
+          },
+          "site_id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+          "site_code": "SITE-KZ3",
+          "item_revision": {
+            "id": "bf1ac0ea-6efb-4e2e-8339-1f6f32935f84",
+            "code": "A",
+            "name": {
+              "en": "Won Seal Tech Seal Assembly A",
+              "ja": "Won Seal Tech Seal Assembly A",
+              "ko": "Won Seal Tech Seal Assembly A",
+              "vi": "Won Seal Tech Seal Assembly A"
+            }
+          },
+          "mbom": {
+            "id": "2c4cbcbd-e645-47b9-911c-8b1af7ae2d5f",
+            "code": "WST-SEED-MBOM-SEAL-ASM-01",
+            "name": {
+              "en": "Won Seal Tech Seal Assembly MBOM",
+              "ja": "Won Seal Tech Seal Assembly MBOM",
+              "ko": "Won Seal Tech Seal Assembly MBOM",
+              "vi": "Won Seal Tech Seal Assembly MBOM"
+            }
+          },
+          "routing": {
+            "id": "a67ea6fa-12b6-4adf-85d7-383e703ffd00",
+            "code": "WST-SEED-UAT-ROUTING-BOTH-HOLD",
+            "name": {
+              "en": "UAT both lines hold routing",
+              "ja": "UAT both lines hold routing",
+              "ko": "UAT both lines hold routing",
+              "vi": "UAT both lines hold routing"
+            }
+          },
+          "site": {
+            "id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+            "code": "SITE-KZ3"
+          },
+          "base_uom": {
+            "id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f",
+            "code": "PCS",
+            "decimal_precision": 0,
+            "allow_fraction": false,
+            "lifecycle_status": "Released"
+          },
+          "valid_from": "2026-08-03T03:26:57.746Z",
+          "valid_to": null,
+          "ready": true,
+          "warnings": [],
+          "display_code": "WST-SEED-FG-SEAL-ASM-01-A",
+          "readiness_status": "Ready"
+        },
+        "shift": {
+          "master_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+          "code": "SHIFT-A",
+          "name": "Day Shift",
+          "version_no": 1,
+          "lifecycle_status": "Released",
+          "effective_from": "2026-07-21T00:00:00.000Z",
+          "effective_to": null,
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "created_at": "2026-08-03T03:17:17.104Z",
+          "updated_by": "00000000-0000-0000-0000-000000000001",
+          "updated_at": "2026-08-03T03:17:17.104Z",
+          "approved_by": "00000000-0000-0000-0000-000000000001",
+          "approved_at": "2026-07-21T00:00:00.000Z",
+          "row_version": 1,
+          "attributes": {},
+          "site_id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+          "start_time": "08:00",
+          "end_time": "17:00",
+          "crosses_midnight": false
+        }
+      }
+    },
+    {
+      "name": "create Work Order from production_version_id and wait workflow",
+      "status": "passed",
+      "started_at": "2026-08-03T03:32:13.369Z",
+      "finished_at": "2026-08-03T03:32:13.593Z",
+      "data": {
+        "current_step": "outbox_queued",
+        "events": [
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "87b631ac-c2af-403d-bad8-b507a9b9eb6f",
+            "event_type": "workflow.started",
+            "occurred_at": "2026-08-03T03:32:13.380529055Z",
+            "schema_version": 1,
+            "sequence": 1,
+            "source_service": "mes-execution-service",
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          },
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "91557642-de20-4dcd-a21c-2fe2b58d47ab",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-03T03:32:13.384009644Z",
+            "schema_version": 1,
+            "sequence": 2,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "request_validation",
+              "message_key": "workOrders.creation.steps.request.success",
+              "message_params": null,
+              "order": 1,
+              "result": {
+                "quantity": 2
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.request_validation.title"
+            },
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          },
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "a2d073b6-9cc4-421e-a8bf-81a64ba9b8d6",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-03T03:32:13.388005419Z",
+            "schema_version": 1,
+            "sequence": 3,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.running",
+              "message_params": null,
+              "order": 2,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          },
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "123acb96-7a52-4d69-b467-e9e91543ed43",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-03T03:32:13.393476204Z",
+            "schema_version": 1,
+            "sequence": 4,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.success",
+              "message_params": null,
+              "order": 2,
+              "result": {
+                "mbomId": "2c4cbcbd-e645-47b9-911c-8b1af7ae2d5f",
+                "productionVersionId": "e41cfe1e-9dbb-4a01-98a6-49b4fa28f48e",
+                "routingId": "a67ea6fa-12b6-4adf-85d7-383e703ffd00"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          },
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "2322bce7-d4ac-4052-84d7-5d892eb92f28",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-03T03:32:13.395961036Z",
+            "schema_version": 1,
+            "sequence": 5,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.running",
+              "message_params": null,
+              "order": 3,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          },
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "c718a27f-ccd3-40a8-90d7-48f7ded44985",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-03T03:32:13.422780839Z",
+            "schema_version": 1,
+            "sequence": 6,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.success",
+              "message_params": null,
+              "order": 3,
+              "result": {
+                "fallbackReason": "",
+                "lineSelectionStatus": "RESOURCE_HOLD",
+                "materialCount": 1,
+                "operationCount": 4,
+                "selectedProductionLineCode": "",
+                "selectedProductionLineId": "",
+                "status": "ResourceHold",
+                "workOrderCode": "WO-20260803-0182",
+                "workOrderId": "00a357eb-c68d-444e-96fd-86fbaf963881"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          },
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "032adc87-fd64-4949-9e1c-fd373959608b",
+            "event_type": "step.event_queued",
+            "occurred_at": "2026-08-03T03:32:13.425976877Z",
+            "schema_version": 1,
+            "sequence": 7,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "outbox_queued",
+              "message_key": "workOrders.creation.steps.outbox.success",
+              "message_params": null,
+              "order": 4,
+              "result": {
+                "eventType": "MES.Execution.WOCreated.v1"
+              },
+              "status": "event_queued",
+              "title_key": "workOrders.creation.steps.outbox_queued.title"
+            },
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          },
+          {
+            "correlation_id": "841e099c-41f5-401d-b323-a4d82a3b6c93",
+            "event_id": "dc45e489-dae0-4213-852f-a5f26a4ae1ce",
+            "event_type": "workflow.succeeded",
+            "occurred_at": "2026-08-03T03:32:13.429916152Z",
+            "schema_version": 1,
+            "sequence": 8,
+            "source_service": "mes-execution-service",
+            "workflow": {
+              "status": "succeeded",
+              "work_order_code": "WO-20260803-0182",
+              "work_order_id": "00a357eb-c68d-444e-96fd-86fbaf963881"
+            },
+            "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+          }
+        ],
+        "last_sequence": 8,
+        "status": "succeeded",
+        "work_order_code": "WO-20260803-0182",
+        "work_order_id": "00a357eb-c68d-444e-96fd-86fbaf963881",
+        "workflow_id": "08e7a307-5afb-4bf9-88f2-aab64b8e7acf"
+      }
+    },
+    {
+      "name": "load created Work Order routing snapshot",
+      "status": "passed",
+      "started_at": "2026-08-03T03:32:13.593Z",
+      "finished_at": "2026-08-03T03:32:13.603Z",
+      "data": {
+        "allocation_history": null,
+        "approval_logs": null,
+        "gate_summary": {
+          "active_allocation_count": 0,
+          "approval_eligible": false,
+          "approval_state": "Pending",
+          "blockers": [
+            "WO_LINE_NOT_READY",
+            "WO_OPERATION_ALLOCATION_MISSING"
+          ],
+          "execution_eligible": false,
+          "execution_state": "NotStarted",
+          "line_selection_status": "RESOURCE_HOLD",
+          "operation_count": 4,
+          "resource_allocation_state": "NotEvaluated",
+          "valid_allocation_count": 0
+        },
+        "header": {
+          "created_at": "2026-08-03T03:32:13.399567Z",
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "demo_print_on_approval": true,
+          "evaluated_line_results": [
+            {
+              "blockers": [
+                {
+                  "code": "LINE_PRODUCTION_STANDARD_MISSING",
+                  "line_id": "6725f482-efe4-4d9a-b3e9-54158d11b274",
+                  "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+                  "operation_id": "57d65dcd-2202-49b1-80e1-1f028ae92b95",
+                  "routing_operation_id": "582f4760-c0e7-4a77-b1f2-33c55df2a640"
+                }
+              ],
+              "dimensions": [
+                {
+                  "blockers": [],
+                  "key": "eligibility",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "work_centers",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "workstations",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "machine_requirements",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "equipment_units",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "assignments",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "capability",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "calendar_shift",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "production_standard",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "capacity",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "worker_skill_labor",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [
+                    {
+                      "code": "LINE_PRODUCTION_STANDARD_MISSING",
+                      "line_id": "6725f482-efe4-4d9a-b3e9-54158d11b274",
+                      "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+                      "operation_id": "57d65dcd-2202-49b1-80e1-1f028ae92b95",
+                      "routing_operation_id": "582f4760-c0e7-4a77-b1f2-33c55df2a640"
+                    }
+                  ],
+                  "key": "final_result",
+                  "status": "Blocked"
+                },
+                {
+                  "blockers": [],
+                  "key": "selection_reason",
+                  "status": "NotPersisted"
+                }
+              ],
+              "priority": 1,
+              "production_line_code": "WST-SEED-LINE-1",
+              "production_line_id": "6725f482-efe4-4d9a-b3e9-54158d11b274",
+              "selection_role": "PRIMARY",
+              "status": "Blocked"
+            },
+            {
+              "blockers": [
+                {
+                  "code": "LINE_PRODUCTION_STANDARD_MISSING",
+                  "line_id": "da15d641-0a03-40ed-ad03-04f01ad610d9",
+                  "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+                  "operation_id": "57d65dcd-2202-49b1-80e1-1f028ae92b95",
+                  "routing_operation_id": "582f4760-c0e7-4a77-b1f2-33c55df2a640"
+                }
+              ],
+              "dimensions": [
+                {
+                  "blockers": [],
+                  "key": "eligibility",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "work_centers",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "workstations",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "machine_requirements",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "equipment_units",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "assignments",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "capability",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "calendar_shift",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "production_standard",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "capacity",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "worker_skill_labor",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [
+                    {
+                      "code": "LINE_PRODUCTION_STANDARD_MISSING",
+                      "line_id": "da15d641-0a03-40ed-ad03-04f01ad610d9",
+                      "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+                      "operation_id": "57d65dcd-2202-49b1-80e1-1f028ae92b95",
+                      "routing_operation_id": "582f4760-c0e7-4a77-b1f2-33c55df2a640"
+                    }
+                  ],
+                  "key": "final_result",
+                  "status": "Blocked"
+                },
+                {
+                  "blockers": [],
+                  "key": "selection_reason",
+                  "status": "NotPersisted"
+                }
+              ],
+              "priority": 2,
+              "production_line_code": "WST-SEED-LINE-2",
+              "production_line_id": "da15d641-0a03-40ed-ad03-04f01ad610d9",
+              "selection_role": "BACKUP",
+              "status": "Blocked"
+            }
+          ],
+          "fallback_reason": "",
+          "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
+          "item_name": "Won Seal Tech Seal Assembly A",
+          "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+          "item_revision_id": "bf1ac0ea-6efb-4e2e-8339-1f6f32935f84",
+          "item_revision_name_i18n": {
+            "en": "Won Seal Tech Seal Assembly A",
+            "ja": "Won Seal Tech Seal Assembly A",
+            "ko": "Won Seal Tech Seal Assembly A",
+            "vi": "Won Seal Tech Seal Assembly A"
+          },
+          "line_locked_at": null,
+          "line_selection_mode": "AUTO",
+          "line_selection_reason": "NO_COMPLETE_FEASIBLE_LINE",
+          "line_selection_status": "RESOURCE_HOLD",
+          "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+          "planned_end_at": "2026-08-04T08:00:00Z",
+          "planned_start_at": "2026-08-03T08:00:00Z",
+          "planning_snapshot": {
+            "mbom_id": "2c4cbcbd-e645-47b9-911c-8b1af7ae2d5f",
+            "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+            "routing_id": "a67ea6fa-12b6-4adf-85d7-383e703ffd00",
+            "production_version_id": "e41cfe1e-9dbb-4a01-98a6-49b4fa28f48e",
+            "production_version_code": "WST-UAT-PV-03-BOTH-LINES-HOLD"
+          },
+          "production_version_code": "WST-UAT-PV-03-BOTH-LINES-HOLD",
+          "production_version_id": "e41cfe1e-9dbb-4a01-98a6-49b4fa28f48e",
+          "production_version_name_i18n": {
+            "en": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked",
+            "ja": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked",
+            "ko": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked",
+            "vi": "[UAT-BOTH-LINES-HOLD] Primary and Backup blocked"
+          },
+          "quantity": 2,
+          "resource_hold_reason": {
+            "code": "NO_COMPLETE_FEASIBLE_LINE",
+            "evaluated_lines": [
+              {
+                "status": "Blocked",
+                "blockers": [
+                  {
+                    "code": "LINE_PRODUCTION_STANDARD_MISSING",
+                    "line_id": "6725f482-efe4-4d9a-b3e9-54158d11b274",
+                    "operation_id": "57d65dcd-2202-49b1-80e1-1f028ae92b95",
+                    "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+                    "routing_operation_id": "582f4760-c0e7-4a77-b1f2-33c55df2a640"
+                  }
+                ],
+                "priority": 1,
+                "selection_role": "PRIMARY",
+                "production_line_id": "6725f482-efe4-4d9a-b3e9-54158d11b274",
+                "production_line_code": "WST-SEED-LINE-1"
+              },
+              {
+                "status": "Blocked",
+                "blockers": [
+                  {
+                    "code": "LINE_PRODUCTION_STANDARD_MISSING",
+                    "line_id": "da15d641-0a03-40ed-ad03-04f01ad610d9",
+                    "operation_id": "57d65dcd-2202-49b1-80e1-1f028ae92b95",
+                    "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+                    "routing_operation_id": "582f4760-c0e7-4a77-b1f2-33c55df2a640"
+                  }
+                ],
+                "priority": 2,
+                "selection_role": "BACKUP",
+                "production_line_id": "da15d641-0a03-40ed-ad03-04f01ad610d9",
+                "production_line_code": "WST-SEED-LINE-2"
+              }
+            ]
+          },
+          "routing_code": "WST-SEED-UAT-ROUTING-BOTH-HOLD",
+          "row_version": 2,
+          "selected_production_line_code": "",
+          "selected_production_line_id": "",
+          "selected_production_line_name_i18n": {},
+          "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+          "site_id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+          "status": "ResourceHold",
+          "uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f",
+          "wo_code": "WO-20260803-0182",
+          "wo_id": "00a357eb-c68d-444e-96fd-86fbaf963881"
+        },
+        "material_requirements": [
+          {
+            "backflush_flag": false,
+            "component_item_code": "WST-SEED-COMP-SEAL-RING-01-A",
+            "component_item_revision_id": "c516b081-9861-4377-bf1a-07ba655fd1dd",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2,
+            "requirement_id": "f3598246-7024-4f4f-9fdc-2fa8e54fcfb5",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f"
+          }
+        ],
+        "operations": [
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-OP-BINDING",
+              "ja": "WST-SEED-OP-BINDING",
+              "ko": "WST-SEED-OP-BINDING",
+              "vi": "WST-SEED-OP-BINDING"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "",
+            "production_line_id": "",
+            "production_line_name_i18n": {},
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 10,
+            "source_routing_work_center_id": "276ee7f6-a280-497a-a5fe-5dd15f28c21f",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "ea3f215f-20ff-4e69-8c51-f2d7f110087a",
+            "work_center_code": "WST-SEED-WC-L1-BINDING",
+            "work_center_id": "276ee7f6-a280-497a-a5fe-5dd15f28c21f",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-BINDING",
+              "ja": "Won Seal Tech L1-BINDING",
+              "ko": "Won Seal Tech L1-BINDING",
+              "vi": "Won Seal Tech L1-BINDING"
+            },
+            "workstation_id": "4b392424-c5cf-4019-9425-dcaf929fd101"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-OP-TEST5IN1",
+              "ja": "WST-SEED-OP-TEST5IN1",
+              "ko": "WST-SEED-OP-TEST5IN1",
+              "vi": "WST-SEED-OP-TEST5IN1"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "",
+            "production_line_id": "",
+            "production_line_name_i18n": {},
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 20,
+            "source_routing_work_center_id": "5194b913-9642-412a-80db-dcee1700c6ce",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "05b95cab-1c8c-48b8-be46-602afa0fb468",
+            "work_center_code": "WST-SEED-WC-L1-TEST5IN1",
+            "work_center_id": "5194b913-9642-412a-80db-dcee1700c6ce",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-TEST5IN1",
+              "ja": "Won Seal Tech L1-TEST5IN1",
+              "ko": "Won Seal Tech L1-TEST5IN1",
+              "vi": "Won Seal Tech L1-TEST5IN1"
+            },
+            "workstation_id": "eb1a7573-b850-40c0-8623-e0f31cfe92e8"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-OP-AIRTEST",
+              "ja": "WST-SEED-OP-AIRTEST",
+              "ko": "WST-SEED-OP-AIRTEST",
+              "vi": "WST-SEED-OP-AIRTEST"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "",
+            "production_line_id": "",
+            "production_line_name_i18n": {},
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 30,
+            "source_routing_work_center_id": "5517d3b2-b636-4363-b0f3-3e1d668e1476",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "516621bc-1dcf-40e4-b3de-d29be267d08d",
+            "work_center_code": "WST-SEED-WC-L1-AIRTEST",
+            "work_center_id": "5517d3b2-b636-4363-b0f3-3e1d668e1476",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-AIRTEST",
+              "ja": "Won Seal Tech L1-AIRTEST",
+              "ko": "Won Seal Tech L1-AIRTEST",
+              "vi": "Won Seal Tech L1-AIRTEST"
+            },
+            "workstation_id": "7ea2b199-34f0-427e-844d-f705bdb47fa2"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-UAT-OP-HOLD-PACKING",
+              "ja": "WST-SEED-UAT-OP-HOLD-PACKING",
+              "ko": "WST-SEED-UAT-OP-HOLD-PACKING",
+              "vi": "WST-SEED-UAT-OP-HOLD-PACKING"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "",
+            "production_line_id": "",
+            "production_line_name_i18n": {},
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 40,
+            "source_routing_work_center_id": "1652b512-7c98-4c8b-854e-2bfa0a2d8a2d",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "8b6f6a69-9b0a-452e-9f0a-d97876ecfed7",
+            "work_center_code": "WST-SEED-WC-L1-PACKING",
+            "work_center_id": "1652b512-7c98-4c8b-854e-2bfa0a2d8a2d",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-PACKING",
+              "ja": "Won Seal Tech L1-PACKING",
+              "ko": "Won Seal Tech L1-PACKING",
+              "vi": "Won Seal Tech L1-PACKING"
+            },
+            "workstation_id": "2565b1cb-683c-4e29-84df-ebebd6515879"
+          }
+        ],
+        "print_jobs": null
+      }
+    },
+    {
+      "name": "run Compute and Check",
+      "status": "passed",
+      "started_at": "2026-08-03T03:32:13.603Z",
+      "finished_at": "2026-08-03T03:32:13.612Z",
+      "data": {
+        "status": 200,
+        "body": {
+          "wo_id": "00a357eb-c68d-444e-96fd-86fbaf963881",
+          "total_duration_minutes": 44,
+          "planned_start_at": "2026-08-03T08:00:00Z",
+          "planned_end_at": "2026-08-03T08:44:00Z",
+          "operations": [
+            {
+              "sequence_no": 10,
+              "operation_code": "WST-SEED-OP-BINDING",
+              "work_center_id": "276ee7f6-a280-497a-a5fe-5dd15f28c21f",
+              "duration_minutes": 11,
+              "planned_start_at": "2026-08-03T08:00:00Z",
+              "planned_end_at": "2026-08-03T08:11:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 90,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 3,
+              "calculated_total_minutes": 11,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 20,
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "5194b913-9642-412a-80db-dcee1700c6ce",
+              "duration_minutes": 12,
+              "planned_start_at": "2026-08-03T08:11:00Z",
+              "planned_end_at": "2026-08-03T08:23:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 120,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 4,
+              "calculated_total_minutes": 12,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 30,
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "5517d3b2-b636-4363-b0f3-3e1d668e1476",
+              "duration_minutes": 11,
+              "planned_start_at": "2026-08-03T08:23:00Z",
+              "planned_end_at": "2026-08-03T08:34:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 80,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 2.6666666666666665,
+              "calculated_total_minutes": 10.666666666666666,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 40,
+              "operation_code": "WST-SEED-UAT-OP-HOLD-PACKING",
+              "work_center_id": "1652b512-7c98-4c8b-854e-2bfa0a2d8a2d",
+              "duration_minutes": 10,
+              "planned_start_at": "2026-08-03T08:34:00Z",
+              "planned_end_at": "2026-08-03T08:44:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 60,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 2,
+              "calculated_total_minutes": 10,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            }
+          ],
+          "capacity_warnings": [],
+          "labor_warnings": [],
+          "labor_shortages": [],
+          "labor_assignments": []
+        }
+      }
+    },
+    {
+      "name": "retrieve side-effect-free backend proposals for every operation",
+      "status": "failed",
+      "started_at": "2026-08-03T03:32:13.612Z",
+      "finished_at": "2026-08-03T03:32:13.630Z",
+      "error": "RESOURCE_PROPOSAL_INCOMPLETE: {\"blocking_errors\":[{\"code\":\"WO_LINE_RESOURCE_HOLD\"}],\"complete\":false,\"generated_at\":\"2026-08-03T03:32:13.62605023Z\",\"operations\":[],\"proposal_version\":\"753275d438e90b7b33e861bae2dd0fd4ccf233c7316aa2333c78353468ef1a10\",\"selected_production_line\":{\"code\":\"\",\"id\":\"\",\"name_i18n\":{}},\"work_order_id\":\"00a357eb-c68d-444e-96fd-86fbaf963881\",\"work_order_row_version\":2}"
+    }
+  ]
+}

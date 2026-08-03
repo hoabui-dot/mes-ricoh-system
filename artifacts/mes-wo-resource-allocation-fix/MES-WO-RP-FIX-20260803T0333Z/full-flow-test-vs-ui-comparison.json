@@ -1,0 +1,12 @@
+{
+  "before": {
+    "browser": "manual initial candidate selection for each operation",
+    "runner": "candidate probing, fallback to an unrelated PV-* record, and direct Print Station fixture mutation"
+  },
+  "root_cause": "The runner did not enforce the requested Production Version and did not use the same proposal workflow as the Console.",
+  "after": {
+    "browser": "backend proposal, review/adjust, explicit bulk commit",
+    "runner": "exact Production Version, same proposal endpoint, no print fixture repair",
+    "pv03_expected_rejection": "PHASE2-RP-1785727932964-LEKRP"
+  }
+}

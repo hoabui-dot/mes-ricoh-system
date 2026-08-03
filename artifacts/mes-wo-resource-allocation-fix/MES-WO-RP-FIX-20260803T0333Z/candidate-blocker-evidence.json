@@ -1,0 +1,12 @@
+{
+  "ranking_owner": "mes-execution-service",
+  "ready_rule": "not Blocked, no candidate blocking_errors, no operation blocking_errors, no capacity_conflicts",
+  "dimensions": ["selected line", "assignment", "capability", "production standard", "calendar", "equipment", "capacity", "reservation", "worker skill and schedule", "print readiness"],
+  "pv03": {
+    "status": "RESOURCE_HOLD",
+    "proposal_complete": false,
+    "proposal_blocker": "WO_LINE_RESOURCE_HOLD",
+    "line_blocker": "LINE_PRODUCTION_STANDARD_MISSING",
+    "operations_proposed": 0
+  }
+}

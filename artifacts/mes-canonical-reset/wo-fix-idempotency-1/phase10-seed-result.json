@@ -1,0 +1,39 @@
+{
+  "status": "FAIL",
+  "generated_at": "2026-08-03T03:26:20.293Z",
+  "mode": "--seed",
+  "safety": {
+    "passed": true,
+    "mode": "--seed",
+    "environment": "development",
+    "reasons": [],
+    "host": "staging-master",
+    "databases": {
+      "master": {
+        "host": "localhost",
+        "port": "15434",
+        "database": "mes_master_data_db",
+        "user": "mes_master_data_user",
+        "password": "[REDACTED]"
+      },
+      "execution": {
+        "host": "localhost",
+        "port": "15435",
+        "database": "mes_execution_db",
+        "user": "mes_execution_user",
+        "password": "[REDACTED]"
+      },
+      "traceability": {
+        "host": "localhost",
+        "port": "15436",
+        "database": "mes_traceability_db",
+        "user": "traceability_user",
+        "password": "[REDACTED]"
+      }
+    }
+  },
+  "artifact_path": "/home/neurosus/recoh-system/mes-system/artifacts/mes-canonical-reset/wo-fix-idempotency-1/phase10-seed-result.json",
+  "command_results": [],
+  "error": "update or delete on table \"md_workstation\" violates foreign key constraint \"md_workstation_print_station_binding_workstation_id_fkey\" on table \"md_workstation_print_station_binding\"",
+  "completed_at": "2026-08-03T03:26:20.443Z"
+}

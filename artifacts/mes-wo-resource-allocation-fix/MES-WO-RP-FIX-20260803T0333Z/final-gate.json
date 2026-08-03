@@ -1,0 +1,17 @@
+{
+  "run_id": "MES-WO-RP-FIX-20260803T0333Z",
+  "source_parity": true,
+  "side_effect_free_proposal": true,
+  "explicit_commit": true,
+  "canonical_seed_ready_and_idempotent": true,
+  "three_pv_scenarios_proven": true,
+  "final_operation_printing_only": true,
+  "frontend_build": "PASS",
+  "backend_tests": "PASS",
+  "api_integration": "PASS",
+  "browser_e2e": "PASS",
+  "mandatory_skips": 0,
+  "cleanup": "PASS",
+  "services_healthy": true,
+  "status": "MES_WO_RESOURCE_ALLOCATION_FIX_COMPLETE"
+}

@@ -1,0 +1,86 @@
+{
+  "success": true,
+  "generated_at": "2026-08-03T03:15:14.430Z",
+  "safety": {
+    "passed": true,
+    "reasons": [],
+    "environment": "development"
+  },
+  "command_results": [
+    {
+      "label": "Build MES Master Data service before importing seed",
+      "command": "npm --prefix services/mes-master-data-service run build",
+      "exit_code": 0,
+      "started_at": "2026-08-03T03:15:14.431Z",
+      "ended_at": "2026-08-03T03:15:21.009Z",
+      "stdout": "\n> mes-master-data-service@1.0.0 build\n> tsc\n\n",
+      "stderr": ""
+    },
+    {
+      "label": "Apply canonical two-line MES dataset",
+      "command": "/usr/bin/node scripts/mes-phase10-reset-seed-verify.mjs --seed",
+      "exit_code": 0,
+      "started_at": "2026-08-03T03:15:21.488Z",
+      "ended_at": "2026-08-03T03:15:21.987Z",
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"generated_at\": \"2026-08-03T03:15:21.557Z\",\n  \"mode\": \"--seed\",\n  \"safety\": {\n    \"passed\": true,\n    \"mode\": \"--seed\",\n    \"environment\": \"development\",\n    \"reasons\": [],\n    \"host\": \"staging-master\",\n    \"databases\": {\n      \"master\": {\n        \"host\": \"localhost\",\n        \"port\": \"15434\",\n        \"database\": \"mes_master_data_db\",\n        \"user\": \"mes_master_data_user\",\n        \"password\": \"[REDACTED]\"\n      },\n      \"execution\": {\n        \"host\": \"localhost\",\n        \"port\": \"15435\",\n        \"database\": \"mes_execution_db\",\n        \"user\": \"mes_execution_user\",\n        \"password\": \"[REDACTED]\"\n      },\n      \"traceability\": {\n        \"host\": \"localhost\",\n        \"port\": \"15436\",\n        \"database\": \"mes_traceability_db\",\n        \"user\": \"traceability_user\",\n        \"password\": \"[REDACTED]\"\n      }\n    }\n  },\n  \"artifact_path\": \"/home/neurosus/recoh-system/mes-system/artifacts/mes-canonical-reset/2026-08-03T03-15-14-429Z/phase10-seed-result.json\",\n  \"command_results\": [],\n  \"cleanup\": {\n    \"master_line_eligibility\": 0,\n    \"master_line_resource_scope\": 0,\n    \"master_line_work_centers\": 0,\n    \"master_operation_skill_requirements\": 0,\n    \"master_resource_capabilities\": 0,\n    \"master_resource_calendars\": 0,\n    \"master_production_standards\": 0,\n    \"master_resource_assignments\": 0,\n    \"master_production_versions_before_resources\": 0,\n    \"master_routing_operations_before_resources\": 0,\n    \"master_machine_units\": 0,\n    \"master_equipment\": 0,\n    \"master_workstations\": 0,\n    \"master_production_versions\": 0,\n    \"master_mbom_lines\": 0,\n    \"master_ebom_lines\": 0,\n    \"master_routing_operations\": 0,\n    \"master_ebom_headers\": 0,\n    \"master_routing_headers\": 0,\n    \"master_mbom_headers\": 0,\n    \"master_item_revisions\": 0,\n    \"master_items\": 0,\n    \"master_operations\": 0,\n    \"master_work_centers\": 0,\n    \"master_production_lines\": 0,\n    \"master_outbox_events\": 0,\n    \"execution_line_eligibility\": 0,\n    \"execution_line_work_centers\": 0,\n    \"execution_resource_calendars\": 0,\n    \"execution_production_standards\": 0,\n    \"execution_resource_capabilities\": 0,\n    \"execution_routing_operations\": 0,\n    \"execution_routing_headers\": 0,\n    \"execution_mbom_lines\": 0,\n    \"execution_mbom_headers\": 0,\n    \"execution_production_versions\": 0,\n    \"execution_work_centers\": 0,\n    \"execution_item_revisions\": 0,\n    \"traceability_policies\": 0,\n    \"traceability_templates\": 0,\n    \"traceability_numbering\": 0,\n    \"traceability_qr_split\": 0\n  },\n  \"legacy_e2e_seed\": {\n    \"skipped\": true,\n    \"reason\": \"Phase 10 default seed is MES-owned only; legacy E2E seed delegates to WMS and requires a separate WMS seed contract.\"\n  },\n  \"seed\": {\n    \"production_version_id\": \"d10366e3-fd30-4f2e-96b8-63acfd2ac6f3\",\n    \"production_version_code\": \"WST-UAT-PV-01-PRIMARY-READY\",\n    \"item_revision_id\": \"7f4abf49-b0e9-43fd-ade0-2bb60332e38d\",\n    \"site_id\": \"324395c1-0c72-40e4-a633-4aac9ee66130\",\n    \"shift_id\": \"b5517625-b29b-4556-b606-621240cf1f0e\",\n    \"target_date\": \"2026-08-03\",\n    \"line_1_id\": \"ad2b9a4a-cf75-41aa-86d8-f62106301c99\",\n    \"line_2_id\": \"6e825abe-013c-4861-a01d-ac248063440b\",\n    \"operation_count\": 4,\n    \"scenarios\": {\n      \"primary_ready\": {\n        \"production_version_id\": \"d10366e3-fd30-4f2e-96b8-63acfd2ac6f3\",\n        \"code\": \"WST-UAT-PV-01-PRIMARY-READY\",\n        \"expected_line\": \"WST-SEED-LINE-1\",\n        \"expected_status\": \"READY\"\n      },\n      \"backup_fallback\": {\n        \"production_version_id\": \"5562d04f-65e0-4046-b3f6-ef8a43ac4ca2\",\n        \"code\": \"WST-UAT-PV-02-BACKUP-FALLBACK\",\n        \"expected_line\": \"WST-SEED-LINE-2\",\n        \"expected_status\": \"READY\"\n      },\n      \"both_lines_hold\": {\n        \"production_version_id\": \"7326fcad-9939-4ae2-befb-b31837e80901\",\n        \"code\": \"WST-UAT-PV-03-BOTH-LINES-HOLD\",\n        \"expected_line\": null,\n        \"expected_status\": \"RESOURCE_HOLD\"\n      }\n    }\n  },\n  \"counts\": {\n    \"masterCounts\": {\n      \"production_lines\": 2,\n      \"work_centers\": 8,\n      \"workstations\": 8,\n      \"equipment\": 8,\n      \"machine_units\": 8,\n      \"assignments\": 8,\n      \"capabilities\": 12,\n      \"calendars\": 8,\n      \"operations\": 6,\n      \"production_versions\": 4,\n      \"line_eligibilities\": 8\n    },\n    \"orphanCounts\": {\n      \"line_work_center_orphans\": 0,\n      \"assignment_orphans\": 0,\n      \"eligibility_orphans\": 0\n    }\n  },\n  \"completed_at\": \"2026-08-03T03:15:21.958Z\"\n}\n",
+      "stderr": ""
+    }
+  ],
+  "base_seed": {
+    "status": "applied",
+    "source": "services/mes-master-data-service/src/infrastructure/db/seed.ts"
+  },
+  "base_execution_projection": {
+    "status": "rebuilt",
+    "production_version_code": "PV-FG-WS-CM01-R1",
+    "routing_operations": 6,
+    "mbom_lines": 5,
+    "work_centers": 4,
+    "production_lines": 1,
+    "line_work_centers": 4,
+    "capabilities": 6,
+    "calendars": 8,
+    "skills": 3,
+    "employees": 4,
+    "employee_skills": 4,
+    "employee_schedules": 4,
+    "operation_skill_requirements": 3
+  },
+  "print_station_seed": {
+    "station_code": "PS-CANONICAL-01",
+    "packing_workstation_codes": [
+      "WST-SEED-WS-L1-PACKING",
+      "WST-SEED-WS-L2-PACKING"
+    ],
+    "binding_count": 2,
+    "runtime_status": "ONLINE",
+    "kafka_status": "CONNECTED"
+  },
+  "traceability_seed": {
+    "status": "applied",
+    "template_code": "WST-SEED-LBL-SEAL",
+    "numbering_rule_code": "WST-SEED-NUM-SEAL",
+    "split_rule_code": "WST-SEED-SPLIT-SEAL",
+    "policy_count": 4
+  },
+  "counts": {
+    "master": {
+      "sites": 1,
+      "uoms": 7,
+      "shifts": 1,
+      "canonical_lines": 2,
+      "canonical_work_centers": 8,
+      "canonical_production_versions": 1
+    },
+    "execution": {
+      "work_orders": 0,
+      "canonical_rm_production_versions": 1,
+      "canonical_rm_lines": 2
+    },
+    "traceability": {
+      "canonical_policies": 4,
+      "canonical_templates": 1
+    }
+  },
+  "completed_at": "2026-08-03T03:15:22.152Z"
+}

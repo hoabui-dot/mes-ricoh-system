@@ -1,0 +1,5 @@
+{
+  "production_versions_for_targeted_uat": 1,
+  "canonical_operations": 4,
+  "known_gaps": ["no three-PV simultaneous scenario set", "runner repaired Print Station state", "seed rerun retained projection lines and Print Station bindings"]
+}

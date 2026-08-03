@@ -97,6 +97,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Post("/work-orders/{id}/reject", handleRejectWO(pool))
 		r.Get("/work-orders/{id}", handleGetWOByID(pool))
 		r.Get("/work-orders/{id}/operations/{opId}/resource-candidates", handleResourceCandidates(allocationService))
+		r.Get("/work-orders/{id}/resource-allocation-proposals", handleResourceAllocationProposals(allocationService))
 		r.Post("/work-orders/{id}/operations/{opId}/resource-allocation", handleCreateResourceAllocation(allocationService))
 		r.Post("/work-orders/{id}/operations/{opId}/reallocate", handleReallocateResource(allocationService))
 		r.Delete("/work-orders/{id}/operations/{opId}/resource-allocation", handleDeleteResourceAllocation(pool))
@@ -150,6 +151,13 @@ func handleStageMaterials(pool *pgxpool.Pool) http.HandlerFunc {
 func handleResourceCandidates(service *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result, err := service.Candidates(r.Context(), chi.URLParam(r, "id"), chi.URLParam(r, "opId"), r.URL.Query().Get("planned_start_at"), r.URL.Query().Get("shift_id"), getHeader(r, "X-User-ID", systemUserID), getHeader(r, "X-Trace-ID", "missing-trace"))
+		writeAllocationResponse(w, result, err)
+	}
+}
+
+func handleResourceAllocationProposals(service *usecase.AllocationService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		result, err := service.Proposals(r.Context(), chi.URLParam(r, "id"), getHeader(r, "X-User-ID", systemUserID), getHeader(r, "X-Trace-ID", "missing-trace"))
 		writeAllocationResponse(w, result, err)
 	}
 }

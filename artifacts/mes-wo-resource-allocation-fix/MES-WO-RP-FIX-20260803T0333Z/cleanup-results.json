@@ -1,0 +1,10 @@
+{
+  "work_orders": 0,
+  "allocations": 0,
+  "reservations": 0,
+  "print_jobs": 0,
+  "canonical_seed_preserved": true,
+  "production_versions": 3,
+  "canonical_print_bindings": 2,
+  "status": "PASS"
+}

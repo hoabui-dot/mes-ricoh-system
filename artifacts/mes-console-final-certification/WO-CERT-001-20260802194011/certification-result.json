@@ -1,0 +1,243 @@
+{
+  "status": "NOT_CERTIFIED",
+  "certification_id": "WO-CERT-001",
+  "run_id": "WO-CERT-001-20260802194011",
+  "target_date": "2026-08-03",
+  "steps": [
+    {
+      "name": "reset, canonical seed, and canonical verification",
+      "status": "passed",
+      "started_at": "2026-08-02T19:40:11.348Z",
+      "finished_at": "2026-08-02T19:40:22.436Z",
+      "data": {
+        "exit_code": 0,
+        "output_tail": "      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"base worker skills exist\",\n      \"passed\": true,\n      \"actual\": 3\n    },\n    {\n      \"name\": \"base active workers exist\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"base worker skill assignments exist\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"base worker shift schedules exist on target date\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"base operation skill requirements exist\",\n      \"passed\": true,\n      \"actual\": 3\n    },\n    {\n      \"name\": \"integrity line_work_center_orphans\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"integrity assignment_orphans\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"integrity pv_orphans\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"integrity overlapping_assignments\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"execution has no work orders after seed\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"execution read model has canonical PV\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"execution read model has two lines\",\n      \"passed\": true,\n      \"actual\": 2\n    },\n    {\n      \"name\": \"execution read model has two line eligibilities\",\n      \"passed\": true,\n      \"actual\": 2\n    },\n    {\n      \"name\": \"execution read model has worker skills\",\n      \"passed\": true,\n      \"actual\": 3\n    },\n    {\n      \"name\": \"execution read model has workers\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"execution read model has worker skill assignments\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"execution read model has worker shift schedules on target date\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"execution read model has base operation skill requirements\",\n      \"passed\": true,\n      \"actual\": 3\n    },\n    {\n      \"name\": \"execution labor readiness has no worker candidate gaps\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"traceability has one canonical template\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"traceability has one numbering rule\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"traceability has one split rule\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"traceability has four policies\",\n      \"passed\": true,\n      \"actual\": 4\n    }\n  ],\n  \"counts\": {\n    \"master\": {\n      \"site_kz3\": 1,\n      \"released_areas\": 2,\n      \"pcs_uom\": 1,\n      \"shift_a\": 1,\n      \"canonical_lines\": 2,\n      \"canonical_work_centers\": 8,\n      \"canonical_workstations\": 8,\n      \"canonical_equipment\": 8,\n      \"canonical_machine_units\": 8,\n      \"canonical_assignments\": 8,\n      \"canonical_capabilities\": 8,\n      \"canonical_calendars\": 8,\n      \"canonical_operations\": 4,\n      \"canonical_routing_operations\": 4,\n      \"canonical_production_version\": 1,\n      \"canonical_line_eligibilities\": 2,\n      \"canonical_primary_lines\": 1,\n      \"worker_skills\": 3,\n      \"workers\": 4,\n      \"worker_skill_assignments\": 4,\n      \"worker_shift_schedules\": 4,\n      \"base_operation_skill_requirements\": 3\n    },\n    \"execution\": {\n      \"work_orders\": 0,\n      \"rm_production_version\": 1,\n      \"rm_lines\": 2,\n      \"rm_line_eligibilities\": 2,\n      \"rm_worker_skills\": 3,\n      \"rm_workers\": 4,\n      \"rm_worker_skill_assignments\": 4,\n      \"rm_worker_shift_schedules\": 4,\n      \"rm_base_operation_skill_requirements\": 3,\n      \"rm_labor_candidate_gaps\": 0\n    },\n    \"traceability\": {\n      \"templates\": 1,\n      \"numbering_rules\": 1,\n      \"split_rules\": 1,\n      \"policies\": 4,\n      \"labels\": 0\n    },\n    \"integrity\": {\n      \"line_work_center_orphans\": 0,\n      \"assignment_orphans\": 0,\n      \"pv_orphans\": 0,\n      \"overlapping_assignments\": 0\n    }\n  },\n  \"completed_at\": \"2026-08-02T19:40:22.404Z\"\n}\n"
+      }
+    },
+    {
+      "name": "select released effective base Production Version",
+      "status": "passed",
+      "started_at": "2026-08-02T19:40:22.496Z",
+      "finished_at": "2026-08-02T19:40:22.813Z",
+      "data": {
+        "code": "PV-FG-WS-CM01-R1",
+        "production_version_id": "49cd8f74-0fb5-4c35-8c85-edc0cad4a51f",
+        "site_id": "54a5c2c0-1dfe-4bc0-8f80-fa0649cc8f9c"
+      }
+    },
+    {
+      "name": "select active site-scoped shift",
+      "status": "passed",
+      "started_at": "2026-08-02T19:40:22.814Z",
+      "finished_at": "2026-08-02T19:40:22.829Z",
+      "data": {
+        "master_id": "a4f62190-d499-4b1e-a3a3-2f33b89c753a",
+        "code": "SHIFT-A",
+        "name": "Day Shift",
+        "version_no": 1,
+        "lifecycle_status": "Released",
+        "effective_from": "2026-07-21T00:00:00.000Z",
+        "effective_to": null,
+        "created_by": "00000000-0000-0000-0000-000000000001",
+        "created_at": "2026-08-02T19:40:21.141Z",
+        "updated_by": "00000000-0000-0000-0000-000000000001",
+        "updated_at": "2026-08-02T19:40:21.141Z",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "approved_at": "2026-07-21T00:00:00.000Z",
+        "row_version": 1,
+        "attributes": {},
+        "site_id": "54a5c2c0-1dfe-4bc0-8f80-fa0649cc8f9c",
+        "start_time": "08:00",
+        "end_time": "17:00",
+        "crosses_midnight": false
+      }
+    },
+    {
+      "name": "create Work Order through supported workflow",
+      "status": "passed",
+      "started_at": "2026-08-02T19:40:22.829Z",
+      "finished_at": "2026-08-02T19:40:23.069Z",
+      "data": {
+        "current_step": "outbox_queued",
+        "events": [
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "d42ea882-287a-4742-8a0a-a0f407058f7b",
+            "event_type": "workflow.started",
+            "occurred_at": "2026-08-02T19:40:22.842373677Z",
+            "schema_version": 1,
+            "sequence": 1,
+            "source_service": "mes-execution-service",
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          },
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "43cd1524-debe-4c42-8193-808e81745f72",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-02T19:40:22.848015144Z",
+            "schema_version": 1,
+            "sequence": 2,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "request_validation",
+              "message_key": "workOrders.creation.steps.request.success",
+              "message_params": null,
+              "order": 1,
+              "result": {
+                "quantity": 2
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.request_validation.title"
+            },
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          },
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "87234888-b09c-46ae-8cee-2f3b8899b376",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-02T19:40:22.852033268Z",
+            "schema_version": 1,
+            "sequence": 3,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.running",
+              "message_params": null,
+              "order": 2,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          },
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "015e4131-9d57-4e56-bb81-27248356f3e2",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-02T19:40:22.861428052Z",
+            "schema_version": 1,
+            "sequence": 4,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.success",
+              "message_params": null,
+              "order": 2,
+              "result": {
+                "mbomId": "97e5c91f-20be-4eef-87a2-08b0234036cd",
+                "productionVersionId": "49cd8f74-0fb5-4c35-8c85-edc0cad4a51f",
+                "routingId": "eec1b7a9-60a8-4836-8873-289c3f1e042e"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          },
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "8eb745ac-dfe4-44cb-a6dd-4e3b01e57689",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-02T19:40:22.865779031Z",
+            "schema_version": 1,
+            "sequence": 5,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.running",
+              "message_params": null,
+              "order": 3,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          },
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "bceb85d5-3880-4956-b25e-5d3b9876f701",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-02T19:40:22.938906697Z",
+            "schema_version": 1,
+            "sequence": 6,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.success",
+              "message_params": null,
+              "order": 3,
+              "result": {
+                "fallbackReason": "",
+                "lineSelectionStatus": "READY",
+                "materialCount": 5,
+                "operationCount": 6,
+                "selectedProductionLineCode": "LINE-BASE-1",
+                "selectedProductionLineId": "91240c38-478e-45ad-a484-8ea4a775890b",
+                "status": "Draft",
+                "workOrderCode": "WO-20260802-0001",
+                "workOrderId": "4804b16b-6938-4e94-8034-3058194b5499"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          },
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "343d8969-e989-438b-bd67-289bd4563e36",
+            "event_type": "step.event_queued",
+            "occurred_at": "2026-08-02T19:40:22.941905746Z",
+            "schema_version": 1,
+            "sequence": 7,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "outbox_queued",
+              "message_key": "workOrders.creation.steps.outbox.success",
+              "message_params": null,
+              "order": 4,
+              "result": {
+                "eventType": "MES.Execution.WOCreated.v1"
+              },
+              "status": "event_queued",
+              "title_key": "workOrders.creation.steps.outbox_queued.title"
+            },
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          },
+          {
+            "correlation_id": "1dea1348-19bf-4893-ba31-15b50f94c0e0",
+            "event_id": "f6a64a34-bfaf-4a88-8977-4feceb6aee7d",
+            "event_type": "workflow.succeeded",
+            "occurred_at": "2026-08-02T19:40:22.945807367Z",
+            "schema_version": 1,
+            "sequence": 8,
+            "source_service": "mes-execution-service",
+            "workflow": {
+              "status": "succeeded",
+              "work_order_code": "WO-20260802-0001",
+              "work_order_id": "4804b16b-6938-4e94-8034-3058194b5499"
+            },
+            "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+          }
+        ],
+        "last_sequence": 8,
+        "status": "succeeded",
+        "work_order_code": "WO-20260802-0001",
+        "work_order_id": "4804b16b-6938-4e94-8034-3058194b5499",
+        "workflow_id": "99ca1c02-d2a1-4481-87b8-427a435403c2"
+      }
+    },
+    {
+      "name": "verify automatic Primary READY line selection",
+      "status": "failed",
+      "started_at": "2026-08-02T19:40:23.099Z",
+      "finished_at": "2026-08-02T19:40:23.099Z",
+      "error": "EXPECTED_AUTO_LINE_SELECTION: {\"created_at\":\"2026-08-02T19:40:22.869391Z\",\"created_by\":\"00000000-0000-0000-0000-000000000001\",\"demo_print_on_approval\":true,\"evaluated_line_results\":[{\"blockers\":[],\"dimensions\":[{\"blockers\":[],\"key\":\"eligibility\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"work_centers\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"workstations\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"machine_requirements\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"equipment_units\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"assignments\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"capability\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"calendar_shift\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"production_standard\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"capacity\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"worker_skill_labor\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"final_result\",\"status\":\"Ready\"},{\"blockers\":[],\"key\":\"selection_reason\",\"status\":\"NotPersisted\"}],\"priority\":1,\"production_line_code\":\"LINE-BASE-1\",\"production_line_id\":\"91240c38-478e-45ad-a484-8ea4a775890b\",\"selection_role\":\"PRIMARY\",\"status\":\"Ready\"}],\"fallback_reason\":\"\",\"item_code\":\"FG-WS-CM01-R1\",\"item_name\":\"FG-WS-CM01 phiên bản 1\",\"item_revision_code\":\"FG-WS-CM01-R1\",\"item_revision_id\":\"b8b6d0c4-e268-4dcd-bed0-03cfb1d5b399\",\"item_revision_name_i18n\":{\"en\":\"FG-WS-CM01 Revision 1\",\"ja\":\"FG-WS-CM01 リビジョン 1\",\"ko\":\"FG-WS-CM01 개정 1\",\"vi\":\"FG-WS-CM01 phiên bản 1\"},\"line_locked_at\":\"2026-08-02T19:40:22.869391Z\",\"line_selection_mode\":\"PRIMARY\",\"line_selection_reason\":\"PRIMARY_LINE_READY\",\"line_selection_status\":\"READY\",\"mbom_code\":\"MBOM-FG-WS-CM01-R1\",\"planned_end_at\":\"2026-08-04T08:00:00Z\",\"planned_start_at\":\"2026-08-03T08:00:00Z\",\"planning_snapshot\":{\"mbom_id\":\"97e5c91f-20be-4eef-87a2-08b0234036cd\",\"shift_id\":\"a4f62190-d499-4b1e-a3a3-2f33b89c753a\",\"routing_id\":\"eec1b7a9-60a8-4836-8873-289c3f1e042e\",\"production_version_id\":\"49cd8f74-0fb5-4c35-8c85-edc0cad4a51f\",\"production_version_code\":\"PV-FG-WS-CM01-R1\"},\"production_version_code\":\"PV-FG-WS-CM01-R1\",\"production_version_id\":\"49cd8f74-0fb5-4c35-8c85-edc0cad4a51f\",\"production_version_name_i18n\":{\"en\":\"Production Version FG-WS-CM01 R1\",\"ja\":\"FG-WS-CM01 R1 生産バージョン\",\"ko\":\"FG-WS-CM01 R1 생산 버전\",\"vi\":\"Phiên bản sản xuất FG-WS-CM01 R1\"},\"quantity\":2,\"resource_hold_reason\":{},\"routing_code\":\"RT-FG-WS-CM01-R1\",\"row_version\":2,\"selected_production_line_code\":\"LINE-BASE-1\",\"selected_production_line_id\":\"91240c38-478e-45ad-a484-8ea4a775890b\",\"selected_production_line_name_i18n\":{\"en\":\"Base Resource Planning Line 1\",\"ja\":\"基本リソース計画ライン1\",\"ko\":\"기본 리소스 계획 라인 1\",\"vi\":\"Dây chuyền Resource Planning cơ sở 1\"},\"shift_id\":\"a4f62190-d499-4b1e-a3a3-2f33b89c753a\",\"site_id\":\"54a5c2c0-1dfe-4bc0-8f80-fa0649cc8f9c\",\"status\":\"Draft\",\"uom_id\":\"9f047e76-1793-4e88-a138-ab9d93679069\",\"wo_code\":\"WO-20260802-0001\",\"wo_id\":\"4804b16b-6938-4e94-8034-3058194b5499\"}"
+    }
+  ],
+  "error": "EXPECTED_AUTO_LINE_SELECTION: {\"created_at\":\"2026-08-02T19:40:22.869391Z\",\"created_by\":\"00000000-0000-0000-0000-000000000001\",\"demo_print_on_approval\":true,\"evaluated_line_results\":[{\"blockers\":[],\"dimensions\":[{\"blockers\":[],\"key\":\"eligibility\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"work_centers\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"workstations\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"machine_requirements\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"equipment_units\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"assignments\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"capability\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"calendar_shift\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"production_standard\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"capacity\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"worker_skill_labor\",\"status\":\"NotPersisted\"},{\"blockers\":[],\"key\":\"final_result\",\"status\":\"Ready\"},{\"blockers\":[],\"key\":\"selection_reason\",\"status\":\"NotPersisted\"}],\"priority\":1,\"production_line_code\":\"LINE-BASE-1\",\"production_line_id\":\"91240c38-478e-45ad-a484-8ea4a775890b\",\"selection_role\":\"PRIMARY\",\"status\":\"Ready\"}],\"fallback_reason\":\"\",\"item_code\":\"FG-WS-CM01-R1\",\"item_name\":\"FG-WS-CM01 phiên bản 1\",\"item_revision_code\":\"FG-WS-CM01-R1\",\"item_revision_id\":\"b8b6d0c4-e268-4dcd-bed0-03cfb1d5b399\",\"item_revision_name_i18n\":{\"en\":\"FG-WS-CM01 Revision 1\",\"ja\":\"FG-WS-CM01 リビジョン 1\",\"ko\":\"FG-WS-CM01 개정 1\",\"vi\":\"FG-WS-CM01 phiên bản 1\"},\"line_locked_at\":\"2026-08-02T19:40:22.869391Z\",\"line_selection_mode\":\"PRIMARY\",\"line_selection_reason\":\"PRIMARY_LINE_READY\",\"line_selection_status\":\"READY\",\"mbom_code\":\"MBOM-FG-WS-CM01-R1\",\"planned_end_at\":\"2026-08-04T08:00:00Z\",\"planned_start_at\":\"2026-08-03T08:00:00Z\",\"planning_snapshot\":{\"mbom_id\":\"97e5c91f-20be-4eef-87a2-08b0234036cd\",\"shift_id\":\"a4f62190-d499-4b1e-a3a3-2f33b89c753a\",\"routing_id\":\"eec1b7a9-60a8-4836-8873-289c3f1e042e\",\"production_version_id\":\"49cd8f74-0fb5-4c35-8c85-edc0cad4a51f\",\"production_version_code\":\"PV-FG-WS-CM01-R1\"},\"production_version_code\":\"PV-FG-WS-CM01-R1\",\"production_version_id\":\"49cd8f74-0fb5-4c35-8c85-edc0cad4a51f\",\"production_version_name_i18n\":{\"en\":\"Production Version FG-WS-CM01 R1\",\"ja\":\"FG-WS-CM01 R1 生産バージョン\",\"ko\":\"FG-WS-CM01 R1 생산 버전\",\"vi\":\"Phiên bản sản xuất FG-WS-CM01 R1\"},\"quantity\":2,\"resource_hold_reason\":{},\"routing_code\":\"RT-FG-WS-CM01-R1\",\"row_version\":2,\"selected_production_line_code\":\"LINE-BASE-1\",\"selected_production_line_id\":\"91240c38-478e-45ad-a484-8ea4a775890b\",\"selected_production_line_name_i18n\":{\"en\":\"Base Resource Planning Line 1\",\"ja\":\"基本リソース計画ライン1\",\"ko\":\"기본 리소스 계획 라인 1\",\"vi\":\"Dây chuyền Resource Planning cơ sở 1\"},\"shift_id\":\"a4f62190-d499-4b1e-a3a3-2f33b89c753a\",\"site_id\":\"54a5c2c0-1dfe-4bc0-8f80-fa0649cc8f9c\",\"status\":\"Draft\",\"uom_id\":\"9f047e76-1793-4e88-a138-ab9d93679069\",\"wo_code\":\"WO-20260802-0001\",\"wo_id\":\"4804b16b-6938-4e94-8034-3058194b5499\"}",
+  "cleanup": {
+    "work_orders_removed": 1,
+    "remaining_work_orders": 0,
+    "cleanup_output": "{\"success\":true,\"workOrderIds\":[\"4804b16b-6938-4e94-8034-3058194b5499\"],\"workOrdersRemoved\":1,\"remainingWorkOrders\":0,\"sharedFixtureRestored\":true}"
+  },
+  "completed_at": "2026-08-02T19:40:23.277Z"
+}

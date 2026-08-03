@@ -1,0 +1,5 @@
+{
+  "WST-UAT-PV-01-PRIMARY-READY": {"result": "READY", "selected_line": "WST-SEED-LINE-1", "flow_run": "PHASE2-RP-1785727911813-IOYJ2"},
+  "WST-UAT-PV-02-BACKUP-FALLBACK": {"result": "READY", "selected_line": "WST-SEED-LINE-2", "primary_result": "Blocked", "primary_blocker": "LINE_PRODUCTION_STANDARD_MISSING", "flow_run": "PHASE2-RP-1785727920977-JOSJB"},
+  "WST-UAT-PV-03-BOTH-LINES-HOLD": {"result": "RESOURCE_HOLD", "selected_line": null, "both_lines": "Blocked", "proposal_blocker": "WO_LINE_RESOURCE_HOLD", "expected_rejection_run": "PHASE2-RP-1785727932964-LEKRP"}
+}

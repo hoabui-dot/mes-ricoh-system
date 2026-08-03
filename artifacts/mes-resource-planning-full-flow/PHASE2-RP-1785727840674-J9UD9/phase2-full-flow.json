@@ -1,0 +1,4837 @@
+{
+  "success": true,
+  "status": "PASS_FOR_PHASE_2",
+  "run_id": "PHASE2-RP-1785727840674-J9UD9",
+  "target_date": "2026-08-03",
+  "production_version": "PV-FG-WS-CM01-R1",
+  "work_order": {
+    "id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29",
+    "code": "WO-20260803-0149"
+  },
+  "start_execution": {
+    "queued_operations": 1,
+    "status": "InProgress",
+    "wo_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29"
+  },
+  "persistence": {
+    "committed_allocations": 6,
+    "primary_unit_snapshots": 6,
+    "committed_reservations": 18,
+    "allocation_audit_rows": 6,
+    "outbox_events": {
+      "MES.Execution.WOApproved.v1": 1,
+      "MES.Execution.WOCreated.v1": 1,
+      "MES.Execution.WOResourceAllocated.v1": 6,
+      "command.printer.print.batch": 1
+    }
+  },
+  "phase1": {
+    "success": true,
+    "run_id": "PHASE1-RP-1785727846340-SL7BP",
+    "declared": 20,
+    "executed": 20,
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0,
+    "scenarios": [
+      {
+        "name": "missing Primary Machine Requirement blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "insufficient physical Machine Units blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "expired Resource Assignment blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Workstation in another Work Center is not a candidate",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit in another Site blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit under maintenance blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit out of service blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit not planning eligible blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "unavailable Resource Calendar blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "invalid Shift blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "missing Production Standard blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "stale candidate is rejected at commit",
+        "status": "passed"
+      },
+      {
+        "name": "simultaneous allocation conflict rejects second commit",
+        "status": "passed"
+      },
+      {
+        "name": "idempotent replay returns the same allocation response",
+        "status": "passed"
+      },
+      {
+        "name": "reused idempotency key with different request fails",
+        "status": "passed"
+      },
+      {
+        "name": "reallocation supersedes history and cancels old reservations",
+        "status": "passed"
+      },
+      {
+        "name": "allocation cancellation removes active reservations without deleting audit history",
+        "status": "passed"
+      },
+      {
+        "name": "approval after resource state changed fails revalidation",
+        "status": "passed"
+      },
+      {
+        "name": "execution start without valid allocation is rejected",
+        "status": "passed"
+      },
+      {
+        "name": "unauthorized role cannot commit allocation",
+        "status": "passed"
+      }
+    ]
+  },
+  "cleanup": {
+    "deleted_work_orders": 3,
+    "remaining_target_rows": 0
+  },
+  "steps": [
+    {
+      "name": "authenticate through supported trusted-gateway identity path",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:40.707Z",
+      "finished_at": "2026-08-03T03:30:40.756Z",
+      "data": {
+        "mode": "trusted-gateway-headers",
+        "user_id_header": "00000000-0000-0000-0000-000000000001",
+        "role_code_header": "PLANT_MANAGER",
+        "status": 200
+      }
+    },
+    {
+      "name": "reuse deterministic released master-data chain",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:40.756Z",
+      "finished_at": "2026-08-03T03:30:41.772Z",
+      "data": {
+        "version": {
+          "production_version_name": {
+            "en": "Production Version FG-WS-CM01 R1",
+            "ja": "FG-WS-CM01 R1 生産バージョン",
+            "ko": "FG-WS-CM01 R1 생산 버전",
+            "vi": "Phiên bản sản xuất FG-WS-CM01 R1"
+          },
+          "min_lot_size": null,
+          "max_lot_size": null,
+          "item_id": "bf8a40a0-7e7f-46e7-8c57-d8915ef646a7",
+          "item_code": "FG-WS-CM01",
+          "item_name": {
+            "en": "FG-WS-CM01 Revision 1",
+            "ja": "FG-WS-CM01 リビジョン 1",
+            "ko": "FG-WS-CM01 개정 1",
+            "vi": "FG-WS-CM01 phiên bản 1"
+          },
+          "item_revision_id": "f00ae647-6f25-420a-802d-94fc966bb9f6",
+          "revision_code": "R1",
+          "revision_status": "Released",
+          "revision_effective_from": "2026-07-21T00:00:00.000Z",
+          "revision_effective_to": null,
+          "base_uom_code": "PCS",
+          "base_uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f",
+          "base_uom_decimal_precision": 0,
+          "base_uom_allow_fraction": false,
+          "production_version_id": "504f193f-654f-498b-aa29-83543667be34",
+          "production_version_code": "PV-FG-WS-CM01-R1",
+          "mbom_header_id": "09dfce0b-f5ec-483a-9264-a1e997c59a2e",
+          "mbom_code": "MBOM-FG-WS-CM01-R1",
+          "mbom_name": {
+            "vi": "MBOM Cao su chân máy ô tô"
+          },
+          "routing_header_id": "fe77b3f5-825e-48c3-aaa7-7b6254599985",
+          "routing_code": "RT-FG-WS-CM01-R1",
+          "routing_name": {
+            "vi": "Routing Cao su chân máy ô tô"
+          },
+          "site_id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+          "site_code": "SITE-KZ3",
+          "item_revision": {
+            "id": "f00ae647-6f25-420a-802d-94fc966bb9f6",
+            "code": "R1",
+            "name": {
+              "en": "FG-WS-CM01 Revision 1",
+              "ja": "FG-WS-CM01 リビジョン 1",
+              "ko": "FG-WS-CM01 개정 1",
+              "vi": "FG-WS-CM01 phiên bản 1"
+            }
+          },
+          "mbom": {
+            "id": "09dfce0b-f5ec-483a-9264-a1e997c59a2e",
+            "code": "MBOM-FG-WS-CM01-R1",
+            "name": {
+              "vi": "MBOM Cao su chân máy ô tô"
+            }
+          },
+          "routing": {
+            "id": "fe77b3f5-825e-48c3-aaa7-7b6254599985",
+            "code": "RT-FG-WS-CM01-R1",
+            "name": {
+              "vi": "Routing Cao su chân máy ô tô"
+            }
+          },
+          "site": {
+            "id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+            "code": "SITE-KZ3"
+          },
+          "base_uom": {
+            "id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f",
+            "code": "PCS",
+            "decimal_precision": 0,
+            "allow_fraction": false,
+            "lifecycle_status": "Released"
+          },
+          "valid_from": "2026-07-21T00:00:00.000Z",
+          "valid_to": null,
+          "ready": true,
+          "warnings": [],
+          "display_code": "FG-WS-CM01-R1",
+          "readiness_status": "Ready"
+        },
+        "shift": {
+          "master_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+          "code": "SHIFT-A",
+          "name": "Day Shift",
+          "version_no": 1,
+          "lifecycle_status": "Released",
+          "effective_from": "2026-07-21T00:00:00.000Z",
+          "effective_to": null,
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "created_at": "2026-08-03T03:17:17.104Z",
+          "updated_by": "00000000-0000-0000-0000-000000000001",
+          "updated_at": "2026-08-03T03:17:17.104Z",
+          "approved_by": "00000000-0000-0000-0000-000000000001",
+          "approved_at": "2026-07-21T00:00:00.000Z",
+          "row_version": 1,
+          "attributes": {},
+          "site_id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+          "start_time": "08:00",
+          "end_time": "17:00",
+          "crosses_midnight": false
+        }
+      }
+    },
+    {
+      "name": "create Work Order from production_version_id and wait workflow",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:41.772Z",
+      "finished_at": "2026-08-03T03:30:41.992Z",
+      "data": {
+        "current_step": "outbox_queued",
+        "events": [
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "3c0272c4-0a30-4dc3-9664-1eac2dfd8971",
+            "event_type": "workflow.started",
+            "occurred_at": "2026-08-03T03:30:41.783487458Z",
+            "schema_version": 1,
+            "sequence": 1,
+            "source_service": "mes-execution-service",
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          },
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "a34573d7-b3f2-4597-ad3b-186456fd79b9",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-03T03:30:41.787332105Z",
+            "schema_version": 1,
+            "sequence": 2,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "request_validation",
+              "message_key": "workOrders.creation.steps.request.success",
+              "message_params": null,
+              "order": 1,
+              "result": {
+                "quantity": 2
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.request_validation.title"
+            },
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          },
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "4f4102d4-59fc-47c2-bc4d-344f34d0ef59",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-03T03:30:41.791439728Z",
+            "schema_version": 1,
+            "sequence": 3,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.running",
+              "message_params": null,
+              "order": 2,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          },
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "fcb1554b-da1b-4812-a679-590dbfb51f89",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-03T03:30:41.796690783Z",
+            "schema_version": 1,
+            "sequence": 4,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.success",
+              "message_params": null,
+              "order": 2,
+              "result": {
+                "mbomId": "09dfce0b-f5ec-483a-9264-a1e997c59a2e",
+                "productionVersionId": "504f193f-654f-498b-aa29-83543667be34",
+                "routingId": "fe77b3f5-825e-48c3-aaa7-7b6254599985"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          },
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "8031cfba-95b4-472c-9f70-3d83d3272c3b",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-03T03:30:41.799247956Z",
+            "schema_version": 1,
+            "sequence": 5,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.running",
+              "message_params": null,
+              "order": 3,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          },
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "d8092591-cc65-42a4-8fcc-2040594182ee",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-03T03:30:41.815564948Z",
+            "schema_version": 1,
+            "sequence": 6,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.success",
+              "message_params": null,
+              "order": 3,
+              "result": {
+                "fallbackReason": "",
+                "lineSelectionStatus": "READY",
+                "materialCount": 5,
+                "operationCount": 6,
+                "selectedProductionLineCode": "LINE-BASE-1",
+                "selectedProductionLineId": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+                "status": "Draft",
+                "workOrderCode": "WO-20260803-0149",
+                "workOrderId": "594fcc40-d7fd-4680-9bf2-7012e3f83c29"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          },
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "582d7ec4-341d-42a3-bb8e-8cbf7efdd4a6",
+            "event_type": "step.event_queued",
+            "occurred_at": "2026-08-03T03:30:41.819162464Z",
+            "schema_version": 1,
+            "sequence": 7,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "outbox_queued",
+              "message_key": "workOrders.creation.steps.outbox.success",
+              "message_params": null,
+              "order": 4,
+              "result": {
+                "eventType": "MES.Execution.WOCreated.v1"
+              },
+              "status": "event_queued",
+              "title_key": "workOrders.creation.steps.outbox_queued.title"
+            },
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          },
+          {
+            "correlation_id": "c67a07d2-2e36-40af-968d-a56663f9516f",
+            "event_id": "124089dd-cdd7-4108-bad1-396094ea9115",
+            "event_type": "workflow.succeeded",
+            "occurred_at": "2026-08-03T03:30:41.823041516Z",
+            "schema_version": 1,
+            "sequence": 8,
+            "source_service": "mes-execution-service",
+            "workflow": {
+              "status": "succeeded",
+              "work_order_code": "WO-20260803-0149",
+              "work_order_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29"
+            },
+            "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+          }
+        ],
+        "last_sequence": 8,
+        "status": "succeeded",
+        "work_order_code": "WO-20260803-0149",
+        "work_order_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29",
+        "workflow_id": "cf208c9b-baf7-4b53-93dd-1def3204609e"
+      }
+    },
+    {
+      "name": "load created Work Order routing snapshot",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:41.992Z",
+      "finished_at": "2026-08-03T03:30:42.000Z",
+      "data": {
+        "allocation_history": null,
+        "approval_logs": null,
+        "gate_summary": {
+          "active_allocation_count": 0,
+          "approval_eligible": false,
+          "approval_state": "Pending",
+          "blockers": [
+            "WO_OPERATION_ALLOCATION_MISSING"
+          ],
+          "execution_eligible": false,
+          "execution_state": "NotStarted",
+          "line_selection_status": "READY",
+          "operation_count": 6,
+          "resource_allocation_state": "NotEvaluated",
+          "valid_allocation_count": 0
+        },
+        "header": {
+          "created_at": "2026-08-03T03:30:41.801361Z",
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "demo_print_on_approval": true,
+          "evaluated_line_results": [
+            {
+              "blockers": [],
+              "dimensions": [
+                {
+                  "blockers": [],
+                  "key": "eligibility",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "work_centers",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "workstations",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "machine_requirements",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "equipment_units",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "assignments",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "capability",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "calendar_shift",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "production_standard",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "capacity",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "worker_skill_labor",
+                  "status": "NotPersisted"
+                },
+                {
+                  "blockers": [],
+                  "key": "final_result",
+                  "status": "Ready"
+                },
+                {
+                  "blockers": [],
+                  "key": "selection_reason",
+                  "status": "NotPersisted"
+                }
+              ],
+              "priority": 1,
+              "production_line_code": "LINE-BASE-1",
+              "production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+              "selection_role": "PRIMARY",
+              "status": "Ready"
+            }
+          ],
+          "fallback_reason": "",
+          "item_code": "FG-WS-CM01-R1",
+          "item_name": "FG-WS-CM01 phiên bản 1",
+          "item_revision_code": "FG-WS-CM01-R1",
+          "item_revision_id": "f00ae647-6f25-420a-802d-94fc966bb9f6",
+          "item_revision_name_i18n": {
+            "en": "FG-WS-CM01 Revision 1",
+            "ja": "FG-WS-CM01 リビジョン 1",
+            "ko": "FG-WS-CM01 개정 1",
+            "vi": "FG-WS-CM01 phiên bản 1"
+          },
+          "line_locked_at": "2026-08-03T03:30:41.801361Z",
+          "line_selection_mode": "PRIMARY",
+          "line_selection_reason": "PRIMARY_LINE_READY",
+          "line_selection_status": "READY",
+          "mbom_code": "MBOM-FG-WS-CM01-R1",
+          "planned_end_at": "2026-08-04T08:00:00Z",
+          "planned_start_at": "2026-08-03T08:00:00Z",
+          "planning_snapshot": {
+            "mbom_id": "09dfce0b-f5ec-483a-9264-a1e997c59a2e",
+            "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+            "routing_id": "fe77b3f5-825e-48c3-aaa7-7b6254599985",
+            "production_version_id": "504f193f-654f-498b-aa29-83543667be34",
+            "production_version_code": "PV-FG-WS-CM01-R1"
+          },
+          "production_version_code": "PV-FG-WS-CM01-R1",
+          "production_version_id": "504f193f-654f-498b-aa29-83543667be34",
+          "production_version_name_i18n": {
+            "en": "Production Version FG-WS-CM01 R1",
+            "ja": "FG-WS-CM01 R1 生産バージョン",
+            "ko": "FG-WS-CM01 R1 생산 버전",
+            "vi": "Phiên bản sản xuất FG-WS-CM01 R1"
+          },
+          "quantity": 2,
+          "resource_hold_reason": {},
+          "routing_code": "RT-FG-WS-CM01-R1",
+          "row_version": 2,
+          "selected_production_line_code": "LINE-BASE-1",
+          "selected_production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+          "selected_production_line_name_i18n": {
+            "en": "Base Resource Planning Line 1",
+            "ja": "基本リソース計画ライン1",
+            "ko": "기본 리소스 계획 라인 1",
+            "vi": "Dây chuyền Resource Planning cơ sở 1"
+          },
+          "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+          "site_id": "819161b5-3a19-4cdf-b184-0f52c64412ee",
+          "status": "Draft",
+          "uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f",
+          "wo_code": "WO-20260803-0149",
+          "wo_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29"
+        },
+        "material_requirements": [
+          {
+            "backflush_flag": true,
+            "component_item_code": "SFG-MET-CM01",
+            "component_item_revision_id": "8af7b382-a3b5-4b3e-bffe-1aebb947e85d",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2.02,
+            "requirement_id": "f036ce54-dd7e-451c-8d05-e9b2dce6593b",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "SFG-RUB-CM01",
+            "component_item_revision_id": "88d73cee-48ed-47cc-83e9-f74235ebffc0",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2.0808,
+            "requirement_id": "19ce8938-ed8b-48e0-95c9-962598fd8ea9",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f"
+          },
+          {
+            "backflush_flag": false,
+            "component_item_code": "RM-STL-05",
+            "component_item_revision_id": "de15ac0d-a3b8-4513-b94a-6ea9866e8c81",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2.0301,
+            "requirement_id": "92a47347-13b3-4529-9344-2d9cd4351275",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "1d873376-057a-4a3d-bd1c-8f4048ddea6f"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "RM-CHEM-BOND",
+            "component_item_revision_id": "687f9352-e1cc-41ec-be41-648128cc8f99",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 0.0315,
+            "requirement_id": "97d9adca-b40f-456f-98bf-ad4fb0830bde",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "15c41ba8-124a-4cd3-9c57-8ebf1d416e90"
+          },
+          {
+            "backflush_flag": true,
+            "component_item_code": "SFG-ROLL-EPDM",
+            "component_item_revision_id": "15db82dd-ace1-41df-962d-79a2ce132efa",
+            "item_name": {},
+            "phantom_flag": true,
+            "required_qty": 0.3193,
+            "requirement_id": "70a24550-cdbd-4d20-97ca-a624095769ac",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "c1f653af-2885-4f3a-8256-f58eb2940afa"
+          }
+        ],
+        "operations": [
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-MIX",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Rubber Mixing",
+              "ja": "ゴム混練",
+              "ko": "고무 혼련",
+              "vi": "Luyện cán cao su"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 10,
+            "source_routing_work_center_id": "ee131bae-9bf1-4a11-848b-34028fceea90",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "ecd94f7a-894c-4bfb-89a5-1704d9cb60e5",
+            "work_center_code": "WC-MIXING",
+            "work_center_id": "ee131bae-9bf1-4a11-848b-34028fceea90",
+            "work_center_name": {
+              "en": "Banbury Mixing Work Center",
+              "ja": "バンバリー混練ワークセンター",
+              "ko": "밴버리 혼련 워크센터",
+              "vi": "Trạm trộn Banbury"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-PREP",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Metal Core Preparation",
+              "ja": "金属コア準備",
+              "ko": "금속 코어 준비",
+              "vi": "Chuẩn bị lõi kim loại"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 20,
+            "source_routing_work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "51f8f81f-90e0-4b73-8c53-aa03f65885c8",
+            "work_center_code": "WC-VULCAN-MOLD",
+            "work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+            "work_center_name": {
+              "en": "Heated hydraulic molding work center",
+              "ja": "加熱油圧成形ワークセンター",
+              "ko": "가열 유압 성형 워크센터",
+              "vi": "Cụm máy ép thủy lực gia nhiệt"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-CUT",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Rubber Blank Cutting",
+              "ja": "ゴムブランク切断",
+              "ko": "고무 블랭크 절단",
+              "vi": "Cắt phôi cao su"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 30,
+            "source_routing_work_center_id": "1339c851-6a65-4c48-9203-0c54ec5a5ff7",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "865c9de9-e0cc-4eb0-8ae9-f540ab9abcbf",
+            "work_center_code": "WC-CUTTING",
+            "work_center_id": "1339c851-6a65-4c48-9203-0c54ec5a5ff7",
+            "work_center_name": {
+              "en": "Rubber Cutting Work Center",
+              "ja": "ゴム切断ワークセンター",
+              "ko": "고무 절단 워크센터",
+              "vi": "Trạm cắt cao su"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-MOLD",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Compression Molding",
+              "ja": "圧縮成形",
+              "ko": "압축 성형",
+              "vi": "Đúc lưu hóa"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 40,
+            "source_routing_work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "29dc488a-6270-4603-b78d-2ef11833d22a",
+            "work_center_code": "WC-VULCAN-MOLD",
+            "work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+            "work_center_name": {
+              "en": "Heated hydraulic molding work center",
+              "ja": "加熱油圧成形ワークセンター",
+              "ko": "가열 유압 성형 워크센터",
+              "vi": "Cụm máy ép thủy lực gia nhiệt"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-TRIM",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Deflashing and Finishing",
+              "ja": "バリ取り・仕上げ",
+              "ko": "버 제거 및 마감",
+              "vi": "Cắt via và hoàn thiện"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 50,
+            "source_routing_work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "528f6156-ca70-4c10-90eb-a59fe9dd4f65",
+            "work_center_code": "WC-VULCAN-MOLD",
+            "work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+            "work_center_name": {
+              "en": "Heated hydraulic molding work center",
+              "ja": "加熱油圧成形ワークセンター",
+              "ko": "가열 유압 성형 워크센터",
+              "vi": "Cụm máy ép thủy lực gia nhiệt"
+            },
+            "workstation_id": null
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "OP-QC",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "Quality Inspection",
+              "ja": "品質検査",
+              "ko": "품질 검사",
+              "vi": "Kiểm tra chất lượng"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "LINE-BASE-1",
+            "production_line_id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+            "production_line_name_i18n": {
+              "en": "Base Resource Planning Line 1",
+              "ja": "基本リソース計画ライン1",
+              "ko": "기본 리소스 계획 라인 1",
+              "vi": "Dây chuyền Resource Planning cơ sở 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 60,
+            "source_routing_work_center_id": "8e6b648e-ea84-4b23-9dc7-ec68db72dd07",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "5c102c35-7eaf-4fe4-a1f2-d5dd123cc3ab",
+            "work_center_code": "WC-QC",
+            "work_center_id": "8e6b648e-ea84-4b23-9dc7-ec68db72dd07",
+            "work_center_name": {
+              "en": "Quality Inspection",
+              "ja": "品質検査ワークセンター",
+              "ko": "품질 검사 워크센터",
+              "vi": "Trạm kiểm tra chất lượng"
+            },
+            "workstation_id": null
+          }
+        ],
+        "print_jobs": null
+      }
+    },
+    {
+      "name": "run Compute and Check",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.000Z",
+      "finished_at": "2026-08-03T03:30:42.054Z",
+      "data": {
+        "status": 200,
+        "body": {
+          "wo_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29",
+          "total_duration_minutes": 75,
+          "planned_start_at": "2026-08-03T08:00:00Z",
+          "planned_end_at": "2026-08-03T09:15:00Z",
+          "operations": [
+            {
+              "sequence_no": 10,
+              "operation_code": "OP-MIX",
+              "work_center_id": "ee131bae-9bf1-4a11-848b-34028fceea90",
+              "duration_minutes": 25,
+              "planned_start_at": "2026-08-03T08:00:00Z",
+              "planned_end_at": "2026-08-03T08:25:00Z",
+              "setup_time_minutes": 20,
+              "cycle_time_seconds": 120,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 4.444444444444445,
+              "calculated_total_minutes": 24.444444444444443,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            },
+            {
+              "sequence_no": 20,
+              "operation_code": "OP-PREP",
+              "work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+              "duration_minutes": 12,
+              "planned_start_at": "2026-08-03T08:25:00Z",
+              "planned_end_at": "2026-08-03T08:37:00Z",
+              "setup_time_minutes": 10,
+              "cycle_time_seconds": 30,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 1.1111111111111112,
+              "calculated_total_minutes": 11.11111111111111,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 30,
+              "operation_code": "OP-CUT",
+              "work_center_id": "1339c851-6a65-4c48-9203-0c54ec5a5ff7",
+              "duration_minutes": 9,
+              "planned_start_at": "2026-08-03T08:37:00Z",
+              "planned_end_at": "2026-08-03T08:46:00Z",
+              "setup_time_minutes": 8,
+              "cycle_time_seconds": 20,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 0.7407407407407407,
+              "calculated_total_minutes": 8.74074074074074,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            },
+            {
+              "sequence_no": 40,
+              "operation_code": "OP-MOLD",
+              "work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+              "duration_minutes": 17,
+              "planned_start_at": "2026-08-03T08:46:00Z",
+              "planned_end_at": "2026-08-03T09:03:00Z",
+              "setup_time_minutes": 15,
+              "cycle_time_seconds": 45,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.92,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 1.6304347826086956,
+              "calculated_total_minutes": 16.630434782608695,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            },
+            {
+              "sequence_no": 50,
+              "operation_code": "OP-TRIM",
+              "work_center_id": "fa126361-a2c9-4707-90bf-7dfd74a1374c",
+              "duration_minutes": 6,
+              "planned_start_at": "2026-08-03T09:03:00Z",
+              "planned_end_at": "2026-08-03T09:09:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 15,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 0.5555555555555556,
+              "calculated_total_minutes": 5.555555555555555,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 60,
+              "operation_code": "OP-QC",
+              "work_center_id": "8e6b648e-ea84-4b23-9dc7-ec68db72dd07",
+              "duration_minutes": 6,
+              "planned_start_at": "2026-08-03T09:09:00Z",
+              "planned_end_at": "2026-08-03T09:15:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 25,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 0.9,
+              "queue_time_minutes": 0,
+              "move_time_minutes": 0,
+              "calculated_run_minutes": 0.925925925925926,
+              "calculated_total_minutes": 5.925925925925926,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            }
+          ],
+          "capacity_warnings": [],
+          "labor_warnings": [],
+          "labor_shortages": [],
+          "labor_assignments": [
+            {
+              "operation_code": "OP-MIX",
+              "employee_code": "EMP-MIX-001",
+              "employee_name": {
+                "en": "Mixing Operator 001",
+                "vi": "Mixing Operator 001"
+              },
+              "skill_code": "SK-EMP-MIX-MASTER",
+              "matched_level": "L3",
+              "status": "Proposed"
+            },
+            {
+              "operation_code": "OP-MOLD",
+              "employee_code": "EMP-VULCAN-001",
+              "employee_name": {
+                "en": "Vulcan Operator 001",
+                "vi": "Vulcan Operator 001"
+              },
+              "skill_code": "SK-EMP-VULCAN-OPERATOR",
+              "matched_level": "L2",
+              "status": "Proposed"
+            },
+            {
+              "operation_code": "OP-MOLD",
+              "employee_code": "EMP-VULCAN-002",
+              "employee_name": {
+                "en": "Vulcan Operator 002",
+                "vi": "Vulcan Operator 002"
+              },
+              "skill_code": "SK-EMP-VULCAN-OPERATOR",
+              "matched_level": "L2",
+              "status": "Proposed"
+            },
+            {
+              "operation_code": "OP-QC",
+              "employee_code": "EMP-QC-001",
+              "employee_name": {
+                "en": "QC Operator 001",
+                "vi": "QC Operator 001"
+              },
+              "skill_code": "SK-EMP-INSPECTION",
+              "matched_level": "L2",
+              "status": "Proposed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "retrieve side-effect-free backend proposals for every operation",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.054Z",
+      "finished_at": "2026-08-03T03:30:42.233Z",
+      "data": {
+        "complete": true,
+        "generated_at": "2026-08-03T03:30:42.066946086Z",
+        "operations": [
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "1b3f6363-64d5-49b0-a9e8-1a414849cc9e",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 133.33333333333334,
+                  "formula": "group primary standard plus required supporting availability",
+                  "queue_time_min": 0,
+                  "run_duration_min": 4.444444444444445,
+                  "setup_time_min": 20
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "439de29f-cd0e-455c-ae4b-a1c420f648f8",
+                  "resource_id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                  "resource_type": "Equipment",
+                  "source_id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "CAP-MIX",
+                  "id": "53805254-8c85-4dbd-a039-bec56243a830",
+                  "priority_no": 1,
+                  "specificity": "WorkCenter",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "EQ-MIX-BANBURY01",
+                  "execution_status": "Available",
+                  "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                  "name": {
+                    "vi": "Banbury mixer 01"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "1b3f6363-64d5-49b0-a9e8-1a414849cc9e",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "EQ-MIX-BANBURY01",
+                    "execution_status": "Available",
+                    "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                    "name": {
+                      "vi": "Banbury mixer 01"
+                    }
+                  },
+                  "evaluated_at": "2026-08-03T03:30:42.093Z",
+                  "machine_unit": {
+                    "status": "Available",
+                    "unit_code": "UNIT-MIX-BANBURY01-01",
+                    "unit_id": "078ba9c2-ba07-4a4b-8bbd-73ca03c86354"
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 24.444,
+                "freshness_token": "2:c3030905-3750-40dc-bc03-218dcae293c1:36d9881f-c71d-4633-9605-78b6b26be03f:2026-08-03T08:00:00Z",
+                "machine_group": {
+                  "code": "MG-MIXING-01",
+                  "id": "ffe1a43f-9e9b-4061-8736-51abd723c91e",
+                  "minimum_required_machines": 1,
+                  "name": {
+                    "en": "Mixing machine group 01",
+                    "ja": "混練マシングループ01",
+                    "ko": "혼련 머신 그룹 01",
+                    "vi": "Nhóm máy trộn 01"
+                  }
+                },
+                "primary_machine": {
+                  "code": "EQ-MIX-BANBURY01",
+                  "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                  "name": {
+                    "vi": "Banbury mixer 01"
+                  },
+                  "unit_code": "UNIT-MIX-BANBURY01-01",
+                  "unit_id": "078ba9c2-ba07-4a4b-8bbd-73ca03c86354"
+                },
+                "production_line": {
+                  "code": "LINE-BASE-1",
+                  "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+                },
+                "production_standard": {
+                  "code": "STD-FG-WS-CM01-MIX",
+                  "id": "636e62c3-9c8e-4bb8-b182-313fd9b735d9",
+                  "level": "WorkCenter"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 515.556,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "supporting_machines": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [
+                  {
+                    "minimum_level": "L3",
+                    "qualified_available_persons": 1,
+                    "readiness": "Available",
+                    "required_persons": 1,
+                    "skill_code": "SK-EMP-MIX-MASTER",
+                    "skill_id": "41aaff82-6f4d-4ce7-b8bf-383bb15442f8",
+                    "workers": [
+                      {
+                        "code": "EMP-MIX-001",
+                        "id": "00000000-0000-4000-8000-000000000201",
+                        "level": "L3",
+                        "name": "Mixing Operator 001"
+                      }
+                    ]
+                  }
+                ],
+                "workstation": {
+                  "code": "WS-MIXING-01",
+                  "id": "c3030905-3750-40dc-bc03-218dcae293c1",
+                  "name": {
+                    "vi": "Mixing Workstation"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "OP-MIX",
+            "operation_id": "ecd94f7a-894c-4bfb-89a5-1704d9cb60e5",
+            "production_line": {
+              "code": "LINE-BASE-1",
+              "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "1b3f6363-64d5-49b0-a9e8-1a414849cc9e",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 133.33333333333334,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 4.444444444444445,
+                "setup_time_min": 20
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "439de29f-cd0e-455c-ae4b-a1c420f648f8",
+                "resource_id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "resource_type": "Equipment",
+                "source_id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-MIX",
+                "id": "53805254-8c85-4dbd-a039-bec56243a830",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MIX-BANBURY01",
+                "execution_status": "Available",
+                "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "name": {
+                  "vi": "Banbury mixer 01"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "1b3f6363-64d5-49b0-a9e8-1a414849cc9e",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MIX-BANBURY01",
+                  "execution_status": "Available",
+                  "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                  "name": {
+                    "vi": "Banbury mixer 01"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.093Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MIX-BANBURY01-01",
+                  "unit_id": "078ba9c2-ba07-4a4b-8bbd-73ca03c86354"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 24.444,
+              "freshness_token": "2:c3030905-3750-40dc-bc03-218dcae293c1:36d9881f-c71d-4633-9605-78b6b26be03f:2026-08-03T08:00:00Z",
+              "machine_group": {
+                "code": "MG-MIXING-01",
+                "id": "ffe1a43f-9e9b-4061-8736-51abd723c91e",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Mixing machine group 01",
+                  "ja": "混練マシングループ01",
+                  "ko": "혼련 머신 그룹 01",
+                  "vi": "Nhóm máy trộn 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MIX-BANBURY01",
+                "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "name": {
+                  "vi": "Banbury mixer 01"
+                },
+                "unit_code": "UNIT-MIX-BANBURY01-01",
+                "unit_id": "078ba9c2-ba07-4a4b-8bbd-73ca03c86354"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-MIX",
+                "id": "636e62c3-9c8e-4bb8-b182-313fd9b735d9",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 515.556,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [
+                {
+                  "minimum_level": "L3",
+                  "qualified_available_persons": 1,
+                  "readiness": "Available",
+                  "required_persons": 1,
+                  "skill_code": "SK-EMP-MIX-MASTER",
+                  "skill_id": "41aaff82-6f4d-4ce7-b8bf-383bb15442f8",
+                  "workers": [
+                    {
+                      "code": "EMP-MIX-001",
+                      "id": "00000000-0000-4000-8000-000000000201",
+                      "level": "L3",
+                      "name": "Mixing Operator 001"
+                    }
+                  ]
+                }
+              ],
+              "workstation": {
+                "code": "WS-MIXING-01",
+                "id": "c3030905-3750-40dc-bc03-218dcae293c1",
+                "name": {
+                  "vi": "Mixing Workstation"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+              "start_at": "2026-08-03T08:00:00Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "1b3f6363-64d5-49b0-a9e8-1a414849cc9e",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 133.33333333333334,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 4.444444444444445,
+                "setup_time_min": 20
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "439de29f-cd0e-455c-ae4b-a1c420f648f8",
+                "resource_id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "resource_type": "Equipment",
+                "source_id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-MIX",
+                "id": "53805254-8c85-4dbd-a039-bec56243a830",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MIX-BANBURY01",
+                "execution_status": "Available",
+                "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "name": {
+                  "vi": "Banbury mixer 01"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "1b3f6363-64d5-49b0-a9e8-1a414849cc9e",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MIX-BANBURY01",
+                  "execution_status": "Available",
+                  "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                  "name": {
+                    "vi": "Banbury mixer 01"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.093Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MIX-BANBURY01-01",
+                  "unit_id": "078ba9c2-ba07-4a4b-8bbd-73ca03c86354"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 24.444,
+              "freshness_token": "2:c3030905-3750-40dc-bc03-218dcae293c1:36d9881f-c71d-4633-9605-78b6b26be03f:2026-08-03T08:00:00Z",
+              "machine_group": {
+                "code": "MG-MIXING-01",
+                "id": "ffe1a43f-9e9b-4061-8736-51abd723c91e",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Mixing machine group 01",
+                  "ja": "混練マシングループ01",
+                  "ko": "혼련 머신 그룹 01",
+                  "vi": "Nhóm máy trộn 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MIX-BANBURY01",
+                "id": "36d9881f-c71d-4633-9605-78b6b26be03f",
+                "name": {
+                  "vi": "Banbury mixer 01"
+                },
+                "unit_code": "UNIT-MIX-BANBURY01-01",
+                "unit_id": "078ba9c2-ba07-4a4b-8bbd-73ca03c86354"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-MIX",
+                "id": "636e62c3-9c8e-4bb8-b182-313fd9b735d9",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 515.556,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [
+                {
+                  "minimum_level": "L3",
+                  "qualified_available_persons": 1,
+                  "readiness": "Available",
+                  "required_persons": 1,
+                  "skill_code": "SK-EMP-MIX-MASTER",
+                  "skill_id": "41aaff82-6f4d-4ce7-b8bf-383bb15442f8",
+                  "workers": [
+                    {
+                      "code": "EMP-MIX-001",
+                      "id": "00000000-0000-4000-8000-000000000201",
+                      "level": "L3",
+                      "name": "Mixing Operator 001"
+                    }
+                  ]
+                }
+              ],
+              "workstation": {
+                "code": "WS-MIXING-01",
+                "id": "c3030905-3750-40dc-bc03-218dcae293c1",
+                "name": {
+                  "vi": "Mixing Workstation"
+                }
+              }
+            },
+            "sequence": 10,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 33.333333333333336,
+                  "formula": "group primary standard plus required supporting availability",
+                  "queue_time_min": 0,
+                  "run_duration_min": 1.1111111111111112,
+                  "setup_time_min": 10
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                  "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "resource_type": "Equipment",
+                  "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "CAP-PREP",
+                  "id": "a48bbee7-3a4e-45ae-8db6-7a1b1bc85d16",
+                  "priority_no": 1,
+                  "specificity": "WorkCenter",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "EQ-MOLD-HYD01",
+                    "execution_status": "Available",
+                    "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                    "name": {
+                      "en": "500-ton hydraulic press",
+                      "ja": "500トン油圧プレス",
+                      "ko": "500톤 유압 프레스",
+                      "vi": "Máy ép 500 tấn"
+                    }
+                  },
+                  "evaluated_at": "2026-08-03T03:30:42.118Z",
+                  "machine_unit": {
+                    "status": "Available",
+                    "unit_code": "UNIT-MOLD-HYD01-01",
+                    "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 11.111,
+                "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T08:24:26Z",
+                "machine_group": {
+                  "code": "MG-MOLD-KIOSK01",
+                  "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                  "minimum_required_machines": 1,
+                  "name": {
+                    "en": "Molding kiosk 01 machine group",
+                    "ja": "成形キオスク01マシングループ",
+                    "ko": "성형 키오스크 01 머신 그룹",
+                    "vi": "Nhóm máy ép kiosk 01"
+                  }
+                },
+                "primary_machine": {
+                  "code": "EQ-MOLD-HYD01",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  },
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "production_line": {
+                  "code": "LINE-BASE-1",
+                  "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+                },
+                "production_standard": {
+                  "code": "STD-FG-WS-CM01-PREP",
+                  "id": "f519466a-854e-4350-847d-ef16da36f241",
+                  "level": "WorkCenter"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 528.889,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "supporting_machines": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [],
+                "workstation": {
+                  "code": "WS-MOLD-KIOSK01",
+                  "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                  "name": {
+                    "en": "Molding Kiosk 01",
+                    "ja": "成形キオスク01",
+                    "ko": "성형 키오스크 01",
+                    "vi": "Trạm kiosk máy ép 01"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "OP-PREP",
+            "operation_id": "51f8f81f-90e0-4b73-8c53-aa03f65885c8",
+            "production_line": {
+              "code": "LINE-BASE-1",
+              "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 33.333333333333336,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 1.1111111111111112,
+                "setup_time_min": 10
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "resource_type": "Equipment",
+                "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-PREP",
+                "id": "a48bbee7-3a4e-45ae-8db6-7a1b1bc85d16",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MOLD-HYD01",
+                "execution_status": "Available",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.118Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 11.111,
+              "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T08:24:26Z",
+              "machine_group": {
+                "code": "MG-MOLD-KIOSK01",
+                "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Molding kiosk 01 machine group",
+                  "ja": "成形キオスク01マシングループ",
+                  "ko": "성형 키오스크 01 머신 그룹",
+                  "vi": "Nhóm máy ép kiosk 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MOLD-HYD01",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                },
+                "unit_code": "UNIT-MOLD-HYD01-01",
+                "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-PREP",
+                "id": "f519466a-854e-4350-847d-ef16da36f241",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 528.889,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WS-MOLD-KIOSK01",
+                "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                "name": {
+                  "en": "Molding Kiosk 01",
+                  "ja": "成形キオスク01",
+                  "ko": "성형 키오스크 01",
+                  "vi": "Trạm kiosk máy ép 01"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+              "start_at": "2026-08-03T08:24:26Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 33.333333333333336,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 1.1111111111111112,
+                "setup_time_min": 10
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "resource_type": "Equipment",
+                "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-PREP",
+                "id": "a48bbee7-3a4e-45ae-8db6-7a1b1bc85d16",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MOLD-HYD01",
+                "execution_status": "Available",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.118Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 11.111,
+              "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T08:24:26Z",
+              "machine_group": {
+                "code": "MG-MOLD-KIOSK01",
+                "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Molding kiosk 01 machine group",
+                  "ja": "成形キオスク01マシングループ",
+                  "ko": "성형 키오스크 01 머신 그룹",
+                  "vi": "Nhóm máy ép kiosk 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MOLD-HYD01",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                },
+                "unit_code": "UNIT-MOLD-HYD01-01",
+                "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-PREP",
+                "id": "f519466a-854e-4350-847d-ef16da36f241",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 528.889,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WS-MOLD-KIOSK01",
+                "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                "name": {
+                  "en": "Molding Kiosk 01",
+                  "ja": "成形キオスク01",
+                  "ko": "성형 키오스크 01",
+                  "vi": "Trạm kiosk máy ép 01"
+                }
+              }
+            },
+            "sequence": 20,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "97f00b14-6fa6-46b2-938e-6c2d38cd4d84",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 22.22222222222222,
+                  "formula": "group primary standard plus required supporting availability",
+                  "queue_time_min": 0,
+                  "run_duration_min": 0.7407407407407407,
+                  "setup_time_min": 8
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "e825004c-2bdb-44cf-8706-7464f5210fbf",
+                  "resource_id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                  "resource_type": "Equipment",
+                  "source_id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "CAP-CUT",
+                  "id": "c4aa398d-ffe2-478f-badb-9f8bb92f0426",
+                  "priority_no": 1,
+                  "specificity": "WorkCenter",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "EQ-CUTTER01",
+                  "execution_status": "Available",
+                  "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                  "name": {
+                    "vi": "Rubber cutter 01"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "97f00b14-6fa6-46b2-938e-6c2d38cd4d84",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "EQ-CUTTER01",
+                    "execution_status": "Available",
+                    "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                    "name": {
+                      "vi": "Rubber cutter 01"
+                    }
+                  },
+                  "evaluated_at": "2026-08-03T03:30:42.142Z",
+                  "machine_unit": {
+                    "status": "Available",
+                    "unit_code": "UNIT-CUTTER01-01",
+                    "unit_id": "00bccc50-2244-4c37-8fbb-aeb3fdd4b155"
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 8.741,
+                "freshness_token": "2:a2f33dd0-3829-45b0-ad14-a42b3d52c129:50488659-7e73-4d81-ab2f-4b3a0dfb5bf9:2026-08-03T08:35:33Z",
+                "machine_group": {
+                  "code": "MG-CUTTING-01",
+                  "id": "586c4e7f-bfcf-402a-91f5-5517ee99792f",
+                  "minimum_required_machines": 1,
+                  "name": {
+                    "en": "Cutting machine group 01",
+                    "ja": "Cutting machine group 01",
+                    "ko": "Cutting machine group 01",
+                    "vi": "Cutting machine group 01"
+                  }
+                },
+                "primary_machine": {
+                  "code": "EQ-CUTTER01",
+                  "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                  "name": {
+                    "vi": "Rubber cutter 01"
+                  },
+                  "unit_code": "UNIT-CUTTER01-01",
+                  "unit_id": "00bccc50-2244-4c37-8fbb-aeb3fdd4b155"
+                },
+                "production_line": {
+                  "code": "LINE-BASE-1",
+                  "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+                },
+                "production_standard": {
+                  "code": "STD-FG-WS-CM01-CUT",
+                  "id": "4fe27b22-82aa-4481-8d1f-49667ff880a2",
+                  "level": "WorkCenter"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 531.259,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "supporting_machines": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [],
+                "workstation": {
+                  "code": "WS-CUTTING-01",
+                  "id": "a2f33dd0-3829-45b0-ad14-a42b3d52c129",
+                  "name": {
+                    "vi": "Cutting Workstation"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "OP-CUT",
+            "operation_id": "865c9de9-e0cc-4eb0-8ae9-f540ab9abcbf",
+            "production_line": {
+              "code": "LINE-BASE-1",
+              "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "97f00b14-6fa6-46b2-938e-6c2d38cd4d84",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 22.22222222222222,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 0.7407407407407407,
+                "setup_time_min": 8
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "e825004c-2bdb-44cf-8706-7464f5210fbf",
+                "resource_id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "resource_type": "Equipment",
+                "source_id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-CUT",
+                "id": "c4aa398d-ffe2-478f-badb-9f8bb92f0426",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-CUTTER01",
+                "execution_status": "Available",
+                "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "name": {
+                  "vi": "Rubber cutter 01"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "97f00b14-6fa6-46b2-938e-6c2d38cd4d84",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-CUTTER01",
+                  "execution_status": "Available",
+                  "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                  "name": {
+                    "vi": "Rubber cutter 01"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.142Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-CUTTER01-01",
+                  "unit_id": "00bccc50-2244-4c37-8fbb-aeb3fdd4b155"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 8.741,
+              "freshness_token": "2:a2f33dd0-3829-45b0-ad14-a42b3d52c129:50488659-7e73-4d81-ab2f-4b3a0dfb5bf9:2026-08-03T08:35:33Z",
+              "machine_group": {
+                "code": "MG-CUTTING-01",
+                "id": "586c4e7f-bfcf-402a-91f5-5517ee99792f",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Cutting machine group 01",
+                  "ja": "Cutting machine group 01",
+                  "ko": "Cutting machine group 01",
+                  "vi": "Cutting machine group 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-CUTTER01",
+                "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "name": {
+                  "vi": "Rubber cutter 01"
+                },
+                "unit_code": "UNIT-CUTTER01-01",
+                "unit_id": "00bccc50-2244-4c37-8fbb-aeb3fdd4b155"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-CUT",
+                "id": "4fe27b22-82aa-4481-8d1f-49667ff880a2",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 531.259,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WS-CUTTING-01",
+                "id": "a2f33dd0-3829-45b0-ad14-a42b3d52c129",
+                "name": {
+                  "vi": "Cutting Workstation"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+              "start_at": "2026-08-03T08:35:33Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "97f00b14-6fa6-46b2-938e-6c2d38cd4d84",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 22.22222222222222,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 0.7407407407407407,
+                "setup_time_min": 8
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "e825004c-2bdb-44cf-8706-7464f5210fbf",
+                "resource_id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "resource_type": "Equipment",
+                "source_id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-CUT",
+                "id": "c4aa398d-ffe2-478f-badb-9f8bb92f0426",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-CUTTER01",
+                "execution_status": "Available",
+                "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "name": {
+                  "vi": "Rubber cutter 01"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "97f00b14-6fa6-46b2-938e-6c2d38cd4d84",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-CUTTER01",
+                  "execution_status": "Available",
+                  "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                  "name": {
+                    "vi": "Rubber cutter 01"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.142Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-CUTTER01-01",
+                  "unit_id": "00bccc50-2244-4c37-8fbb-aeb3fdd4b155"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 8.741,
+              "freshness_token": "2:a2f33dd0-3829-45b0-ad14-a42b3d52c129:50488659-7e73-4d81-ab2f-4b3a0dfb5bf9:2026-08-03T08:35:33Z",
+              "machine_group": {
+                "code": "MG-CUTTING-01",
+                "id": "586c4e7f-bfcf-402a-91f5-5517ee99792f",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Cutting machine group 01",
+                  "ja": "Cutting machine group 01",
+                  "ko": "Cutting machine group 01",
+                  "vi": "Cutting machine group 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-CUTTER01",
+                "id": "50488659-7e73-4d81-ab2f-4b3a0dfb5bf9",
+                "name": {
+                  "vi": "Rubber cutter 01"
+                },
+                "unit_code": "UNIT-CUTTER01-01",
+                "unit_id": "00bccc50-2244-4c37-8fbb-aeb3fdd4b155"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-CUT",
+                "id": "4fe27b22-82aa-4481-8d1f-49667ff880a2",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 531.259,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WS-CUTTING-01",
+                "id": "a2f33dd0-3829-45b0-ad14-a42b3d52c129",
+                "name": {
+                  "vi": "Cutting Workstation"
+                }
+              }
+            },
+            "sequence": 30,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 48.91304347826087,
+                  "formula": "group primary standard plus required supporting availability",
+                  "queue_time_min": 0,
+                  "run_duration_min": 1.6304347826086956,
+                  "setup_time_min": 15
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                  "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "resource_type": "Equipment",
+                  "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "CAP-MOLD",
+                  "id": "08bc781d-db97-42cf-95a9-2d47af8f202d",
+                  "priority_no": 1,
+                  "specificity": "WorkCenter",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "EQ-MOLD-HYD01",
+                    "execution_status": "Available",
+                    "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                    "name": {
+                      "en": "500-ton hydraulic press",
+                      "ja": "500トン油圧プレス",
+                      "ko": "500톤 유압 프레스",
+                      "vi": "Máy ép 500 tấn"
+                    }
+                  },
+                  "evaluated_at": "2026-08-03T03:30:42.168Z",
+                  "machine_unit": {
+                    "status": "Available",
+                    "unit_code": "UNIT-MOLD-HYD01-01",
+                    "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 16.63,
+                "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T08:44:17Z",
+                "machine_group": {
+                  "code": "MG-MOLD-KIOSK01",
+                  "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                  "minimum_required_machines": 1,
+                  "name": {
+                    "en": "Molding kiosk 01 machine group",
+                    "ja": "成形キオスク01マシングループ",
+                    "ko": "성형 키오스크 01 머신 그룹",
+                    "vi": "Nhóm máy ép kiosk 01"
+                  }
+                },
+                "primary_machine": {
+                  "code": "EQ-MOLD-HYD01",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  },
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "production_line": {
+                  "code": "LINE-BASE-1",
+                  "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+                },
+                "production_standard": {
+                  "code": "STD-FG-WS-CM01-MOLD-HYD01",
+                  "id": "76fca0cd-5882-4938-b178-2818fda47ff3",
+                  "level": "Equipment"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 523.37,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "supporting_machines": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [
+                  {
+                    "minimum_level": "L2",
+                    "qualified_available_persons": 2,
+                    "readiness": "Available",
+                    "required_persons": 2,
+                    "skill_code": "SK-EMP-VULCAN-OPERATOR",
+                    "skill_id": "e8a8aab5-5e0b-4ab0-bd91-f9a36bb17c64",
+                    "workers": [
+                      {
+                        "code": "EMP-VULCAN-001",
+                        "id": "00000000-0000-4000-8000-000000000203",
+                        "level": "L2",
+                        "name": "Vulcan Operator 001"
+                      },
+                      {
+                        "code": "EMP-VULCAN-002",
+                        "id": "00000000-0000-4000-8000-000000000205",
+                        "level": "L2",
+                        "name": "Vulcan Operator 002"
+                      }
+                    ]
+                  }
+                ],
+                "workstation": {
+                  "code": "WS-MOLD-KIOSK01",
+                  "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                  "name": {
+                    "en": "Molding Kiosk 01",
+                    "ja": "成形キオスク01",
+                    "ko": "성형 키오스크 01",
+                    "vi": "Trạm kiosk máy ép 01"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "OP-MOLD",
+            "operation_id": "29dc488a-6270-4603-b78d-2ef11833d22a",
+            "production_line": {
+              "code": "LINE-BASE-1",
+              "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 48.91304347826087,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 1.6304347826086956,
+                "setup_time_min": 15
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "resource_type": "Equipment",
+                "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-MOLD",
+                "id": "08bc781d-db97-42cf-95a9-2d47af8f202d",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MOLD-HYD01",
+                "execution_status": "Available",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.168Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 16.63,
+              "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T08:44:17Z",
+              "machine_group": {
+                "code": "MG-MOLD-KIOSK01",
+                "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Molding kiosk 01 machine group",
+                  "ja": "成形キオスク01マシングループ",
+                  "ko": "성형 키오스크 01 머신 그룹",
+                  "vi": "Nhóm máy ép kiosk 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MOLD-HYD01",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                },
+                "unit_code": "UNIT-MOLD-HYD01-01",
+                "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-MOLD-HYD01",
+                "id": "76fca0cd-5882-4938-b178-2818fda47ff3",
+                "level": "Equipment"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 523.37,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [
+                {
+                  "minimum_level": "L2",
+                  "qualified_available_persons": 2,
+                  "readiness": "Available",
+                  "required_persons": 2,
+                  "skill_code": "SK-EMP-VULCAN-OPERATOR",
+                  "skill_id": "e8a8aab5-5e0b-4ab0-bd91-f9a36bb17c64",
+                  "workers": [
+                    {
+                      "code": "EMP-VULCAN-001",
+                      "id": "00000000-0000-4000-8000-000000000203",
+                      "level": "L2",
+                      "name": "Vulcan Operator 001"
+                    },
+                    {
+                      "code": "EMP-VULCAN-002",
+                      "id": "00000000-0000-4000-8000-000000000205",
+                      "level": "L2",
+                      "name": "Vulcan Operator 002"
+                    }
+                  ]
+                }
+              ],
+              "workstation": {
+                "code": "WS-MOLD-KIOSK01",
+                "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                "name": {
+                  "en": "Molding Kiosk 01",
+                  "ja": "成形キオスク01",
+                  "ko": "성형 키오스크 01",
+                  "vi": "Trạm kiosk máy ép 01"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+              "start_at": "2026-08-03T08:44:17Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 48.91304347826087,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 1.6304347826086956,
+                "setup_time_min": 15
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "resource_type": "Equipment",
+                "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-MOLD",
+                "id": "08bc781d-db97-42cf-95a9-2d47af8f202d",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MOLD-HYD01",
+                "execution_status": "Available",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.168Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 16.63,
+              "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T08:44:17Z",
+              "machine_group": {
+                "code": "MG-MOLD-KIOSK01",
+                "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Molding kiosk 01 machine group",
+                  "ja": "成形キオスク01マシングループ",
+                  "ko": "성형 키오스크 01 머신 그룹",
+                  "vi": "Nhóm máy ép kiosk 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MOLD-HYD01",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                },
+                "unit_code": "UNIT-MOLD-HYD01-01",
+                "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-MOLD-HYD01",
+                "id": "76fca0cd-5882-4938-b178-2818fda47ff3",
+                "level": "Equipment"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 523.37,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [
+                {
+                  "minimum_level": "L2",
+                  "qualified_available_persons": 2,
+                  "readiness": "Available",
+                  "required_persons": 2,
+                  "skill_code": "SK-EMP-VULCAN-OPERATOR",
+                  "skill_id": "e8a8aab5-5e0b-4ab0-bd91-f9a36bb17c64",
+                  "workers": [
+                    {
+                      "code": "EMP-VULCAN-001",
+                      "id": "00000000-0000-4000-8000-000000000203",
+                      "level": "L2",
+                      "name": "Vulcan Operator 001"
+                    },
+                    {
+                      "code": "EMP-VULCAN-002",
+                      "id": "00000000-0000-4000-8000-000000000205",
+                      "level": "L2",
+                      "name": "Vulcan Operator 002"
+                    }
+                  ]
+                }
+              ],
+              "workstation": {
+                "code": "WS-MOLD-KIOSK01",
+                "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                "name": {
+                  "en": "Molding Kiosk 01",
+                  "ja": "成形キオスク01",
+                  "ko": "성형 키오스크 01",
+                  "vi": "Trạm kiosk máy ép 01"
+                }
+              }
+            },
+            "sequence": 40,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 16.666666666666668,
+                  "formula": "group primary standard plus required supporting availability",
+                  "queue_time_min": 0,
+                  "run_duration_min": 0.5555555555555556,
+                  "setup_time_min": 5
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                  "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "resource_type": "Equipment",
+                  "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "CAP-TRIM",
+                  "id": "aef8bc0f-0672-4ab8-9ad5-fac475291e69",
+                  "priority_no": 1,
+                  "specificity": "WorkCenter",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "EQ-MOLD-HYD01",
+                    "execution_status": "Available",
+                    "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                    "name": {
+                      "en": "500-ton hydraulic press",
+                      "ja": "500トン油圧プレス",
+                      "ko": "500톤 유압 프레스",
+                      "vi": "Máy ép 500 tấn"
+                    }
+                  },
+                  "evaluated_at": "2026-08-03T03:30:42.193Z",
+                  "machine_unit": {
+                    "status": "Available",
+                    "unit_code": "UNIT-MOLD-HYD01-01",
+                    "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 5.556,
+                "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T09:00:55Z",
+                "machine_group": {
+                  "code": "MG-MOLD-KIOSK01",
+                  "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                  "minimum_required_machines": 1,
+                  "name": {
+                    "en": "Molding kiosk 01 machine group",
+                    "ja": "成形キオスク01マシングループ",
+                    "ko": "성형 키오스크 01 머신 그룹",
+                    "vi": "Nhóm máy ép kiosk 01"
+                  }
+                },
+                "primary_machine": {
+                  "code": "EQ-MOLD-HYD01",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  },
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "production_line": {
+                  "code": "LINE-BASE-1",
+                  "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+                },
+                "production_standard": {
+                  "code": "STD-FG-WS-CM01-TRIM",
+                  "id": "95041c15-2ef8-46e9-9013-6ac6d164d937",
+                  "level": "WorkCenter"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 534.444,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "supporting_machines": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [],
+                "workstation": {
+                  "code": "WS-MOLD-KIOSK01",
+                  "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                  "name": {
+                    "en": "Molding Kiosk 01",
+                    "ja": "成形キオスク01",
+                    "ko": "성형 키오스크 01",
+                    "vi": "Trạm kiosk máy ép 01"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "OP-TRIM",
+            "operation_id": "528f6156-ca70-4c10-90eb-a59fe9dd4f65",
+            "production_line": {
+              "code": "LINE-BASE-1",
+              "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 16.666666666666668,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 0.5555555555555556,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "resource_type": "Equipment",
+                "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-TRIM",
+                "id": "aef8bc0f-0672-4ab8-9ad5-fac475291e69",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MOLD-HYD01",
+                "execution_status": "Available",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.193Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 5.556,
+              "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T09:00:55Z",
+              "machine_group": {
+                "code": "MG-MOLD-KIOSK01",
+                "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Molding kiosk 01 machine group",
+                  "ja": "成形キオスク01マシングループ",
+                  "ko": "성형 키오스크 01 머신 그룹",
+                  "vi": "Nhóm máy ép kiosk 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MOLD-HYD01",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                },
+                "unit_code": "UNIT-MOLD-HYD01-01",
+                "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-TRIM",
+                "id": "95041c15-2ef8-46e9-9013-6ac6d164d937",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 534.444,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WS-MOLD-KIOSK01",
+                "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                "name": {
+                  "en": "Molding Kiosk 01",
+                  "ja": "成形キオスク01",
+                  "ko": "성형 키오스크 01",
+                  "vi": "Trạm kiosk máy ép 01"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+              "start_at": "2026-08-03T09:00:55Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 16.666666666666668,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 0.5555555555555556,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "347ad0fa-619a-4a39-a440-cf77dfd72020",
+                "resource_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "resource_type": "Equipment",
+                "source_id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-TRIM",
+                "id": "aef8bc0f-0672-4ab8-9ad5-fac475291e69",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-MOLD-HYD01",
+                "execution_status": "Available",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8f79af7b-aff4-4815-86bc-7872288af511",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-MOLD-HYD01",
+                  "execution_status": "Available",
+                  "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                  "name": {
+                    "en": "500-ton hydraulic press",
+                    "ja": "500トン油圧プレス",
+                    "ko": "500톤 유압 프레스",
+                    "vi": "Máy ép 500 tấn"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.193Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-MOLD-HYD01-01",
+                  "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 5.556,
+              "freshness_token": "2:54eef232-ce4f-4c82-830e-6d5ef8fda7b0:e16fb913-44ba-4adc-8146-9a8e63a07a85:2026-08-03T09:00:55Z",
+              "machine_group": {
+                "code": "MG-MOLD-KIOSK01",
+                "id": "5057e1c2-c14f-443e-810f-ac93d6e9d006",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "Molding kiosk 01 machine group",
+                  "ja": "成形キオスク01マシングループ",
+                  "ko": "성형 키오스크 01 머신 그룹",
+                  "vi": "Nhóm máy ép kiosk 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-MOLD-HYD01",
+                "id": "e16fb913-44ba-4adc-8146-9a8e63a07a85",
+                "name": {
+                  "en": "500-ton hydraulic press",
+                  "ja": "500トン油圧プレス",
+                  "ko": "500톤 유압 프레스",
+                  "vi": "Máy ép 500 tấn"
+                },
+                "unit_code": "UNIT-MOLD-HYD01-01",
+                "unit_id": "66b33523-5cc6-477b-afd4-407b38a19335"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-TRIM",
+                "id": "95041c15-2ef8-46e9-9013-6ac6d164d937",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 534.444,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WS-MOLD-KIOSK01",
+                "id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+                "name": {
+                  "en": "Molding Kiosk 01",
+                  "ja": "成形キオスク01",
+                  "ko": "성형 키오스크 01",
+                  "vi": "Trạm kiosk máy ép 01"
+                }
+              }
+            },
+            "sequence": 50,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "8605fd80-2141-4178-b6b8-9c43cae8b551",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 27.77777777777778,
+                  "formula": "group primary standard plus required supporting availability",
+                  "queue_time_min": 0,
+                  "run_duration_min": 0.9259259259259259,
+                  "setup_time_min": 5
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "22b0024b-88f7-470b-9e2d-0fa855cb12e0",
+                  "resource_id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                  "resource_type": "Equipment",
+                  "source_id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "CAP-QC",
+                  "id": "d67a1343-68a6-4b6b-9917-beb0a06f1e8b",
+                  "priority_no": 1,
+                  "specificity": "WorkCenter",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "EQ-QC01",
+                  "execution_status": "Available",
+                  "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                  "name": {
+                    "vi": "QC station 01"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "8605fd80-2141-4178-b6b8-9c43cae8b551",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "EQ-QC01",
+                    "execution_status": "Available",
+                    "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                    "name": {
+                      "vi": "QC station 01"
+                    }
+                  },
+                  "evaluated_at": "2026-08-03T03:30:42.220Z",
+                  "machine_unit": {
+                    "status": "Available",
+                    "unit_code": "UNIT-QC01-01",
+                    "unit_id": "38e83552-5e9a-4c30-88ae-bf4573a61622"
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 5.926,
+                "freshness_token": "2:cfdd538a-dbd8-49c1-b704-17bc44df9d0d:81e47635-e005-47de-92d3-0c99e3b10264:2026-08-03T09:06:28Z",
+                "machine_group": {
+                  "code": "MG-QC-01",
+                  "id": "8c36b1fb-9fcc-4231-84ba-bb3286e544ce",
+                  "minimum_required_machines": 1,
+                  "name": {
+                    "en": "QC machine group 01",
+                    "ja": "QC machine group 01",
+                    "ko": "QC machine group 01",
+                    "vi": "QC machine group 01"
+                  }
+                },
+                "primary_machine": {
+                  "code": "EQ-QC01",
+                  "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                  "name": {
+                    "vi": "QC station 01"
+                  },
+                  "unit_code": "UNIT-QC01-01",
+                  "unit_id": "38e83552-5e9a-4c30-88ae-bf4573a61622"
+                },
+                "production_line": {
+                  "code": "LINE-BASE-1",
+                  "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+                },
+                "production_standard": {
+                  "code": "STD-FG-WS-CM01-QC",
+                  "id": "a6cba018-ebf8-4cbe-9cc4-fc1fa42ccdb6",
+                  "level": "WorkCenter"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 534.074,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "supporting_machines": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [
+                  {
+                    "minimum_level": "L2",
+                    "qualified_available_persons": 1,
+                    "readiness": "Available",
+                    "required_persons": 1,
+                    "skill_code": "SK-EMP-INSPECTION",
+                    "skill_id": "47932537-cf73-4ff2-80eb-82bf948aa4b9",
+                    "workers": [
+                      {
+                        "code": "EMP-QC-001",
+                        "id": "00000000-0000-4000-8000-000000000207",
+                        "level": "L2",
+                        "name": "QC Operator 001"
+                      }
+                    ]
+                  }
+                ],
+                "workstation": {
+                  "code": "WS-QC-01",
+                  "id": "cfdd538a-dbd8-49c1-b704-17bc44df9d0d",
+                  "name": {
+                    "vi": "Quality Inspection Workstation"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "OP-QC",
+            "operation_id": "5c102c35-7eaf-4fe4-a1f2-d5dd123cc3ab",
+            "production_line": {
+              "code": "LINE-BASE-1",
+              "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "8605fd80-2141-4178-b6b8-9c43cae8b551",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 27.77777777777778,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 0.9259259259259259,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "22b0024b-88f7-470b-9e2d-0fa855cb12e0",
+                "resource_id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "resource_type": "Equipment",
+                "source_id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-QC",
+                "id": "d67a1343-68a6-4b6b-9917-beb0a06f1e8b",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-QC01",
+                "execution_status": "Available",
+                "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "name": {
+                  "vi": "QC station 01"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8605fd80-2141-4178-b6b8-9c43cae8b551",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-QC01",
+                  "execution_status": "Available",
+                  "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                  "name": {
+                    "vi": "QC station 01"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.220Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-QC01-01",
+                  "unit_id": "38e83552-5e9a-4c30-88ae-bf4573a61622"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 5.926,
+              "freshness_token": "2:cfdd538a-dbd8-49c1-b704-17bc44df9d0d:81e47635-e005-47de-92d3-0c99e3b10264:2026-08-03T09:06:28Z",
+              "machine_group": {
+                "code": "MG-QC-01",
+                "id": "8c36b1fb-9fcc-4231-84ba-bb3286e544ce",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "QC machine group 01",
+                  "ja": "QC machine group 01",
+                  "ko": "QC machine group 01",
+                  "vi": "QC machine group 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-QC01",
+                "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "name": {
+                  "vi": "QC station 01"
+                },
+                "unit_code": "UNIT-QC01-01",
+                "unit_id": "38e83552-5e9a-4c30-88ae-bf4573a61622"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-QC",
+                "id": "a6cba018-ebf8-4cbe-9cc4-fc1fa42ccdb6",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 534.074,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [
+                {
+                  "minimum_level": "L2",
+                  "qualified_available_persons": 1,
+                  "readiness": "Available",
+                  "required_persons": 1,
+                  "skill_code": "SK-EMP-INSPECTION",
+                  "skill_id": "47932537-cf73-4ff2-80eb-82bf948aa4b9",
+                  "workers": [
+                    {
+                      "code": "EMP-QC-001",
+                      "id": "00000000-0000-4000-8000-000000000207",
+                      "level": "L2",
+                      "name": "QC Operator 001"
+                    }
+                  ]
+                }
+              ],
+              "workstation": {
+                "code": "WS-QC-01",
+                "id": "cfdd538a-dbd8-49c1-b704-17bc44df9d0d",
+                "name": {
+                  "vi": "Quality Inspection Workstation"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "9219c4a2-74c1-4e51-b4eb-0cb3a0881109",
+              "start_at": "2026-08-03T09:06:28Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "8605fd80-2141-4178-b6b8-9c43cae8b551",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 27.77777777777778,
+                "formula": "group primary standard plus required supporting availability",
+                "queue_time_min": 0,
+                "run_duration_min": 0.9259259259259259,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "22b0024b-88f7-470b-9e2d-0fa855cb12e0",
+                "resource_id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "resource_type": "Equipment",
+                "source_id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "CAP-QC",
+                "id": "d67a1343-68a6-4b6b-9917-beb0a06f1e8b",
+                "priority_no": 1,
+                "specificity": "WorkCenter",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "EQ-QC01",
+                "execution_status": "Available",
+                "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "name": {
+                  "vi": "QC station 01"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "8605fd80-2141-4178-b6b8-9c43cae8b551",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "EQ-QC01",
+                  "execution_status": "Available",
+                  "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                  "name": {
+                    "vi": "QC station 01"
+                  }
+                },
+                "evaluated_at": "2026-08-03T03:30:42.220Z",
+                "machine_unit": {
+                  "status": "Available",
+                  "unit_code": "UNIT-QC01-01",
+                  "unit_id": "38e83552-5e9a-4c30-88ae-bf4573a61622"
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 5.926,
+              "freshness_token": "2:cfdd538a-dbd8-49c1-b704-17bc44df9d0d:81e47635-e005-47de-92d3-0c99e3b10264:2026-08-03T09:06:28Z",
+              "machine_group": {
+                "code": "MG-QC-01",
+                "id": "8c36b1fb-9fcc-4231-84ba-bb3286e544ce",
+                "minimum_required_machines": 1,
+                "name": {
+                  "en": "QC machine group 01",
+                  "ja": "QC machine group 01",
+                  "ko": "QC machine group 01",
+                  "vi": "QC machine group 01"
+                }
+              },
+              "primary_machine": {
+                "code": "EQ-QC01",
+                "id": "81e47635-e005-47de-92d3-0c99e3b10264",
+                "name": {
+                  "vi": "QC station 01"
+                },
+                "unit_code": "UNIT-QC01-01",
+                "unit_id": "38e83552-5e9a-4c30-88ae-bf4573a61622"
+              },
+              "production_line": {
+                "code": "LINE-BASE-1",
+                "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a"
+              },
+              "production_standard": {
+                "code": "STD-FG-WS-CM01-QC",
+                "id": "a6cba018-ebf8-4cbe-9cc4-fc1fa42ccdb6",
+                "level": "WorkCenter"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 534.074,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "supporting_machines": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [
+                {
+                  "minimum_level": "L2",
+                  "qualified_available_persons": 1,
+                  "readiness": "Available",
+                  "required_persons": 1,
+                  "skill_code": "SK-EMP-INSPECTION",
+                  "skill_id": "47932537-cf73-4ff2-80eb-82bf948aa4b9",
+                  "workers": [
+                    {
+                      "code": "EMP-QC-001",
+                      "id": "00000000-0000-4000-8000-000000000207",
+                      "level": "L2",
+                      "name": "QC Operator 001"
+                    }
+                  ]
+                }
+              ],
+              "workstation": {
+                "code": "WS-QC-01",
+                "id": "cfdd538a-dbd8-49c1-b704-17bc44df9d0d",
+                "name": {
+                  "vi": "Quality Inspection Workstation"
+                }
+              }
+            },
+            "sequence": 60,
+            "warnings": []
+          }
+        ],
+        "proposal_version": "be5515af8c0e35e3050103d5d918cff5a30471107e27037466a0716ff15982b6",
+        "selected_production_line": {
+          "code": "LINE-BASE-1",
+          "id": "affe5ded-fdf9-4059-9a0f-f7a7c8ac9f6a",
+          "name_i18n": {
+            "en": "Base Resource Planning Line 1",
+            "ja": "基本リソース計画ライン1",
+            "ko": "기본 리소스 계획 라인 1",
+            "vi": "Dây chuyền Resource Planning cơ sở 1"
+          }
+        },
+        "work_order_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29",
+        "work_order_row_version": 2,
+        "side_effect_counts_before": {
+          "allocations": 0,
+          "reservations": 0
+        },
+        "side_effect_counts_after": {
+          "allocations": 0,
+          "reservations": 0
+        }
+      }
+    },
+    {
+      "name": "retrieve candidates and commit one Ready candidate for every operation",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.233Z",
+      "finished_at": "2026-08-03T03:30:42.500Z",
+      "data": [
+        {
+          "operation_code": "OP-MIX",
+          "operation_id": "ecd94f7a-894c-4bfb-89a5-1704d9cb60e5",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "c3030905-3750-40dc-bc03-218dcae293c1",
+          "allocation_id": "eca3a29b-7c4e-4b97-840d-8811e44a3820"
+        },
+        {
+          "operation_code": "OP-PREP",
+          "operation_id": "51f8f81f-90e0-4b73-8c53-aa03f65885c8",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+          "allocation_id": "23addc15-461e-45a0-b095-ff746cefd5b8"
+        },
+        {
+          "operation_code": "OP-CUT",
+          "operation_id": "865c9de9-e0cc-4eb0-8ae9-f540ab9abcbf",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "a2f33dd0-3829-45b0-ad14-a42b3d52c129",
+          "allocation_id": "81e1fa7a-be90-4392-be2c-d3c64bf3f3ef"
+        },
+        {
+          "operation_code": "OP-MOLD",
+          "operation_id": "29dc488a-6270-4603-b78d-2ef11833d22a",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+          "allocation_id": "3215b09a-9b98-4988-a16c-83f52e1acb42"
+        },
+        {
+          "operation_code": "OP-TRIM",
+          "operation_id": "528f6156-ca70-4c10-90eb-a59fe9dd4f65",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "54eef232-ce4f-4c82-830e-6d5ef8fda7b0",
+          "allocation_id": "5e8c2563-f663-4854-9d06-3f20c3d087ab"
+        },
+        {
+          "operation_code": "OP-QC",
+          "operation_id": "5c102c35-7eaf-4fe4-a1f2-d5dd123cc3ab",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "cfdd538a-dbd8-49c1-b704-17bc44df9d0d",
+          "allocation_id": "c1aae1a8-2877-4a41-809f-d25e5d88f488"
+        }
+      ]
+    },
+    {
+      "name": "verify canonical print-station readiness for exact allocated print workstations",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.501Z",
+      "finished_at": "2026-08-03T03:30:42.529Z",
+      "data": {
+        "print_operations": 4,
+        "readiness": [
+          {
+            "binding_id": "053e1466-0503-4547-b12e-999baedb743e",
+            "role": "PRIMARY",
+            "print_station_id": "80076b2e-a4e2-4abe-a7e8-7e963470e726",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-03T03:26:58.122Z"
+          },
+          {
+            "binding_id": "200d5d81-a8af-47f0-b555-81efa3a275e0",
+            "role": "PRIMARY",
+            "print_station_id": "80076b2e-a4e2-4abe-a7e8-7e963470e726",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-03T03:26:58.122Z"
+          },
+          {
+            "binding_id": "50f6076d-54da-43e5-8708-c651c020aa36",
+            "role": "PRIMARY",
+            "print_station_id": "80076b2e-a4e2-4abe-a7e8-7e963470e726",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-03T03:26:58.122Z"
+          },
+          {
+            "binding_id": "53c9b695-16f7-4677-97c9-0c8b9f0ea51c",
+            "role": "PRIMARY",
+            "print_station_id": "80076b2e-a4e2-4abe-a7e8-7e963470e726",
+            "print_station_code": "PS-CANONICAL-01",
+            "lifecycle_status": "ONLINE",
+            "is_active": true,
+            "runtime_status": "ONLINE",
+            "kafka_status": "CONNECTED",
+            "ready_printer_count": 1,
+            "active_for_work_printer_count": 1,
+            "allocated_printer_quantity": 1,
+            "last_heartbeat_at": "2026-08-03T03:26:58.122Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "refresh committed snapshots and revalidate allocations",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.529Z",
+      "finished_at": "2026-08-03T03:30:42.715Z",
+      "data": {
+        "operation_count": 6,
+        "committed_count": 6,
+        "revalidation": {
+          "operations": [
+            {
+              "valid": true,
+              "wo_operation_id": "ecd94f7a-894c-4bfb-89a5-1704d9cb60e5"
+            },
+            {
+              "valid": true,
+              "wo_operation_id": "51f8f81f-90e0-4b73-8c53-aa03f65885c8"
+            },
+            {
+              "valid": true,
+              "wo_operation_id": "865c9de9-e0cc-4eb0-8ae9-f540ab9abcbf"
+            },
+            {
+              "valid": true,
+              "wo_operation_id": "29dc488a-6270-4603-b78d-2ef11833d22a"
+            },
+            {
+              "valid": true,
+              "wo_operation_id": "528f6156-ca70-4c10-90eb-a59fe9dd4f65"
+            },
+            {
+              "valid": true,
+              "wo_operation_id": "5c102c35-7eaf-4fe4-a1f2-d5dd123cc3ab"
+            }
+          ],
+          "valid": true,
+          "wo_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29"
+        }
+      }
+    },
+    {
+      "name": "approve Work Order with strict resource-allocation policy",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.715Z",
+      "finished_at": "2026-08-03T03:30:42.931Z",
+      "data": {
+        "approval_mode": "STANDARD",
+        "approval_policy": "Strict",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "event_published": true,
+        "event_type": "MES.Execution.WOApproved.v1",
+        "material_staging_bypassed": false,
+        "print_triggered_on_approval": false,
+        "status": "Released",
+        "wo_code": "WO-20260803-0149",
+        "wo_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29"
+      }
+    },
+    {
+      "name": "start execution",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.931Z",
+      "finished_at": "2026-08-03T03:30:42.958Z",
+      "data": {
+        "queued_operations": 1,
+        "status": "InProgress",
+        "wo_id": "594fcc40-d7fd-4680-9bf2-7012e3f83c29"
+      }
+    },
+    {
+      "name": "verify allocation reservation audit and outbox persistence",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.958Z",
+      "finished_at": "2026-08-03T03:30:42.974Z",
+      "data": {
+        "committed_allocations": 6,
+        "primary_unit_snapshots": 6,
+        "committed_reservations": 18,
+        "allocation_audit_rows": 6,
+        "outbox_events": {
+          "MES.Execution.WOApproved.v1": 1,
+          "MES.Execution.WOCreated.v1": 1,
+          "MES.Execution.WOResourceAllocated.v1": 6,
+          "command.printer.print.batch": 1
+        }
+      }
+    },
+    {
+      "name": "clean up exact generated Work Order IDs and disposable fixtures",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:42.975Z",
+      "finished_at": "2026-08-03T03:30:46.257Z",
+      "data": {
+        "deleted_work_orders": 3,
+        "remaining_target_rows": 0
+      }
+    },
+    {
+      "name": "run required negative scenario matrix",
+      "status": "passed",
+      "started_at": "2026-08-03T03:30:46.257Z",
+      "finished_at": "2026-08-03T03:30:54.105Z",
+      "data": {
+        "success": true,
+        "run_id": "PHASE1-RP-1785727846340-SL7BP",
+        "declared": 20,
+        "executed": 20,
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0,
+        "scenarios": [
+          {
+            "name": "missing Primary Machine Requirement blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "insufficient physical Machine Units blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "expired Resource Assignment blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Workstation in another Work Center is not a candidate",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit in another Site blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit under maintenance blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit out of service blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit not planning eligible blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "unavailable Resource Calendar blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "invalid Shift blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "missing Production Standard blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "stale candidate is rejected at commit",
+            "status": "passed"
+          },
+          {
+            "name": "simultaneous allocation conflict rejects second commit",
+            "status": "passed"
+          },
+          {
+            "name": "idempotent replay returns the same allocation response",
+            "status": "passed"
+          },
+          {
+            "name": "reused idempotency key with different request fails",
+            "status": "passed"
+          },
+          {
+            "name": "reallocation supersedes history and cancels old reservations",
+            "status": "passed"
+          },
+          {
+            "name": "allocation cancellation removes active reservations without deleting audit history",
+            "status": "passed"
+          },
+          {
+            "name": "approval after resource state changed fails revalidation",
+            "status": "passed"
+          },
+          {
+            "name": "execution start without valid allocation is rejected",
+            "status": "passed"
+          },
+          {
+            "name": "unauthorized role cannot commit allocation",
+            "status": "passed"
+          }
+        ]
+      }
+    }
+  ],
+  "artifacts": {
+    "json": "/home/neurosus/recoh-system/mes-system/artifacts/mes-resource-planning-full-flow/PHASE2-RP-1785727840674-J9UD9/phase2-full-flow.json",
+    "markdown": "/home/neurosus/recoh-system/mes-system/artifacts/mes-resource-planning-full-flow/PHASE2-RP-1785727840674-J9UD9/phase2-full-flow.md",
+    "phase1_json": "/home/neurosus/recoh-system/mes-system/artifacts/mes-resource-planning-full-flow/PHASE2-RP-1785727840674-J9UD9/phase1-negative-matrix.json"
+  }
+}

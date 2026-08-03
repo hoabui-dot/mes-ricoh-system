@@ -47,6 +47,8 @@ async function main() {
         (SELECT COUNT(*)::int FROM md_operation WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_operations,
         (SELECT COUNT(*)::int FROM md_routing_operation WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_routing_operations,
         (SELECT COUNT(*)::int FROM md_production_version WHERE code='${namespace}-PV-SEAL-ASM-01' AND lifecycle_status='Released') AS canonical_production_version,
+        (SELECT COUNT(*)::int FROM md_production_version WHERE code LIKE 'WST-UAT-PV-%' AND lifecycle_status='Released') AS uat_production_versions,
+        (SELECT COUNT(*)::int FROM md_production_version_line_eligibility e JOIN md_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code LIKE 'WST-UAT-PV-%' AND e.active_flag=TRUE) AS uat_line_eligibilities,
         (SELECT COUNT(*)::int FROM md_production_version_line_eligibility e JOIN md_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code='${namespace}-PV-SEAL-ASM-01' AND e.active_flag=TRUE) AS canonical_line_eligibilities,
         (SELECT COUNT(*)::int FROM md_production_version_line_eligibility e JOIN md_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code='${namespace}-PV-SEAL-ASM-01' AND e.is_primary=TRUE AND e.active_flag=TRUE) AS canonical_primary_lines,
         (SELECT COUNT(*)::int FROM md_skill WHERE code IN (${workerSkillCodes}) AND scope='Employee' AND lifecycle_status='Released') AS worker_skills,
@@ -66,6 +68,8 @@ async function main() {
       SELECT
         (SELECT COUNT(*)::int FROM wo_header) AS work_orders,
         (SELECT COUNT(*)::int FROM rm_production_version WHERE code='${namespace}-PV-SEAL-ASM-01' AND lifecycle_status='Released') AS rm_production_version,
+        (SELECT COUNT(*)::int FROM rm_production_version WHERE code LIKE 'WST-UAT-PV-%' AND lifecycle_status='Released') AS rm_uat_production_versions,
+        (SELECT COUNT(*)::int FROM rm_production_version_line_eligibility e JOIN rm_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code LIKE 'WST-UAT-PV-%' AND e.active_flag=TRUE) AS rm_uat_line_eligibilities,
         (SELECT COUNT(*)::int FROM rm_production_line WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS rm_lines,
         (SELECT COUNT(*)::int FROM rm_production_version_line_eligibility e JOIN rm_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code='${namespace}-PV-SEAL-ASM-01' AND e.active_flag=TRUE) AS rm_line_eligibilities,
         (SELECT COUNT(*)::int FROM rm_skill WHERE code IN (${workerSkillCodes}) AND lifecycle_status='Released') AS rm_worker_skills,
@@ -117,11 +121,13 @@ async function main() {
     expect('canonical eight equipment definitions', masterCounts.canonical_equipment, (v) => v === 8);
     expect('canonical eight identified machine units', masterCounts.canonical_machine_units, (v) => v === 8);
     expect('canonical eight assignments', masterCounts.canonical_assignments, (v) => v === 8);
-    expect('canonical eight capabilities', masterCounts.canonical_capabilities, (v) => v === 8);
+    expect('canonical twelve capabilities', masterCounts.canonical_capabilities, (v) => v === 12);
     expect('canonical calendars ready', masterCounts.canonical_calendars, (v) => v === 8);
-    expect('canonical four operations', masterCounts.canonical_operations, (v) => v === 4);
-    expect('canonical four routing operations', masterCounts.canonical_routing_operations, (v) => v === 4);
+    expect('canonical six operations', masterCounts.canonical_operations, (v) => v === 6);
+    expect('canonical twelve routing operations', masterCounts.canonical_routing_operations, (v) => v === 12);
     expect('canonical production version', masterCounts.canonical_production_version, (v) => v === 1);
+    expect('three UAT production versions', masterCounts.uat_production_versions, (v) => v === 3);
+    expect('six UAT line eligibilities', masterCounts.uat_line_eligibilities, (v) => v === 6);
     expect('canonical line eligibility count', masterCounts.canonical_line_eligibilities, (v) => v === 2);
     expect('exactly one primary line', masterCounts.canonical_primary_lines, (v) => v === 1);
     expect('base worker skills exist', masterCounts.worker_skills, (v) => v === 3);
@@ -132,6 +138,8 @@ async function main() {
     for (const [name, value] of Object.entries(integrity)) expect(`integrity ${name}`, value, (v) => v === 0);
     expect('execution has no work orders after seed', executionCounts.work_orders, (v) => v === 0);
     expect('execution read model has canonical PV', executionCounts.rm_production_version, (v) => v === 1);
+    expect('execution read model has three UAT PVs', executionCounts.rm_uat_production_versions, (v) => v === 3);
+    expect('execution read model has six UAT line eligibilities', executionCounts.rm_uat_line_eligibilities, (v) => v === 6);
     expect('execution read model has two lines', executionCounts.rm_lines, (v) => v === 2);
     expect('execution read model has two line eligibilities', executionCounts.rm_line_eligibilities, (v) => v === 2);
     expect('execution read model has worker skills', executionCounts.rm_worker_skills, (v) => v === 3);

@@ -302,6 +302,34 @@ async function seedTraceabilityCanonicalDataset() {
   }
 }
 
+async function seedCanonicalPrintStationBindings() {
+  const master = new pg.Client({ connectionString: masterUrl });
+  await master.connect();
+  try {
+    const station = (await master.query(`SELECT master_id, code FROM md_print_station WHERE is_active=TRUE ORDER BY code LIMIT 1`)).rows[0];
+    if (!station) throw new Error('CANONICAL_PRINT_STATION_MISSING');
+    const workstations = (await master.query(`SELECT master_id, code FROM md_workstation WHERE code IN ('WST-SEED-WS-L1-PACKING','WST-SEED-WS-L2-PACKING') ORDER BY code`)).rows;
+    if (workstations.length !== 2) throw new Error(`CANONICAL_PACKING_WORKSTATIONS_MISSING: ${workstations.length}/2`);
+    await master.query('BEGIN');
+    await master.query(`UPDATE md_print_station SET status='ONLINE', is_active=TRUE, configured_allocation_limit=10, updated_at=NOW() WHERE master_id=$1`, [station.master_id]);
+    await master.query(`INSERT INTO md_print_station_runtime_projection (print_station_id, station_code, adapter_id, runtime_status, kafka_status, printer_count, online_printer_count, error_printer_count, last_heartbeat_at, last_status_change_at, ready_printer_count, active_for_work_printer_count, registered_printer_count, busy_printer_count, offline_printer_count)
+      VALUES ($1,$2,'PRINT-ADAPTER-01','ONLINE','CONNECTED',1,1,0,NOW(),NOW(),1,1,1,0,0)
+      ON CONFLICT (print_station_id) DO UPDATE SET runtime_status='ONLINE', kafka_status='CONNECTED', printer_count=1, online_printer_count=1, error_printer_count=0, ready_printer_count=1, active_for_work_printer_count=1, registered_printer_count=1, busy_printer_count=0, offline_printer_count=0, last_heartbeat_at=NOW(), last_status_change_at=NOW()`, [station.master_id, station.code]);
+    for (const workstation of workstations) {
+      await master.query(`INSERT INTO md_workstation_print_station_binding (binding_id, workstation_id, print_station_id, role, effective_from, is_active, created_by, allocated_printer_quantity)
+        SELECT gen_random_uuid(),$1,$2,'PRIMARY',NOW(),TRUE,$3,1
+        WHERE NOT EXISTS (SELECT 1 FROM md_workstation_print_station_binding WHERE workstation_id=$1 AND role='PRIMARY' AND is_active=TRUE AND effective_to IS NULL)`, [workstation.master_id, station.master_id, '00000000-0000-0000-0000-000000000001']);
+    }
+    await master.query('COMMIT');
+    return { station_code: station.code, packing_workstation_codes: workstations.map((row) => row.code), binding_count: workstations.length, runtime_status: 'ONLINE', kafka_status: 'CONNECTED' };
+  } catch (error) {
+    await master.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    await master.end();
+  }
+}
+
 async function countCanonicalRows() {
   const master = new pg.Client({ connectionString: masterUrl });
   const execution = new pg.Client({ connectionString: executionUrl });
@@ -352,6 +380,7 @@ async function main() {
       ARTIFACT_DIR: artifactDir,
       MES_SEED_VERIFICATION_ARTIFACT: path.join(artifactDir, 'phase10-seed-result.json'),
     }));
+    report.print_station_seed = await seedCanonicalPrintStationBindings();
     report.traceability_seed = await seedTraceabilityCanonicalDataset();
     report.counts = await countCanonicalRows();
     report.success = true;
