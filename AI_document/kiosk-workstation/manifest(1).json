@@ -1,0 +1,78 @@
+{
+  "package": "Kiosk Demo Job Card Implementation Prompts",
+  "version": "1.0",
+  "files": [
+    {
+      "path": "AI_document/Kiosk-Demo/KIOSK_DEMO_JOB_CARD_IMPLEMENTATION_RULES.md",
+      "lines": 485,
+      "bytes": 10184,
+      "sha256": "907f944dee12954e48e7a8b1cd6a8bbd175711ca784b3b58c6abdc20822e20db"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-00/PROMPT_PHASE_00.md",
+      "lines": 335,
+      "bytes": 7167,
+      "sha256": "4bb9969bb2ec0bf1e622701d522f58bcc96240424ce93545c2b5721954067c0f"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-01/PROMPT_PHASE_01.md",
+      "lines": 321,
+      "bytes": 6631,
+      "sha256": "b2f08951af529f04c79fce267359929eae76ca7a3863e56fcb6f618fb0acb2c7"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-02/PROMPT_PHASE_02.md",
+      "lines": 300,
+      "bytes": 6328,
+      "sha256": "67e62bf97dc9bff31cc889a19a8e074f8cf1a3a30dbc1d35f2d9156b54a532e5"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-03/PROMPT_PHASE_03.md",
+      "lines": 242,
+      "bytes": 5646,
+      "sha256": "4f29128e69669788e5e48417011043f7df59cc2c1c0cc4a558519874a3c4086c"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-04/PROMPT_PHASE_04.md",
+      "lines": 238,
+      "bytes": 5508,
+      "sha256": "c4c81049a6a65b178539d6dcf985ff87204e2b6e4b9f3a6b22339d2ef473989d"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-05/PROMPT_PHASE_05.md",
+      "lines": 245,
+      "bytes": 5535,
+      "sha256": "5df5b80c0ce2cf3ed13536fc63f0c5a85647016d706f05f95752314d3beb41ca"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-06/PROMPT_PHASE_06.md",
+      "lines": 230,
+      "bytes": 5679,
+      "sha256": "58e0387138eae9ab14b7057c9690e3b1d1cc05ed58e784ccd32132a338e4b32e"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-07/PROMPT_PHASE_07.md",
+      "lines": 252,
+      "bytes": 6131,
+      "sha256": "328ef4217717e2cbf149a82c3f59eaaac3fc593f65be1a69c03a6bb0e6ff9d8b"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/Phase-08/PROMPT_PHASE_08.md",
+      "lines": 279,
+      "bytes": 6690,
+      "sha256": "8f8a39082becf643d21ef74d1326ece1397aa287abc6ac40219decceac92bc75"
+    },
+    {
+      "path": "AI_document/Kiosk-Demo/REPORT_TEMPLATE.md",
+      "lines": 38,
+      "bytes": 817,
+      "sha256": "c197b7b79513cad971b3b996657dde334a538e9484150fbe80a5e9a14df25a37"
+    },
+    {
+      "path": "README.md",
+      "lines": 33,
+      "bytes": 1207,
+      "sha256": "5fa54edbdac08fb6e563dc5353c48cff76b2635a24e676105bfeed4854e5bf95"
+    }
+  ]
+}
