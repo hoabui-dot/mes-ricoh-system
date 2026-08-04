@@ -4,6 +4,21 @@ import { normalizeSeedValues } from './seed-i18n.js';
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
 const ADMIN_USER_ID = '00000000-0000-0000-0000-0000000000ad';
 
+function planningDate(): string {
+  const configured = process.env['MES_CANONICAL_TARGET_DATE'] || process.env['E2E_WO_TARGET_DATE'];
+  if (configured) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(configured) || Number.isNaN(Date.parse(`${configured}T00:00:00Z`))) {
+      throw new Error('MES_CANONICAL_TARGET_DATE/E2E_WO_TARGET_DATE must use YYYY-MM-DD');
+    }
+    return configured;
+  }
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 async function upsertMaster(
   client: { query: (sql: string, params?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }> },
   table: string,
@@ -40,6 +55,7 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 
     const now = new Date('2026-07-21T00:00:00.000Z');
     const future = new Date('2027-12-31T23:59:59.000Z');
+    const targetDate = planningDate();
     const common = {
       version_no: 1,
       lifecycle_status: 'Released',
@@ -105,6 +121,8 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     await upsertMaster(client, 'md_uom', { ...common, code: 'MIN', name: 'Minute', uom_class: 'Time', decimal_precision: 2, allow_fraction: true });
     const shiftAId = await upsertMaster(client, 'md_shift', { ...common, code: 'SHIFT-A', name: 'Day Shift', site_id: siteId, start_time: '08:00', end_time: '17:00' });
     await upsertMaster(client, 'md_reason_code', { ...common, code: 'QC-BOND-FAIL', name: 'Bonding Failure', reason_type: 'Quality', requires_comment: true });
+    await upsertMaster(client, 'md_reason_code', { ...common, code: 'KIOSK-DEMO-EXECUTION-FAIL', name: 'Demo execution failure', reason_type: 'ExecutionFailure', requires_comment: true });
+    await upsertMaster(client, 'md_reason_code', { ...common, code: 'KIOSK-DEMO-ABORT', name: 'Demo operation abort', reason_type: 'Abort', requires_comment: false });
 
     const materialGroupIds = new Map<string, string>();
     for (const code of ['FG_RUBBER_METAL', 'SFG_TREATED_METAL', 'SFG_COMPOUND', 'RM_METAL_BASE', 'RM_CHEMICALS']) {
@@ -254,9 +272,9 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	    `, [employeeId, skillMixId, SYSTEM_USER_ID, now]);
 	    await client.query(`
 	      INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
-	      VALUES ($1, $2, $3, $4, DATE '2026-08-03', 'Scheduled', $5)
+	      VALUES ($1, $2, $3, $4, $6::date, 'Scheduled', $5)
 	      ON CONFLICT (employee_id, schedule_date) DO UPDATE SET shift_id=EXCLUDED.shift_id, work_center_id=EXCLUDED.work_center_id, schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
-	    `, [scheduleId, employeeId, shiftAId, wcMixId, SYSTEM_USER_ID]);
+	    `, [scheduleId, employeeId, shiftAId, wcMixId, SYSTEM_USER_ID, targetDate]);
 	    const ensureBaseMachine = async (fixture: { equipmentCode: string; equipmentName: string; unitCode: string; serial: string; groupCode: string; groupName: string; assignmentCode: string; workCenterId: string; workstationId: string; equipmentType: string }) => {
 	      const equipmentId = await upsertMaster(client, 'md_equipment', { ...common, code: fixture.equipmentCode, name: fixture.equipmentName, site_id: siteId, work_center_id: fixture.workCenterId, equipment_type: fixture.equipmentType, active_flag: true, planning_resource_flag: true, execution_status: 'Available' });
 	      const unitResult = await client.query(`
@@ -302,9 +320,9 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	      `, [empId, skillId, level, SYSTEM_USER_ID, now]);
 	      await client.query(`
 	        INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
-	        VALUES ($1, $2, $3, $4, DATE '2026-08-03', 'Scheduled', $5)
+	        VALUES ($1, $2, $3, $4, $6::date, 'Scheduled', $5)
 	        ON CONFLICT (employee_id, schedule_date) DO UPDATE SET shift_id=EXCLUDED.shift_id, work_center_id=EXCLUDED.work_center_id, schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
-	      `, [schedule, empId, shiftAId, wcId, SYSTEM_USER_ID]);
+	      `, [schedule, empId, shiftAId, wcId, SYSTEM_USER_ID, targetDate]);
 	    }
 
 	    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', site_id: siteId, item_revision_id: fgRevId, base_quantity: '100.000000', base_uom_id: pcsId });
@@ -368,17 +386,17 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     ] as const) {
       await upsertMaster(client, 'md_resource_capability', { ...common, code, name: `${code} capability`, site_id: siteId, product_revision_id: fgRevId, operation_id: operationId, work_center_id: wcId, capability_type: 'Eligible', cycle_time_sec: '60', eligibility: true, priority_no: 1, speed_factor: '1.0000', active_flag: true });
     }
-	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-WC-VULCAN-MOLD-2026', name: 'Molding availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqHyd01Id, workstation_id: wsMoldId, shift_id: shiftAId, calendar_date: '2026-08-03', work_center_id: wcMoldId, equipment_id: eqHyd01Id, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
-	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-EQ-MIX-BANBURY01-2026', name: 'Mixing equipment availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqMixId, workstation_id: wsMixId, shift_id: shiftAId, calendar_date: '2026-08-03', work_center_id: wcMixId, equipment_id: eqMixId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
-	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-EQ-CUTTER01-2026', name: 'Cutting equipment availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqCutId, workstation_id: wsCutId, shift_id: shiftAId, calendar_date: '2026-08-03', work_center_id: wcCutId, equipment_id: eqCutId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
-	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-EQ-QC01-2026', name: 'QC equipment availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqQcId, workstation_id: wsQcId, shift_id: shiftAId, calendar_date: '2026-08-03', work_center_id: wcQcId, equipment_id: eqQcId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
+	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-WC-VULCAN-MOLD-2026', name: 'Molding availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqHyd01Id, workstation_id: wsMoldId, shift_id: shiftAId, calendar_date: targetDate, work_center_id: wcMoldId, equipment_id: eqHyd01Id, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
+	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-EQ-MIX-BANBURY01-2026', name: 'Mixing equipment availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqMixId, workstation_id: wsMixId, shift_id: shiftAId, calendar_date: targetDate, work_center_id: wcMixId, equipment_id: eqMixId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
+	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-EQ-CUTTER01-2026', name: 'Cutting equipment availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqCutId, workstation_id: wsCutId, shift_id: shiftAId, calendar_date: targetDate, work_center_id: wcCutId, equipment_id: eqCutId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
+	    await upsertMaster(client, 'md_resource_calendar', { ...common, code: 'CAL-EQ-QC01-2026', name: 'QC equipment availability 2026', site_id: siteId, resource_type: 'Equipment', resource_id: eqQcId, workstation_id: wsQcId, shift_id: shiftAId, calendar_date: targetDate, work_center_id: wcQcId, equipment_id: eqQcId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
 	    for (const [code, wcId, wsId] of [
 	      ['MIXING', wcMixId, wsMixId],
 	      ['CUTTING', wcCutId, wsCutId],
 	      ['MOLD', wcMoldId, wsMoldId],
 	      ['QC', wcQcId, wsQcId],
 	    ] as const) {
-	      await upsertMaster(client, 'md_resource_calendar', { ...common, code: `CAL-WC-${code}-BASE-2026`, name: `${code} work center availability 2026`, site_id: siteId, resource_type: 'WorkCenter', resource_id: wcId, workstation_id: wsId, shift_id: shiftAId, calendar_date: '2026-08-03', work_center_id: wcId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
+	      await upsertMaster(client, 'md_resource_calendar', { ...common, code: `CAL-WC-${code}-BASE-2026`, name: `${code} work center availability 2026`, site_id: siteId, resource_type: 'WorkCenter', resource_id: wcId, workstation_id: wsId, shift_id: shiftAId, calendar_date: targetDate, work_center_id: wcId, available_from: now, available_to: future, available_minutes: 540, capacity_factor: '1.0000', capacity_percent: '1.0000' });
 	    }
 	    await upsertMaster(client, 'md_operation_skill_requirement', { ...common, code: 'REQ-OP-MIX-SKILL', name: 'Mix skill requirement', site_id: siteId, routing_operation_id: roMixId, operation_id: opMixId, skill_id: skillMixId, minimum_level: 'L3', required_persons: 1, mandatory_flag: true, active_flag: true });
     await upsertMaster(client, 'md_operation_skill_requirement', { ...common, code: 'REQ-OP-MOLD-SKILL', name: 'Mold skill requirement', site_id: siteId, routing_operation_id: roMoldId, operation_id: opMoldId, skill_id: skillVulcanId, minimum_level: 'L2', required_persons: 2, mandatory_flag: true, active_flag: true });

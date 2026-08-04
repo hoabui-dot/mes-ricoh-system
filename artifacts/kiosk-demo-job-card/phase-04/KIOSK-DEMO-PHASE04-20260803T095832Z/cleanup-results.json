@@ -1,0 +1,9 @@
+{
+  "declared": 8,
+  "executed": 8,
+  "passed": 8,
+  "failed": 0,
+  "skipped": 0,
+  "final": {"work_orders": 2, "operations": 8, "demo_work_orders": 0, "phase04_work_orders": 0, "phase04_sessions": 0, "phase04_read_model_rows": 0, "gateway_receipts": 0, "gateway_queue_rows": 0},
+  "method": "transactional child-first exact-ID cleanup"
+}

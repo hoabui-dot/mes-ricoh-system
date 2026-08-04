@@ -1,27 +1,29 @@
 import React from 'react';
 import { useKioskSocket } from '../context/KioskSocketContext';
 import { WifiOff, AlertTriangle } from 'lucide-react';
+import { useI18n } from '@mom-platform/i18n-ui-shared';
 
 export const OfflineBanner: React.FC = () => {
   const { connectionStatus } = useKioskSocket();
+  const { t } = useI18n();
 
   if (connectionStatus === 'connected') {
     return null;
   }
 
   return (
-    <div className="bg-amber-600/90 text-amber-50 px-4 py-2 text-sm font-medium flex items-center justify-between shadow-lg backdrop-blur sticky top-0 z-50 animate-pulse">
+    <div role="status" aria-live="polite" className="sticky top-0 z-50 flex items-center justify-between bg-amber-700 px-4 py-3 text-sm font-medium text-amber-50 shadow-lg">
       <div className="flex items-center space-x-2">
         <WifiOff className="w-5 h-5 shrink-0" />
         <span>
           {connectionStatus === 'connecting'
-            ? 'Đang kết nối lại máy chủ shopfloor (WebSocket)...'
-            : 'Mất kết nối máy chủ realtime! Màn hình đang ở chế độ xem ngoại tuyến. Mọi thao tác xác nhận thể chất tạm thời bị khóa.'}
+            ? t('kiosk.offline.connecting')
+            : t('kiosk.offline.disconnected')}
         </span>
       </div>
       <div className="flex items-center space-x-1 text-xs bg-amber-800/80 px-2 py-1 rounded">
         <AlertTriangle className="w-4 h-4 text-amber-200" />
-        <span>Khai báo ngoại tuyến</span>
+        <span>{t('kiosk.offline.label')}</span>
       </div>
     </div>
   );

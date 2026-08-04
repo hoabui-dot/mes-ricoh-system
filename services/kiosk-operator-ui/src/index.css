@@ -6,4 +6,8 @@
   body {
     @apply bg-slate-950 text-slate-100 min-h-screen overflow-x-hidden;
   }
+
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-indigo-300;
+  }
 }

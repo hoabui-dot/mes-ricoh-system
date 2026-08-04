@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
@@ -94,13 +94,19 @@ export const WODetailScreen: React.FC = () => {
     return t('woDetail.dimensionUnknown', { dimension: readable });
   };
 
-  const fetchWODetail = async () => {
+  const fetchWODetail = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!id) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const resp = await fetch(`${gatewayBaseUrl()}/api/mes/execution/work-orders/${id}`, {
-        headers: apiHeaders(),
+        headers: {
+          'X-User-ID': user?.userId || 'admin',
+          'X-Role-Code': effectiveRole,
+          'X-Trace-ID': `mes-console-refresh-${Date.now()}`,
+        },
       });
       if (!resp.ok) {
         if (resp.status === 503) throw { status: 503, message: 'Circuit breaker open' };
@@ -109,11 +115,11 @@ export const WODetailScreen: React.FC = () => {
       const data = await resp.json();
       setWo(normalizeWorkOrderDetail(data));
     } catch (err: any) {
-      setError(err);
+      if (!silent) setError(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [effectiveRole, id, t, user?.userId]);
 
   const handleStageMaterials = async () => {
     if (!id) return;
@@ -136,8 +142,22 @@ export const WODetailScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchWODetail();
-  }, [id]);
+    void fetchWODetail();
+  }, [fetchWODetail]);
+
+  useEffect(() => {
+    const refreshVisibleDetail = () => {
+      if (document.visibilityState === 'visible') void fetchWODetail({ silent: true });
+    };
+    const intervalId = window.setInterval(refreshVisibleDetail, 3_000);
+    window.addEventListener('focus', refreshVisibleDetail);
+    document.addEventListener('visibilitychange', refreshVisibleDetail);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshVisibleDetail);
+      document.removeEventListener('visibilitychange', refreshVisibleDetail);
+    };
+  }, [fetchWODetail]);
 
   const loadResourceProposal = async (force = false) => {
     if (!id || !canPlanResources) return;
@@ -707,7 +727,7 @@ export const WODetailScreen: React.FC = () => {
                   <td className="px-5 py-3 text-right text-slate-200">{op.requires_output_label ? (op.label_count ?? '-') : '-'}</td>
                   <td className="px-5 py-3 text-right text-slate-200">{op.requires_output_label ? (op.print_copies ?? '-') : '-'}</td>
                   <td className="px-5 py-3 text-right">
-                    <span className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded">
+                    <span data-testid={`operation-execution-status-${op.wo_operation_id}`} className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded">
                       {translatedEnum(t, 'operation.status', op.status || 'READY')}
                     </span>
                   </td>

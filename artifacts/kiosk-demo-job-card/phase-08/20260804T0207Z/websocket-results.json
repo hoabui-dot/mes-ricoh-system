@@ -1,0 +1,15 @@
+{
+  "declared": 6,
+  "executed": 6,
+  "passed": 6,
+  "failed": 0,
+  "skipped": 0,
+  "results": [
+    "Verified WebSocket authentication",
+    "Explicit authentication acknowledgement",
+    "Gateway stopped while Kiosk remained open",
+    "Operation event persisted while Gateway was unavailable",
+    "Gateway consumed queued Kafka event after restart",
+    "Kiosk reconnected, refetched, and recovered active session"
+  ]
+}

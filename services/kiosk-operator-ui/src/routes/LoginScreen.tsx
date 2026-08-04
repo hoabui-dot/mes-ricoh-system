@@ -4,6 +4,7 @@ import { useKioskSocket } from '../context/KioskSocketContext';
 import { ShieldCheck, UserCheck, KeyRound, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
+import { gatewayUrl, getKioskRuntimeConfig } from '../lib/runtimeConfig';
 
 export const LoginScreen: React.FC = () => {
   const { terminalId = 'KIOSK-DEMO-01' } = useParams();
@@ -11,8 +12,9 @@ export const LoginScreen: React.FC = () => {
   const { connectSocket } = useKioskSocket();
   const { locale, setLocale, t } = useI18n();
 
-  const [employeeId, setEmployeeId] = useState('operator01');
-  const [pin, setPin] = useState('Operator@123!');
+  const runtimeConfig = getKioskRuntimeConfig();
+  const [employeeId, setEmployeeId] = useState(runtimeConfig.demoUsername);
+  const [pin, setPin] = useState(runtimeConfig.demoPassword);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -27,8 +29,7 @@ export const LoginScreen: React.FC = () => {
     setErrorMsg('');
 
     try {
-      const host = window.location.hostname;
-      const resp = await fetch(`http://${host}:18000/api/mes/kiosk-gateway/terminals/${terminalId}/login`, {
+      const resp = await fetch(gatewayUrl(`/api/mes/kiosk-gateway/terminals/${encodeURIComponent(terminalId)}/login`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employee_id: employeeId, pin }),
@@ -43,6 +44,7 @@ export const LoginScreen: React.FC = () => {
       localStorage.setItem('kiosk_access_token', data.access_token);
       localStorage.setItem('kiosk_operator_id', data.user_id || employeeId);
       localStorage.setItem('kiosk_terminal_id', terminalId);
+      if (data.terminal_session_id) localStorage.setItem('kiosk_terminal_session_id', data.terminal_session_id);
 
       connectSocket(terminalId, data.access_token);
       toast.success(`Đăng nhập thành công! Chào mừng ${data.username || employeeId}`);

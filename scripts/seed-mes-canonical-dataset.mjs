@@ -13,6 +13,25 @@ const artifactDir = path.resolve(process.env.ARTIFACT_DIR || `artifacts/mes-cano
 const masterUrl = process.env.MES_MASTER_DATA_DATABASE_URL || 'postgresql://mes_master_data_user:mes_master_data_pass@localhost:15434/mes_master_data_db';
 const executionUrl = process.env.MES_EXECUTION_DATABASE_URL || 'postgresql://mes_execution_user:mes_execution_pass@localhost:15435/mes_execution_db';
 const traceabilityUrl = process.env.MES_TRACEABILITY_DATABASE_URL || 'postgresql://traceability_user:traceability_pass@localhost:15436/mes_traceability_db';
+const kioskGatewayUrl = process.env.MES_KIOSK_GATEWAY_DATABASE_URL || 'postgresql://mes_kiosk_user:mes_kiosk_pass@localhost:15437/mes_kiosk_gateway_db';
+
+function defaultPlanningDate() {
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function resolveTargetDate() {
+  const value = process.env.MES_CANONICAL_TARGET_DATE || process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+    throw new Error('MES_CANONICAL_TARGET_DATE/E2E_WO_TARGET_DATE must use YYYY-MM-DD');
+  }
+  return value;
+}
+
+const targetDate = resolveTargetDate();
 
 const json = (value) => JSON.stringify(value, null, 2);
 
@@ -20,12 +39,40 @@ function safetyCheck() {
   const reasons = [];
   if (!['development', 'test', 'uat', 'local'].includes(envName)) reasons.push('MES_ENV must be development, test, uat, or local');
   if (process.env.ALLOW_DESTRUCTIVE_SEED !== 'true') reasons.push('ALLOW_DESTRUCTIVE_SEED must equal true');
-  for (const [name, rawUrl] of [['master', masterUrl], ['execution', executionUrl], ['traceability', traceabilityUrl]]) {
+  for (const [name, rawUrl] of [['master', masterUrl], ['execution', executionUrl], ['traceability', traceabilityUrl], ['kiosk gateway', kioskGatewayUrl]]) {
     const url = new URL(rawUrl);
     if (!['localhost', '127.0.0.1', '::1'].includes(url.hostname)) reasons.push(`${name} database host must be local/test: ${url.hostname}`);
     if (/prod|production|live/i.test(url.pathname)) reasons.push(`${name} database name is production-like`);
   }
   return { passed: reasons.length === 0, reasons, environment: envName || null };
+}
+
+async function seedKioskDemoTerminalContext() {
+  const master = new pg.Client({ connectionString: masterUrl });
+  const gateway = new pg.Client({ connectionString: kioskGatewayUrl });
+  await master.connect(); await gateway.connect();
+  try {
+    const context = (await master.query(`
+      SELECT s.master_id AS site_id, wc.master_id AS work_center_id
+      FROM md_site s
+      JOIN md_work_center wc ON wc.site_id=s.master_id
+      WHERE s.code='SITE-KZ3' AND wc.code='WST-SEED-WC-L1-BINDING'
+        AND s.lifecycle_status='Released' AND wc.lifecycle_status='Released'
+      LIMIT 1
+    `)).rows[0];
+    if (!context) throw new Error('CANONICAL_KIOSK_TERMINAL_CONTEXT_MISSING');
+    await gateway.query(`
+      INSERT INTO terminal(terminal_id,terminal_code,site_id,work_center_id,status)
+      VALUES('a1000000-0000-0000-0000-000000000007','KIOSK-DEMO-01',$1,$2,'OFFLINE')
+      ON CONFLICT(terminal_code) DO UPDATE
+      SET site_id=EXCLUDED.site_id,work_center_id=EXCLUDED.work_center_id,
+          status=CASE WHEN terminal.status='DISABLED' THEN terminal.status ELSE 'OFFLINE' END,
+          updated_at=NOW()
+    `, [context.site_id, context.work_center_id]);
+    return { terminal_code: 'KIOSK-DEMO-01', site_id: context.site_id, work_center_id: context.work_center_id };
+  } finally {
+    await master.end(); await gateway.end();
+  }
 }
 
 function run(command, args, label, extraEnv = {}) {
@@ -169,9 +216,9 @@ async function rebuildBaseExecutionProjection() {
       SELECT schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status
       FROM md_employee_shift_schedule
       WHERE employee_id = ANY($1::uuid[])
-        AND schedule_date BETWEEN DATE '2026-08-03' AND DATE '2026-08-03'
+        AND schedule_date=$2::date
       ORDER BY employee_id, schedule_date
-    `, [employeeIds])).rows;
+    `, [employeeIds, targetDate])).rows;
 
     await execution.query('BEGIN');
     await execution.query(`INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, lifecycle_status, updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,revision_code=EXCLUDED.revision_code,item_type=EXCLUDED.item_type,site_id=EXCLUDED.site_id,base_uom_id=EXCLUDED.base_uom_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [revision.master_id, revision.code, JSON.stringify(revision.name), revision.revision_code, revision.item_type || 'FG', revision.site_id, revision.base_uom_id, revision.lifecycle_status]);
@@ -364,7 +411,7 @@ async function countCanonicalRows() {
 
 async function main() {
   const safety = safetyCheck();
-  const report = { success: false, generated_at: new Date().toISOString(), safety, command_results: [] };
+  const report = { success: false, generated_at: new Date().toISOString(), target_date: targetDate, safety, command_results: [] };
   await writeArtifact('seed-result.json', report);
   if (!safety.passed) throw new Error(`MES_CANONICAL_SEED_SAFETY: ${safety.reasons.join('; ')}`);
 
@@ -377,10 +424,13 @@ async function main() {
       MES_MASTER_DATA_DATABASE_URL: masterUrl,
       MES_EXECUTION_DATABASE_URL: executionUrl,
       MES_TRACEABILITY_DATABASE_URL: traceabilityUrl,
+      MES_CANONICAL_TARGET_DATE: targetDate,
+      E2E_WO_TARGET_DATE: targetDate,
       ARTIFACT_DIR: artifactDir,
       MES_SEED_VERIFICATION_ARTIFACT: path.join(artifactDir, 'phase10-seed-result.json'),
     }));
     report.print_station_seed = await seedCanonicalPrintStationBindings();
+    report.kiosk_demo_terminal = await seedKioskDemoTerminalContext();
     report.traceability_seed = await seedTraceabilityCanonicalDataset();
     report.counts = await countCanonicalRows();
     report.success = true;

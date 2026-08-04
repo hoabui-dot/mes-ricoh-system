@@ -1,0 +1,16 @@
+{
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "browser": "Playwright Chromium",
+  "cases": [
+    {"name": "Keycloak terminal login", "status": "PASS"},
+    {"name": "connected only after auth_ack", "status": "PASS"},
+    {"name": "gateway restart reconnect", "status": "PASS", "auth_ack_count": 2},
+    {"name": "authoritative refetch after reconnect", "status": "PASS", "fetches_before": 2, "fetches_after": 3}
+  ],
+  "screenshot": "kiosk-authenticated-realtime.png",
+  "note": "Browser offline emulation did not close an established WebSocket and was treated as an invalid probe, not a product failure; the valid gateway-restart test passed."
+}

@@ -1,0 +1,13 @@
+{
+  "run_id": "KIOSK-DEMO-PHASE03-20260803T090534Z",
+  "entry_gate": "KIOSK_DEMO_PHASE_02_PASSED_READY_FOR_PHASE_03",
+  "work_orders": 2,
+  "operations": 8,
+  "demo_work_orders": 0,
+  "phase03_fixture_rows": 0,
+  "services": {
+    "mes-execution-service": "running/healthy",
+    "mes-kiosk-gateway-service": "running/http-healthy",
+    "kiosk-operator-ui": "running/http-200"
+  }
+}

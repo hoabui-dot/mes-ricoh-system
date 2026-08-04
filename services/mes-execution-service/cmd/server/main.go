@@ -82,7 +82,8 @@ func main() {
 
 	masterDataURL := getEnv("MASTER_DATA_SERVICE_URL", "http://mes-master-data-service:3020")
 	resourcePlanningClient := client.NewResourcePlanningClient(masterDataURL)
-	router := servicehttp.NewRouter(pool, traceabilityClient, resourcePlanningClient)
+	failureReasonClient := client.NewFailureReasonClient(masterDataURL)
+	router := servicehttp.NewRouter(pool, traceabilityClient, resourcePlanningClient, failureReasonClient)
 
 	srv := &http.Server{
 		Addr:         ":" + port,
@@ -163,6 +164,9 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000021_operation_quantities_and_batch_print_policy.up.sql",
 		"migrations/000022_mbom_snapshot_line_traceability.up.sql",
 		"migrations/000023_production_line_selection.up.sql",
+		"migrations/000024_manual_operation_failure_state_machine.up.sql",
+		"migrations/000025_work_order_dispatch_policy.up.sql",
+		"migrations/000026_item_revision_uom_code_projection.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

@@ -1,0 +1,30 @@
+{
+  "summary": {"declared": 18, "executed": 18, "passed": 18, "failed": 0, "skipped": 0},
+  "schema_registry": {
+    "declared": 4,
+    "executed": 4,
+    "passed": 4,
+    "subjects": [
+      "MES.Execution.OperationFailed.v1-value",
+      "MES.Execution.OperationAborted.v1-value",
+      "MES.Execution.OperationRetryRequested.v1-value",
+      "MES.Execution.WOStatusChanged.v1-value"
+    ]
+  },
+  "topic_provisioning": {"declared": 4, "executed": 4, "passed": 4, "partitions_each": 3, "replication_factor": 1},
+  "outbox": {
+    "declared": 5,
+    "executed": 5,
+    "passed": 5,
+    "events": {"OperationFailed": 1, "OperationAborted": 1, "OperationRetryRequested": 1, "WOStatusChanged": 2},
+    "final_status_before_cleanup": "PUBLISHED",
+    "retry_count": 0
+  },
+  "kafka_payloads": {
+    "declared": 5,
+    "executed": 5,
+    "passed": 5,
+    "verified": ["stable IDs", "WO code", "operation code and sequence", "session", "line", "work center", "terminal", "operator", "state transition", "failure reason and trace ID"]
+  },
+  "immutable_test_records": "Kafka retains run-tagged integration events under the configured retention policy."
+}

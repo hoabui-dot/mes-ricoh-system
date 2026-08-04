@@ -1,0 +1,22 @@
+{
+  "declared": 11,
+  "executed": 11,
+  "passed": 11,
+  "failed": 0,
+  "skipped": 0,
+  "event_matrix": [
+    "MES.Execution.MaterialConsumed.v1:2",
+    "MES.Execution.OperationAborted.v1:1",
+    "MES.Execution.OperationDispatchQueued.v1:6",
+    "MES.Execution.OperationFailed.v1:1",
+    "MES.Execution.OperationFinished.v1:6",
+    "MES.Execution.OperationRetryRequested.v1:1",
+    "MES.Execution.OperationStarted.v1:8",
+    "MES.Execution.WOApproved.v1:2",
+    "MES.Execution.WOCreated.v1:2",
+    "MES.Execution.WOResourceAllocated.v1:8",
+    "MES.Execution.WOStatusChanged.v1:2"
+  ],
+  "gateway_consumed_events_observed": 15,
+  "final_event_leaks": 0
+}

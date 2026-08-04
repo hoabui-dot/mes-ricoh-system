@@ -1,0 +1,18 @@
+{
+  "backend": [
+    "typed grouped Work Order and Job Card projection",
+    "terminal-scoped paginated list endpoint",
+    "terminal-scoped detail endpoint",
+    "authoritative counts, progress, resources, sessions, failures, blockers, and action eligibility",
+    "separate read-only Print Station context"
+  ],
+  "frontend": [
+    "terminal-scoped grouped list consumption",
+    "stale IndexedDB Work Order eviction",
+    "active-session recovery per selected Job Card",
+    "backend-derived action eligibility and localized blocker display",
+    "grouped counts/progress and read-only print context"
+  ],
+  "database_migration": "not required",
+  "legacy_mes_console_contract": "preserved"
+}

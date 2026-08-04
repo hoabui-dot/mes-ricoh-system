@@ -1,0 +1,7 @@
+{
+  "frontend": ["grouped WO cards", "all manual Job Cards", "read-only print band", "offline cache age", "four locales", "focus and tablet controls"],
+  "backend": ["operator business identity projection", "UOM business code projection", "typed grouped list/detail contracts"],
+  "events": ["ItemRevisionReleased.v2 base_uom_code snapshot", "authoritative refetch after WebSocket events"],
+  "database": ["additive Execution migration 000026_item_revision_uom_code_projection.up.sql", "one-time Master Data migration 0063 republishes enriched UOM snapshots through outbox"],
+  "tests": ["self-contained deterministic Phase 04 SQL fixture and cleanup", "real Chromium UAT"]
+}

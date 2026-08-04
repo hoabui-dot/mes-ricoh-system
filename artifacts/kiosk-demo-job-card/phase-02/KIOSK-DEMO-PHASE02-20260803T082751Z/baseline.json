@@ -1,0 +1,19 @@
+{
+  "entry_gate": "KIOSK_DEMO_PHASE_01_PASSED_READY_FOR_PHASE_02",
+  "entry_gate_status": "PASSED",
+  "execution": {
+    "work_orders": 2,
+    "operations": 8,
+    "sessions": 0,
+    "confirmations": 0,
+    "outbox_events": 7,
+    "dispatch_policy_column_before_phase": false
+  },
+  "gateway": {
+    "terminals_before_restore": 0,
+    "consumer_topics_before_phase": 4,
+    "explicit_auth_ack_before_phase": false,
+    "durable_online_delivery_before_phase": false
+  },
+  "known_previous_issue": "Reset kept schema_migrations but removed canonical terminal rows."
+}

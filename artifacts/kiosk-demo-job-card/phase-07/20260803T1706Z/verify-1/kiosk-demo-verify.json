@@ -1,0 +1,122 @@
+{
+  "success": false,
+  "action": "verify",
+  "generated_at": "2026-08-03T17:06:35.694Z",
+  "checks": [
+    {
+      "name": "exactly two deterministic preparation workflows",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "name": "demo operator has verified token and terminal session",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 appears as one grouped card",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 grouped card has three manual jobs",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has expected manual Job Cards",
+      "passed": true,
+      "actual": [
+        "WST-SEED-OP-BINDING",
+        "WST-SEED-OP-TEST5IN1",
+        "WST-SEED-OP-AIRTEST"
+      ]
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 excludes Print Station from manual cards",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has one read-only Print Station operation",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has Work Center and Workstation context",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has deterministic predecessor sequences",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 first job is executable and successors blocked",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 appears as one grouped card",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 grouped card has three manual jobs",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has expected manual Job Cards",
+      "passed": true,
+      "actual": [
+        "WST-SEED-OP-BINDING",
+        "WST-SEED-OP-TEST5IN1",
+        "WST-SEED-OP-AIRTEST"
+      ]
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 excludes Print Station from manual cards",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has one read-only Print Station operation",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has Work Center and Workstation context",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has deterministic predecessor sequences",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 first job is executable and successors blocked",
+      "passed": true
+    },
+    {
+      "name": "released execution failure reason is available",
+      "passed": true
+    },
+    {
+      "name": "released abort reason is available",
+      "passed": true
+    },
+    {
+      "name": "prepared scenarios have no stale execution session",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "every prepared operation has one committed allocation",
+      "passed": true,
+      "allocations": 8,
+      "operations": 8
+    },
+    {
+      "name": "every prepared operation has one committed reservation",
+      "passed": false,
+      "reservations": 24,
+      "operations": 8
+    }
+  ],
+  "data": {},
+  "error": "KIOSK_DEMO_VERIFY_FAILED: every prepared operation has one committed reservation",
+  "completed_at": "2026-08-03T17:06:36.345Z"
+}

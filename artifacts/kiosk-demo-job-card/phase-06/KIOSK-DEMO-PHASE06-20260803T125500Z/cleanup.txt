@@ -1,0 +1,11 @@
+Execution canonical counts
+work_orders=2
+operations=8
+phase04=0
+phase05=0
+Gateway cleanup counts
+active_sessions=0
+phase04_queue=0
+phase05_queue=0
+phase06_test_schemas=0
+single_active_index=1

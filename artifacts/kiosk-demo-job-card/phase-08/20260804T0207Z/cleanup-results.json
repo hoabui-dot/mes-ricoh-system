@@ -1,0 +1,20 @@
+{
+  "declared": 10,
+  "executed": 10,
+  "passed": 10,
+  "failed": 0,
+  "skipped": 0,
+  "final_counts": {
+    "work_orders": 0,
+    "execution_sessions": 0,
+    "operation_confirmations": 0,
+    "operation_execution_history": 0,
+    "resource_allocations": 0,
+    "capacity_reservations": 0,
+    "execution_outbox": 0,
+    "active_terminal_sessions": 0,
+    "gateway_queue": 0,
+    "gateway_test_events": 0
+  },
+  "canonical_seed_preserved": true
+}

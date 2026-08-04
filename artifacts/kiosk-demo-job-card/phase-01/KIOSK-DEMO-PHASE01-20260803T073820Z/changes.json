@@ -1,0 +1,30 @@
+{
+  "scope": "Phase 01 MES Execution manual Job Card state machine",
+  "backend": [
+    "Added authoritative Fail, Abort, and Retry use cases with pessimistic locking and idempotency.",
+    "Hardened Start active-session, state, predecessor, allocation, and Print Station gates.",
+    "Hardened Confirm quantity, session ownership, idempotency, state, and Print Station gates.",
+    "Prevented WO completion event emission when the WO state update affects no row.",
+    "Added released ExecutionFailure reason validation through Master Data."
+  ],
+  "database": [
+    "Added migration 000024 with Paused WO state, FAILED session state, and append-only operation execution history."
+  ],
+  "events": [
+    "Added OperationFailed, OperationAborted, OperationRetryRequested, and WOStatusChanged v1 outbox events.",
+    "Changed schema registration to continue after an incompatible legacy subject.",
+    "Added idempotent provisioning for four new Kafka topics."
+  ],
+  "tests": [
+    "Added reason client unit tests.",
+    "Added isolated-schema PostgreSQL domain integration tests.",
+    "Added PostgreSQL-backed HTTP integration test.",
+    "Added schema registration continuation test."
+  ],
+  "frontend_source_modified": false,
+  "gateway_source_modified": false,
+  "preserved_user_files": [
+    "AI_document/kiosk-workstation/KIOSK_DEMO_JOB_CARD_IMPLEMENTATION_RULES.md",
+    "AI_document/kiosk-workstation/PROMPT_PHASE_00_CORRECTED.md"
+  ]
+}

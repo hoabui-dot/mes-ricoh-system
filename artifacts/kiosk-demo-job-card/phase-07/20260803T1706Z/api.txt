@@ -1,0 +1,13 @@
+Phase 07 API evidence
+
+- Canonical seed run 1: PASS
+- Canonical seed run 2: PASS, no duplicate business records
+- Success prepare run 1: PASS, WO-20260803-0001
+- Success prepare run 2: PASS, same workflow and Work Order
+- Failure prepare run 1: PASS, WO-20260803-0002
+- Failure prepare run 2: PASS, same workflow and Work Order
+- Verify run 1 final: PASS, 25 checks
+- Verify run 2: PASS, 25 checks
+- Both Work Orders: InProgress, DEMO_SHARED_KIOSK, WST-SEED-LINE-1
+- Each Work Order: 3 manual Job Cards and 1 read-only Print Station operation
+- Runtime: 0 sessions, 8 allocations, 24 reservations in 8 complete unique resource sets

@@ -1,0 +1,16 @@
+{
+  "summary": {"declared": 10, "executed": 10, "passed": 10, "failed": 0, "skipped": 0},
+  "criteria": [
+    {"criterion": "Job Card ownership is explicit", "result": "PASS", "evidence": "current-state-map.json"},
+    {"criterion": "Work Order grouping and progress are explicit", "result": "PASS", "evidence": "approved-state-machine.json and route-screen-contract.json"},
+    {"criterion": "Print Station exclusion is explicit", "result": "PASS", "evidence": "failure-policy-decision.json"},
+    {"criterion": "Manual failure and Work Order impact are explicit", "result": "PASS", "evidence": "failure-policy-decision.json"},
+    {"criterion": "Abort, scrap, and failure are distinct", "result": "PASS", "evidence": "approved-state-machine.json"},
+    {"criterion": "Retry behavior is explicit", "result": "PASS", "evidence": "approved-state-machine.json"},
+    {"criterion": "Required event additions are listed", "result": "PASS", "evidence": "event-inventory.json"},
+    {"criterion": "Security and session recovery requirements are listed", "result": "PASS", "evidence": "route-screen-contract.json and phase-dependency-map.json"},
+    {"criterion": "No source or runtime data was modified", "result": "PASS", "evidence": "changes.json and cleanup-results.json"},
+    {"criterion": "Report authorizes Phase 01", "result": "PASS", "evidence": "AI_document/Kiosk-Demo/Phase-00/REPORT_PHASE_00.md"}
+  ],
+  "final_status": "KIOSK_DEMO_PHASE_00_PASSED_READY_FOR_PHASE_01"
+}

@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-08-04T02:07:20.514Z",
+  "success_work_order": {
+    "key": "KIOSK-DEMO-PHASE07-SUCCESS-V1",
+    "woID": "3a8cc201-40cb-4146-b130-50df2a0cb2af",
+    "woCode": "WO-20260804-0003",
+    "quantity": 2,
+    "operations": [
+      {
+        "id": "6e235622-d13d-4316-9580-1bec8a836a54",
+        "code": "WST-SEED-OP-BINDING",
+        "sequence": 10
+      },
+      {
+        "id": "8d9a55f5-9755-4fff-a152-22e9a79172eb",
+        "code": "WST-SEED-OP-TEST5IN1",
+        "sequence": 20
+      },
+      {
+        "id": "721b1c4c-ead5-4634-9f63-26347efb04d6",
+        "code": "WST-SEED-OP-AIRTEST",
+        "sequence": 30
+      }
+    ]
+  },
+  "failure_work_order": {
+    "key": "KIOSK-DEMO-PHASE07-FAILURE-V1",
+    "woID": "653c7059-271a-4dd4-ae7e-4065eb4f212e",
+    "woCode": "WO-20260804-0004",
+    "quantity": 3,
+    "operations": [
+      {
+        "id": "e951a304-54ff-458d-b65f-e5783c98a010",
+        "code": "WST-SEED-OP-BINDING",
+        "sequence": 10
+      },
+      {
+        "id": "b40bfd39-26aa-4889-9aed-f7607e0d514c",
+        "code": "WST-SEED-OP-TEST5IN1",
+        "sequence": 20
+      },
+      {
+        "id": "0acdadce-41a4-42dc-8ca3-53db30310cab",
+        "code": "WST-SEED-OP-AIRTEST",
+        "sequence": 30
+      }
+    ]
+  },
+  "checks": 19,
+  "passed": 19,
+  "failed": 0,
+  "skipped": 0,
+  "print_station": "external_read_only_not_simulated",
+  "status": "KIOSK_DEMO_JOB_CARD_FLOW_CERTIFIED"
+}

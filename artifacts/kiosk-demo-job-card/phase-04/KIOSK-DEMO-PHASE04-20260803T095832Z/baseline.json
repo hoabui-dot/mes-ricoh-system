@@ -1,0 +1,12 @@
+{
+  "phase": "04",
+  "run_id": "KIOSK-DEMO-PHASE04-20260803T095832Z",
+  "canonical_work_orders": 2,
+  "canonical_operations": 8,
+  "canonical_demo_work_orders": 0,
+  "issues": [
+    "Kiosk list and detail UI did not expose the complete Phase 03 grouped projection.",
+    "Work Order UOM was available only as an internal UUID.",
+    "Changed UI states lacked complete VI/EN/JA/KO and accessibility coverage."
+  ]
+}

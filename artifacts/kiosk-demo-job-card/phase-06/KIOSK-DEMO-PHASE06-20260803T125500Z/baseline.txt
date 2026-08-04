@@ -1,0 +1,90 @@
+Previous gate:
+
+# 22. Final Gate
+
+```text
+KIOSK_DEMO_PHASE_05_PASSED_READY_FOR_PHASE_06
+```
+
+Không tự động bắt đầu Phase 06.
+
+Initial/current worktree:
+ M AI_document/kiosk-workstation/KIOSK_DEMO_JOB_CARD_IMPLEMENTATION_RULES.md
+ M infra/docker-compose.mes.yml
+ M infra/kong/kong.yml
+ M package.json
+ M services/kiosk-operator-ui/Dockerfile
+ M services/kiosk-operator-ui/index.html
+ M services/kiosk-operator-ui/src/App.tsx
+ M services/kiosk-operator-ui/src/components/ErrorBoundaryCard.tsx
+ M services/kiosk-operator-ui/src/components/OfflineBanner.tsx
+ M services/kiosk-operator-ui/src/context/KioskSocketContext.tsx
+ M services/kiosk-operator-ui/src/i18n.ts
+ M services/kiosk-operator-ui/src/index.css
+ M services/kiosk-operator-ui/src/lib/db.ts
+ M services/kiosk-operator-ui/src/routes/LoginScreen.tsx
+ M services/kiosk-operator-ui/src/routes/OperationScreen.tsx
+ M services/kiosk-operator-ui/src/routes/WOListScreen.tsx
+ M services/mes-console/src/i18n.ts
+ M services/mes-console/src/lib/i18nLabels.ts
+ M services/mes-console/src/routes/work-orders/WODetailScreen.tsx
+ M services/mes-execution-service/cmd/server/main.go
+ M services/mes-execution-service/go.mod
+ M services/mes-execution-service/go.sum
+ D services/mes-execution-service/internal/application/usecase/abort_session.go
+ M services/mes-execution-service/internal/application/usecase/complete_work_order.go
+ M services/mes-execution-service/internal/application/usecase/confirm_operation.go
+ M services/mes-execution-service/internal/application/usecase/create_work_order.go
+ M services/mes-execution-service/internal/application/usecase/dispatch_execution.go
+ M services/mes-execution-service/internal/application/usecase/start_operation.go
+ M services/mes-execution-service/internal/domain/wo.go
+ M services/mes-execution-service/internal/infrastructure/events/masterdata_consumer.go
+ M services/mes-execution-service/internal/infrastructure/events/printer_result_consumer.go
+ M services/mes-execution-service/internal/infrastructure/events/schema_registry.go
+ M services/mes-execution-service/internal/infrastructure/http/router.go
+ M services/mes-execution-service/service.manifest.yaml
+ M services/mes-kiosk-gateway-service/cmd/server/main.go
+ M services/mes-kiosk-gateway-service/internal/application/auth_service.go
+ M services/mes-kiosk-gateway-service/internal/application/auth_service_test.go
+ M services/mes-kiosk-gateway-service/internal/domain/terminal.go
+ M services/mes-kiosk-gateway-service/internal/infrastructure/events/execution_consumer.go
+ M services/mes-kiosk-gateway-service/internal/infrastructure/http/router.go
+ M services/mes-kiosk-gateway-service/internal/websocket/hub.go
+ M services/mes-kiosk-gateway-service/service.manifest.yaml
+ M services/mes-master-data-service/service.manifest.yaml
+ M services/mes-master-data-service/src/infrastructure/db/migrate.ts
+ M services/mes-master-data-service/src/infrastructure/http/master-data.router.ts
+ M services/mes-master-data-service/test/unit/table-registry.test.ts
+?? AI_document/Kiosk-Demo/
+?? AI_document/kiosk-workstation/PROMPT_PHASE_00_CORRECTED.md
+?? artifacts/kiosk-demo-job-card/
+?? e2e/kiosk/
+?? scripts/ensure-mes-execution-kafka-topics.sh
+?? services/kiosk-operator-ui/docker-entrypoint.d/
+?? services/kiosk-operator-ui/public/
+?? services/kiosk-operator-ui/src/components/LanguageSelect.tsx
+?? services/kiosk-operator-ui/src/components/ProtectedKioskRoute.tsx
+?? services/kiosk-operator-ui/src/lib/auth.ts
+?? services/kiosk-operator-ui/src/lib/commands.ts
+?? services/kiosk-operator-ui/src/lib/presentation.ts
+?? services/kiosk-operator-ui/src/lib/runtimeConfig.ts
+?? services/kiosk-operator-ui/src/types/
+?? services/mes-execution-service/internal/application/usecase/kiosk_read_model.go
+?? services/mes-execution-service/internal/application/usecase/kiosk_read_model_integration_test.go
+?? services/mes-execution-service/internal/application/usecase/operation_state_machine.go
+?? services/mes-execution-service/internal/application/usecase/operation_state_machine_integration_test.go
+?? services/mes-execution-service/internal/domain/kiosk_read_model.go
+?? services/mes-execution-service/internal/infrastructure/auth/
+?? services/mes-execution-service/internal/infrastructure/client/failure_reason_client.go
+?? services/mes-execution-service/internal/infrastructure/client/failure_reason_client_test.go
+?? services/mes-execution-service/internal/infrastructure/events/schema_registry_test.go
+?? services/mes-execution-service/internal/infrastructure/http/operation_state_machine_integration_test.go
+?? services/mes-execution-service/migrations/000024_manual_operation_failure_state_machine.up.sql
+?? services/mes-execution-service/migrations/000025_work_order_dispatch_policy.up.sql
+?? services/mes-execution-service/migrations/000026_item_revision_uom_code_projection.up.sql
+?? services/mes-kiosk-gateway-service/internal/infrastructure/events/execution_consumer_integration_test.go
+?? services/mes-kiosk-gateway-service/internal/testsupport/
+?? services/mes-kiosk-gateway-service/internal/websocket/hub_integration_test.go
+?? services/mes-kiosk-gateway-service/migrations/000003_reliable_event_relay.up.sql
+?? services/mes-kiosk-gateway-service/migrations/000004_restore_canonical_terminals.up.sql
+?? services/mes-kiosk-gateway-service/migrations/000005_single_active_terminal_session.up.sql

@@ -100,6 +100,8 @@ services:
       KAFKA_BROKERS: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       MASTER_DATA_SERVICE_URL: http://mes-master-data-service:3020
+      KEYCLOAK_URL: http://platform-keycloak:8080
+      KEYCLOAK_ISSUERS: ${KEYCLOAK_ISSUERS:-http://platform-keycloak:8080/realms/wonsealtech,http://localhost:18080/realms/wonsealtech,http://127.0.0.1:18080/realms/wonsealtech,http://100.68.50.41:18080/realms/wonsealtech}
       # Strict policy: every Work Order operation needs a current valid
       # committed resource allocation before approval.
       MES_RESOURCE_ALLOCATION_APPROVAL_REQUIRED: "true"
@@ -212,6 +214,7 @@ services:
       KAFKA_BROKERS: kafka:29092
       DEMO_KIOSK_TERMINAL_CODE: KIOSK-DEMO-01
       KEYCLOAK_URL: http://platform-keycloak:8080
+      KEYCLOAK_ISSUERS: ${KEYCLOAK_ISSUERS:-http://platform-keycloak:8080/realms/wonsealtech,http://localhost:18080/realms/wonsealtech,http://127.0.0.1:18080/realms/wonsealtech,http://100.68.50.41:18080/realms/wonsealtech}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_SERVICE_NAME: mes-kiosk-gateway-service
       OTEL_TRACES_EXPORTER: otlp
@@ -230,8 +233,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3051
-      PUBLIC_GATEWAY_URL: http://100.68.50.41:18000
-      PUBLIC_WS_URL: ws://100.68.50.41:18000/api/mes/kiosk-gateway/ws
+      PUBLIC_GATEWAY_URL: ${PUBLIC_GATEWAY_URL:-http://localhost:18000}
+      PUBLIC_WS_URL: ${PUBLIC_WS_URL:-ws://localhost:18000/api/mes/kiosk-gateway/ws}
+      KIOSK_DEMO_CREDENTIALS_ENABLED: ${KIOSK_DEMO_CREDENTIALS_ENABLED:-true}
+      KIOSK_DEMO_USERNAME: ${KIOSK_DEMO_USERNAME:-operator01}
+      KIOSK_DEMO_PASSWORD: ${KIOSK_DEMO_PASSWORD:-Operator@123!}
 
   mes-console:
     build:

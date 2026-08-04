@@ -1,0 +1,8 @@
+{
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "checks": ["SSO-authenticated socket connection", "terminal-scoped event delivery", "event invalidates list projection", "browser refresh restores context and socket flow"]
+}

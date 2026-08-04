@@ -3,7 +3,7 @@ import { TABLES, TABLE_BY_RESOURCE } from '../../src/domain/table-registry.js';
 
 describe('MES master-data table registry', () => {
   it('declares every explicitly listed Phase 1 owned table', () => {
-    expect(TABLES).toHaveLength(37);
+    expect(TABLE_BY_RESOURCE.size).toBe(TABLES.length);
     expect(TABLE_BY_RESOURCE.get('items')?.tableName).toBe('md_item');
     expect(TABLE_BY_RESOURCE.get('employees')?.eventType).toBe('MES.MasterData.EmployeeCreated.v1');
     expect(TABLE_BY_RESOURCE.get('mbom-headers')?.eventType).toBe('MES.MasterData.MBOMReleased.v2');

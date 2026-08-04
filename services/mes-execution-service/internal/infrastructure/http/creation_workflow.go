@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -425,9 +426,17 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 	if shiftID == "" {
 		return creationWorkflowRequest{}, fmt.Errorf("SHIFT_REQUIRED")
 	}
-	payload := map[string]interface{}{"item_code": itemCode, "item_revision_id": itemRevisionID, "item_name": itemName, "quantity": quantity, "uom_id": uomID, "site_id": siteID, "shift_id": shiftID, "planned_start_at": start.Format(time.RFC3339), "planned_end_at": end.Format(time.RFC3339)}
+	dispatchMode, _ := body["dispatch_mode"].(string)
+	dispatchMode = strings.ToUpper(strings.TrimSpace(dispatchMode))
+	if dispatchMode == "" {
+		dispatchMode = "WORK_CENTER"
+	}
+	if dispatchMode != "WORK_CENTER" && dispatchMode != "DEMO_SHARED_KIOSK" {
+		return creationWorkflowRequest{}, fmt.Errorf("WORK_ORDER_DISPATCH_MODE_INVALID")
+	}
+	payload := map[string]interface{}{"item_code": itemCode, "item_revision_id": itemRevisionID, "item_name": itemName, "quantity": quantity, "uom_id": uomID, "site_id": siteID, "shift_id": shiftID, "planned_start_at": start.Format(time.RFC3339), "planned_end_at": end.Format(time.RFC3339), "dispatch_mode": dispatchMode}
 	payload["production_version_id"] = productionVersionID
-	return creationWorkflowRequest{Input: usecase.CreateWOInput{ProductionVersionID: productionVersionID, ItemRevisionID: itemRevisionID, ItemCode: itemCode, ItemName: itemName, Quantity: quantity, UOMID: uomID, SiteID: siteID, ShiftID: shiftID, PlannedStartAt: start.Format(time.RFC3339), PlannedEndAt: end.Format(time.RFC3339), UserID: userID, TraceID: getHeader(r, "X-Trace-ID", uuid.NewString())}, Payload: payload, UserID: userID, Idempotency: idempotency, RequestHash: requestHash(payload)}, nil
+	return creationWorkflowRequest{Input: usecase.CreateWOInput{ProductionVersionID: productionVersionID, ItemRevisionID: itemRevisionID, ItemCode: itemCode, ItemName: itemName, Quantity: quantity, UOMID: uomID, SiteID: siteID, ShiftID: shiftID, PlannedStartAt: start.Format(time.RFC3339), PlannedEndAt: end.Format(time.RFC3339), UserID: userID, TraceID: getHeader(r, "X-Trace-ID", uuid.NewString()), DispatchMode: dispatchMode}, Payload: payload, UserID: userID, Idempotency: idempotency, RequestHash: requestHash(payload)}, nil
 }
 
 func (m *creationWorkflowManager) handleStart(w http.ResponseWriter, r *http.Request) {

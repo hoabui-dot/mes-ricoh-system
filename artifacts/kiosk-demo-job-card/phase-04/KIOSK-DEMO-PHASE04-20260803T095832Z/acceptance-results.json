@@ -1,0 +1,8 @@
+{
+  "declared": 7,
+  "executed": 7,
+  "passed": 7,
+  "failed": 0,
+  "skipped": 0,
+  "criteria": ["one top-level card is the complete WO", "detail contains all manual Job Cards", "Print Station is never actionable", "operational context and state are clear", "realtime refetch and offline read-only pass", "four-language and accessibility smoke pass", "report authorizes Phase 05"]
+}

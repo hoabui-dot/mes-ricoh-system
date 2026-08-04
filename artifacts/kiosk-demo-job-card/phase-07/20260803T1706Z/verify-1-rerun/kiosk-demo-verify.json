@@ -1,0 +1,165 @@
+{
+  "success": true,
+  "action": "verify",
+  "generated_at": "2026-08-03T17:07:14.316Z",
+  "checks": [
+    {
+      "name": "exactly two deterministic preparation workflows",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "name": "demo operator has verified token and terminal session",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 appears as one grouped card",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 grouped card has three manual jobs",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has expected manual Job Cards",
+      "passed": true,
+      "actual": [
+        "WST-SEED-OP-BINDING",
+        "WST-SEED-OP-TEST5IN1",
+        "WST-SEED-OP-AIRTEST"
+      ]
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 excludes Print Station from manual cards",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has one read-only Print Station operation",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has Work Center and Workstation context",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has deterministic predecessor sequences",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 first job is executable and successors blocked",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 appears as one grouped card",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 grouped card has three manual jobs",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has expected manual Job Cards",
+      "passed": true,
+      "actual": [
+        "WST-SEED-OP-BINDING",
+        "WST-SEED-OP-TEST5IN1",
+        "WST-SEED-OP-AIRTEST"
+      ]
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 excludes Print Station from manual cards",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has one read-only Print Station operation",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has Work Center and Workstation context",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has deterministic predecessor sequences",
+      "passed": true
+    },
+    {
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 first job is executable and successors blocked",
+      "passed": true
+    },
+    {
+      "name": "released execution failure reason is available",
+      "passed": true
+    },
+    {
+      "name": "released abort reason is available",
+      "passed": true
+    },
+    {
+      "name": "prepared scenarios have no stale execution session",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "every prepared operation has one committed allocation",
+      "passed": true,
+      "allocations": 8,
+      "operations": 8
+    },
+    {
+      "name": "every prepared operation has a complete committed resource reservation set",
+      "passed": true,
+      "reservation_sets": 8,
+      "reservations": 24,
+      "operations": 8
+    },
+    {
+      "name": "prepared scenarios have no duplicate resource reservation",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "prepared Gateway queue has no duplicate event",
+      "passed": true,
+      "messages": 2,
+      "unique_events": 2
+    }
+  ],
+  "data": {
+    "work_orders": [
+      {
+        "idempotency_key": "KIOSK-DEMO-PHASE07-FAILURE-V1",
+        "workflow_id": "bf48d81b-492f-4c53-b072-e4da3bb40123",
+        "work_order_id": "56c816d8-e391-48f8-9a39-f1ac35cbad83",
+        "wo_code": "WO-20260803-0002",
+        "status": "InProgress",
+        "dispatch_mode": "DEMO_SHARED_KIOSK"
+      },
+      {
+        "idempotency_key": "KIOSK-DEMO-PHASE07-SUCCESS-V1",
+        "workflow_id": "e5deaeb0-15b5-4887-861b-dab6eb9000d5",
+        "work_order_id": "b151d69c-94f5-4dfd-9d08-48dc7e2a58ab",
+        "wo_code": "WO-20260803-0001",
+        "status": "InProgress",
+        "dispatch_mode": "DEMO_SHARED_KIOSK"
+      }
+    ],
+    "runtime": {
+      "sessions": 0,
+      "allocations": 8,
+      "reservations": 24,
+      "complete_reservation_sets": 8,
+      "duplicate_reservations": 0,
+      "operations": 8
+    },
+    "queue": {
+      "messages": 2,
+      "unique_events": 2
+    },
+    "verified": 2
+  },
+  "completed_at": "2026-08-03T17:07:14.991Z"
+}

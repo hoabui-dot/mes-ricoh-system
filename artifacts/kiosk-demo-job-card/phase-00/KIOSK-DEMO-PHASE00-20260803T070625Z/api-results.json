@@ -1,0 +1,15 @@
+{
+  "summary": {"declared": 7, "executed": 7, "passed": 7, "failed": 0, "skipped": 0},
+  "classification": "read_only_runtime_api",
+  "cases": [
+    {"name": "Execution direct health", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Kiosk Gateway direct health", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Traceability direct health", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Execution Work Order list through Kong", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Kiosk terminal list through Kong", "expected": 200, "actual": 200, "result": "PASS", "observation": "data is null because terminal table is empty"},
+    {"name": "Missing demo terminal is explicit", "expected": 404, "actual": 404, "result": "PASS"},
+    {"name": "Execution Work Order detail through Kong", "expected": 200, "actual": 200, "result": "PASS", "operation_count": 4}
+  ],
+  "mutation_endpoints_called": 0,
+  "existing_operation_api_tests_found": 0
+}

@@ -1,0 +1,35 @@
+{
+  "captured_at": "2026-08-03T07:06:25Z",
+  "git": {
+    "commit": "b62b9fabfc4c59db2c62b4b7bd64678fc6c99767",
+    "pre_existing_changes": [
+      "M AI_document/kiosk-workstation/KIOSK_DEMO_JOB_CARD_IMPLEMENTATION_RULES.md",
+      "?? AI_document/kiosk-workstation/PROMPT_PHASE_00_CORRECTED.md",
+      "?? AI_document/Kiosk-Demo/Phase-00/REPORT_PHASE_00.md"
+    ]
+  },
+  "containers": {
+    "kiosk-operator-ui": "Up",
+    "mes-kiosk-gateway-service": "Up",
+    "mes-execution-service": "Up healthy",
+    "mes-traceability-service": "Up",
+    "platform-kafka": "Up healthy",
+    "platform-keycloak": "Up healthy",
+    "platform-kong": "Up healthy"
+  },
+  "execution_db": {
+    "wo_header": 2,
+    "wo_operation": 8,
+    "execution_session": 0,
+    "operation_confirmation": 0,
+    "outbox_events": 7,
+    "wo_print_job": 0,
+    "latest_business_timestamp": "2026-08-03T06:24:52.824284Z"
+  },
+  "kiosk_db": {"terminal": 0, "terminal_session": 0, "outbound_message_queue": 0},
+  "known_runtime_gaps": [
+    "KIOSK-DEMO-01 returns 404 because terminal rows were truncated while migration markers were preserved.",
+    "Outbox has 3 PUBLISHED and 4 FAILED WOResourceAllocated rows.",
+    "command.printer.print.batch is source-declared but not currently materialized in Kafka."
+  ]
+}

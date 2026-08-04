@@ -13,6 +13,7 @@ export function translatedEnum(
 export function normalizeStatusCode(value?: string | null): string {
   if (!value) return '';
   return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .toLowerCase()
     .split(/[_\s-]+/)
     .filter(Boolean)

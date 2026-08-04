@@ -1,0 +1,12 @@
+Phase 07 baseline, 2026-08-03T17:05Z
+
+- Entry gate: KIOSK_DEMO_PHASE_06_PASSED_READY_FOR_PHASE_07
+- Canonical reset result: success
+- Work Orders: 0
+- Execution sessions: 0
+- Resource allocations: 0
+- Capacity reservations: 0
+- Active terminal sessions: 0
+- KIOSK-DEMO-01: one terminal with canonical SITE-KZ3 / WST-SEED-WC-L1-BINDING context
+- Canonical production version: WST-SEED-PV-SEAL-ASM-01, Ready
+- Routing: three manual operations followed by one Print Station operation

@@ -1,0 +1,25 @@
+{
+  "phase": "08",
+  "run_id": "20260804T0207Z",
+  "generated_at": "2026-08-04T02:11:00Z",
+  "status": "KIOSK_DEMO_JOB_CARD_FLOW_CERTIFIED",
+  "required_evidence": [
+    "baseline.json",
+    "changes.json",
+    "build-results.json",
+    "api-results.json",
+    "event-results.json",
+    "websocket-results.json",
+    "browser-results.json",
+    "cleanup-results.json",
+    "acceptance-results.json",
+    "final-success-evidence.json",
+    "final-failure-evidence.json",
+    "final-retry-evidence.json",
+    "final-sync-evidence.json",
+    "final-security-evidence.json",
+    "final-cleanup-evidence.json",
+    "final-certification.json"
+  ],
+  "contains_secrets": false
+}

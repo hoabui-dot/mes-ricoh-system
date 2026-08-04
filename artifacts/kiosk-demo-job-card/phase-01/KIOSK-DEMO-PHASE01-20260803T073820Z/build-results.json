@@ -1,0 +1,14 @@
+{
+  "summary": {"declared": 8, "executed": 8, "passed": 8, "failed": 0, "skipped": 0},
+  "commands": [
+    {"name": "execution_unit_tests", "command": "go test ./...", "working_directory": "services/mes-execution-service", "result": "PASS"},
+    {"name": "execution_integration_tests", "command": "go test -tags=integration ./... -count=1", "working_directory": "services/mes-execution-service", "result": "PASS"},
+    {"name": "gateway_regression_tests", "command": "go test ./...", "working_directory": "services/mes-kiosk-gateway-service", "result": "PASS"},
+    {"name": "kiosk_typecheck", "command": "npm run typecheck", "working_directory": "services/kiosk-operator-ui", "result": "PASS"},
+    {"name": "kiosk_production_build", "command": "npm run build", "working_directory": "services/kiosk-operator-ui", "result": "PASS", "modules_transformed": 1532},
+    {"name": "execution_docker_build_1", "command": "docker compose ... build mes-execution-service", "result": "PASS"},
+    {"name": "execution_docker_build_schema_fix", "command": "docker compose ... build mes-execution-service", "result": "PASS"},
+    {"name": "execution_docker_build_final", "command": "docker compose ... build mes-execution-service", "result": "PASS", "image": "sha256:ee88c2e1229552377ab2ba60219055f91c1b272171b9eed2cf206f96c729d8a1"}
+  ],
+  "mandatory_behavior_cases": {"declared": 18, "executed": 18, "passed": 18, "failed": 0, "skipped": 0}
+}

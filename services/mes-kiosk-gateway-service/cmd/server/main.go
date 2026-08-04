@@ -112,6 +112,9 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	migrationFiles := []string{
 		"migrations/000001_initial_kiosk_gateway_schema.up.sql",
 		"migrations/000002_demo_terminal.up.sql",
+		"migrations/000003_reliable_event_relay.up.sql",
+		"migrations/000004_restore_canonical_terminals.up.sql",
+		"migrations/000005_single_active_terminal_session.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

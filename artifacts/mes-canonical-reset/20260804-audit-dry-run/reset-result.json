@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "mode": "dry-run",
+  "artifactDir": "/home/neurosus/recoh-system/mes-system/artifacts/mes-canonical-reset/20260804-audit-dry-run",
+  "dryRun": true,
+  "targetedDatabases": [
+    "master",
+    "execution",
+    "traceability",
+    "kiosk"
+  ],
+  "resetStarted": false
+}

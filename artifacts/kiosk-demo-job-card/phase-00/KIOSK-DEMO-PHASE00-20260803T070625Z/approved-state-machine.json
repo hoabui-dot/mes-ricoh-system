@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "authority": "mes-execution-service",
+  "storage_states": {
+    "work_order": ["Released", "InProgress", "Paused", "Completed"],
+    "operation": ["Pending", "Ready", "DispatchQueued", "InProgress", "Finished", "ExecutionError"],
+    "execution_session": ["IN_PROGRESS", "COMPLETED", "FAILED", "ABORTED"]
+  },
+  "projection_states": ["waiting", "ready", "in_progress", "completed", "failed", "blocked"],
+  "transitions": [
+    {
+      "command": "Start",
+      "from": {"work_order": ["Released", "InProgress"], "operation": ["Ready", "DispatchQueued"]},
+      "to": {"work_order": "InProgress", "operation": "InProgress", "session": "IN_PROGRESS"},
+      "event": "MES.Execution.OperationStarted.v1"
+    },
+    {
+      "command": "Complete",
+      "from": {"work_order": ["InProgress"], "operation": ["InProgress"], "session": ["IN_PROGRESS"]},
+      "to": {"operation": "Finished", "session": "COMPLETED"},
+      "events": ["MES.Execution.OperationFinished.v1", "MES.Execution.WOCompleted.v1 when all required operations are Finished"]
+    },
+    {
+      "command": "Fail",
+      "from": {"work_order": ["InProgress"], "operation": ["InProgress"], "session": ["IN_PROGRESS"]},
+      "to": {"work_order": "Paused", "operation": "ExecutionError", "session": "FAILED"},
+      "events": ["MES.Execution.OperationFailed.v1", "MES.Execution.WOStatusChanged.v1"],
+      "requires": ["approved reason code", "reason text when catalog requires comment", "stable idempotency key"]
+    },
+    {
+      "command": "Abort",
+      "from": {"work_order": ["InProgress"], "operation": ["InProgress"], "session": ["IN_PROGRESS"]},
+      "to": {"work_order": "InProgress", "operation": "Ready", "session": "ABORTED"},
+      "event": "MES.Execution.OperationAborted.v1",
+      "note": "Abort is an interrupted attempt, not production failure."
+    },
+    {
+      "command": "Retry",
+      "from": {"work_order": ["Paused"], "operation": ["ExecutionError"], "session": ["FAILED"]},
+      "to": {"work_order": "InProgress", "operation": "Ready", "session": "No new session until Start"},
+      "events": ["MES.Execution.OperationRetryRequested.v1", "MES.Execution.WOStatusChanged.v1"]
+    }
+  ],
+  "invariants": [
+    "Only non-print manual operations accept Start, Complete, Fail, Abort, or Retry.",
+    "Confirm requires the matching authoritative IN_PROGRESS session and cannot accept Pending.",
+    "Successors are executable only after every predecessor is Finished.",
+    "A failed operation and its transitive successors prevent Work Order completion.",
+    "Scrap greater than zero requires an approved scrap reason but still completes successfully when quantity rules pass.",
+    "Every mutation and outbox event is committed in one transaction.",
+    "Every command is idempotent and history is append-only."
+  ],
+  "retry_policy": {
+    "OPERATOR": "May retry an ExecutionError created by the same operator at the same terminal and site.",
+    "PLANT_MANAGER": "May retry any manual ExecutionError within the authorized site.",
+    "denied": ["Print Station operation", "operation not in ExecutionError", "WO not Paused", "site or terminal scope mismatch", "missing failure history"]
+  },
+  "count_precedence": ["completed", "failed", "in_progress", "blocked", "ready", "waiting"],
+  "progress": "manual_progress_percent = completed_manual_job_cards / total_manual_job_cards * 100; it is not Work Order completion and excludes Print Station operations."
+}

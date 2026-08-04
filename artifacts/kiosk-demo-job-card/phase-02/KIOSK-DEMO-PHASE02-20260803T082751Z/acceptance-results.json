@@ -1,0 +1,19 @@
+{
+  "declared": 9,
+  "executed": 9,
+  "passed": 9,
+  "failed": 0,
+  "skipped": 0,
+  "criteria": {
+    "every_manual_demo_operation_routable": "PASS",
+    "print_station_excluded": "PASS",
+    "production_routing_unchanged": "PASS",
+    "failure_and_completion_reach_demo": "PASS",
+    "offline_fifo_and_ack": "PASS",
+    "event_idempotency": "PASS",
+    "jwt_and_auth_ack": "PASS",
+    "reconnect_and_refetch": "PASS",
+    "build_deploy_health_cleanup": "PASS"
+  },
+  "gate": "KIOSK_DEMO_PHASE_02_PASSED_READY_FOR_PHASE_03"
+}

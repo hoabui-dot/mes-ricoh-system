@@ -37,7 +37,7 @@ function conn(url) {
 
 function ensureSafety(mutating) {
   const reasons = [];
-  const allowedEnv = new Set(['development', 'local', 'test', 'staging']);
+  const allowedEnv = new Set(['development', 'local', 'test', 'uat', 'staging']);
   const allowedHosts = new Set(['localhost', '127.0.0.1', '::1']);
   if (!allowedEnv.has(envName)) reasons.push(`MES_ENV must be one of ${[...allowedEnv].join(', ')}`);
   for (const [name, url] of [['master', masterUrl], ['execution', executionUrl], ['traceability', traceabilityUrl]]) {

@@ -1,0 +1,23 @@
+{
+  "declared": 12,
+  "executed": 12,
+  "passed": 12,
+  "failed": 0,
+  "skipped": 0,
+  "cases": [
+    "Demo Kafka route only to KIOSK-DEMO-01",
+    "Production Kafka route only to KIOSK-CUT-01",
+    "Print dispatch consumed without manual queue",
+    "OperationStarted relay",
+    "OperationFinished relay",
+    "OperationFailed relay",
+    "OperationAborted relay",
+    "WOStatusChanged relay",
+    "WOCompleted relay",
+    "duplicate event receipt is idempotent",
+    "two eligible manual operations retain DEMO_SHARED_KIOSK policy",
+    "Print Station manual-command regression"
+  ],
+  "runtime_event_ids_cleaned": true,
+  "consumer_topics": 8
+}

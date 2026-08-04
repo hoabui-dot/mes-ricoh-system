@@ -1,0 +1,7 @@
+login_has_token=yes
+login_session_id=30dcb1a0-483e-4043-a4e5-87e1e5c1a867
+kong_missing_token=401
+kong_valid_bearer=200
+backend_missing_token=401
+backend_valid_bearer=200
+logout=200

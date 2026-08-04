@@ -1,0 +1,23 @@
+{
+  "declared": 9,
+  "executed": 9,
+  "passed": 9,
+  "failed": 0,
+  "skipped": 0,
+  "cases": [
+    "explicit auth_ack",
+    "invalid token auth_error",
+    "expired token auth_error",
+    "offline messages remain PENDING",
+    "authenticated reconnect drains FIFO",
+    "event_ack marks delivery",
+    "duplicate event does not duplicate queue state",
+    "gateway restart reconnects and authenticates again",
+    "reconnect triggers authoritative WO refetch"
+  ],
+  "runtime_fifo": [
+    "phase02-ws-fifo-01-1785745603321149866",
+    "phase02-ws-fifo-02-1785745603321149866"
+  ],
+  "delivered_after_ack": 2
+}

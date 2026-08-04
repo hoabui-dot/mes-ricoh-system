@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mom-platform/mes-execution-service/internal/domain"
 	"github.com/mom-platform/mes-execution-service/internal/infrastructure/client"
@@ -33,6 +34,15 @@ func ConfirmOperation(
 	traceabilityClient *client.TraceabilityClient,
 	input ConfirmOperationInput,
 ) (*domain.OperationConfirmation, error) {
+	if _, err := uuid.Parse(input.OperatorUserID); err != nil {
+		return nil, fmt.Errorf("OPERATOR_USER_ID_INVALID")
+	}
+	if _, err := uuid.Parse(input.SessionID); err != nil {
+		return nil, fmt.Errorf("EXECUTION_SESSION_ID_INVALID")
+	}
+	if input.QtyGood < 0 || input.QtyScrap < 0 || input.QtyGood+input.QtyScrap <= 0 {
+		return nil, fmt.Errorf("OPERATION_QUANTITY_INVALID")
+	}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin tx: %w", err)
@@ -41,38 +51,79 @@ func ConfirmOperation(
 
 	_, _ = tx.Exec(ctx, `SELECT set_config('app.current_user_id', $1, true)`, input.OperatorUserID)
 
-	// 1. Fetch WOOperation and WOHeader details
-	var opID, opCode, opStatus, siteID, itemRevID, uomID, workCenterID string
+	// A repeated confirmation for the same authoritative session returns the
+	// original result and never repeats traceability or material side effects.
+	var existing domain.OperationConfirmation
 	err = tx.QueryRow(ctx, `
-		SELECT o.operation_id, o.operation_code, o.status, h.site_id, h.item_revision_id, h.uom_id, o.work_center_id
+		SELECT c.confirmation_id::text, c.wo_operation_id::text, c.session_id::text,
+		       c.qty_good, c.qty_scrap, c.reason_code, c.input_label_id::text,
+		       c.output_label_id::text, c.confirmed_at
+		FROM operation_confirmation c
+		JOIN execution_session s ON s.session_id=c.session_id
+		JOIN wo_operation o ON o.wo_operation_id=c.wo_operation_id
+		WHERE c.session_id=$1 AND c.wo_operation_id=$2 AND o.wo_id=$3
+		  AND s.operator_user_id=$4
+	`, input.SessionID, input.WOOperationID, input.WOID, input.OperatorUserID).Scan(
+		&existing.ConfirmationID, &existing.WOOperationID, &existing.SessionID,
+		&existing.QtyGood, &existing.QtyScrap, &existing.ReasonCode,
+		&existing.InputLabelID, &existing.OutputLabelID, &existing.ConfirmedAt,
+	)
+	if err == nil {
+		return &existing, nil
+	}
+	if err != pgx.ErrNoRows {
+		return nil, err
+	}
+
+	// 1. Fetch WOOperation and WOHeader details
+	var opID, opCode, opStatus, executionTarget, siteID, itemRevID, uomID, workCenterID string
+	var woCode, dispatchMode, productionLineID, workstationID string
+	var sequenceNo int
+	err = tx.QueryRow(ctx, `
+		SELECT o.operation_id, o.operation_code, o.status, o.execution_target_type,
+		       h.site_id, h.item_revision_id, h.uom_id, o.work_center_id,
+		       h.wo_code,h.dispatch_mode,COALESCE(h.selected_production_line_id::text,''),
+		       COALESCE(o.workstation_id::text,''),o.sequence_no
 		FROM wo_operation o
 		JOIN wo_header h ON o.wo_id = h.wo_id
 		WHERE o.wo_operation_id = $1 AND o.wo_id = $2
-	`, input.WOOperationID, input.WOID).Scan(&opID, &opCode, &opStatus, &siteID, &itemRevID, &uomID, &workCenterID)
+		FOR UPDATE OF o, h
+	`, input.WOOperationID, input.WOID).Scan(&opID, &opCode, &opStatus, &executionTarget, &siteID, &itemRevID, &uomID, &workCenterID, &woCode, &dispatchMode, &productionLineID, &workstationID, &sequenceNo)
 	if err != nil {
 		return nil, fmt.Errorf("operation %s not found for WO %s: %w", input.WOOperationID, input.WOID, err)
 	}
 
-	if opStatus != "InProgress" && opStatus != "Pending" {
-		return nil, fmt.Errorf("operation %s is in status %s, cannot confirm", input.WOOperationID, opStatus)
+	if executionTarget == "PRINT_STATION" {
+		return nil, fmt.Errorf("PRINT_STATION_MANUAL_COMMAND_FORBIDDEN")
+	}
+	if opStatus != "InProgress" {
+		return nil, fmt.Errorf("OPERATION_CONFIRM_INVALID_STATE")
+	}
+	var sessionStatus, sessionOperator string
+	err = tx.QueryRow(ctx, `
+		SELECT status, operator_user_id::text FROM execution_session
+		WHERE session_id=$1 AND wo_operation_id=$2 FOR UPDATE
+	`, input.SessionID, input.WOOperationID).Scan(&sessionStatus, &sessionOperator)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("EXECUTION_SESSION_NOT_FOUND")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if sessionStatus != "IN_PROGRESS" {
+		return nil, fmt.Errorf("OPERATION_CONFIRM_SESSION_INVALID_STATE")
+	}
+	if sessionOperator != input.OperatorUserID {
+		return nil, fmt.Errorf("OPERATION_SESSION_OPERATOR_MISMATCH")
 	}
 
 	// 2. Fetch data-driven OperationBehaviorRule
-	rule, exists := domain.OperationBehaviorMap[opCode]
-	if !exists {
-		rule = domain.OperationBehaviorRule{
-			OperationCode:    opCode,
-			OperationType:    "Production",
-			ConfirmationMode: "StartFinish",
-		}
-	}
+	rule := domain.OperationBehavior(opCode)
 
-	// Validate OP-QC fail reason code
-	if opCode == "OP-QC" && input.QtyScrap > 0 {
+	if rule.RequiresScrapReason && input.QtyScrap > 0 {
 		if input.ReasonCode == nil || *input.ReasonCode == "" {
-			return nil, fmt.Errorf("reason_code is required for OP-QC failed inspection")
+			return nil, fmt.Errorf("OPERATION_SCRAP_REASON_REQUIRED")
 		}
-		// Validate reason_code against rm_reason_code if present
 	}
 
 	// Validate material scan requirement
@@ -255,12 +306,14 @@ func ConfirmOperation(
 	}
 
 	// Update session status to COMPLETED
-	tx.Exec(ctx, `UPDATE execution_session SET status = 'COMPLETED', ended_at = $1 WHERE session_id = $2`, now, input.SessionID)
+	if tag, err := tx.Exec(ctx, `UPDATE execution_session SET status = 'COMPLETED', ended_at = $1 WHERE session_id = $2 AND status='IN_PROGRESS'`, now, input.SessionID); err != nil || tag.RowsAffected() != 1 {
+		return nil, fmt.Errorf("OPERATION_CONFIRM_SESSION_UPDATE_CONFLICT")
+	}
 
 	// Update wo_operation status to Finished
-	_, err = tx.Exec(ctx, `UPDATE wo_operation SET status = 'Finished', row_version = row_version + 1 WHERE wo_operation_id = $1`, input.WOOperationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update operation status to Finished: %w", err)
+	tag, err := tx.Exec(ctx, `UPDATE wo_operation SET status = 'Finished', row_version = row_version + 1 WHERE wo_operation_id = $1 AND status='InProgress'`, input.WOOperationID)
+	if err != nil || tag.RowsAffected() != 1 {
+		return nil, fmt.Errorf("OPERATION_CONFIRM_STATE_CONFLICT")
 	}
 
 	// 6. Outbox Event MES.Execution.OperationFinished.v1
@@ -269,20 +322,26 @@ func ConfirmOperation(
 		"mes-execution-service",
 		"",
 		map[string]interface{}{
-			"confirmation_id":  confirmationID,
-			"wo_id":            input.WOID,
-			"wo_operation_id":  input.WOOperationID,
-			"operation_id":     opID,
-			"operation_code":   opCode,
-			"site_id":          siteID,
-			"item_revision_id": itemRevID,
-			"work_center_id":   workCenterID,
-			"session_id":       input.SessionID,
-			"qty_good":         input.QtyGood,
-			"qty_scrap":        input.QtyScrap,
-			"reason_code":      input.ReasonCode,
-			"output_label_id":  outputLabelID,
-			"confirmed_at":     now.Format(time.RFC3339Nano),
+			"wo_code":                     woCode,
+			"confirmation_id":             confirmationID,
+			"wo_id":                       input.WOID,
+			"wo_operation_id":             input.WOOperationID,
+			"operation_id":                opID,
+			"operation_code":              opCode,
+			"site_id":                     siteID,
+			"item_revision_id":            itemRevID,
+			"work_center_id":              workCenterID,
+			"workstation_id":              workstationID,
+			"sequence_no":                 sequenceNo,
+			"selected_production_line_id": productionLineID,
+			"dispatch_mode":               dispatchMode,
+			"execution_target_type":       executionTarget,
+			"session_id":                  input.SessionID,
+			"qty_good":                    input.QtyGood,
+			"qty_scrap":                   input.QtyScrap,
+			"reason_code":                 input.ReasonCode,
+			"output_label_id":             outputLabelID,
+			"confirmed_at":                now.Format(time.RFC3339Nano),
 		},
 	)
 	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.OperationFinished.v1", env); err != nil {

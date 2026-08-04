@@ -1,0 +1,25 @@
+{
+  "database": [
+    "execution migration 000025 persists WORK_CENTER or DEMO_SHARED_KIOSK",
+    "gateway migration 000003 adds event identity, receipt ledger, and queue uniqueness",
+    "gateway migration 000004 restores seven canonical terminals after reset"
+  ],
+  "execution": [
+    "dispatch events use persisted policy and standard wo_id/wo_code",
+    "started, finished, failed, aborted, retry, status, and completed events carry routing scope",
+    "automatic Print Station result events carry read-only refetch context",
+    "nullable manual-operation print counters no longer break dispatch"
+  ],
+  "gateway": [
+    "eight Kafka topics consumed with commit after successful processing",
+    "persistent event receipt and per-terminal queue dedupe",
+    "production Work Center routing excludes KIOSK-DEMO-01",
+    "print DispatchQueued is not relayed as a manual card",
+    "delivery becomes DELIVERED only after event_ack"
+  ],
+  "security_and_ui": [
+    "RS256 JWKS, issuer, expiration, subject, azp/audience verification",
+    "explicit auth_ack/auth_error protocol",
+    "bounded reconnect, event-id duplicate tolerance, message ACK, and authoritative refetch"
+  ]
+}

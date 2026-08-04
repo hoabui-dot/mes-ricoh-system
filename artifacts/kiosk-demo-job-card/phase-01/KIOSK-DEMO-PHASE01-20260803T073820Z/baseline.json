@@ -1,0 +1,24 @@
+{
+  "captured_at": "2026-08-03T07:38:20Z",
+  "git_commit": "b62b9fabfc4c59db2c62b4b7bd64678fc6c99767",
+  "execution_container": {
+    "status": "running",
+    "health": "healthy",
+    "image_before": "sha256:7b11b41945b399eb4e2f3f9ca13eff5b58bb6361023d94e395fbc8aed82745e8"
+  },
+  "execution_db": {
+    "schema_migrations": 23,
+    "wo_header": 2,
+    "wo_operation": 8,
+    "execution_session": 0,
+    "operation_confirmation": 0,
+    "outbox_events": 7,
+    "history_table": null
+  },
+  "known_pre_phase_conditions": [
+    "Kiosk gateway terminal table has no KIOSK-DEMO-01 row after the prior reset.",
+    "Master Data has no Released ExecutionFailure reason code.",
+    "Four historical WOResourceAllocated outbox rows are FAILED.",
+    "Six legacy execution Schema Registry subjects reject the current generic schema with HTTP 409."
+  ]
+}

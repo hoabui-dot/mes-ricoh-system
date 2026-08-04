@@ -1,0 +1,19 @@
+{
+  "run_id": "KIOSK-DEMO-PHASE03-20260803T090534Z",
+  "phase": "03",
+  "date": "2026-08-03",
+  "status": "PASSED",
+  "files": [
+    "baseline.json",
+    "changes.json",
+    "build-results.json",
+    "api-results.json",
+    "event-results.json",
+    "websocket-results.json",
+    "browser-results.json",
+    "cleanup-results.json",
+    "acceptance-results.json",
+    "kiosk-grouped-job-cards.png"
+  ],
+  "contains_secrets": false
+}

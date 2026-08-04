@@ -1,0 +1,20 @@
+{
+  "declared": 9,
+  "executed": 9,
+  "passed": 9,
+  "failed": 0,
+  "skipped": 0,
+  "results": {
+    "real_login": "PASS",
+    "grouped_row_and_counts": "PASS",
+    "production_hidden": "PASS",
+    "manual_job_cards": "3/3 PASS",
+    "read_only_print_context": "PASS",
+    "active_session_and_resources": "PASS",
+    "localized_backend_blocker": "PASS",
+    "backend_action_eligibility": "PASS",
+    "terminal_scoped_api_consumed": "PASS"
+  },
+  "screenshot": "kiosk-grouped-job-cards.png",
+  "screenshot_sha256": "0880d8ebfa66e12215256d1532e0db4dbbe1e154d930645a62429ed79bcfaea3"
+}

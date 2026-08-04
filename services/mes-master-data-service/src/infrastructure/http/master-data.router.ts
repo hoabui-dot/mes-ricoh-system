@@ -586,7 +586,7 @@ async function defaultProductionVersionName(client: PoolClient, itemRevisionID: 
   };
 }
 
-  function eventPayloadFor(table: TableDefinition, row: Record<string, unknown>): Record<string, unknown> {
+function eventPayloadFor(table: TableDefinition, row: Record<string, unknown>): Record<string, unknown> {
   const base = {
     master_id: row['master_id'],
     code: row['code'],
@@ -610,7 +610,7 @@ async function defaultProductionVersionName(client: PoolClient, itemRevisionID: 
     return { ...base, site_id: row['site_id'], start_time: row['start_time'], end_time: row['end_time'], crosses_midnight: row['crosses_midnight'] };
   }
   if (table.tableName === 'md_item_revision') {
-    return { ...base, revision_code: row['revision_code'], item_id: row['item_id'], item_type: row['item_type'], site_id: row['site_id'], effective_from: row['effective_from'], effective_to: row['effective_to'], base_uom_id: row['base_uom_id'], item_group: row['item_group'], material_group_id: row['material_group_id'], planning_strategy: row['planning_strategy'], procurement_type: row['procurement_type'], tracking_level: row['tracking_level'], default_scrap_rate: row['default_scrap_rate'] };
+    return { ...base, revision_code: row['revision_code'], item_id: row['item_id'], item_type: row['item_type'], site_id: row['site_id'], effective_from: row['effective_from'], effective_to: row['effective_to'], base_uom_id: row['base_uom_id'], base_uom_code: row['base_uom_code'], item_group: row['item_group'], material_group_id: row['material_group_id'], planning_strategy: row['planning_strategy'], procurement_type: row['procurement_type'], tracking_level: row['tracking_level'], default_scrap_rate: row['default_scrap_rate'] };
   }
   return { ...base, site_id: row['site_id'], item_revision_id: row['item_revision_id'], work_center_id: row['work_center_id'], equipment_type: row['equipment_type'] };
 }
@@ -4643,7 +4643,13 @@ export function masterDataRouter(pool: Pool): Router {
       }
 
       if (table.tableName === 'md_item_revision') {
-        const currentResult = await client.query(`SELECT * FROM md_item_revision WHERE master_id = $1 FOR UPDATE`, [req.params['id']]);
+        const currentResult = await client.query(`
+          SELECT r.*, u.code AS base_uom_code
+          FROM md_item_revision r
+          JOIN md_uom u ON u.master_id = r.base_uom_id
+          WHERE r.master_id = $1
+          FOR UPDATE OF r
+        `, [req.params['id']]);
         const current = currentResult.rows[0] as Record<string, unknown> | undefined;
         if (!current) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Record not found' }); }
         if (current['previous_revision_id'] && !String(current['change_reason'] || '').trim()) {
@@ -4670,6 +4676,11 @@ export function masterDataRouter(pool: Pool): Router {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Record is not releasable or not found' });
       }
+
+	  if (table.tableName === 'md_item_revision') {
+		const uom = await client.query(`SELECT code FROM md_uom WHERE master_id = $1`, [row['base_uom_id']]);
+		row['base_uom_code'] = uom.rows[0]?.code ?? null;
+	  }
 
       if (table.eventType) {
         if (table.tableName === 'md_mbom_header') {

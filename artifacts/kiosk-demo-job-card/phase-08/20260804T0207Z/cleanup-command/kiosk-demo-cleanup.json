@@ -1,0 +1,137 @@
+{
+  "success": true,
+  "action": "cleanup",
+  "generated_at": "2026-08-04T02:07:21.440Z",
+  "checks": [
+    {
+      "name": "cleanup leaves zero preparation workflows",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero Work Orders",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero sessions",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero allocations",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero reservations",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero outbox events",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero Gateway queue records",
+      "passed": true,
+      "queue_leaks": 0
+    },
+    {
+      "name": "cleanup leaves zero consumed Gateway test events",
+      "passed": true,
+      "consumed_event_leaks": 0
+    }
+  ],
+  "data": {
+    "removed_work_order_ids": [
+      "653c7059-271a-4dd4-ae7e-4065eb4f212e",
+      "3a8cc201-40cb-4146-b130-50df2a0cb2af"
+    ],
+    "removed_event_ids": [
+      "821ceba7-f35a-4d9a-b892-e69cd7e8c716",
+      "94a9b576-5839-49a0-8072-3a924edb974f",
+      "a54d10c4-bd13-4088-84c6-2a327fb456d2",
+      "3db7a569-7056-401c-835d-9eeee49a9d06",
+      "239dc148-5f21-4da5-8dd1-bf959cb4b1b5",
+      "60e78a44-c57f-4b26-a163-dfd438f8dae1",
+      "40438f33-4aa1-4b4a-a6e6-63a0b7a09f9d",
+      "1aa5d7d5-6d3e-429b-af34-fe3269b1a76f",
+      "806d9b53-46f5-46c5-b93a-3a78b3f67611",
+      "fadf2ebc-5ebc-4f93-b077-3c16866d1b6c",
+      "6f502bfa-e790-4e62-becf-63f5af5bb805",
+      "cfb60fb0-90b3-4a61-82f5-0d814b773c53",
+      "b6340cd1-e786-4e5a-98bf-09e09e9fa25a",
+      "ee9c6f36-e3d2-4859-a66f-0a2d4e57e4dc",
+      "b7231cb2-cdc1-4271-9fdc-3e12f66c9a1b",
+      "32b281cb-7e10-4c14-ad9a-e8cf4b2c5245",
+      "be152c44-e058-4933-abe6-55e5636cb5e4",
+      "7c6ab67e-e63f-45da-a109-beb5d73c8ba9",
+      "eb66e4c9-bb85-4458-9b40-6a03aea7bc83",
+      "1668b203-4c25-44ee-97b9-21952c0c10ca",
+      "9c39024f-cade-4266-8edb-401d3b34fb9a",
+      "c09f171d-b94a-44c5-9b72-60c4f4c47a36",
+      "8ba00470-750d-493e-b6a5-20506bab9020",
+      "60e58cdd-c156-47e1-9889-a50a460f6212",
+      "e6cf11d2-1ec4-49d3-a0db-07fe31e10e02",
+      "8b15d568-ec85-4740-9293-9655f11281d7",
+      "68646c1e-8651-4e14-9ad7-2158beecba9f",
+      "e99ddeb9-0a67-49a5-981d-5732c962d0f0",
+      "a3886211-085e-49b4-a52c-364a611d9404",
+      "06874dee-5e68-4628-9da1-520ba833d703",
+      "9640d93f-fc36-4afd-a4e0-867cf40adce3",
+      "f235f884-dcc2-46b9-b366-03d18c4ee3e5",
+      "3406bc7e-d780-4261-a887-5f307e30b114",
+      "6d63c28b-dfcd-43d8-abf4-bb7f379f5f3f",
+      "a2613c57-6bb9-4c6e-8838-dcfdbfea1f33",
+      "9d1989c9-545d-48d6-8e5a-6e2df862d8eb",
+      "ac56d3ee-2ab8-4346-80cb-a10abd955d73",
+      "95ab33fa-61dc-4d39-814c-23578fca368b",
+      "c925cef6-80b5-4342-a6a7-45a52dde60f8",
+      "9f0dd46a-46f7-4bec-b742-dd0065dc1eb7",
+      "6ad8bd2b-72c2-44ce-8949-60ff40ae6196"
+    ],
+    "leftovers": {
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    "gateway_queue_leaks": 0,
+    "consumed_event_leaks": 0
+  },
+  "completed_at": "2026-08-04T02:07:26.323Z"
+}

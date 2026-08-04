@@ -1,0 +1,10 @@
+{
+  "declared": 16,
+  "executed": 16,
+  "passed": 16,
+  "failed": 0,
+  "skipped": 0,
+  "runner": "Playwright Chromium",
+  "duration_seconds": 7.6,
+  "checks": ["one card per WO", "aggregate counts", "all manual Job Cards", "Work Center and Workstation", "print excluded from manual list", "read-only print status", "loading", "empty", "error and retry", "offline cached list and age", "WebSocket refresh", "browser refresh", "VI/EN/JA/KO smoke", "keyboard/focus/touch target", "tablet viewport", "no raw enum/UUID/translation key"]
+}

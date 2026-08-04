@@ -1,0 +1,18 @@
+{
+  "declared": 9,
+  "executed": 9,
+  "passed": 9,
+  "failed": 0,
+  "skipped": 0,
+  "cases": [
+    {"name": "execution go test", "status": "PASS"},
+    {"name": "execution go integration test", "status": "PASS"},
+    {"name": "gateway go test", "status": "PASS"},
+    {"name": "gateway go integration test", "status": "PASS"},
+    {"name": "kiosk UI typecheck", "status": "PASS"},
+    {"name": "kiosk UI production build", "status": "PASS", "modules": 1532},
+    {"name": "execution Docker image", "status": "PASS", "image": "sha256:5860d119adbce3ca2ab669508aa19141d1a133e7bf6d76d0385a33377b595716"},
+    {"name": "gateway Docker image", "status": "PASS", "image": "sha256:11f27943730869fda6910f0bedee0ad4b0f75b2601cde01fa9a78caf14a88c2f"},
+    {"name": "kiosk UI Docker image", "status": "PASS", "image": "sha256:fe9b829efb60fa607c213f43e192dcdc9c8f1dacf7a36a7130992763da78adf8"}
+  ]
+}

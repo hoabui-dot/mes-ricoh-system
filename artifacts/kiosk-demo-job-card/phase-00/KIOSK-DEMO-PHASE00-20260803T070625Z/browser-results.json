@@ -1,0 +1,20 @@
+{
+  "summary": {"declared": 8, "executed": 8, "passed": 8, "failed": 0, "skipped": 0},
+  "classification": "real_browser_read_only",
+  "engine": "Playwright Chromium",
+  "viewport": {"width": 1280, "height": 800},
+  "base_url": "http://127.0.0.1:13051",
+  "assertions": [
+    "Root redirects to /kiosk/KIOSK-DEMO-01/login",
+    "Vietnamese kiosk heading is visible",
+    "Demo terminal identity is visible",
+    "Employee input is visible",
+    "Password input is visible",
+    "Login command is visible",
+    "Unauthenticated Work Order route is directly reachable",
+    "Work Order route keeps demo terminal identity"
+  ],
+  "screenshot": {"path": "login-readonly-smoke.png", "sha256": "b8c3f040ad708dcb858d0267aa4532a95a02e9ca46fd425ed41a2a6e4afd5bff"},
+  "login_submitted": false,
+  "production_command_submitted": false
+}

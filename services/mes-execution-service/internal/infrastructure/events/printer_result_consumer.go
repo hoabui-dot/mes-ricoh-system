@@ -105,12 +105,25 @@ func (c *PrinterResultConsumer) apply(ctx context.Context, eventID, eventType, j
 		return err
 	}
 	defer tx.Rollback(ctx)
-	var printJobID, woID, opID string
+	var printJobID, woID, opID, woCode, dispatchMode, siteID, productionLineID string
+	var operationID, operationCode, workCenterID, workstationID string
+	var sequenceNo int
 	// Correlation IDs arrive as strings, while command_event_id and
 	// print_job_id are UUID columns. Compare their text representations so the
 	// result consumer can also accept job_code without relying on PostgreSQL to
 	// infer a UUID parameter type for every OR branch.
-	if err := tx.QueryRow(ctx, `SELECT print_job_id, wo_id, wo_operation_id FROM wo_print_job WHERE command_event_id::text=$1 OR print_job_id::text=$1 OR job_code=$1 FOR UPDATE`, jobID).Scan(&printJobID, &woID, &opID); err != nil {
+	if err := tx.QueryRow(ctx, `
+		SELECT p.print_job_id::text,p.wo_id::text,p.wo_operation_id::text,
+		       h.wo_code,h.dispatch_mode,h.site_id::text,COALESCE(h.selected_production_line_id::text,''),
+		       o.operation_id::text,o.operation_code,o.sequence_no,o.work_center_id::text,
+		       COALESCE(o.workstation_id::text,'')
+		FROM wo_print_job p
+		JOIN wo_header h ON h.wo_id=p.wo_id
+		JOIN wo_operation o ON o.wo_operation_id=p.wo_operation_id
+		WHERE p.command_event_id::text=$1 OR p.print_job_id::text=$1 OR p.job_code=$1
+		FOR UPDATE OF p,o,h
+	`, jobID).Scan(&printJobID, &woID, &opID, &woCode, &dispatchMode, &siteID, &productionLineID,
+		&operationID, &operationCode, &sequenceNo, &workCenterID, &workstationID); err != nil {
 		log.Printf("[PrinterResultConsumer] print job lookup failed job=%s event=%s: %v", jobID, eventID, err)
 		return nil
 	}
@@ -133,7 +146,7 @@ func (c *PrinterResultConsumer) apply(ctx context.Context, eventID, eventType, j
 		_, _ = tx.Exec(ctx, `UPDATE wo_print_job_attempt SET status='Completed', selected_printer_code=NULLIF($1,''), completed_at=$2 WHERE print_job_id=$3 AND status <> 'Completed'`, printerCode, now, printJobID)
 		_, _ = tx.Exec(ctx, `UPDATE wo_operation SET status='Finished', print_status='Completed', row_version=row_version+1 WHERE wo_operation_id=$1 AND status <> 'Finished'`, opID)
 		_, _ = tx.Exec(ctx, `UPDATE execution_session SET status='COMPLETED', ended_at=$1 WHERE wo_operation_id=$2 AND status='IN_PROGRESS'`, now, opID)
-		env := sharedkernel.CreateEventEnvelope("MES.Execution.OperationFinished.v1", "mes-execution-service", printJobID, map[string]interface{}{"wo_id": woID, "wo_operation_id": opID, "print_job_id": printJobID, "printer_code": printerCode, "printed_quantity": payload["printed_quantity"], "finished_at": now.Format(time.RFC3339Nano), "automatic": true})
+		env := sharedkernel.CreateEventEnvelope("MES.Execution.OperationFinished.v1", "mes-execution-service", printJobID, printOperationEventPayload(woID, opID, woCode, dispatchMode, siteID, productionLineID, operationID, operationCode, workCenterID, workstationID, printJobID, printerCode, sequenceNo, now, payload))
 		if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.OperationFinished.v1", env); err != nil {
 			return err
 		}
@@ -141,6 +154,13 @@ func (c *PrinterResultConsumer) apply(ctx context.Context, eventID, eventType, j
 		_, _ = tx.Exec(ctx, `UPDATE wo_print_job SET status='Failed', failed_at=$1, last_error_code='PRINTER_ERROR', last_error_message=$2 WHERE print_job_id=$3`, now, errorMessage, printJobID)
 		_, _ = tx.Exec(ctx, `UPDATE wo_print_job_attempt SET status='Failed', error_code='PRINTER_ERROR', error_message=$1, completed_at=$2 WHERE print_job_id=$3 AND status <> 'Completed'`, errorMessage, now, printJobID)
 		_, _ = tx.Exec(ctx, `UPDATE wo_operation SET status='ExecutionError', print_status='Failed', row_version=row_version+1 WHERE wo_operation_id=$1 AND status <> 'Finished'`, opID)
+		failurePayload := printOperationEventPayload(woID, opID, woCode, dispatchMode, siteID, productionLineID, operationID, operationCode, workCenterID, workstationID, printJobID, printerCode, sequenceNo, now, payload)
+		failurePayload["reason_code"] = "PRINTER_ERROR"
+		failurePayload["error_message"] = errorMessage
+		env := sharedkernel.CreateEventEnvelope("MES.Execution.OperationFailed.v1", "mes-execution-service", printJobID, failurePayload)
+		if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.OperationFailed.v1", env); err != nil {
+			return err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
@@ -150,6 +170,19 @@ func (c *PrinterResultConsumer) apply(ctx context.Context, eventID, eventType, j
 		_, _ = usecase.CheckAndCompleteWorkOrder(ctx, c.pool, woID, "00000000-0000-0000-0000-000000000001")
 	}
 	return nil
+}
+
+func printOperationEventPayload(woID, operationSnapshotID, woCode, dispatchMode, siteID, productionLineID, operationID, operationCode, workCenterID, workstationID, printJobID, printerCode string, sequenceNo int, occurredAt time.Time, payload map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"wo_id": woID, "wo_code": woCode, "wo_operation_id": operationSnapshotID,
+		"operation_id": operationID, "operation_code": operationCode, "sequence_no": sequenceNo,
+		"site_id": siteID, "selected_production_line_id": productionLineID,
+		"work_center_id": workCenterID, "workstation_id": workstationID,
+		"dispatch_mode": dispatchMode, "execution_target_type": "PRINT_STATION",
+		"print_job_id": printJobID, "printer_code": printerCode,
+		"printed_quantity": payload["printed_quantity"], "occurred_at": occurredAt.Format(time.RFC3339Nano),
+		"automatic": true,
+	}
 }
 
 func stringValue(m map[string]interface{}, names ...string) string {

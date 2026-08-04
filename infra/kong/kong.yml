@@ -65,6 +65,12 @@ plugins:
 consumers:
   - username: keycloak-wonsealtech-wms
     jwt_secrets:
+      - key: http://platform-keycloak:8080/realms/wonsealtech
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqFZqojEswqdlL8gYxn/mKeyI2P2MckJBxXGXnEqz4DzMtfl7meUYLYdlzQD1cBc+Xsb8lAqOOwj/5LY7ZyV0F2wp+vdJQ3RwOjmxPBfqxbEJNotuBddkornG/YcYKVuofSAoVxxsOgyWss+XyzwgXEl6a0lpA6ZH67xmGTYBt9c5la9+UKm5yQoG6HvTYFpvtKQoNXQcXCswu62mWcOQSHu+4Gr7zUuKmIYOhDcvkjkUtuts/IFWBHXGlua6K1S41wP81CO6Glen6EGP0zkCGhnAPSzjoJKxFr0HejVWknIQ3/x2xS25+iNbfriIyMJjQcb9XEnFHNoxI9d40x38QIDAQAB
+          -----END PUBLIC KEY-----
       - key: http://127.0.0.1:18080/realms/wonsealtech
         algorithm: RS256
         rsa_public_key: |
@@ -149,6 +155,52 @@ services:
               kong.service.request.set_header("X-User-ID", user_id)
               kong.service.request.set_header("X-Role-Code", role_code)
               kong.service.request.set_header("X-Trace-ID", trace_id)
+
+  - name: mes-execution-kiosk-service
+    url: http://mes-execution-service:3030
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: mes-execution-kiosk-protected-route
+        paths:
+          - /api/mes/execution/kiosk
+        strip_path: false
+        methods: [GET, POST, OPTIONS]
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: iss
+          claims_to_verify: [exp]
+          uri_param_names: []
+          cookie_names: []
+          run_on_preflight: false
+      - name: pre-function
+        config:
+          access:
+            - |
+              if kong.request.get_method() == "OPTIONS" then return end
+              local auth_header = kong.request.get_header("Authorization")
+              local token = auth_header and auth_header:match("^[Bb]earer%s+(.+)$")
+              if not token then return kong.response.exit(401, { message = "Bearer token required" }) end
+              local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
+              if not payload_b64 then return kong.response.exit(401, { message = "Malformed token" }) end
+              payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+              local remainder = #payload_b64 % 4
+              if remainder > 0 then payload_b64 = payload_b64 .. string.rep("=", 4 - remainder) end
+              local payload_json = ngx.decode_base64(payload_b64)
+              if not payload_json then return kong.response.exit(401, { message = "Malformed token payload" }) end
+              local azp = payload_json:match('"azp"%s*:%s*"([^"]+)"')
+              if azp ~= "mes-client" then return kong.response.exit(403, { message = "Token is not issued for mes-client" }) end
+              local roles_json = payload_json:match('"realm_access"%s*:%s*{.-"roles"%s*:%s*%[(.-)%]')
+              local operator = false
+              if roles_json then for role in roles_json:gmatch('"([^"]+)"') do operator = operator or role == "OPERATOR" end end
+              if not operator then return kong.response.exit(403, { message = "OPERATOR role required" }) end
+              local user_id = payload_json:match('"sub"%s*:%s*"([^"]+)"')
+              if not user_id then return kong.response.exit(401, { message = "Token subject is missing" }) end
+              kong.service.request.set_header("X-User-ID", user_id)
+              kong.service.request.set_header("X-Role-Code", "OPERATOR")
+              kong.service.request.set_header("X-Trace-ID", kong.request.get_header("X-Trace-ID") or kong.request.get_header("X-Request-Id") or "")
 
   - name: mes-traceability-service
     url: http://mes-traceability-service:3040

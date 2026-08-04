@@ -1,0 +1,21 @@
+{
+  "summary": {"declared": 7, "executed": 7, "passed": 7, "failed": 0, "skipped": 0},
+  "source_checks": {
+    "classification": "source_only",
+    "declared": 6,
+    "executed": 6,
+    "passed": 6,
+    "verified": ["auth frame handler", "heartbeat handler", "offline queue drain", "terminal broadcast", "outbound queue persistence", "current ParseUnverified security gap"]
+  },
+  "runtime_check": {
+    "classification": "read_only_negative_runtime",
+    "declared": 1,
+    "executed": 1,
+    "passed": 1,
+    "case": "KIOSK-DEMO-01 is rejected with HTTP 404 before WebSocket upgrade because terminal seed is absent."
+  },
+  "authenticated_runtime_delivery_claimed": false,
+  "reason": "Successful auth would update terminal status, last_seen_at, and queue delivery state, violating Phase 00 no-data-mutation scope.",
+  "maintained_websocket_integration_tests_found": 0,
+  "diagnostic_note": "The first client-harness attempt could not import the optional ws package; the final curl Upgrade probe is dependency-free and passed."
+}

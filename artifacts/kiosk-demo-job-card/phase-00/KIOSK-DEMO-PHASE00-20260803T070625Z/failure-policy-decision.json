@@ -1,0 +1,21 @@
+{
+  "adr": "KIOSK-DEMO-FAILURE-001",
+  "status": "APPROVED_FOR_PHASE_01",
+  "decision": "A failed manual operation uses operation state ExecutionError, session state FAILED, and Work Order state Paused.",
+  "persistence": {
+    "migration": "Additive migration after current 000023; never edit an applied migration.",
+    "work_order_enum": "Add Paused to wo_status.",
+    "session_constraint": "Replace the named CHECK constraint additively so FAILED is accepted.",
+    "history": "Add append-only wo_operation_execution_history for FAILED, ABORTED, and RETRY_REQUESTED actions with session, reason snapshot, actor, terminal, state changes, idempotency key, timestamps, and metadata.",
+    "reason_catalog": "MES Master Data remains owner. Failure accepts only a Released reason code whose reason_type is ExecutionFailure; persist code, localized-name snapshot, and optional text in history."
+  },
+  "command_policy": {
+    "fail": "Only matching active manual session; reason required; set session FAILED, operation ExecutionError, WO Paused, append history, write OperationFailed and WOStatusChanged atomically.",
+    "abort": "Only matching active manual session; set session ABORTED, operation Ready, keep WO InProgress, append history, write OperationAborted atomically.",
+    "retry": "Only Paused + ExecutionError with failure history; OPERATOR must match operator/terminal/site, PLANT_MANAGER needs site scope; set operation Ready and WO InProgress, append history, write RetryRequested and WOStatusChanged atomically.",
+    "scrap": "Scrap is part of successful confirmation. Nonzero scrap needs an approved scrap reason and quantity validation; it does not set ExecutionError or Paused."
+  },
+  "successor_policy": "Any direct or transitive successor remains non-executable until all predecessors are Finished. Failure blockers are returned by the read API; the UI does not infer them.",
+  "completion_policy": "A Work Order cannot complete while any operation is not Finished, any session is IN_PROGRESS, or any required operation is ExecutionError.",
+  "print_policy": "Manual fail/abort/retry endpoints reject PRINT_STATION. Existing print failure and print-retry flow remains separate."
+}

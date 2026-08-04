@@ -1,0 +1,12 @@
+{
+  "declared": 3,
+  "executed": 2,
+  "passed": 2,
+  "failed": 0,
+  "skipped": 1,
+  "results": [
+    "execution event/outbox regression suite PASS",
+    "gateway execution-consumer integration suite PASS",
+    "new Kafka mutation probe SKIPPED because Phase 03 projection is read-only and adds no event contract"
+  ]
+}

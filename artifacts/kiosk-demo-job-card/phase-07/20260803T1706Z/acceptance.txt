@@ -1,0 +1,11 @@
+Phase 07 acceptance evidence
+
+- Mandatory acceptance criteria declared: 8
+- Executed: 8
+- Passed: 8
+- Failed: 0
+- Skipped: 0
+- Canonical ready-to-run certification: CERTIFIED_MES_CONSOLE_AND_READY_TO_RUN_WO
+- Certification steps: 9/9 passed
+- Physical Print Station completion was not simulated, as explicitly out of Phase 07 scope.
+- Final gate: KIOSK_DEMO_PHASE_07_PASSED_READY_FOR_PHASE_08

@@ -1,0 +1,12 @@
+Gateway tagged integration
+ok  	github.com/mom-platform/mes-kiosk-gateway-service/internal/websocket	0.724s
+ok  	github.com/mom-platform/mes-kiosk-gateway-service/internal/infrastructure/events	0.175s
+Execution tagged integration
+ok  	github.com/mom-platform/mes-execution-service/internal/application/usecase	6.409s
+--- FAIL: TestKioskReadHTTPAndMESConsoleCompatibility (0.83s)
+    operation_state_machine_integration_test.go:134: kiosk grouped list mismatch status=401 body=map[error:KIOSK_BEARER_TOKEN_REQUIRED]
+FAIL
+FAIL	github.com/mom-platform/mes-execution-service/internal/infrastructure/http	1.692s
+FAIL
+ok  	github.com/mom-platform/mes-execution-service/internal/application/usecase	6.611s
+ok  	github.com/mom-platform/mes-execution-service/internal/infrastructure/http	1.829s

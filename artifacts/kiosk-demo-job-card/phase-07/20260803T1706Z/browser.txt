@@ -1,0 +1,10 @@
+Phase 07 browser evidence
+
+- Chromium tests declared: 4
+- Chromium tests executed: 4
+- Chromium tests passed: 4
+- Chromium tests failed in final runs: 0
+- Chromium tests skipped: 0
+- Phase 07 canonical preparation test: PASS 1/1 in 7.2s
+- Screenshots: browser/kiosk-phase07-work-order-1.png and browser/kiosk-phase07-work-order-2.png
+- Two intermediate Phase 07 attempts failed only on strict Playwright selector ambiguity; selectors were corrected and the unchanged product state passed.

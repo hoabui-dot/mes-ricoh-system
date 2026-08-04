@@ -1,0 +1,15 @@
+{
+  "summary": {"declared": 9, "executed": 9, "passed": 9, "failed": 0, "skipped": 0},
+  "criteria": [
+    {"criterion": "Manual failure is authoritative and persisted", "result": "PASS"},
+    {"criterion": "Work Order failure impact is Paused", "result": "PASS"},
+    {"criterion": "Successors remain blocked", "result": "PASS"},
+    {"criterion": "Retry preserves failure history and creates no session until Start", "result": "PASS"},
+    {"criterion": "Abort remains distinct from Fail", "result": "PASS"},
+    {"criterion": "Print Station rejects manual Start, Complete, Fail, and Retry", "result": "PASS"},
+    {"criterion": "Existing Start, Complete, and WO completion regressions pass", "result": "PASS"},
+    {"criterion": "Transactional outbox and Kafka delivery pass", "result": "PASS"},
+    {"criterion": "Cleanup and final deployed health pass", "result": "PASS"}
+  ],
+  "final_status": "KIOSK_DEMO_PHASE_01_PASSED_READY_FOR_PHASE_02"
+}

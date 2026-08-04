@@ -1,0 +1,29 @@
+{
+  "ui_routes": [
+    {"path": "/kiosk/:terminalId/login", "screen": "SSO terminal binding", "guard": "Anonymous only until authenticated; preserve intended route."},
+    {"path": "/kiosk/:terminalId/wo-list", "screen": "One grouped card per Work Order", "guard": "Verified operator and active terminal session required."},
+    {"path": "/kiosk/:terminalId/wo/:woId", "screen": "All eligible non-print Job Cards and read-only print context", "guard": "Verified operator, terminal, site, and WO scope required."}
+  ],
+  "approved_read_apis": [
+    {
+      "method": "GET",
+      "path": "/api/mes/execution/kiosk/terminals/{terminalCode}/work-orders",
+      "returns": "One summary per Work Order routed to the authenticated terminal.",
+      "fields": ["wo_code", "item_code", "item_name", "quantity", "uom_code", "selected_line", "wo_state", "total_manual", "waiting", "ready", "in_progress", "completed", "failed", "blocked", "manual_progress_percent", "updated_at"]
+    },
+    {
+      "method": "GET",
+      "path": "/api/mes/execution/kiosk/terminals/{terminalCode}/work-orders/{woId}",
+      "returns": "Work Order context, manual_job_cards, and separate read-only print_operations.",
+      "job_card_fields": ["operation_code", "localized_name", "sequence_no", "line", "work_center", "workstation", "allocated_resource", "execution_target", "projection_state", "predecessor_state", "active_session", "operator", "terminal", "requested_qty", "good_qty", "scrap_qty", "started_at", "finished_at", "failure", "can_start", "can_complete", "can_fail", "can_abort", "can_retry", "blockers"]
+    }
+  ],
+  "command_apis": [
+    {"command": "Start", "method": "POST", "path": "/api/mes/execution/work-orders/{woId}/operations/{opId}/start"},
+    {"command": "Complete", "method": "POST", "path": "/api/mes/execution/work-orders/{woId}/operations/{opId}/confirm"},
+    {"command": "Fail", "method": "POST", "path": "/api/mes/execution/work-orders/{woId}/operations/{opId}/fail"},
+    {"command": "Abort", "method": "POST", "path": "/api/mes/execution/work-orders/{woId}/operations/{opId}/abort"},
+    {"command": "Retry", "method": "POST", "path": "/api/mes/execution/work-orders/{woId}/operations/{opId}/retry"}
+  ],
+  "ui_rules": ["VI default; EN, JA, KO complete", "No raw UUID as primary identity", "Print operations never expose manual command buttons", "Backend eligibility and blockers are rendered verbatim through translations", "No optimistic success", "Large tablet touch targets and keyboard/accessibility smoke"]
+}

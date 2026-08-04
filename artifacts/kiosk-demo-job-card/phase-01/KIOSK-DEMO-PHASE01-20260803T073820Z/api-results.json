@@ -1,0 +1,15 @@
+{
+  "summary": {"declared": 9, "executed": 9, "passed": 9, "failed": 0, "skipped": 0},
+  "cases": [
+    {"name": "PostgreSQL-backed HTTP Fail with approved reason", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "HTTP invalid reason", "expected": 422, "actual": 422, "result": "PASS"},
+    {"name": "PostgreSQL-backed HTTP Retry", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Deployed Fail", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Deployed duplicate Fail returns same history", "expected": 200, "actual": 200, "result": "PASS", "same_history_id": true},
+    {"name": "Deployed Retry", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Deployed Abort", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Execution health after final redeploy", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Migration 000024 remains idempotent after three restarts", "expected": 1, "actual": 1, "result": "PASS"}
+  ],
+  "runtime_fixture": "Two deterministic temporary WOs and one temporary Master Data reason; all database rows removed after verification."
+}

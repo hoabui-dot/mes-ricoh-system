@@ -1,0 +1,12 @@
+{
+  "summary": {"declared": 5, "executed": 5, "passed": 5, "failed": 0, "skipped": 0},
+  "commands": [
+    {"name": "kiosk_typecheck", "command": "npm --prefix services/kiosk-operator-ui run typecheck", "classification": "static", "exit_code": 0},
+    {"name": "kiosk_build", "command": "npm --prefix services/kiosk-operator-ui run build", "classification": "build", "exit_code": 0, "modules_transformed": 1532},
+    {"name": "execution_go_test", "command": "go test ./...", "working_directory": "services/mes-execution-service", "classification": "unit", "exit_code": 0, "test_cases_passed_including_subtests": 13, "test_cases_failed": 0, "packages_without_tests": 5},
+    {"name": "gateway_go_test", "command": "go test ./...", "working_directory": "services/mes-kiosk-gateway-service", "classification": "unit", "exit_code": 0, "test_cases_passed": 1, "test_cases_failed": 0, "packages_without_tests": 5},
+    {"name": "traceability_go_test", "command": "go test ./...", "working_directory": "services/mes-traceability-service", "classification": "unit", "exit_code": 0, "test_cases_passed": 0, "test_cases_failed": 0, "packages_without_tests": 5}
+  ],
+  "test_case_total": {"declared": 14, "executed": 14, "passed": 14, "failed": 0, "skipped": 0},
+  "coverage_gap": "No existing Go test directly covers manual Start, Confirm, Abort, Kafka relay, or WebSocket hub behavior."
+}

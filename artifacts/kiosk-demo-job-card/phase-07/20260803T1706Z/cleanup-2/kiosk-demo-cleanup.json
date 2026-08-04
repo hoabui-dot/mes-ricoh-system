@@ -1,0 +1,85 @@
+{
+  "success": true,
+  "action": "cleanup",
+  "generated_at": "2026-08-03T17:08:36.210Z",
+  "checks": [
+    {
+      "name": "cleanup leaves zero preparation workflows",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero Work Orders",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero sessions",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero allocations",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero reservations",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero outbox events",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero Gateway queue records",
+      "passed": true,
+      "queue_leaks": 0
+    }
+  ],
+  "data": {
+    "removed_work_order_ids": [],
+    "leftovers": {
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    "gateway_queue_leaks": 0
+  },
+  "completed_at": "2026-08-03T17:08:36.286Z"
+}

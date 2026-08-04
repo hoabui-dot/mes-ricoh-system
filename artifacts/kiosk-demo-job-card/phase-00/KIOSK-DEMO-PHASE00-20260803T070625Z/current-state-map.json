@@ -1,0 +1,69 @@
+{
+  "run_id": "KIOSK-DEMO-PHASE00-20260803T070625Z",
+  "classification": "source_and_read_only_runtime_audit",
+  "job_card_ownership": {
+    "current_aggregate": "wo_operation",
+    "decision": "Job Card remains a kiosk-facing projection of one wo_operation; no new aggregate is approved."
+  },
+  "components": {
+    "kiosk_ui": {
+      "routes": ["/", "/kiosk/:terminalId/login", "/kiosk/:terminalId/wo-list", "/kiosk/:terminalId/wo/:woId"],
+      "work_order_source": "GET /api/mes/execution/work-orders?limit=50",
+      "detail_source": "GET /api/mes/execution/work-orders/{woId}",
+      "current_gaps": [
+        "No protected route",
+        "REST requests omit Authorization bearer token",
+        "Browser-controlled X-User-ID and X-Role-Code are trusted",
+        "Active session is React memory only and MOCK-* fallback exists",
+        "Abort does not check response.ok",
+        "Print Station operation remains in the manual selector and form",
+        "No reconnect or auth acknowledgement",
+        "Only Work Order list has IndexedDB fallback",
+        "Most list/detail text is not localized"
+      ]
+    },
+    "execution": {
+      "work_order_states": ["Draft", "PendingApproval", "Approved", "Released", "InProgress", "Completed", "Closed", "Cancelled", "ResourceHold"],
+      "operation_states_observed": ["Pending", "Ready", "DispatchQueued", "InProgress", "Finished", "ExecutionError"],
+      "session_states": ["IN_PROGRESS", "COMPLETED", "ABORTED"],
+      "commands": {
+        "start": "Creates IN_PROGRESS session, sets operation InProgress, writes OperationStarted; accepts Released or InProgress WO.",
+        "confirm": "Currently accepts InProgress or Pending, stores confirmation, sets session COMPLETED and operation Finished, writes OperationFinished.",
+        "abort": "Only sets the named session ABORTED; operation and Work Order are unchanged and no outbox event is written.",
+        "fail": "Missing for manual operations.",
+        "retry": "Only Print Station retry exists."
+      },
+      "completion": "WO is Completed only when every operation is Finished and no IN_PROGRESS session exists."
+    },
+    "gateway": {
+      "terminal_tables": ["terminal", "terminal_session", "outbound_message_queue"],
+      "consumed_topics": [
+        "MES.Execution.OperationStarted.v1",
+        "MES.Execution.OperationDispatchQueued.v1",
+        "MES.Execution.OperationFinished.v1",
+        "MES.Execution.WOCompleted.v1"
+      ],
+      "routing": "dispatch_mode=DEMO_SHARED_KIOSK routes only to KIOSK-DEMO-01; otherwise Work Center routing is used.",
+      "security_gaps": ["JWT is parsed without signature verification", "No issuer/audience validation", "No auth_ack", "Origin is unrestricted"]
+    },
+    "print_station": {
+      "target": "PRINT_STATION",
+      "command_topic": "command.printer.print.batch",
+      "result_topic": "station.events.printer",
+      "success": "Print job Completed, operation Finished, OperationFinished emitted, WO completion evaluated.",
+      "failure": "Print job Failed and operation ExecutionError; no manual kiosk action is approved."
+    },
+    "mes_console": {
+      "detail_refresh": "Initial load and explicit post-command/manual refresh only; no execution-event WebSocket subscription on Work Order detail.",
+      "identity": "Keycloak Authorization Code with PKCE exists, but detail API still builds browser-controlled identity headers."
+    }
+  },
+  "runtime_baseline": {
+    "healthy_services": ["mes-execution-service", "mes-kiosk-gateway-service", "mes-traceability-service", "platform-kafka", "platform-keycloak", "platform-kong"],
+    "execution_counts": {"wo_header": 2, "wo_operation": 8, "execution_session": 0, "operation_confirmation": 0, "wo_print_job": 0, "outbox_events": 7},
+    "outbox_status": {"PUBLISHED": 3, "PENDING": 0, "FAILED": 4},
+    "kiosk_counts": {"terminal": 0, "terminal_session": 0, "outbound_message_queue": 0},
+    "demo_terminal_status": "404 terminal not found",
+    "root_cause_note": "Kiosk migrations remain marked applied while the full reset preserves schema_migrations and truncates terminal data."
+  }
+}

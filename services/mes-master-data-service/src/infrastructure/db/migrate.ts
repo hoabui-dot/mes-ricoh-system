@@ -3015,6 +3015,50 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
       FOR EACH ROW EXECUTE FUNCTION fn_protect_released_master();
     `,
   },
+  {
+    name: '0063_republish_item_revision_uom_snapshots',
+    sql: `
+      INSERT INTO outbox_events (id, event_type, topic, payload, status)
+      SELECT event_id,
+        'MES.MasterData.ItemRevisionReleased.v2',
+        'MES.MasterData.ItemRevisionReleased.v2',
+        jsonb_build_object(
+          'event_id', event_id::text,
+          'event_type', 'MES.MasterData.ItemRevisionReleased.v2',
+          'occurred_at', NOW(),
+          'source_service', 'mes-master-data-service',
+          'trace_id', 'item-revision-uom-backfill-' || event_id::text,
+          'payload', jsonb_build_object(
+            'master_id', revision.master_id,
+            'code', revision.code,
+            'name', revision.name,
+            'version_no', revision.version_no,
+            'lifecycle_status', revision.lifecycle_status,
+            'revision_code', revision.revision_code,
+            'item_id', revision.item_id,
+            'item_code', item.code,
+            'item_type', item.item_type,
+            'site_id', revision.site_id,
+            'effective_from', revision.effective_from,
+            'effective_to', revision.effective_to,
+            'base_uom_id', revision.base_uom_id,
+            'base_uom_code', uom.code,
+            'item_group', revision.item_group,
+            'material_group_id', revision.material_group_id,
+            'planning_strategy', revision.planning_strategy,
+            'procurement_type', revision.procurement_type,
+            'tracking_level', revision.tracking_level,
+            'default_scrap_rate', revision.default_scrap_rate
+          )
+        ),
+        'PENDING'
+      FROM md_item_revision revision
+      JOIN md_item item ON item.master_id = revision.item_id
+      JOIN md_uom uom ON uom.master_id = revision.base_uom_id
+      CROSS JOIN LATERAL (SELECT gen_random_uuid() AS event_id WHERE revision.master_id IS NOT NULL) generated
+      WHERE revision.lifecycle_status = 'Released';
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

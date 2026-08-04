@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-08-04T02:03:38.769Z",
+  "work_order_ids": [
+    "41395e4f-9d21-412e-8041-2c7faec44754",
+    "e4a24ba2-0516-44ac-b40a-8f37d35799e0"
+  ],
+  "command_exit_code": 1,
+  "command_output": "\n> mom-platform@1.0.0 cleanup:kiosk-demo\n> MES_ENV=development ALLOW_KIOSK_DEMO_MUTATION=true node scripts/kiosk-demo-phase07.mjs cleanup\n\n{\n  \"success\": true,\n  \"action\": \"cleanup\",\n  \"generated_at\": \"2026-08-04T02:03:37.676Z\",\n  \"checks\": [],\n  \"data\": {},\n  \"error\": \"operator does not exist: character varying = uuid\",\n  \"completed_at\": \"2026-08-04T02:03:37.914Z\"\n}\n",
+  "command_error": "error: operator does not exist: character varying = uuid\n    at /home/neurosus/recoh-system/mes-system/node_modules/pg/lib/client.js:652:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async cleanupPreparedScenarios (file:///home/neurosus/recoh-system/mes-system/scripts/kiosk-demo-phase07.mjs:278:7)\n    at async file:///home/neurosus/recoh-system/mes-system/scripts/kiosk-demo-phase07.mjs:319:34\n",
+  "counts": {
+    "work_orders": 0,
+    "sessions": 0,
+    "confirmations": 0,
+    "failure_history": 0,
+    "allocations": 0,
+    "reservations": 0,
+    "execution_outbox": 0,
+    "gateway_queue": 2,
+    "gateway_test_events": 2,
+    "active_terminal_sessions": 1
+  },
+  "passed": false
+}

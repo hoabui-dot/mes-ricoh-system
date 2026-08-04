@@ -1,0 +1,18 @@
+{
+  "declared": 5,
+  "executed": 5,
+  "passed": 5,
+  "failed": 0,
+  "skipped": 0,
+  "final_runs": [
+    "Phase 08 full canonical certification: 1/1",
+    "Phase 07 canonical preparation regression: 1/1",
+    "Phase 06 auth/reliability regression: 1/1",
+    "Phase 05 manual command regression: 1/1",
+    "Phase 04 grouped/realtime/locale/accessibility regression: 1/1"
+  ],
+  "phase08_duration_seconds": 40.4,
+  "screenshots": ["canonical-success.png", "canonical-failure-retry-abort.png"],
+  "intermediate_harness_failures": 1,
+  "intermediate_failure_reason": "Stale external Keycloak runtime URL and cleanup SQL type; corrected before final run."
+}

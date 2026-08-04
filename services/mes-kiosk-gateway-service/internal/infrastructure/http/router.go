@@ -2,7 +2,9 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -42,7 +44,7 @@ func NewRouter(pool *pgxpool.Pool, authService *application.AuthService, hub *ws
 		r.Get("/ws", hub.HandleWebSocket)
 
 		r.Post("/terminals/{id}/login", handleTerminalLogin(authService))
-		r.Post("/terminals/{id}/logout", handleTerminalLogout(authService))
+		r.Post("/terminals/{id}/logout", handleTerminalLogout(authService, hub))
 		r.Get("/terminals/{id}/status", handleGetTerminalStatus(pool))
 		r.Get("/terminals", handleListTerminals(pool))
 	})
@@ -83,19 +85,41 @@ func handleTerminalLogin(authService *application.AuthService) http.HandlerFunc 
 	}
 }
 
-func handleTerminalLogout(authService *application.AuthService) http.HandlerFunc {
+func handleTerminalLogout(authService *application.AuthService, hub *ws.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		terminalID := chi.URLParam(r, "id")
-		userID := r.Header.Get("X-User-ID")
+		claims, err := authenticateOperator(r, authService)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "KIOSK_AUTH_REQUIRED"})
+			return
+		}
+		userID, _ := claims["sub"].(string)
 
-		if err := authService.LogoutTerminal(r.Context(), terminalID, userID); err != nil {
+		realTerminalID, err := authService.LogoutTerminal(r.Context(), terminalID, userID)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		hub.DisconnectTerminal(realTerminalID)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"message": "logged out successfully"})
 	}
+}
+
+func authenticateOperator(r *http.Request, authService *application.AuthService) (map[string]interface{}, error) {
+	authorization := strings.TrimSpace(r.Header.Get("Authorization"))
+	parts := strings.Fields(authorization)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return nil, fmt.Errorf("bearer token required")
+	}
+	claims, err := authService.ValidateOperatorToken(parts[1])
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}(claims), nil
 }
 
 func handleGetTerminalStatus(pool *pgxpool.Pool) http.HandlerFunc {

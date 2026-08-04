@@ -9,9 +9,28 @@ const artifactDir = path.resolve(process.env.ARTIFACT_DIR || `artifacts/mes-cano
 const masterUrl = process.env.MES_MASTER_DATA_DATABASE_URL || 'postgresql://mes_master_data_user:mes_master_data_pass@localhost:15434/mes_master_data_db';
 const executionUrl = process.env.MES_EXECUTION_DATABASE_URL || 'postgresql://mes_execution_user:mes_execution_pass@localhost:15435/mes_execution_db';
 const traceabilityUrl = process.env.MES_TRACEABILITY_DATABASE_URL || 'postgresql://traceability_user:traceability_pass@localhost:15436/mes_traceability_db';
+const kioskGatewayUrl = process.env.MES_KIOSK_GATEWAY_DATABASE_URL || 'postgresql://mes_kiosk_user:mes_kiosk_pass@localhost:15437/mes_kiosk_gateway_db';
 const namespace = 'WST-SEED';
 const workerSkillCodes = "'SK-EMP-MIX-MASTER','SK-EMP-VULCAN-OPERATOR','SK-EMP-INSPECTION'";
 const json = (value) => JSON.stringify(value, null, 2);
+
+function defaultPlanningDate() {
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function resolveTargetDate() {
+  const value = process.env.MES_CANONICAL_TARGET_DATE || process.env.E2E_WO_TARGET_DATE || defaultPlanningDate();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
+    throw new Error('MES_CANONICAL_TARGET_DATE/E2E_WO_TARGET_DATE must use YYYY-MM-DD');
+  }
+  return value;
+}
+
+const targetDate = resolveTargetDate();
 
 async function writeArtifact(name, value) {
   await fs.mkdir(artifactDir, { recursive: true });
@@ -26,9 +45,10 @@ async function main() {
   const master = new pg.Client({ connectionString: masterUrl });
   const execution = new pg.Client({ connectionString: executionUrl });
   const traceability = new pg.Client({ connectionString: traceabilityUrl });
-  await master.connect(); await execution.connect(); await traceability.connect();
+  const gateway = new pg.Client({ connectionString: kioskGatewayUrl });
+  await master.connect(); await execution.connect(); await traceability.connect(); await gateway.connect();
   const checks = [];
-  const report = { success: false, generated_at: new Date().toISOString(), read_only: true, checks };
+  const report = { success: false, generated_at: new Date().toISOString(), target_date: targetDate, read_only: true, checks };
   try {
     const masterCounts = (await query(master, `
       SELECT
@@ -36,6 +56,8 @@ async function main() {
         (SELECT COUNT(*)::int FROM md_production_area WHERE lifecycle_status='Released') AS released_areas,
         (SELECT COUNT(*)::int FROM md_uom WHERE code='PCS' AND lifecycle_status='Released') AS pcs_uom,
         (SELECT COUNT(*)::int FROM md_shift WHERE code='SHIFT-A' AND lifecycle_status='Released') AS shift_a,
+        (SELECT COUNT(*)::int FROM md_reason_code WHERE code='KIOSK-DEMO-EXECUTION-FAIL' AND reason_type='ExecutionFailure' AND lifecycle_status='Released') AS kiosk_execution_failure_reasons,
+        (SELECT COUNT(*)::int FROM md_reason_code WHERE code='KIOSK-DEMO-ABORT' AND reason_type='Abort' AND lifecycle_status='Released') AS kiosk_abort_reasons,
         (SELECT COUNT(*)::int FROM md_production_line WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_lines,
         (SELECT COUNT(*)::int FROM md_work_center WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_work_centers,
         (SELECT COUNT(*)::int FROM md_workstation WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_workstations,
@@ -43,7 +65,8 @@ async function main() {
         (SELECT COUNT(*)::int FROM md_machine_unit WHERE code LIKE '${namespace}-%' AND physical_identity_status='Identified') AS canonical_machine_units,
         (SELECT COUNT(*)::int FROM md_resource_assignment WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_assignments,
         (SELECT COUNT(*)::int FROM md_resource_capability WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_capabilities,
-        (SELECT COUNT(*)::int FROM md_resource_calendar WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released' AND availability_status='Available') AS canonical_calendars,
+        (SELECT COUNT(*)::int FROM md_resource_calendar WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released' AND availability_status='Available' AND calendar_date=$1::date) AS canonical_calendars,
+        (SELECT COUNT(*)::int FROM md_resource_calendar WHERE code NOT LIKE '${namespace}-%' AND lifecycle_status='Released' AND availability_status='Available' AND calendar_date=$1::date) AS base_calendars,
         (SELECT COUNT(*)::int FROM md_operation WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_operations,
         (SELECT COUNT(*)::int FROM md_routing_operation WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS canonical_routing_operations,
         (SELECT COUNT(*)::int FROM md_production_version WHERE code='${namespace}-PV-SEAL-ASM-01' AND lifecycle_status='Released') AS canonical_production_version,
@@ -54,9 +77,9 @@ async function main() {
         (SELECT COUNT(*)::int FROM md_skill WHERE code IN (${workerSkillCodes}) AND scope='Employee' AND lifecycle_status='Released') AS worker_skills,
         (SELECT COUNT(*)::int FROM md_employee WHERE code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND lifecycle_status='Released' AND employee_status='Active') AS workers,
         (SELECT COUNT(*)::int FROM md_employee_skill es JOIN md_employee e ON e.master_id=es.employee_id JOIN md_skill s ON s.master_id=es.skill_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND s.scope='Employee' AND es.active_flag=TRUE AND es.effective_to IS NULL AND es.qualification_status='Active') AS worker_skill_assignments,
-        (SELECT COUNT(*)::int FROM md_employee_shift_schedule sch JOIN md_employee e ON e.master_id=sch.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND sch.schedule_date=DATE '2026-08-03' AND sch.schedule_status='Scheduled') AS worker_shift_schedules,
+        (SELECT COUNT(*)::int FROM md_employee_shift_schedule sch JOIN md_employee e ON e.master_id=sch.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND sch.schedule_date=$1::date AND sch.schedule_status='Scheduled') AS worker_shift_schedules,
         (SELECT COUNT(*)::int FROM md_operation_skill_requirement r JOIN md_routing_operation ro ON ro.master_id=r.routing_operation_id JOIN md_routing_header rh ON rh.master_id=ro.routing_header_id JOIN md_production_version pv ON pv.routing_header_id=rh.master_id JOIN md_skill s ON s.master_id=r.skill_id WHERE pv.code='PV-FG-WS-CM01-R1' AND s.scope='Employee' AND r.lifecycle_status='Released' AND r.active_flag=TRUE AND r.effective_to IS NULL) AS base_operation_skill_requirements
-    `)).rows[0];
+    `, [targetDate])).rows[0];
     const integrity = (await query(master, `
       SELECT
         (SELECT COUNT(*)::int FROM md_production_line_work_center lwc LEFT JOIN md_production_line pl ON pl.master_id=lwc.production_line_id LEFT JOIN md_work_center wc ON wc.master_id=lwc.work_center_id WHERE (pl.code LIKE '${namespace}-%' OR wc.code LIKE '${namespace}-%') AND (pl.master_id IS NULL OR wc.master_id IS NULL)) AS line_work_center_orphans,
@@ -72,10 +95,11 @@ async function main() {
         (SELECT COUNT(*)::int FROM rm_production_version_line_eligibility e JOIN rm_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code LIKE 'WST-UAT-PV-%' AND e.active_flag=TRUE) AS rm_uat_line_eligibilities,
         (SELECT COUNT(*)::int FROM rm_production_line WHERE code LIKE '${namespace}-%' AND lifecycle_status='Released') AS rm_lines,
         (SELECT COUNT(*)::int FROM rm_production_version_line_eligibility e JOIN rm_production_version pv ON pv.master_id=e.production_version_id WHERE pv.code='${namespace}-PV-SEAL-ASM-01' AND e.active_flag=TRUE) AS rm_line_eligibilities,
+        (SELECT COUNT(*)::int FROM rm_resource_calendar WHERE available_from::date <= $1::date AND available_to::date >= $1::date) AS rm_target_calendars,
         (SELECT COUNT(*)::int FROM rm_skill WHERE code IN (${workerSkillCodes}) AND lifecycle_status='Released') AS rm_worker_skills,
         (SELECT COUNT(*)::int FROM rm_employee WHERE code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND lifecycle_status='Released' AND employee_status='Active') AS rm_workers,
         (SELECT COUNT(*)::int FROM rm_employee_skill es JOIN rm_employee e ON e.master_id=es.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001')) AS rm_worker_skill_assignments,
-        (SELECT COUNT(*)::int FROM rm_employee_shift_schedule sch JOIN rm_employee e ON e.master_id=sch.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND sch.schedule_date=DATE '2026-08-03' AND sch.schedule_status='Scheduled') AS rm_worker_shift_schedules,
+        (SELECT COUNT(*)::int FROM rm_employee_shift_schedule sch JOIN rm_employee e ON e.master_id=sch.employee_id WHERE e.code IN ('EMP-MIX-001','EMP-VULCAN-001','EMP-VULCAN-002','EMP-QC-001') AND sch.schedule_date=$1::date AND sch.schedule_status='Scheduled') AS rm_worker_shift_schedules,
         (SELECT COUNT(*)::int FROM rm_operation_skill_requirement r JOIN rm_routing_operation ro ON ro.operation_id=r.operation_id JOIN rm_routing_header rh ON rh.master_id=ro.routing_header_id JOIN rm_production_version pv ON pv.routing_header_id=rh.master_id WHERE pv.code='PV-FG-WS-CM01-R1') AS rm_base_operation_skill_requirements,
         (
           SELECT COUNT(*)::int
@@ -91,11 +115,11 @@ async function main() {
               JOIN rm_employee_skill es ON es.employee_id=e.master_id AND es.skill_id=r.skill_id
               JOIN rm_employee_shift_schedule sch ON sch.employee_id=e.master_id
               WHERE e.employee_status='Active'
-                AND sch.schedule_date=DATE '2026-08-03'
+                AND sch.schedule_date=$1::date
                 AND sch.schedule_status='Scheduled'
             ) < r.required_persons
         ) AS rm_labor_candidate_gaps
-    `)).rows[0];
+    `, [targetDate])).rows[0];
     const traceabilityCounts = (await query(traceability, `
       SELECT
         (SELECT COUNT(*)::int FROM md_label_template WHERE template_code LIKE '${namespace}-%') AS templates,
@@ -104,6 +128,18 @@ async function main() {
         (SELECT COUNT(*)::int FROM md_traceability_policy WHERE operation_code LIKE '${namespace}-%') AS policies,
         (SELECT COUNT(*)::int FROM label_instance) AS labels
     `)).rows[0];
+    const canonicalTerminalContext = (await query(master, `
+      SELECT s.master_id::text AS site_id,wc.master_id::text AS work_center_id
+      FROM md_site s JOIN md_work_center wc ON wc.site_id=s.master_id
+      WHERE s.code='SITE-KZ3' AND wc.code='WST-SEED-WC-L1-BINDING'
+      LIMIT 1
+    `)).rows[0];
+    const gatewayCounts = (await query(gateway, `
+      SELECT
+        COUNT(*) FILTER (WHERE terminal_code='KIOSK-DEMO-01' AND site_id=$1 AND work_center_id=$2)::int AS canonical_demo_terminals,
+        (SELECT COUNT(*)::int FROM terminal_session WHERE status='ACTIVE') AS active_terminal_sessions
+      FROM terminal
+    `, [canonicalTerminalContext?.site_id, canonicalTerminalContext?.work_center_id])).rows[0];
 
     const expect = (name, actual, predicate, details = {}) => {
       const passed = predicate(Number(actual));
@@ -115,6 +151,8 @@ async function main() {
     expect('released areas exist', masterCounts.released_areas, (v) => v >= 1);
     expect('PCS UOM exists', masterCounts.pcs_uom, (v) => v === 1);
     expect('SHIFT-A exists', masterCounts.shift_a, (v) => v === 1);
+    expect('Kiosk execution failure reason exists', masterCounts.kiosk_execution_failure_reasons, (v) => v === 1);
+    expect('Kiosk abort reason exists', masterCounts.kiosk_abort_reasons, (v) => v === 1);
     expect('canonical two production lines', masterCounts.canonical_lines, (v) => v === 2);
     expect('canonical eight work centers', masterCounts.canonical_work_centers, (v) => v === 8);
     expect('canonical eight workstations', masterCounts.canonical_workstations, (v) => v === 8);
@@ -122,7 +160,8 @@ async function main() {
     expect('canonical eight identified machine units', masterCounts.canonical_machine_units, (v) => v === 8);
     expect('canonical eight assignments', masterCounts.canonical_assignments, (v) => v === 8);
     expect('canonical twelve capabilities', masterCounts.canonical_capabilities, (v) => v === 12);
-    expect('canonical calendars ready', masterCounts.canonical_calendars, (v) => v === 8);
+    expect('canonical calendars ready on target date', masterCounts.canonical_calendars, (v) => v === 8);
+    expect('base calendars ready on target date', masterCounts.base_calendars, (v) => v === 8);
     expect('canonical six operations', masterCounts.canonical_operations, (v) => v === 6);
     expect('canonical twelve routing operations', masterCounts.canonical_routing_operations, (v) => v === 12);
     expect('canonical production version', masterCounts.canonical_production_version, (v) => v === 1);
@@ -142,6 +181,7 @@ async function main() {
     expect('execution read model has six UAT line eligibilities', executionCounts.rm_uat_line_eligibilities, (v) => v === 6);
     expect('execution read model has two lines', executionCounts.rm_lines, (v) => v === 2);
     expect('execution read model has two line eligibilities', executionCounts.rm_line_eligibilities, (v) => v === 2);
+    expect('execution read model calendars cover target date', executionCounts.rm_target_calendars, (v) => v === 16);
     expect('execution read model has worker skills', executionCounts.rm_worker_skills, (v) => v === 3);
     expect('execution read model has workers', executionCounts.rm_workers, (v) => v === 4);
     expect('execution read model has worker skill assignments', executionCounts.rm_worker_skill_assignments, (v) => v === 4);
@@ -152,8 +192,10 @@ async function main() {
     expect('traceability has one numbering rule', traceabilityCounts.numbering_rules, (v) => v === 1);
     expect('traceability has one split rule', traceabilityCounts.split_rules, (v) => v === 1);
     expect('traceability has four policies', traceabilityCounts.policies, (v) => v === 4);
+    expect('KIOSK-DEMO-01 canonical terminal context', gatewayCounts.canonical_demo_terminals, (v) => v === 1);
+    expect('canonical seed has no active terminal sessions', gatewayCounts.active_terminal_sessions, (v) => v === 0);
 
-    report.counts = { master: masterCounts, execution: executionCounts, traceability: traceabilityCounts, integrity };
+    report.counts = { master: masterCounts, execution: executionCounts, traceability: traceabilityCounts, gateway: gatewayCounts, integrity };
     report.completed_at = new Date().toISOString();
     await writeArtifact('verification-result.json', report);
     console.log(json(report));
@@ -164,7 +206,7 @@ async function main() {
     await writeArtifact('verification-result.json', report);
     throw error;
   } finally {
-    await master.end(); await execution.end(); await traceability.end();
+    await master.end(); await execution.end(); await traceability.end(); await gateway.end();
   }
 }
 

@@ -1,0 +1,19 @@
+{
+  "declared": 10,
+  "executed": 10,
+  "passed": 10,
+  "failed": 0,
+  "skipped": 0,
+  "results": [
+    "API preparation success",
+    "API preparation failure/retry",
+    "Grouped list and detail",
+    "Start and complete",
+    "Fail and pause policy",
+    "Retry and successor unlock",
+    "Abort without confirmation",
+    "Print Station command exclusion",
+    "MES Console convergence",
+    "Exact cleanup"
+  ]
+}

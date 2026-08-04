@@ -1,0 +1,19 @@
+{
+  "current": [
+    {"event": "MES.Execution.OperationDispatchQueued.v1", "producer": "MES Execution dispatch", "consumers": ["Kiosk Gateway"], "demo_route": "dispatch_mode=DEMO_SHARED_KIOSK"},
+    {"event": "MES.Execution.OperationStarted.v1", "producer": "MES Execution Start", "consumers": ["Kiosk Gateway"]},
+    {"event": "MES.Execution.OperationFinished.v1", "producer": "MES Execution Confirm or Printer Result", "consumers": ["Kiosk Gateway", "QMS Inspection"]},
+    {"event": "MES.Execution.MaterialConsumed.v1", "producer": "MES Execution Confirm", "consumers": ["downstream inventory integration"]},
+    {"event": "MES.Execution.WOCompleted.v1", "producer": "MES Execution completion evaluator", "consumers": ["Kiosk Gateway"]},
+    {"event": "command.printer.print.batch", "producer": "MES Execution print dispatch", "consumers": ["Print Station printer adapter"]},
+    {"event": "station.events.printer", "producer": "Print Station", "consumers": ["MES Execution", "MES Master Data runtime projection"]}
+  ],
+  "required_additions": [
+    {"event": "MES.Execution.OperationFailed.v1", "phase": "01", "consumers_to_add_in_phase_02": ["Kiosk Gateway"]},
+    {"event": "MES.Execution.OperationAborted.v1", "phase": "01", "consumers_to_add_in_phase_02": ["Kiosk Gateway"]},
+    {"event": "MES.Execution.OperationRetryRequested.v1", "phase": "01", "consumers_to_add_in_phase_02": ["Kiosk Gateway"]},
+    {"event": "MES.Execution.WOStatusChanged.v1", "phase": "01", "consumers_to_add_in_phase_02": ["Kiosk Gateway"]}
+  ],
+  "mandatory_payload": ["event_id", "event_type", "occurred_at", "source_service", "trace_id", "wo_id", "wo_code", "wo_operation_id", "operation_code", "sequence_no", "selected_production_line_id", "work_center_id", "workstation_id", "dispatch_mode", "execution_target_type", "session_id", "terminal_ref", "operator_user_id", "from_state", "to_state", "reason_code when applicable"],
+  "delivery_rules": ["Transactional outbox", "Versioned topic", "Idempotent consumer by event_id", "WebSocket event triggers authoritative refetch", "Browser never publishes Kafka"]
+}

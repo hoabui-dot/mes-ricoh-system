@@ -1,0 +1,23 @@
+{
+  "summary": {"declared": 19, "executed": 19, "passed": 19, "failed": 0, "skipped": 0},
+  "source_contract": {
+    "classification": "source_only",
+    "declared": 12,
+    "executed": 12,
+    "passed": 12,
+    "failed": 0,
+    "checks": ["current dispatch/start/finish/WO-completed producers", "matching Kiosk Gateway topic subscriptions", "DEMO_SHARED_KIOSK routing", "transactional outbox calls"]
+  },
+  "runtime_inventory": {
+    "classification": "read_only_runtime",
+    "declared": 7,
+    "executed": 7,
+    "passed": 7,
+    "failed": 0,
+    "materialized_topics": ["MES.Execution.OperationDispatchQueued.v1", "MES.Execution.OperationStarted.v1", "MES.Execution.OperationFinished.v1", "MES.Execution.WOCompleted.v1", "station.events.printer"],
+    "source_declared_lazy_topic": "command.printer.print.batch",
+    "outbox_inventory": {"total": 7, "published": 3, "pending": 0, "failed": 4}
+  },
+  "runtime_delivery_claimed": false,
+  "diagnostic_note": "An initial probe incorrectly required the lazy print command topic to exist at idle. The final source-aligned inventory verifies its producer and records that the broker topic is not materialized."
+}

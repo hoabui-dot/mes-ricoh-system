@@ -154,7 +154,27 @@ type ExecutionSession struct {
 	OperatorUserID string     `json:"operator_user_id"`
 	StartedAt      time.Time  `json:"started_at"`
 	EndedAt        *time.Time `json:"ended_at,omitempty"`
-	Status         string     `json:"status"` // IN_PROGRESS, COMPLETED, ABORTED
+	Status         string     `json:"status"` // IN_PROGRESS, COMPLETED, FAILED, ABORTED
+}
+
+type OperationExecutionTransition struct {
+	HistoryID           string            `json:"history_id"`
+	WOID                string            `json:"wo_id"`
+	WOCode              string            `json:"wo_code"`
+	WOOperationID       string            `json:"wo_operation_id"`
+	OperationCode       string            `json:"operation_code"`
+	SessionID           *string           `json:"session_id,omitempty"`
+	Action              string            `json:"action"`
+	ReasonCode          *string           `json:"reason_code,omitempty"`
+	ReasonNameI18n      map[string]string `json:"reason_name_i18n,omitempty"`
+	ReasonText          *string           `json:"reason_text,omitempty"`
+	FromOperationStatus string            `json:"from_operation_status"`
+	ToOperationStatus   string            `json:"to_operation_status"`
+	FromWOStatus        string            `json:"from_wo_status"`
+	ToWOStatus          string            `json:"to_wo_status"`
+	TerminalRef         string            `json:"terminal_ref"`
+	OperatorUserID      string            `json:"operator_user_id"`
+	OccurredAt          time.Time         `json:"occurred_at"`
 }
 
 type OperationConfirmation struct {
@@ -187,6 +207,7 @@ type OperationBehaviorRule struct {
 	ConfirmationMode     string `json:"confirmation_mode"` // StartFinish, QuantityOnly
 	RequiresMaterialScan bool   `json:"requires_material_scan"`
 	RequiresOutputLabel  bool   `json:"requires_output_label"`
+	RequiresScrapReason  bool   `json:"requires_scrap_reason"`
 	SpecialRule          string `json:"special_rule"`
 }
 
@@ -196,5 +217,16 @@ var OperationBehaviorMap = map[string]OperationBehaviorRule{
 	"OP-CUT":  {OperationCode: "OP-CUT", OperationType: "Production", ConfirmationMode: "StartFinish", RequiresMaterialScan: true, RequiresOutputLabel: true, SpecialRule: "Calls mes-traceability-service POST /labels/split"},
 	"OP-MOLD": {OperationCode: "OP-MOLD", OperationType: "Production", ConfirmationMode: "StartFinish", RequiresMaterialScan: true, RequiresOutputLabel: true, SpecialRule: "Calls mes-traceability-service POST /labels/consume then POST /labels/issue"},
 	"OP-TRIM": {OperationCode: "OP-TRIM", OperationType: "Production", ConfirmationMode: "QuantityOnly", RequiresMaterialScan: false, RequiresOutputLabel: false, SpecialRule: "Records scrap quantity/rate"},
-	"OP-QC":   {OperationCode: "OP-QC", OperationType: "Inspection", ConfirmationMode: "StartFinish", RequiresMaterialScan: false, RequiresOutputLabel: true, SpecialRule: "PASS label only, FAIL requires reason_code"},
+	"OP-QC":   {OperationCode: "OP-QC", OperationType: "Inspection", ConfirmationMode: "StartFinish", RequiresMaterialScan: false, RequiresOutputLabel: true, RequiresScrapReason: true, SpecialRule: "PASS label only, FAIL requires reason_code"},
+}
+
+func OperationBehavior(operationCode string) OperationBehaviorRule {
+	if rule, ok := OperationBehaviorMap[operationCode]; ok {
+		return rule
+	}
+	return OperationBehaviorRule{
+		OperationCode:    operationCode,
+		OperationType:    "Production",
+		ConfirmationMode: "StartFinish",
+	}
 }

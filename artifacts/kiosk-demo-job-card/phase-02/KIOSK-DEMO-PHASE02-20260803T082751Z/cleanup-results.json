@@ -1,0 +1,18 @@
+{
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "final": {
+    "phase02_temporary_queue_rows": 0,
+    "phase02_temporary_receipts": 0,
+    "execution_work_orders": 2,
+    "execution_operations": 8,
+    "execution_sessions": 0,
+    "execution_confirmations": 0,
+    "canonical_terminals": 7
+  },
+  "integration_cleanup": "isolated schemas dropped with CASCADE",
+  "infrastructure_additions_retained": ["migrations", "Kafka topics", "canonical terminals"]
+}

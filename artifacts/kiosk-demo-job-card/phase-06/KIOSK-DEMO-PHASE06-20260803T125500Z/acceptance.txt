@@ -1,0 +1,16 @@
+Container states
+/mes-master-data-service sha256:1cb7ad6911652e0585633cc6f6a2f610b365f67837a456b9a7a1848a30da991c running healthy
+/mes-execution-service sha256:775cef654a8f68e10612227ec41a047cf0fa79d70be7f1de7debc5f7720e03fd running healthy
+/mes-kiosk-gateway-service sha256:1fbe47a403a0b127050f80e54e8f661878923571bcddaec3cbf6e04b4f143aec running 
+/kiosk-operator-ui sha256:4c3506eb657c23b1b31c69dad8f750310adc13bfa5c4a65868d1dc01627e567f running 
+/platform-kong sha256:8735a1e440dfc38ecde22829c9e3e6ea3b6c06eec2c7c08d987e7eb16489dfba running healthy
+HTTP checks
+http://localhost:13020/health=200
+http://localhost:13030/health=200
+http://localhost:13050/health=200
+http://localhost:13051/=200
+http://localhost:18001/status=200
+Recent fatal/error logs
+[mes-execution-service]
+[mes-kiosk-gateway-service]
+[platform-kong]

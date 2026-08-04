@@ -1,0 +1,11 @@
+Phase 07 Kafka, outbox, Gateway, and WebSocket evidence
+
+- Prepared Gateway messages: 2
+- Distinct prepared Gateway event IDs: 2
+- Duplicate reservations/events: 0
+- Phase 04 realtime/grouped regression: PASS 1/1
+- Phase 05 authoritative command and print-exclusion regression: PASS 1/1
+- Phase 06 authenticated REST, gateway restart, and WebSocket reconnect regression: PASS 1/1
+- Final execution outbox rows: 0
+- Final Gateway outbound queue rows: 0
+- Final generated consumed test-event rows: 0

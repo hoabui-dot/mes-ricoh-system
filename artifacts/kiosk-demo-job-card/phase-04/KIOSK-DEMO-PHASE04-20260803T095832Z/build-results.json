@@ -1,0 +1,8 @@
+{
+  "declared": 13,
+  "executed": 13,
+  "passed": 13,
+  "failed": 0,
+  "skipped": 0,
+  "checks": ["execution go test ./...", "execution go test -tags integration ./...", "gateway go test ./...", "gateway go test -tags integration ./...", "master-data typecheck", "master-data unit tests 6/6", "kiosk typecheck", "kiosk production build 1534 modules", "master-data Docker build", "execution Docker build", "kiosk Docker build", "git diff --check", "VI/EN/JA/KO key parity 142/142 each"]
+}

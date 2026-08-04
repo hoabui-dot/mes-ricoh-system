@@ -1,0 +1,19 @@
+{
+  "phase_00": {"status": "completed_by_this_run", "outputs": ["domain contract", "state machine", "event inventory", "route contract", "failure ADR", "baseline evidence"]},
+  "phase_01": {"depends_on": ["approved-state-machine", "failure-policy-decision"], "scope": "Execution failure, Paused WO, retry, corrected abort, history, events, integration tests"},
+  "phase_02": {"depends_on": ["phase_01 events"], "scope": "Persist dispatch_mode, demo-only routing, gateway consumers, FIFO queue, dedupe, auth_ack and reconnect protocol"},
+  "phase_03": {"depends_on": ["phase_01 states", "phase_02 routing"], "scope": "Grouped Work Order summaries, Job Card detail, print context, backend action eligibility, active session"},
+  "phase_04": {"depends_on": ["phase_03 APIs"], "scope": "Grouped tablet UI, complete i18n, print exclusion, offline read model, accessibility"},
+  "phase_05": {"depends_on": ["phase_01 commands", "phase_02 realtime", "phase_03 APIs", "phase_04 UI"], "scope": "Start/Complete/Fail/Abort/Retry UX, stable idempotency, Kiosk and MES Console convergence"},
+  "phase_06": {"depends_on": ["phase_02 protocol", "phase_05 commands"], "scope": "Platform SSO Authorization Code + PKCE, route guard, bearer REST, verified JWT/JWKS, terminal session, reconnect, logout, runtime config"},
+  "phase_07": {"depends_on": ["phase_01-06 contracts"], "scope": "Restore KIOSK-DEMO-01 after reset, deterministic operator/reasons/routing, API-prepared success/failure WOs, idempotent verify/cleanup"},
+  "phase_08": {"depends_on": ["phase_07 deterministic fixtures"], "scope": "Full real API/Kafka/WebSocket/browser certification and exact cleanup"},
+  "cross_phase_blockers": [
+    "Current reset truncates kiosk terminal data while preserving applied migration markers.",
+    "Four historical WOResourceAllocated outbox rows are FAILED because the Kafka topic did not exist.",
+    "MES Console Work Order detail has no execution-event subscription.",
+    "No maintained Kiosk Kafka/WebSocket integration or browser E2E currently exists."
+  ],
+  "execution_order": ["00", "01", "02", "03", "04", "05", "06", "07", "08"],
+  "automatic_next_phase": false
+}

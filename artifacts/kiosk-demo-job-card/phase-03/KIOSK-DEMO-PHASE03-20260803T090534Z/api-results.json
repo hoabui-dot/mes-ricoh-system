@@ -1,0 +1,30 @@
+{
+  "declared": 13,
+  "executed": 13,
+  "passed": 13,
+  "failed": 0,
+  "skipped": 0,
+  "results": {
+    "one_row_per_work_order": "PASS",
+    "every_manual_operation_once": "PASS",
+    "print_excluded_from_manual_cards": "PASS",
+    "print_read_only_context": "PASS",
+    "exclusive_state_counts": "PASS",
+    "overall_and_manual_progress": "PASS",
+    "active_session_recovery": "PASS",
+    "failure_context": "PASS",
+    "action_eligibility_and_blockers": "PASS",
+    "terminal_and_dispatch_scope": "PASS",
+    "pagination": "PASS",
+    "refresh_consistency": "PASS",
+    "mes_console_compatibility": "PASS"
+  },
+  "runtime": {
+    "list_status": 200,
+    "wrong_terminal_status": 403,
+    "production_detail_status": 404,
+    "fixture_counts": {"total": 3, "completed": 1, "in_progress": 1, "blocked": 1},
+    "overall_progress_percent": 25,
+    "manual_progress_percent": 33.33
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "action": "cleanup",
+  "generated_at": "2026-08-04T02:03:37.676Z",
+  "checks": [],
+  "data": {},
+  "error": "operator does not exist: character varying = uuid",
+  "completed_at": "2026-08-04T02:03:37.914Z"
+}

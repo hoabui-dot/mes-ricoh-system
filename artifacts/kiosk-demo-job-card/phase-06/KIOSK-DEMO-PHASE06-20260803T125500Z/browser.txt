@@ -1,0 +1,36 @@
+
+> mom-platform@1.0.0 test:e2e:kiosk:phase06
+> MES_E2E_BASE_URL=http://localhost:13051 playwright test e2e/kiosk/phase06-auth-reliability.spec.ts --project=chromium
+
+
+Running 1 test using 1 worker
+
+(node:1011980) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/kiosk/phase06-auth-reliability.spec.ts:18:1 › Phase 06 protects routes, authenticates REST, reconnects, and performs complete logout (8.6s)
+
+  1 passed (9.7s)
+
+> mom-platform@1.0.0 test:e2e:kiosk:phase05
+> MES_E2E_BASE_URL=http://localhost:13051 playwright test e2e/kiosk/phase05-manual-commands.spec.ts --project=chromium
+
+
+Running 1 test using 1 worker
+
+(node:1013466) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/kiosk/phase05-manual-commands.spec.ts:105:1 › Phase 05 authoritative manual commands, recovery, synchronization, and print exclusion (29.7s)
+
+  1 passed (32.1s)
+
+> mom-platform@1.0.0 test:e2e:kiosk:phase04
+> MES_E2E_BASE_URL=http://localhost:13051 playwright test e2e/kiosk/phase04-grouped-ui.spec.ts --project=chromium
+
+
+Running 1 test using 1 worker
+
+(node:1017624) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/kiosk/phase04-grouped-ui.spec.ts:36:1 › Phase 04 grouped Kiosk UI states, realtime, locales, accessibility, and tablet (5.8s)
+
+  1 passed (7.4s)

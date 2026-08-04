@@ -1,0 +1,48 @@
+Phase 06 scoped diff stat:
+ infra/docker-compose.mes.yml                       |  10 +-
+ infra/kong/kong.yml                                |  52 ++
+ package.json                                       |   3 +
+ services/kiosk-operator-ui/Dockerfile              |   2 +
+ services/kiosk-operator-ui/index.html              |   1 +
+ services/kiosk-operator-ui/src/App.tsx             |   7 +-
+ .../src/components/ErrorBoundaryCard.tsx           |  44 +-
+ .../src/components/OfflineBanner.tsx               |  10 +-
+ .../src/context/KioskSocketContext.tsx             | 166 +++--
+ services/kiosk-operator-ui/src/i18n.ts             | 376 +++++++++-
+ services/kiosk-operator-ui/src/index.css           |   4 +
+ services/kiosk-operator-ui/src/lib/db.ts           |  36 +-
+ .../kiosk-operator-ui/src/routes/LoginScreen.tsx   |  10 +-
+ .../src/routes/OperationScreen.tsx                 | 774 +++++++++++----------
+ .../kiosk-operator-ui/src/routes/WOListScreen.tsx  | 277 +++++---
+ services/mes-execution-service/cmd/server/main.go  |   6 +-
+ services/mes-execution-service/go.mod              |   1 +
+ services/mes-execution-service/go.sum              |   2 +
+ .../internal/application/usecase/abort_session.go  |  40 --
+ .../application/usecase/complete_work_order.go     |  26 +-
+ .../application/usecase/confirm_operation.go       | 129 +++-
+ .../application/usecase/create_work_order.go       |  15 +-
+ .../application/usecase/dispatch_execution.go      |  32 +-
+ .../application/usecase/start_operation.go         |  89 ++-
+ .../mes-execution-service/internal/domain/wo.go    |  36 +-
+ .../infrastructure/events/masterdata_consumer.go   |  11 +-
+ .../events/printer_result_consumer.go              |  39 +-
+ .../infrastructure/events/schema_registry.go       |  13 +-
+ .../internal/infrastructure/http/router.go         | 263 ++++++-
+ .../mes-execution-service/service.manifest.yaml    |  41 ++
+ .../mes-kiosk-gateway-service/cmd/server/main.go   |   3 +
+ .../internal/application/auth_service.go           | 229 +++++-
+ .../internal/application/auth_service_test.go      |  70 ++
+ .../internal/domain/terminal.go                    |  39 +-
+ .../infrastructure/events/execution_consumer.go    | 183 +++--
+ .../internal/infrastructure/http/router.go         |  32 +-
+ .../internal/websocket/hub.go                      | 420 +++++------
+ .../service.manifest.yaml                          |  10 +-
+ 38 files changed, 2423 insertions(+), 1078 deletions(-)
+
+Phase 06 relevant files:
+services/kiosk-operator-ui/src/lib/runtimeConfig.ts
+services/kiosk-operator-ui/src/lib/auth.ts
+services/kiosk-operator-ui/src/components/ProtectedKioskRoute.tsx
+services/mes-execution-service/internal/infrastructure/auth/verifier.go
+services/mes-kiosk-gateway-service/migrations/000005_single_active_terminal_session.up.sql
+e2e/kiosk/phase06-auth-reliability.spec.ts

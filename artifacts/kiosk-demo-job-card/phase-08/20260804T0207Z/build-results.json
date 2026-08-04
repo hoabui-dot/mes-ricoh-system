@@ -1,0 +1,17 @@
+{
+  "declared": 8,
+  "executed": 8,
+  "passed": 8,
+  "failed": 0,
+  "skipped": 0,
+  "results": [
+    { "name": "Kiosk UI typecheck and production build", "status": "passed", "modules": 1538 },
+    { "name": "MES Console typecheck and production build", "status": "passed", "modules": 2759 },
+    { "name": "MES Console local Docker rebuild", "status": "passed", "image": "sha256:b907347c05b4631211ef4c8cf309006ab24c014800bb5a7d7e2d8cbbc0cc9711" },
+    { "name": "Master Data unit tests", "status": "passed", "tests": 6 },
+    { "name": "MES Execution unit and tagged integration", "status": "passed" },
+    { "name": "Kiosk Gateway unit and tagged integration", "status": "passed" },
+    { "name": "Canonical seed verification", "status": "passed", "checks": 48 },
+    { "name": "git diff --check", "status": "passed" }
+  ]
+}

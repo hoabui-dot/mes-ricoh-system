@@ -1,0 +1,9 @@
+{
+  "declared": 9,
+  "executed": 9,
+  "passed": 9,
+  "failed": 0,
+  "skipped": 0,
+  "fixture": "WO-PHASE04-RUNTIME-01",
+  "results": {"top_level_work_orders": 1, "manual_job_cards": 5, "print_operations": 1, "uom_code": "PCS", "counts": {"total": 5, "waiting": 0, "ready": 0, "in_progress": 1, "completed": 1, "failed": 1, "blocked": 2}, "overall_progress": 16.67, "manual_progress": 20, "post_cleanup_http": 200, "post_cleanup_data": []}
+}

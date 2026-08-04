@@ -1,0 +1,110 @@
+{
+  "success": true,
+  "action": "cleanup",
+  "generated_at": "2026-08-04T02:10:20.468Z",
+  "checks": [
+    {
+      "name": "cleanup leaves zero preparation workflows",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero Work Orders",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero sessions",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero allocations",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero reservations",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero outbox events",
+      "passed": true,
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    {
+      "name": "cleanup leaves zero Gateway queue records",
+      "passed": true,
+      "queue_leaks": 0
+    },
+    {
+      "name": "cleanup leaves zero consumed Gateway test events",
+      "passed": true,
+      "consumed_event_leaks": 0
+    }
+  ],
+  "data": {
+    "removed_work_order_ids": [
+      "f0fb5d0d-3a90-44ac-9dbc-5503bb00ffb0",
+      "00f9a8a4-094b-4b58-ae48-e2853cb938e6"
+    ],
+    "removed_event_ids": [
+      "1178392a-15cc-45cb-ab4f-db7555b1ff3c",
+      "63821a84-2f58-4903-bbac-4cb00eba4627",
+      "2902f795-a43d-4567-a8e9-f77bbea23ae0",
+      "6c27caf3-a7d9-4a7c-af22-96b1404dd07e",
+      "2b362adc-b61d-4ec1-8fd9-fd65b2ead5ec",
+      "61d26291-5b3f-4b9e-af32-ad45b6a95d74",
+      "05364c4e-ad1a-4802-a602-37bed4c37c55",
+      "a3042e60-f93f-41d0-987a-3249fef445d5",
+      "a6511086-bc8e-42ef-a198-5e681eb4d054",
+      "77fc0df6-0a3f-45db-80f1-e51f7b82fe16",
+      "9e20b00a-cca0-4bf3-8057-c3b240b4c031",
+      "4dfef963-7222-4e06-895d-6b50e1325bf1",
+      "18043a68-5073-4afe-8705-540adceefa65",
+      "7293e2c3-7d8b-4e39-804c-84121daae5e4"
+    ],
+    "leftovers": {
+      "workflows": 0,
+      "work_orders": 0,
+      "sessions": 0,
+      "allocations": 0,
+      "reservations": 0,
+      "outbox_events": 0
+    },
+    "gateway_queue_leaks": 0,
+    "consumed_event_leaks": 0
+  },
+  "completed_at": "2026-08-04T02:10:20.746Z"
+}

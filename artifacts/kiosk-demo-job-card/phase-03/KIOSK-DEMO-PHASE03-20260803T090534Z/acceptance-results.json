@@ -1,0 +1,20 @@
+{
+  "declared": 10,
+  "executed": 10,
+  "passed": 10,
+  "failed": 0,
+  "skipped": 0,
+  "criteria": [
+    "one grouped Work Order row",
+    "all manual Job Cards exactly once",
+    "Print Station isolated as read-only context",
+    "exclusive counts and correct progress",
+    "active session recoverable",
+    "failure context projected",
+    "authoritative actions and blockers",
+    "terminal/demo scope and pagination",
+    "refresh and MES Console compatibility",
+    "Docker deploy, health, browser, and exact cleanup"
+  ],
+  "gate": "KIOSK_DEMO_PHASE_03_PASSED_READY_FOR_PHASE_04"
+}

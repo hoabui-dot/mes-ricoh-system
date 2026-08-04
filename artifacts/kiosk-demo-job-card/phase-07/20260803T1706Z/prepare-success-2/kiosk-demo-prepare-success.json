@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "action": "prepare-success",
+  "generated_at": "2026-08-03T17:06:25.088Z",
+  "checks": [],
+  "data": {
+    "scenario": "success",
+    "workflow_id": "e5deaeb0-15b5-4887-861b-dab6eb9000d5",
+    "work_order_id": "b151d69c-94f5-4dfd-9d08-48dc7e2a58ab",
+    "work_order_code": "WO-20260803-0001",
+    "idempotent_replay": true
+  },
+  "completed_at": "2026-08-03T17:06:25.644Z"
+}

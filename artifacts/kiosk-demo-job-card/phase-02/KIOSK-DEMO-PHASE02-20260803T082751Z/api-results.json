@@ -1,0 +1,15 @@
+{
+  "declared": 6,
+  "executed": 6,
+  "passed": 6,
+  "failed": 0,
+  "skipped": 0,
+  "cases": [
+    {"name": "execution direct health", "status": "PASS", "http": 200},
+    {"name": "gateway direct health", "status": "PASS", "http": 200},
+    {"name": "kiosk UI root", "status": "PASS", "http": 200},
+    {"name": "terminal login through Kong", "status": "PASS", "http": 200},
+    {"name": "terminal status through Kong", "status": "PASS", "http": 200},
+    {"name": "work order list exposes dispatch_mode", "status": "PASS", "http": 200}
+  ]
+}

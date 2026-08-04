@@ -1,0 +1,15 @@
+{
+  "production_feature_changes": 0,
+  "test_and_fixture_changes": [
+    "e2e/kiosk/phase08-full-certification.spec.ts",
+    "scripts/kiosk-demo-phase07.mjs",
+    "package.json"
+  ],
+  "details": [
+    "Added real canonical Phase 08 browser certification.",
+    "Extended exact cleanup to remove consumed Gateway events by captured Execution event ID.",
+    "Added test:e2e:kiosk:phase08 repository command."
+  ],
+  "migration_changes": 0,
+  "contract_changes": 0
+}

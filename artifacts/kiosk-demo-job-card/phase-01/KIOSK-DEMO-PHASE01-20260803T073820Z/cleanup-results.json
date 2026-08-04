@@ -1,0 +1,12 @@
+{
+  "summary": {"declared": 5, "executed": 5, "passed": 5, "failed": 0, "skipped": 0},
+  "checks": [
+    {"name": "Execution mutable data restored", "result": "PASS", "before": {"wo_header": 2, "wo_operation": 8, "execution_session": 0, "operation_confirmation": 0, "outbox_events": 7}, "after": {"wo_header": 2, "wo_operation": 8, "execution_session": 0, "operation_confirmation": 0, "outbox_events": 7}},
+    {"name": "Temporary execution history removed", "result": "PASS", "remaining": 0},
+    {"name": "Temporary Master Data reason removed", "result": "PASS", "remaining": 0},
+    {"name": "Temporary Kiosk terminal/session/queue removed", "result": "PASS", "remaining": 0},
+    {"name": "Migration retained exactly once", "result": "PASS", "schema_migrations": 24, "migration_000024_count": 1}
+  ],
+  "retained_infrastructure": ["four versioned Kafka topics", "four Schema Registry subjects", "additive migration 000024"],
+  "retained_immutable_evidence": "Five run-tagged Kafka records remain until normal topic retention."
+}

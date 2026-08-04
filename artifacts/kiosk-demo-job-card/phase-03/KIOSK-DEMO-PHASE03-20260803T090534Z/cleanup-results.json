@@ -1,0 +1,17 @@
+{
+  "declared": 6,
+  "executed": 6,
+  "passed": 6,
+  "failed": 0,
+  "skipped": 0,
+  "final": {
+    "work_orders": 2,
+    "operations": 8,
+    "demo_work_orders": 0,
+    "phase03_work_orders": 0,
+    "phase03_sessions": 0,
+    "phase03_read_model_resources": 0
+  },
+  "empty_kiosk_list_status": 200,
+  "cleanup_policy": "deterministic IDs and exact child-first deletion"
+}

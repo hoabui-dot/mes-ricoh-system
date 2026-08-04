@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "action": "prepare-failure",
+  "generated_at": "2026-08-04T02:10:08.847Z",
+  "checks": [],
+  "data": {
+    "scenario": "failure",
+    "workflow_id": "2e62bd15-30f7-48bf-8a3d-7802282cd3a1",
+    "work_order_id": "f0fb5d0d-3a90-44ac-9dbc-5503bb00ffb0",
+    "work_order_code": "WO-20260804-0006",
+    "status": "InProgress",
+    "dispatch_mode": "DEMO_SHARED_KIOSK",
+    "selected_line_code": "WST-SEED-LINE-1",
+    "operation_count": 4,
+    "allocations": [
+      {
+        "operation_code": "WST-SEED-OP-BINDING",
+        "allocation_id": "ca3c1279-8284-4b7a-b5e3-2376f31fb427"
+      },
+      {
+        "operation_code": "WST-SEED-OP-TEST5IN1",
+        "allocation_id": "54291973-092a-42cd-a45a-ef3a4e0d3989"
+      },
+      {
+        "operation_code": "WST-SEED-OP-AIRTEST",
+        "allocation_id": "4f2448b0-d239-4699-9e7c-3358a87618e5"
+      },
+      {
+        "operation_code": "WST-SEED-OP-PACKING",
+        "allocation_id": "227fe442-6952-4cc0-8231-0447bb2b5777"
+      }
+    ]
+  },
+  "completed_at": "2026-08-04T02:10:10.078Z"
+}

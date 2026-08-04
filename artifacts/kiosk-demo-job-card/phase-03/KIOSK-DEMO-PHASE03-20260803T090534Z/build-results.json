@@ -1,0 +1,24 @@
+{
+  "declared": 10,
+  "executed": 10,
+  "passed": 10,
+  "failed": 0,
+  "skipped": 0,
+  "checks": [
+    "mes-execution-service go test ./...",
+    "mes-execution-service go test -tags integration ./...",
+    "mes-kiosk-gateway-service go test ./...",
+    "mes-kiosk-gateway-service go test -tags integration ./...",
+    "kiosk-operator-ui npm run typecheck",
+    "kiosk-operator-ui npm run build",
+    "Docker build mes-execution-service",
+    "Docker build mes-kiosk-gateway-service",
+    "Docker build kiosk-operator-ui",
+    "git diff --check"
+  ],
+  "images": {
+    "mes-execution-service": "sha256:841f6709bdf006ecc372ad4d2096773b26381491bf14e26474c5a2ea9325e31d",
+    "mes-kiosk-gateway-service": "sha256:11f27943730869fda6910f0bedee0ad4b0f75b2601cde01fa9a78caf14a88c2f",
+    "kiosk-operator-ui": "sha256:7851a8767f9b4655d51140cfeffbf6752a256e84f970751517ae17ffb1d8c17a"
+  }
+}

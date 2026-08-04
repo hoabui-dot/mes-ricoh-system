@@ -3,7 +3,9 @@ package http
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mom-platform/mes-execution-service/internal/application/usecase"
 	"github.com/mom-platform/mes-execution-service/internal/domain"
+	serviceauth "github.com/mom-platform/mes-execution-service/internal/infrastructure/auth"
 	"github.com/mom-platform/mes-execution-service/internal/infrastructure/client"
 	sharedkernel "github.com/mom-platform/shared-kernel-go"
 )
@@ -53,8 +56,11 @@ func normalizeLineEvaluationDimensions(raw []byte) []byte {
 	return result
 }
 
-func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient, resourcePlanningClient *client.ResourcePlanningClient) http.Handler {
+func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient, resourcePlanningClient *client.ResourcePlanningClient, failureReasonClient *client.FailureReasonClient) http.Handler {
 	r := chi.NewRouter()
+	keycloakURL := envOrDefault("KEYCLOAK_URL", "http://platform-keycloak:8080")
+	issuerValue := envOrDefault("KEYCLOAK_ISSUERS", keycloakURL+"/realms/wonsealtech")
+	kioskVerifier := serviceauth.NewVerifier(keycloakURL, "wonsealtech", "mes-client", strings.Split(issuerValue, ","))
 	creationWorkflows := newCreationWorkflowManager(pool)
 	allocationService := usecase.NewAllocationService(pool, resourcePlanningClient)
 
@@ -62,7 +68,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization, X-User-ID, X-Role-Code, X-Trace-ID, Idempotency-Key, X-MES-Approval-Policy")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization, X-User-ID, X-Role-Code, X-Site-ID, X-Trace-ID, Idempotency-Key, X-MES-Approval-Policy")
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
@@ -103,15 +109,105 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Delete("/work-orders/{id}/operations/{opId}/resource-allocation", handleDeleteResourceAllocation(pool))
 		r.Post("/work-orders/{id}/resource-allocations/revalidate", handleRevalidateResourceAllocations(allocationService))
 		r.Get("/work-orders", handleListWorkOrders(pool))
+		r.Group(func(kiosk chi.Router) {
+			kiosk.Use(requireKioskOperator(kioskVerifier))
+			kiosk.Get("/kiosk/terminals/{terminalRef}/work-orders", handleListKioskWorkOrders(pool))
+			kiosk.Get("/kiosk/terminals/{terminalRef}/work-orders/{id}", handleGetKioskWorkOrder(pool))
+			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/start", handleStartOperation(pool))
+			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/confirm", handleConfirmOperation(pool, traceabilityClient))
+			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/fail", handleFailOperation(pool, failureReasonClient))
+			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/abort", handleAbortSession(pool))
+			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/retry", handleRetryOperation(pool))
+		})
 
 		// Stage B Execution Endpoints
 		r.Post("/work-orders/{id}/operations/{opId}/start", handleStartOperation(pool))
 		r.Post("/work-orders/{id}/operations/{opId}/confirm", handleConfirmOperation(pool, traceabilityClient))
+		r.Post("/work-orders/{id}/operations/{opId}/fail", handleFailOperation(pool, failureReasonClient))
 		r.Post("/work-orders/{id}/operations/{opId}/abort", handleAbortSession(pool))
+		r.Post("/work-orders/{id}/operations/{opId}/retry", handleRetryOperation(pool))
 		r.Get("/work-orders/{id}/operations/{opId}/consumption", handleGetConsumption(pool))
 	})
 
 	return r
+}
+
+func envOrDefault(key, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func requireKioskOperator(verifier *serviceauth.Verifier) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			parts := strings.Fields(r.Header.Get("Authorization"))
+			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+				writeKioskAuthError(w, http.StatusUnauthorized, "KIOSK_BEARER_TOKEN_REQUIRED")
+				return
+			}
+			claims, err := verifier.VerifyOperator(parts[1])
+			if err != nil {
+				status := http.StatusUnauthorized
+				if strings.Contains(err.Error(), "role is required") {
+					status = http.StatusForbidden
+				}
+				writeKioskAuthError(w, status, "KIOSK_TOKEN_INVALID")
+				return
+			}
+			userID, _ := claims["sub"].(string)
+			r.Header.Set("X-User-ID", userID)
+			r.Header.Set("X-Role-Code", "OPERATOR")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func writeKioskAuthError(w http.ResponseWriter, status int, code string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
+}
+
+func handleListKioskWorkOrders(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+		pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+		result, err := usecase.ListKioskWorkOrders(r.Context(), pool, chi.URLParam(r, "terminalRef"), page, pageSize)
+		if err != nil {
+			writeKioskReadError(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(result)
+	}
+}
+
+func handleGetKioskWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		result, err := usecase.GetKioskWorkOrderDetail(r.Context(), pool, chi.URLParam(r, "terminalRef"), chi.URLParam(r, "id"))
+		if err != nil {
+			writeKioskReadError(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(result)
+	}
+}
+
+func writeKioskReadError(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	code := "KIOSK_READ_MODEL_FAILED"
+	switch {
+	case strings.Contains(err.Error(), "KIOSK_TERMINAL_SCOPE_FORBIDDEN"):
+		status, code = http.StatusForbidden, "KIOSK_TERMINAL_SCOPE_FORBIDDEN"
+	case strings.Contains(err.Error(), "KIOSK_WORK_ORDER_NOT_FOUND"):
+		status, code = http.StatusNotFound, "KIOSK_WORK_ORDER_NOT_FOUND"
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
 }
 
 func handleStageMaterials(pool *pgxpool.Pool) http.HandlerFunc {
@@ -461,23 +557,133 @@ func handlePrintRetry(pool *pgxpool.Pool) http.HandlerFunc {
 func handleAbortSession(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getHeader(r, "X-User-ID", systemUserID)
-		var body map[string]interface{}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		sessionID, _ := body["session_id"].(string)
-
-		if err := usecase.AbortSession(r.Context(), pool, usecase.AbortSessionInput{
-			SessionID:      sessionID,
-			OperatorUserID: userID,
-		}); err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		var body struct {
+			SessionID   string `json:"session_id"`
+			TerminalRef string `json:"terminal_ref"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeOperationCommandError(w, fmt.Errorf("INVALID_REQUEST_BODY"))
 			return
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"message": "Session aborted successfully"})
+		idempotencyKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+		if idempotencyKey == "" && body.SessionID != "" {
+			// Preserve retry safety for existing kiosk clients while they adopt the header.
+			idempotencyKey = "abort:" + body.SessionID
+		}
+		result, err := usecase.AbortOperation(r.Context(), pool, usecase.AbortOperationInput{
+			WOID:           chi.URLParam(r, "id"),
+			WOOperationID:  chi.URLParam(r, "opId"),
+			SessionID:      body.SessionID,
+			OperatorUserID: userID,
+			RoleCode:       getHeader(r, "X-Role-Code", "OPERATOR"),
+			TerminalRef:    body.TerminalRef,
+			IdempotencyKey: idempotencyKey,
+			TraceID:        getHeader(r, "X-Trace-ID", idempotencyKey),
+		})
+		if err != nil {
+			writeOperationCommandError(w, err)
+			return
+		}
+		writeOperationCommandResponse(w, result)
 	}
+}
+
+func handleFailOperation(pool *pgxpool.Pool, failureReasonClient *client.FailureReasonClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			SessionID   string `json:"session_id"`
+			ReasonCode  string `json:"reason_code"`
+			ReasonText  string `json:"reason_text"`
+			TerminalRef string `json:"terminal_ref"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeOperationCommandError(w, fmt.Errorf("INVALID_REQUEST_BODY"))
+			return
+		}
+		if failureReasonClient == nil {
+			writeOperationCommandError(w, fmt.Errorf("FAILURE_REASON_DEPENDENCY_UNAVAILABLE"))
+			return
+		}
+		reason, err := failureReasonClient.Validate(r.Context(), body.ReasonCode)
+		if err != nil {
+			writeOperationCommandError(w, err)
+			return
+		}
+		idempotencyKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+		result, err := usecase.FailOperation(r.Context(), pool, usecase.FailOperationInput{
+			WOID:                  chi.URLParam(r, "id"),
+			WOOperationID:         chi.URLParam(r, "opId"),
+			SessionID:             body.SessionID,
+			ReasonCode:            reason.Code,
+			ReasonNameI18n:        reason.Name,
+			ReasonText:            body.ReasonText,
+			ReasonRequiresComment: reason.RequiresComment,
+			OperatorUserID:        getHeader(r, "X-User-ID", systemUserID),
+			RoleCode:              getHeader(r, "X-Role-Code", "OPERATOR"),
+			TerminalRef:           body.TerminalRef,
+			IdempotencyKey:        idempotencyKey,
+			TraceID:               getHeader(r, "X-Trace-ID", idempotencyKey),
+		})
+		if err != nil {
+			writeOperationCommandError(w, err)
+			return
+		}
+		writeOperationCommandResponse(w, result)
+	}
+}
+
+func handleRetryOperation(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			TerminalRef string `json:"terminal_ref"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeOperationCommandError(w, fmt.Errorf("INVALID_REQUEST_BODY"))
+			return
+		}
+		idempotencyKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+		result, err := usecase.RetryOperation(r.Context(), pool, usecase.RetryOperationInput{
+			WOID:           chi.URLParam(r, "id"),
+			WOOperationID:  chi.URLParam(r, "opId"),
+			OperatorUserID: getHeader(r, "X-User-ID", systemUserID),
+			RoleCode:       getHeader(r, "X-Role-Code", "OPERATOR"),
+			TerminalRef:    body.TerminalRef,
+			SiteID:         strings.TrimSpace(r.Header.Get("X-Site-ID")),
+			IdempotencyKey: idempotencyKey,
+			TraceID:        getHeader(r, "X-Trace-ID", idempotencyKey),
+		})
+		if err != nil {
+			writeOperationCommandError(w, err)
+			return
+		}
+		writeOperationCommandResponse(w, result)
+	}
+}
+
+func writeOperationCommandResponse(w http.ResponseWriter, result *domain.OperationExecutionTransition) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+func writeOperationCommandError(w http.ResponseWriter, err error) {
+	message := err.Error()
+	status := http.StatusConflict
+	switch {
+	case sharedkernel.IsRetryableDependencyError(err), strings.Contains(message, "DEPENDENCY_UNAVAILABLE"), strings.Contains(message, "CATALOG_INVALID_RESPONSE"):
+		status = http.StatusServiceUnavailable
+	case strings.Contains(message, "NOT_FOUND"):
+		status = http.StatusNotFound
+	case strings.Contains(message, "FORBIDDEN"), strings.Contains(message, "MISMATCH"), strings.Contains(message, "SITE_SCOPE_REQUIRED"):
+		status = http.StatusForbidden
+	case strings.Contains(message, "REASON_"), strings.Contains(message, "NOT_APPROVED"):
+		status = http.StatusUnprocessableEntity
+	case strings.Contains(message, "REQUIRED"), strings.Contains(message, "INVALID_REQUEST_BODY"), strings.Contains(message, "USER_ID_INVALID"):
+		status = http.StatusBadRequest
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message, "message": message})
 }
 
 func handleGetConsumption(pool *pgxpool.Pool) http.HandlerFunc {
@@ -562,6 +768,10 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 		if shiftID == "" {
 			shiftID, _ = body["shiftId"].(string)
 		}
+		dispatchMode, _ := body["dispatch_mode"].(string)
+		if dispatchMode == "" {
+			dispatchMode, _ = body["dispatchMode"].(string)
+		}
 		// Production Version is authoritative. Resolve the legacy readiness
 		// inputs from it so direct API callers cannot accidentally fall back to
 		// an unrelated Item Revision/Site pair.
@@ -624,6 +834,7 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 			PlannedEndAt:        pEnd,
 			UserID:              userID,
 			TraceID:             traceID,
+			DispatchMode:        dispatchMode,
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -770,12 +981,12 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		woID := chi.URLParam(r, "id")
 
 		var header map[string]interface{}
-		rows, err := pool.Query(r.Context(), `SELECT wo_id, wo_code, production_version_id, COALESCE(production_version_code, ''), COALESCE(production_version_name_i18n, '{}'::jsonb), item_revision_id, COALESCE(item_revision_code, ''), COALESCE(item_revision_name_i18n, '{}'::jsonb), item_code, item_name, COALESCE(mbom_code, ''), COALESCE(routing_code, ''), COALESCE(planning_snapshot, '{}'::jsonb), quantity, uom_id, site_id, shift_id, planned_start_at, planned_end_at, status, created_by, created_at, row_version, COALESCE(selected_production_line_id::text, ''), COALESCE(selected_production_line_code, ''), COALESCE(selected_production_line_name_i18n, '{}'::jsonb), line_selection_mode, line_selection_status, COALESCE(line_selection_reason, ''), COALESCE(fallback_reason, ''), COALESCE(resource_hold_reason, '{}'::jsonb), COALESCE(evaluated_line_results, '[]'::jsonb), line_locked_at FROM wo_header WHERE wo_id = $1`, woID)
+		rows, err := pool.Query(r.Context(), `SELECT wo_id, wo_code, production_version_id, COALESCE(production_version_code, ''), COALESCE(production_version_name_i18n, '{}'::jsonb), item_revision_id, COALESCE(item_revision_code, ''), COALESCE(item_revision_name_i18n, '{}'::jsonb), item_code, item_name, COALESCE(mbom_code, ''), COALESCE(routing_code, ''), COALESCE(planning_snapshot, '{}'::jsonb), quantity, uom_id, site_id, shift_id, planned_start_at, planned_end_at, status, dispatch_mode, created_by, created_at, row_version, COALESCE(selected_production_line_id::text, ''), COALESCE(selected_production_line_code, ''), COALESCE(selected_production_line_name_i18n, '{}'::jsonb), line_selection_mode, line_selection_status, COALESCE(line_selection_reason, ''), COALESCE(fallback_reason, ''), COALESCE(resource_hold_reason, '{}'::jsonb), COALESCE(evaluated_line_results, '[]'::jsonb), line_locked_at FROM wo_header WHERE wo_id = $1`, woID)
 		if err != nil || !rows.Next() {
 			http.Error(w, "Work Order not found", http.StatusNotFound)
 			return
 		}
-		var id, code, pvID, pvCode, itemRevID, itemRevCode, itemCode, itemName, mbomCode, routingCode, uomID, siteID, status, createdBy string
+		var id, code, pvID, pvCode, itemRevID, itemRevCode, itemCode, itemName, mbomCode, routingCode, uomID, siteID, status, dispatchMode, createdBy string
 		var pvNameI18n, itemRevNameI18n, planningSnapshot, selectedLineName, resourceHoldReason, evaluatedLineResults []byte
 		var shiftID *string
 		var lineLockedAt *time.Time
@@ -783,7 +994,7 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		var qty float64
 		var plannedStartAt, plannedEndAt, createdAt time.Time
 		var selectedLineID, selectedLineCode, lineMode, lineStatus, lineReason, fallbackReason string
-		_ = rows.Scan(&id, &code, &pvID, &pvCode, &pvNameI18n, &itemRevID, &itemRevCode, &itemRevNameI18n, &itemCode, &itemName, &mbomCode, &routingCode, &planningSnapshot, &qty, &uomID, &siteID, &shiftID, &plannedStartAt, &plannedEndAt, &status, &createdBy, &createdAt, &rowVersion, &selectedLineID, &selectedLineCode, &selectedLineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &resourceHoldReason, &evaluatedLineResults, &lineLockedAt)
+		_ = rows.Scan(&id, &code, &pvID, &pvCode, &pvNameI18n, &itemRevID, &itemRevCode, &itemRevNameI18n, &itemCode, &itemName, &mbomCode, &routingCode, &planningSnapshot, &qty, &uomID, &siteID, &shiftID, &plannedStartAt, &plannedEndAt, &status, &dispatchMode, &createdBy, &createdAt, &rowVersion, &selectedLineID, &selectedLineCode, &selectedLineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &resourceHoldReason, &evaluatedLineResults, &lineLockedAt)
 		rows.Close()
 
 		evaluatedLineResults = normalizeLineEvaluationDimensions(evaluatedLineResults)
@@ -808,6 +1019,7 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			"planned_start_at":                   plannedStartAt,
 			"planned_end_at":                     plannedEndAt,
 			"status":                             status,
+			"dispatch_mode":                      dispatchMode,
 			"row_version":                        rowVersion,
 			"created_by":                         createdBy,
 			"created_at":                         createdAt,
@@ -824,7 +1036,7 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			"line_locked_at":                     lineLockedAt,
 		}
 
-		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id, o.status, o.execution_target_type, o.workstation_id, o.print_station_id, o.adapter_id, o.dispatch_event_id, o.operation_cycle_count, o.expected_good_quantity, o.base_quantity, o.requires_output_label, o.units_per_label, o.label_quantity_method, o.copies_per_label, o.label_count, o.print_copies, o.print_status, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), COALESCE(o.production_line_id::text, ''), COALESCE(o.production_line_code, ''), COALESCE(o.production_line_name_i18n, '{}'::jsonb), COALESCE(o.source_routing_work_center_id::text, ''), a.allocation_id, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id, a.planned_workstation_id, a.planned_equipment_id, COALESCE(a.planned_production_line_id::text, ''), a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
+		opRows, _ := pool.Query(r.Context(), `SELECT o.wo_operation_id::text, o.sequence_no, o.operation_code, o.operation_name, o.work_center_id::text, o.status::text, o.execution_target_type, o.workstation_id::text, o.print_station_id::text, o.adapter_id, o.dispatch_event_id::text, o.operation_cycle_count::float8, o.expected_good_quantity::float8, o.base_quantity::float8, o.requires_output_label, o.units_per_label::float8, COALESCE(o.label_quantity_method, ''), COALESCE(o.copies_per_label, 1), COALESCE(o.label_count, 0), COALESCE(o.print_copies, 0), o.print_status, COALESCE(wc.code, ''), COALESCE(wc.name, '{}'::jsonb), COALESCE(o.production_line_id::text, ''), COALESCE(o.production_line_code, ''), COALESCE(o.production_line_name_i18n, '{}'::jsonb), COALESCE(o.source_routing_work_center_id::text, ''), a.allocation_id::text, a.status, a.validation_status, a.planned_start_at, a.planned_end_at, a.planned_shift_id::text, a.planned_workstation_id::text, a.planned_equipment_id::text, COALESCE(a.planned_production_line_id::text, ''), a.warning_codes FROM wo_operation o LEFT JOIN rm_work_center wc ON wc.master_id = o.work_center_id LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status IN ('Draft','Validated','Committed') WHERE o.wo_id = $1 ORDER BY o.sequence_no`, woID)
 		var ops []map[string]interface{}
 		for opRows != nil && opRows.Next() {
 			var opID, opCode, wcID, opStatus, wcCode, executionTarget, labelQuantityMethod, printStatus string
@@ -837,7 +1049,12 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 			var opLineID, opLineCode, sourceRoutingWorkCenterID, allocationLineID string
 			var plannedStart, plannedEnd *time.Time
 			var warningCodes []byte
-			_ = opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &executionTarget, &snapshotWorkstationID, &printStationID, &adapterID, &dispatchEventID, &operationCycleCount, &expectedGoodQuantity, &baseQuantity, &requiresOutputLabel, &unitsPerLabel, &labelQuantityMethod, &copiesPerLabel, &labelCount, &printCopies, &printStatus, &wcCode, &wcNameJSON, &opLineID, &opLineCode, &opLineNameJSON, &sourceRoutingWorkCenterID, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &allocationLineID, &warningCodes)
+			if err := opRows.Scan(&opID, &seq, &opCode, &opNameJSON, &wcID, &opStatus, &executionTarget, &snapshotWorkstationID, &printStationID, &adapterID, &dispatchEventID, &operationCycleCount, &expectedGoodQuantity, &baseQuantity, &requiresOutputLabel, &unitsPerLabel, &labelQuantityMethod, &copiesPerLabel, &labelCount, &printCopies, &printStatus, &wcCode, &wcNameJSON, &opLineID, &opLineCode, &opLineNameJSON, &sourceRoutingWorkCenterID, &allocationID, &allocationStatus, &validationStatus, &plannedStart, &plannedEnd, &shiftID, &workstationID, &equipmentID, &allocationLineID, &warningCodes); err != nil {
+				log.Printf("[WOReadModel] operation scan failed for work_order_id=%s: %v", woID, err)
+				opRows.Close()
+				http.Error(w, "failed to read Work Order operations", http.StatusInternalServerError)
+				return
+			}
 			var opName map[string]string
 			if err := json.Unmarshal(opNameJSON, &opName); err != nil {
 				opName = map[string]string{"vi": opCode, "en": opCode, "ja": opCode, "ko": opCode}
@@ -1043,7 +1260,7 @@ func handleListWorkOrders(pool *pgxpool.Pool) http.HandlerFunc {
 			add("planned_start_at < ($%d::date + INTERVAL '1 day')", value)
 		}
 		args = append(args, limit)
-		query := fmt.Sprintf(`SELECT wo_id, wo_code, item_code, item_name, quantity, uom_id, site_id, production_version_id, COALESCE(production_version_code, ''), planned_start_at, planned_end_at, status, created_at, COALESCE(selected_production_line_code, ''), COALESCE(selected_production_line_name_i18n, '{}'::jsonb), line_selection_mode, line_selection_status, COALESCE(line_selection_reason, ''), COALESCE(fallback_reason, ''), COALESCE(resource_hold_reason, '{}'::jsonb), COALESCE(evaluated_line_results, '[]'::jsonb), line_locked_at FROM wo_header WHERE %s ORDER BY planned_start_at ASC, created_at DESC LIMIT $%d`, strings.Join(where, " AND "), len(args))
+		query := fmt.Sprintf(`SELECT wo_id, wo_code, item_code, item_name, quantity, uom_id, site_id, production_version_id, COALESCE(production_version_code, ''), planned_start_at, planned_end_at, status, dispatch_mode, created_at, COALESCE(selected_production_line_code, ''), COALESCE(selected_production_line_name_i18n, '{}'::jsonb), line_selection_mode, line_selection_status, COALESCE(line_selection_reason, ''), COALESCE(fallback_reason, ''), COALESCE(resource_hold_reason, '{}'::jsonb), COALESCE(evaluated_line_results, '[]'::jsonb), line_locked_at FROM wo_header WHERE %s ORDER BY planned_start_at ASC, created_at DESC LIMIT $%d`, strings.Join(where, " AND "), len(args))
 		rows, err := pool.Query(r.Context(), query, args...)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1053,12 +1270,12 @@ func handleListWorkOrders(pool *pgxpool.Pool) http.HandlerFunc {
 
 		var data []map[string]interface{}
 		for rows.Next() {
-			var id, code, itemCode, itemName, uomID, siteID, pvID, pvCode, status, lineCode, lineMode, lineStatus, lineReason, fallbackReason string
+			var id, code, itemCode, itemName, uomID, siteID, pvID, pvCode, status, dispatchMode, lineCode, lineMode, lineStatus, lineReason, fallbackReason string
 			var lineName, holdReason, evaluated []byte
 			var qty float64
 			var plannedStart, plannedEnd, createdAt time.Time
 			var lineLockedAt *time.Time
-			_ = rows.Scan(&id, &code, &itemCode, &itemName, &qty, &uomID, &siteID, &pvID, &pvCode, &plannedStart, &plannedEnd, &status, &createdAt, &lineCode, &lineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &holdReason, &evaluated, &lineLockedAt)
+			_ = rows.Scan(&id, &code, &itemCode, &itemName, &qty, &uomID, &siteID, &pvID, &pvCode, &plannedStart, &plannedEnd, &status, &dispatchMode, &createdAt, &lineCode, &lineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &holdReason, &evaluated, &lineLockedAt)
 			var evaluations []map[string]interface{}
 			_ = json.Unmarshal(evaluated, &evaluations)
 			primary, backup := map[string]interface{}{}, map[string]interface{}{}
@@ -1082,7 +1299,7 @@ func handleListWorkOrders(pool *pgxpool.Pool) http.HandlerFunc {
 			data = append(data, map[string]interface{}{
 				"wo_id": id, "wo_code": code, "item_code": itemCode, "item_name": itemName, "quantity": qty, "uom_id": uomID,
 				"site_id": siteID, "production_version_id": pvID, "production_version_code": pvCode, "planned_start_at": plannedStart, "planned_end_at": plannedEnd,
-				"status": status, "created_at": createdAt, "selected_production_line_code": lineCode, "selected_production_line_name_i18n": json.RawMessage(lineName),
+				"status": status, "dispatch_mode": dispatchMode, "created_at": createdAt, "selected_production_line_code": lineCode, "selected_production_line_name_i18n": json.RawMessage(lineName),
 				"line_selection_mode": lineMode, "line_selection_status": lineStatus, "line_selection_reason": lineReason, "fallback_reason": fallbackReason,
 				"resource_hold_reason": json.RawMessage(holdReason), "primary_evaluation": primary, "backup_evaluation": backup, "line_locked_at": lineLockedAt,
 				"approval_state":  approvalState,

@@ -1,0 +1,10 @@
+{
+  "phase": "04",
+  "run_id": "KIOSK-DEMO-PHASE04-20260803T095832Z",
+  "date": "2026-08-03",
+  "status": "PASSED",
+  "images": {"mes_master_data_service": "sha256:1cb7ad6911652e0585633cc6f6a2f610b365f67837a456b9a7a1848a30da991c", "mes_execution_service": "sha256:fea5f0849f2180e8324624bb17a1d3c5bf1c01380383c0dbdec525948fb795c2", "mes_kiosk_gateway_service": "sha256:11f27943730869fda6910f0bedee0ad4b0f75b2601cde01fa9a78caf14a88c2f", "kiosk_operator_ui": "sha256:6dd10d1b86eda28c98c3ea15e33af0e9f69a02d66d9bdf9fafe3929c41956d0d"},
+  "screenshots": {"kiosk-phase04-job-cards-tablet.png": "9970ed1f6dba18fc776072f99c26290393e2909c282d39671c3acb64cdfcc45b", "kiosk-phase04-tablet.png": "cbab7ae3d8a2f20dd41514e4201c5b28bae3320baee6d25d8a1352fd2960be0b"},
+  "mandatory_skips": 0,
+  "gate": "KIOSK_DEMO_PHASE_04_PASSED_READY_FOR_PHASE_05"
+}

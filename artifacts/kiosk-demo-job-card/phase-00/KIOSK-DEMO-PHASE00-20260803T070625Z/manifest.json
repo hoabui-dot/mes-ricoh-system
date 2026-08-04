@@ -1,0 +1,28 @@
+{
+  "run_id": "KIOSK-DEMO-PHASE00-20260803T070625Z",
+  "phase": "00",
+  "started_at": "2026-08-03T07:06:25Z",
+  "authorization": {"token": "USER_AUTHORIZED_PHASE_00", "entry_gate": "PASSED"},
+  "repository_commit": "b62b9fabfc4c59db2c62b4b7bd64678fc6c99767",
+  "mode": "audit_design_read_only",
+  "artifacts": [
+    "baseline.json",
+    "changes.json",
+    "build-results.json",
+    "api-results.json",
+    "event-results.json",
+    "websocket-results.json",
+    "browser-results.json",
+    "cleanup-results.json",
+    "acceptance-results.json",
+    "current-state-map.json",
+    "approved-state-machine.json",
+    "event-inventory.json",
+    "route-screen-contract.json",
+    "failure-policy-decision.json",
+    "phase-dependency-map.json",
+    "login-readonly-smoke.png"
+  ],
+  "report": "AI_document/Kiosk-Demo/Phase-00/REPORT_PHASE_00.md",
+  "secrets_stored": false
+}

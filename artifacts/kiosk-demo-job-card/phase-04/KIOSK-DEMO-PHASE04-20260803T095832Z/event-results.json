@@ -1,0 +1,9 @@
+{
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "checks": ["real Kafka WOStatusChanged event produced", "Gateway consumed the event", "terminal delivery was queued", "UI performed authoritative API refetch"],
+  "browser_publishes_kafka": false
+}

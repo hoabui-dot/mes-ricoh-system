@@ -11,8 +11,14 @@ database_host: mes-kiosk-gateway-db
 publishes_events: []
 
 consumes_events:
-  - MES.Execution.WOCreated.v1
-  - MES.Execution.WOApproved.v1
+  - MES.Execution.OperationDispatchQueued.v1
+  - MES.Execution.OperationStarted.v1
+  - MES.Execution.OperationFinished.v1
+  - MES.Execution.OperationFailed.v1
+  - MES.Execution.OperationAborted.v1
+  - MES.Execution.OperationRetryRequested.v1
+  - MES.Execution.WOStatusChanged.v1
+  - MES.Execution.WOCompleted.v1
 
 synchronous_dependencies:
   - service: platform-keycloak

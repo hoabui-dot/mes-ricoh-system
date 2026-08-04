@@ -23,6 +23,8 @@ FROM nginx:alpine
 
 COPY services/kiosk-operator-ui/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/services/kiosk-operator-ui/dist /usr/share/nginx/html
+COPY services/kiosk-operator-ui/docker-entrypoint.d/40-kiosk-runtime-config.sh /docker-entrypoint.d/40-kiosk-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-kiosk-runtime-config.sh
 
 EXPOSE 3051
 

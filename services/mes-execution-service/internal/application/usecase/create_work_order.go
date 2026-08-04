@@ -29,6 +29,7 @@ type CreateWOInput struct {
 	PlannedEndAt        string
 	UserID              string
 	TraceID             string
+	DispatchMode        string
 }
 
 func localizedOperationName(code string) string {
@@ -63,6 +64,13 @@ func localizedNameValue(raw []byte) string {
 const WorkOrderCodePrefix = "WO"
 
 func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInput) (map[string]interface{}, error) {
+	input.DispatchMode = strings.ToUpper(strings.TrimSpace(input.DispatchMode))
+	if input.DispatchMode == "" {
+		input.DispatchMode = "WORK_CENTER"
+	}
+	if input.DispatchMode != "WORK_CENTER" && input.DispatchMode != "DEMO_SHARED_KIOSK" {
+		return nil, fmt.Errorf("WORK_ORDER_DISPATCH_MODE_INVALID")
+	}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -163,10 +171,10 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	err = tx.QueryRow(ctx, `
 		INSERT INTO wo_header (
 			wo_code, production_version_id, production_version_code, production_version_name_i18n, item_revision_id, item_revision_code, item_revision_name_i18n, item_code, item_name, mbom_code, routing_code, planning_snapshot, quantity, uom_id, site_id, shift_id,
-			planned_start_at, planned_end_at, status, created_by
-		) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, $18, 'Draft', $19)
+			planned_start_at, planned_end_at, status, created_by, dispatch_mode
+		) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, $18, 'Draft', $19, $20)
 		RETURNING wo_id, created_by
-	`, woCode, pvID, pvCode, string(pvName), input.ItemRevisionID, itemRevisionCode, string(itemName), input.ItemCode, input.ItemName, mbomCode, routingCode, fmt.Sprintf(`{"production_version_id":"%s","production_version_code":"%s","mbom_id":"%s","routing_id":"%s","shift_id":"%s"}`, pvID, pvCode, mbomHeaderID, routingHeaderID, input.ShiftID), input.Quantity, input.UOMID, input.SiteID, input.ShiftID, input.PlannedStartAt, input.PlannedEndAt, input.UserID).Scan(&woID, &createdBy)
+	`, woCode, pvID, pvCode, string(pvName), input.ItemRevisionID, itemRevisionCode, string(itemName), input.ItemCode, input.ItemName, mbomCode, routingCode, fmt.Sprintf(`{"production_version_id":"%s","production_version_code":"%s","mbom_id":"%s","routing_id":"%s","shift_id":"%s"}`, pvID, pvCode, mbomHeaderID, routingHeaderID, input.ShiftID), input.Quantity, input.UOMID, input.SiteID, input.ShiftID, input.PlannedStartAt, input.PlannedEndAt, input.UserID, input.DispatchMode).Scan(&woID, &createdBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert wo_header: %w", err)
 	}
@@ -397,6 +405,7 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		"quantity":                     input.Quantity,
 		"site_id":                      input.SiteID,
 		"status":                       createdStatus,
+		"dispatch_mode":                input.DispatchMode,
 	}
 	envelope := sharedkernel.CreateEventEnvelope("MES.Execution.WOCreated.v1", "mes-execution-service", input.TraceID, payload)
 	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.WOCreated.v1", envelope); err != nil {

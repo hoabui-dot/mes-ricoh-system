@@ -1,0 +1,10 @@
+Phase 07 build and static evidence
+
+- MES Master Data Docker image: PASS, sha256:e40b094d528fcb85936dd689231310c03994b2e8c1e821b6d975604952c77d90
+- MES Execution Docker image: PASS, sha256:63648638a947d9489bdaf3cb5a9c41efcb87e12c4fcbe01b0880a0e7e044bd7b
+- Kiosk UI typecheck: PASS
+- Kiosk UI production build: PASS, 1538 modules transformed
+- Master Data Vitest: PASS, 3 files / 6 tests
+- MES Execution go test ./...: PASS
+- Kiosk Gateway go test ./...: PASS
+- git diff --check: PASS

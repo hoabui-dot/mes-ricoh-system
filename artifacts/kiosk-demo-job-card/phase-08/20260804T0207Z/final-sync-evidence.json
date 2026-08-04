@@ -1,0 +1,20 @@
+{
+  "events": [
+    "MES.Execution.MaterialConsumed.v1:2",
+    "MES.Execution.OperationAborted.v1:1",
+    "MES.Execution.OperationDispatchQueued.v1:6",
+    "MES.Execution.OperationFailed.v1:1",
+    "MES.Execution.OperationFinished.v1:6",
+    "MES.Execution.OperationRetryRequested.v1:1",
+    "MES.Execution.OperationStarted.v1:8",
+    "MES.Execution.WOApproved.v1:2",
+    "MES.Execution.WOCreated.v1:2",
+    "MES.Execution.WOResourceAllocated.v1:8",
+    "MES.Execution.WOStatusChanged.v1:2"
+  ],
+  "gateway_consumed_events": 15,
+  "reconnect_queue_drain": true,
+  "active_session_recovered": true,
+  "mes_console_converged": true,
+  "passed": true
+}

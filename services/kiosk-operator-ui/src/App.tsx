@@ -8,6 +8,7 @@ import { OperationScreen } from './routes/OperationScreen';
 import { Toaster } from 'sonner';
 import { I18nProvider } from '@mom-platform/i18n-ui-shared';
 import { kioskI18n } from './i18n';
+import { ProtectedKioskRoute } from './components/ProtectedKioskRoute';
 
 export const App: React.FC = () => {
   return (
@@ -20,8 +21,10 @@ export const App: React.FC = () => {
               <Routes>
                 <Route path="/" element={<Navigate to="/kiosk/KIOSK-DEMO-01/login" replace />} />
                 <Route path="/kiosk/:terminalId/login" element={<LoginScreen />} />
-                <Route path="/kiosk/:terminalId/wo-list" element={<WOListScreen />} />
-                <Route path="/kiosk/:terminalId/wo/:woId" element={<OperationScreen />} />
+                <Route path="/kiosk/:terminalId" element={<ProtectedKioskRoute />}>
+                  <Route path="wo-list" element={<WOListScreen />} />
+                  <Route path="wo/:woId" element={<OperationScreen />} />
+                </Route>
                 <Route path="*" element={<Navigate to="/kiosk/KIOSK-DEMO-01/login" replace />} />
               </Routes>
             </div>

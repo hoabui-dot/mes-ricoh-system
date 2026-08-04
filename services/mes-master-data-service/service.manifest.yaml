@@ -11,7 +11,7 @@ database_host: mes-master-data-db
 publishes_events:
   - name: MES.MasterData.ItemRevisionReleased.v2
     topic: MES.MasterData.ItemRevisionReleased.v2
-    payload: master_id, code, name(LocalizedText), version_no, item_code, revision_code, item_type, site_id
+    payload: master_id, code, name(LocalizedText), version_no, item_code, revision_code, item_type, site_id, base_uom_id, base_uom_code
   - name: MES.MasterData.MBOMReleased.v2
     topic: MES.MasterData.MBOMReleased.v2
     payload: master_id, code, name(LocalizedText), version_no, site_id, base_quantity, base_uom_code, line_count

@@ -20,6 +20,18 @@ publishes_events:
   - name: MES.Execution.MaterialConsumed.v1
     topic: MES.Execution.MaterialConsumed.v1
     payload: consumption_id, wo_id, wo_operation_id, work_center_id, component_revision_id, qty_consumed, uom, source
+  - name: MES.Execution.OperationFailed.v1
+    topic: MES.Execution.OperationFailed.v1
+    payload: history_id, wo_id, wo_code, wo_operation_id, operation_code, session_id, reason_code, reason_text, terminal_ref, operator_user_id, from_state, to_state, occurred_at
+  - name: MES.Execution.OperationAborted.v1
+    topic: MES.Execution.OperationAborted.v1
+    payload: history_id, wo_id, wo_code, wo_operation_id, operation_code, session_id, terminal_ref, operator_user_id, from_state, to_state, occurred_at
+  - name: MES.Execution.OperationRetryRequested.v1
+    topic: MES.Execution.OperationRetryRequested.v1
+    payload: history_id, wo_id, wo_code, wo_operation_id, operation_code, session_id, reason_code, terminal_ref, operator_user_id, from_state, to_state, occurred_at
+  - name: MES.Execution.WOStatusChanged.v1
+    topic: MES.Execution.WOStatusChanged.v1
+    payload: wo_id, wo_code, wo_operation_id, operator_user_id, wo_from_state, wo_to_state, reason_code, occurred_at
   - name: MES.Execution.MaterialStagingRequested.v1
     topic: MES.Execution.MaterialStagingRequested.v1
     payload: wo_id, requirement_ids, item_revision_id, work_center_ref, required_qty
@@ -83,8 +95,22 @@ synchronous_dependencies:
       library: gobreaker via libs/shared-kernel-go
       timeout: 7s
       graceful_failure: "HTTP 503 DEPENDENCY_UNAVAILABLE; allocation is not persisted"
+  - service: mes-master-data-service
+    endpoints:
+      - GET /api/mes/master-data/reason-codes
+    caller: Validate released ExecutionFailure reason before a manual operation failure is persisted
+    circuit_breaker:
+      library: gobreaker via libs/shared-kernel-go
+      timeout: 5s
+      graceful_failure: "HTTP 503; operation and Work Order state remain unchanged"
 
 http_endpoints:
+  - method: GET
+    path: /api/mes/execution/kiosk/terminals/:terminalRef/work-orders
+    description: List grouped demo-dispatch Work Orders for the exact configured kiosk terminal with authoritative counts and pagination
+  - method: GET
+    path: /api/mes/execution/kiosk/terminals/:terminalRef/work-orders/:id
+    description: Get terminal-scoped manual Job Cards, active sessions, failure context, action eligibility, and separate read-only print context
   - method: POST
     path: /api/mes/execution/work-orders
     description: Create Draft WO with exploded MBOM and routing snapshot
@@ -121,6 +147,21 @@ http_endpoints:
   - method: POST
     path: /api/mes/execution/work-orders/:id/resource-allocations/revalidate
     description: Recheck committed allocations against current master-data readiness and capacity
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/operations/:opId/start
+    description: Start or idempotently resume one eligible manual operation session
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/operations/:opId/confirm
+    description: Confirm positive good/scrap quantity and complete the authoritative manual session
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/operations/:opId/fail
+    description: Fail an in-progress manual operation with an approved ExecutionFailure reason and pause its Work Order
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/operations/:opId/abort
+    description: Abort an in-progress manual session, preserve audit history, and reopen the operation without failing it
+  - method: POST
+    path: /api/mes/execution/work-orders/:id/operations/:opId/retry
+    description: Authorize recovery from ExecutionError and reopen the paused Work Order without creating a session
 
 notes:
   - "Stage A scope only: WO planning/creation/approval. Kiosk Start/Finish, backflush, and QR mother-child scanning at OP-CUT are Stage B, deferred until mes-traceability-service exists."

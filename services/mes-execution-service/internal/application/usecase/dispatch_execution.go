@@ -119,8 +119,9 @@ func queueOperations(ctx context.Context, tx executionTx, woID, userID, traceID 
 	rows, err := tx.Query(ctx, fmt.Sprintf(`
 		SELECT o.wo_operation_id, o.operation_id, o.routing_operation_id, o.operation_code, o.operation_name,
 		       o.work_center_id, COALESCE(a.planned_workstation_id, o.workstation_id), o.execution_target_type, o.sequence_no, o.predecessor_seq,
-		       h.wo_code, h.quantity, h.item_code, h.item_name, o.requires_output_label,
-		       o.base_quantity, o.units_per_label, o.label_quantity_method, o.copies_per_label, o.label_count, o.print_copies
+		       h.wo_code, h.quantity, h.item_code, h.item_name, h.dispatch_mode, o.requires_output_label,
+		       o.base_quantity, o.units_per_label, COALESCE(o.label_quantity_method,''),
+		       COALESCE(o.copies_per_label,1), COALESCE(o.label_count,0), COALESCE(o.print_copies,0)
 		FROM wo_operation o JOIN wo_header h ON h.wo_id=o.wo_id
 		LEFT JOIN wo_resource_allocation a ON a.wo_operation_id=o.wo_operation_id AND a.status='Committed' AND a.validation_status IN ('Valid','ValidWithWarnings')
 		WHERE o.wo_id=$1 AND %s
@@ -129,21 +130,21 @@ func queueOperations(ctx context.Context, tx executionTx, woID, userID, traceID 
 		return 0, err
 	}
 	type readyOperation struct {
-		opID, operationID, routingID, opCode, wcID, target, woCode, itemCode, itemName string
-		opName                                                                         []byte
-		workstationID                                                                  *string
-		seq                                                                            int
-		pred                                                                           *string
-		quantity                                                                       float64
-		requiresOutputLabel                                                            bool
-		baseQuantity, unitsPerLabel                                                    *float64
-		labelQuantityMethod                                                            string
-		copiesPerLabel, labelCount, printCopies                                        int
+		opID, operationID, routingID, opCode, wcID, target, woCode, itemCode, itemName, dispatchMode string
+		opName                                                                                       []byte
+		workstationID                                                                                *string
+		seq                                                                                          int
+		pred                                                                                         *string
+		quantity                                                                                     float64
+		requiresOutputLabel                                                                          bool
+		baseQuantity, unitsPerLabel                                                                  *float64
+		labelQuantityMethod                                                                          string
+		copiesPerLabel, labelCount, printCopies                                                      int
 	}
 	var ready []readyOperation
 	for rows.Next() {
 		var op readyOperation
-		if err := rows.Scan(&op.opID, &op.operationID, &op.routingID, &op.opCode, &op.opName, &op.wcID, &op.workstationID, &op.target, &op.seq, &op.pred, &op.woCode, &op.quantity, &op.itemCode, &op.itemName, &op.requiresOutputLabel, &op.baseQuantity, &op.unitsPerLabel, &op.labelQuantityMethod, &op.copiesPerLabel, &op.labelCount, &op.printCopies); err != nil {
+		if err := rows.Scan(&op.opID, &op.operationID, &op.routingID, &op.opCode, &op.opName, &op.wcID, &op.workstationID, &op.target, &op.seq, &op.pred, &op.woCode, &op.quantity, &op.itemCode, &op.itemName, &op.dispatchMode, &op.requiresOutputLabel, &op.baseQuantity, &op.unitsPerLabel, &op.labelQuantityMethod, &op.copiesPerLabel, &op.labelCount, &op.printCopies); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -156,7 +157,7 @@ func queueOperations(ctx context.Context, tx executionTx, woID, userID, traceID 
 	rows.Close()
 	count := 0
 	for _, op := range ready {
-		opID, operationID, routingID, opCode, opName, wcID, workstationID, target, seq, woCode, quantity, itemCode, itemName := op.opID, op.operationID, op.routingID, op.opCode, op.opName, op.wcID, op.workstationID, op.target, op.seq, op.woCode, op.quantity, op.itemCode, op.itemName
+		opID, operationID, routingID, opCode, opName, wcID, workstationID, target, seq, woCode, quantity, itemCode, itemName, dispatchMode := op.opID, op.operationID, op.routingID, op.opCode, op.opName, op.wcID, op.workstationID, op.target, op.seq, op.woCode, op.quantity, op.itemCode, op.itemName, op.dispatchMode
 		if target == "" {
 			target = "UNRESOLVED"
 		}
@@ -170,10 +171,11 @@ func queueOperations(ctx context.Context, tx executionTx, woID, userID, traceID 
 		eventType := "MES.Execution.OperationDispatchQueued.v1"
 		status := "DispatchQueued"
 		payload := map[string]interface{}{
+			"wo_id": woID, "wo_code": woCode,
 			"work_order_id": woID, "workOrderId": woID, "work_order_code": woCode, "workOrderCode": woCode,
 			"wo_operation_id": opID, "woOperationId": opID, "routing_operation_id": routingID,
 			"sequence_no": seq, "operation_code": opCode, "operation_name": string(opName),
-			"work_center_id": wcID, "workstation_id": workstationID, "dispatch_mode": "DEMO_SHARED_KIOSK",
+			"work_center_id": wcID, "workstation_id": workstationID, "dispatch_mode": dispatchMode,
 			"execution_target_type": target, "status": "READY_FOR_EXECUTION", "trace_id": traceID,
 		}
 		var printJobID uuid.UUID

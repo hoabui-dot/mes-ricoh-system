@@ -3,6 +3,7 @@ package events
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,6 +14,10 @@ var executionEventTypes = []string{
 	"MES.Execution.WOApproved.v1",
 	"MES.Execution.OperationStarted.v1",
 	"MES.Execution.OperationFinished.v1",
+	"MES.Execution.OperationFailed.v1",
+	"MES.Execution.OperationAborted.v1",
+	"MES.Execution.OperationRetryRequested.v1",
+	"MES.Execution.WOStatusChanged.v1",
 	"MES.Execution.MaterialConsumed.v1",
 	"MES.Execution.MaterialStagingRequested.v1",
 	"MES.Execution.WOCompleted.v1",
@@ -48,6 +53,7 @@ const eventSchemaJSON = `{
 
 func RegisterEventSchemas(schemaRegistryURL string) error {
 	baseURL := strings.TrimRight(schemaRegistryURL, "/")
+	var registrationErrors []error
 	for _, eventType := range executionEventTypes {
 		subject := fmt.Sprintf("%s-value", eventType)
 		reqBody, _ := json.Marshal(map[string]string{
@@ -56,12 +62,13 @@ func RegisterEventSchemas(schemaRegistryURL string) error {
 		})
 		resp, err := http.Post(fmt.Sprintf("%s/subjects/%s/versions", baseURL, subject), "application/vnd.schemaregistry.v1+json", bytes.NewBuffer(reqBody))
 		if err != nil {
-			return err
+			registrationErrors = append(registrationErrors, fmt.Errorf("%s: %w", subject, err))
+			continue
 		}
 		resp.Body.Close()
 		if resp.StatusCode >= 400 {
-			return fmt.Errorf("schema registry returned status %d for %s", resp.StatusCode, subject)
+			registrationErrors = append(registrationErrors, fmt.Errorf("schema registry returned status %d for %s", resp.StatusCode, subject))
 		}
 	}
-	return nil
+	return errors.Join(registrationErrors...)
 }

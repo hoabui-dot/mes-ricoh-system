@@ -42,7 +42,7 @@ func (c *MasterDataConsumer) Start() {
 		// Rebuild retained master-data projections after schema enrichment.
 		// Replay retained master-data events after adding localized Production Version
 		// identity and Item Revision UOM projection fields.
-		GroupID:     "mes-execution-readmodel-group-v6",
+		GroupID:     "mes-execution-readmodel-group-v7",
 		GroupTopics: masterDataTopics,
 		StartOffset: kafka.FirstOffset,
 	})
@@ -166,11 +166,12 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 		revCode, _ := p["revision_code"].(string)
 		itemType, _ := p["item_type"].(string)
 		baseUOM, _ := p["base_uom_id"].(string)
+		baseUOMCode, _ := p["base_uom_code"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, lifecycle_status, updated_at)
-			VALUES ($1, $2, $3::jsonb, $4, $5, $6, NULLIF($7, '')::uuid, $8, NOW())
-			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, base_uom_id=EXCLUDED.base_uom_id, lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
-		`, masterID, code, string(nameJSON), revCode, itemType, siteID, baseUOM, status)
+			INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, base_uom_code, lifecycle_status, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, NULLIF($7, '')::uuid, NULLIF($8, ''), $9, NOW())
+			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, base_uom_id=EXCLUDED.base_uom_id, base_uom_code=COALESCE(EXCLUDED.base_uom_code, rm_item_revision.base_uom_code), lifecycle_status=EXCLUDED.lifecycle_status, updated_at=NOW()
+		`, masterID, code, string(nameJSON), revCode, itemType, siteID, baseUOM, baseUOMCode, status)
 
 	case "MES.MasterData.MBOMReleased.v2":
 		baseQty, _ := p["base_quantity"].(float64)

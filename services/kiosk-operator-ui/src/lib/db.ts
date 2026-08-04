@@ -1,18 +1,10 @@
 import { openDB, DBSchema } from 'idb';
+import type { CachedKioskWorkOrder, KioskWorkOrderSummary } from '../types/kiosk';
 
 interface KioskDBSchema extends DBSchema {
   work_orders: {
     key: string;
-    value: {
-      wo_id: string;
-      wo_code: string;
-      item_code: string;
-      item_name?: string;
-      quantity: number;
-      status: string;
-      updated_at: string;
-      cached_at: string;
-    };
+    value: CachedKioskWorkOrder;
     indexes: { 'by-code': string };
   };
   operations: {
@@ -47,20 +39,15 @@ export async function getKioskDB() {
   });
 }
 
-export async function cacheWorkOrders(wos: any[]) {
+export async function cacheWorkOrders(wos: KioskWorkOrderSummary[]) {
   try {
     const db = await getKioskDB();
     const tx = db.transaction('work_orders', 'readwrite');
     const now = new Date().toISOString();
+    await tx.store.clear();
     for (const wo of wos) {
       await tx.store.put({
-        wo_id: wo.wo_id,
-        wo_code: wo.wo_code,
-        item_code: wo.item_code,
-        item_name: wo.item_name,
-        quantity: wo.quantity,
-        status: wo.status,
-        updated_at: wo.created_at || now,
+        ...wo,
         cached_at: now,
       });
     }
@@ -70,12 +57,23 @@ export async function cacheWorkOrders(wos: any[]) {
   }
 }
 
-export async function getCachedWorkOrders() {
+export async function getCachedWorkOrders(): Promise<CachedKioskWorkOrder[]> {
   try {
     const db = await getKioskDB();
     return await db.getAll('work_orders');
   } catch (err) {
     console.warn('[IndexedDB] Failed to read cached WOs:', err);
     return [];
+  }
+}
+
+export async function clearKioskCache() {
+  try {
+    const db = await getKioskDB();
+    const tx = db.transaction(['work_orders', 'operations'], 'readwrite');
+    await Promise.all([tx.objectStore('work_orders').clear(), tx.objectStore('operations').clear()]);
+    await tx.done;
+  } catch (err) {
+    console.warn('[IndexedDB] Failed to clear Kiosk cache:', err);
   }
 }

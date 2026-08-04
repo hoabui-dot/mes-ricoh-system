@@ -1,0 +1,7 @@
+{
+  "wo_status": "Paused",
+  "operation_status": "ExecutionError",
+  "failure_history": 1,
+  "successor_blocked": true,
+  "passed": true
+}

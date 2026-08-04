@@ -1,0 +1,15 @@
+{
+  "summary": {"declared": 5, "executed": 5, "passed": 5, "failed": 0, "skipped": 0},
+  "classification": "real Playwright Chromium smoke",
+  "viewport": {"width": 1280, "height": 800},
+  "base_url": "http://localhost:13051/",
+  "assertions": [
+    {"name": "Kiosk HTTP response", "expected": 200, "actual": 200, "result": "PASS"},
+    {"name": "Kiosk document title", "result": "PASS", "actual": "MOM Platform — Kiosk Operator UI"},
+    {"name": "Visible body is non-empty", "result": "PASS", "body_length": 340},
+    {"name": "No browser page errors", "result": "PASS", "count": 0},
+    {"name": "Browser CORS fetch to rebuilt execution health", "expected": 200, "actual": 200, "result": "PASS"}
+  ],
+  "screenshot": {"path": "kiosk-browser-smoke.png", "sha256": "ace5af651d74f903581f38ee75558deab851ff47027bd7ef40ab416f92d10a72"},
+  "observation": "UI shows realtime offline because canonical KIOSK-DEMO-01 is still absent; authenticated transport was verified separately with an exactly cleaned temporary terminal."
+}

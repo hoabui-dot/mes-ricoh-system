@@ -1,0 +1,10 @@
+{
+  "summary": {"declared": 3, "executed": 3, "passed": 3, "failed": 0, "skipped": 0},
+  "checks": [
+    {"name": "Execution DB fingerprint unchanged", "result": "PASS", "before": {"wo_header": 2, "wo_operation": 8, "execution_session": 0, "operation_confirmation": 0, "outbox_events": 7, "wo_print_job": 0}, "after": {"wo_header": 2, "wo_operation": 8, "execution_session": 0, "operation_confirmation": 0, "outbox_events": 7, "wo_print_job": 0}},
+    {"name": "Kiosk DB fingerprint unchanged", "result": "PASS", "before": {"terminal": 0, "terminal_session": 0, "outbound_message_queue": 0}, "after": {"terminal": 0, "terminal_session": 0, "outbound_message_queue": 0}},
+    {"name": "No application source, migration, seed, or user-owned file changed by Phase 00", "result": "PASS"}
+  ],
+  "cleanup_actions": [],
+  "reason": "No runtime fixture or production transaction was created."
+}
