@@ -1,0 +1,20 @@
+{
+  "run_id": "20260804T042956Z",
+  "success": true,
+  "generated_work_orders": 0,
+  "generated_allocations": 0,
+  "generated_reservations": 0,
+  "temporary_line_evaluation_mutations": 0,
+  "orphan_evaluation_attempts": 0,
+  "leaked_test_events": 0,
+  "canonical_verification": {"declared": 50, "executed": 50, "passed": 50, "failed": 0, "skipped": 0},
+  "last_fixture_cleanup": {"work_orders_removed": 3, "remaining_work_orders": 0, "allocations": 0, "reservations": 0},
+  "database_counts": {
+    "wo_header": 0,
+    "wo_resource_allocation": 0,
+    "wo_capacity_reservation": 0,
+    "wo_line_selection_audit": 0,
+    "orphan_line_selection_audit": 0,
+    "outbox_events": 0
+  }
+}

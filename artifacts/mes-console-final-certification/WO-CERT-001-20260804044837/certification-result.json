@@ -1,0 +1,352 @@
+{
+  "status": "CERTIFIED_MES_CONSOLE_AND_READY_TO_RUN_WO",
+  "certification_id": "WO-CERT-001",
+  "run_id": "WO-CERT-001-20260804044837",
+  "target_date": "2026-08-04",
+  "steps": [
+    {
+      "name": "reset, canonical seed, and canonical verification",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:37.451Z",
+      "finished_at": "2026-08-04T04:48:48.867Z",
+      "data": {
+        "exit_code": 0,
+        "output_tail": " 0\n    },\n    {\n      \"name\": \"execution has no work orders after seed\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"execution read model has canonical PV\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"execution read model has three UAT PVs\",\n      \"passed\": true,\n      \"actual\": 3\n    },\n    {\n      \"name\": \"execution read model has six UAT line eligibilities\",\n      \"passed\": true,\n      \"actual\": 6\n    },\n    {\n      \"name\": \"execution read model has two lines\",\n      \"passed\": true,\n      \"actual\": 2\n    },\n    {\n      \"name\": \"execution read model has two line eligibilities\",\n      \"passed\": true,\n      \"actual\": 2\n    },\n    {\n      \"name\": \"execution read model calendars cover target date\",\n      \"passed\": true,\n      \"actual\": 16\n    },\n    {\n      \"name\": \"execution read model has worker skills\",\n      \"passed\": true,\n      \"actual\": 3\n    },\n    {\n      \"name\": \"execution read model has workers\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"execution read model has worker skill assignments\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"execution read model has worker shift schedules on target date\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"execution read model has base operation skill requirements\",\n      \"passed\": true,\n      \"actual\": 3\n    },\n    {\n      \"name\": \"execution labor readiness has no worker candidate gaps\",\n      \"passed\": true,\n      \"actual\": 0\n    },\n    {\n      \"name\": \"traceability has one canonical template\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"traceability has one numbering rule\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"traceability has one split rule\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"traceability has four policies\",\n      \"passed\": true,\n      \"actual\": 4\n    },\n    {\n      \"name\": \"KIOSK-DEMO-01 canonical terminal context\",\n      \"passed\": true,\n      \"actual\": 1\n    },\n    {\n      \"name\": \"canonical seed has no active terminal sessions\",\n      \"passed\": true,\n      \"actual\": 0\n    }\n  ],\n  \"counts\": {\n    \"master\": {\n      \"site_kz3\": 1,\n      \"released_areas\": 2,\n      \"pcs_uom\": 1,\n      \"shift_a\": 1,\n      \"kiosk_execution_failure_reasons\": 1,\n      \"kiosk_abort_reasons\": 1,\n      \"canonical_lines\": 2,\n      \"canonical_work_centers\": 8,\n      \"canonical_workstations\": 8,\n      \"canonical_equipment\": 8,\n      \"canonical_machine_units\": 8,\n      \"canonical_assignments\": 8,\n      \"canonical_capabilities\": 12,\n      \"canonical_calendars\": 8,\n      \"base_calendars\": 8,\n      \"canonical_operations\": 6,\n      \"canonical_routing_operations\": 12,\n      \"canonical_production_version\": 1,\n      \"uat_production_versions\": 3,\n      \"uat_line_eligibilities\": 6,\n      \"canonical_line_eligibilities\": 2,\n      \"canonical_primary_lines\": 1,\n      \"worker_skills\": 3,\n      \"workers\": 4,\n      \"worker_skill_assignments\": 4,\n      \"worker_shift_schedules\": 4,\n      \"base_operation_skill_requirements\": 3\n    },\n    \"execution\": {\n      \"work_orders\": 0,\n      \"rm_production_version\": 1,\n      \"rm_uat_production_versions\": 3,\n      \"rm_uat_line_eligibilities\": 6,\n      \"rm_lines\": 2,\n      \"rm_line_eligibilities\": 2,\n      \"rm_target_calendars\": 16,\n      \"rm_worker_skills\": 3,\n      \"rm_workers\": 4,\n      \"rm_worker_skill_assignments\": 4,\n      \"rm_worker_shift_schedules\": 4,\n      \"rm_base_operation_skill_requirements\": 3,\n      \"rm_labor_candidate_gaps\": 0\n    },\n    \"traceability\": {\n      \"templates\": 1,\n      \"numbering_rules\": 1,\n      \"split_rules\": 1,\n      \"policies\": 4,\n      \"labels\": 0\n    },\n    \"gateway\": {\n      \"canonical_demo_terminals\": 1,\n      \"active_terminal_sessions\": 0\n    },\n    \"integrity\": {\n      \"line_work_center_orphans\": 0,\n      \"assignment_orphans\": 0,\n      \"pv_orphans\": 0,\n      \"overlapping_assignments\": 0\n    }\n  },\n  \"completed_at\": \"2026-08-04T04:48:48.822Z\"\n}\n"
+      }
+    },
+    {
+      "name": "select released effective canonical Production Version",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:48.933Z",
+      "finished_at": "2026-08-04T04:48:49.313Z",
+      "data": {
+        "code": "WST-SEED-PV-SEAL-ASM-01",
+        "production_version_id": "6fc82db1-3986-4f2b-88c6-fbbe1012d996",
+        "site_id": "f3f36fe8-f423-47be-9cd6-3ace73fd2d39"
+      }
+    },
+    {
+      "name": "select active site-scoped shift",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:49.314Z",
+      "finished_at": "2026-08-04T04:48:49.327Z",
+      "data": {
+        "master_id": "6c40cc9a-9d00-46e3-98a2-37a4ee8d25ad",
+        "code": "SHIFT-A",
+        "name": "Day Shift",
+        "version_no": 1,
+        "lifecycle_status": "Released",
+        "effective_from": "2026-07-21T00:00:00.000Z",
+        "effective_to": null,
+        "created_by": "00000000-0000-0000-0000-000000000001",
+        "created_at": "2026-08-04T04:48:47.196Z",
+        "updated_by": "00000000-0000-0000-0000-000000000001",
+        "updated_at": "2026-08-04T04:48:47.196Z",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "approved_at": "2026-07-21T00:00:00.000Z",
+        "row_version": 1,
+        "attributes": {},
+        "site_id": "f3f36fe8-f423-47be-9cd6-3ace73fd2d39",
+        "start_time": "08:00",
+        "end_time": "17:00",
+        "crosses_midnight": false
+      }
+    },
+    {
+      "name": "create Work Order through supported workflow",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:49.327Z",
+      "finished_at": "2026-08-04T04:48:49.577Z",
+      "data": {
+        "current_step": "outbox_queued",
+        "events": [
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "d4044511-079b-4ed0-a87c-ddb42a3e92b7",
+            "event_type": "workflow.started",
+            "occurred_at": "2026-08-04T04:48:49.345561656Z",
+            "schema_version": 1,
+            "sequence": 1,
+            "source_service": "mes-execution-service",
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          },
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "e6ba16f0-a58d-4308-9b02-207b33cec38a",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-04T04:48:49.349423083Z",
+            "schema_version": 1,
+            "sequence": 2,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "request_validation",
+              "message_key": "workOrders.creation.steps.request.success",
+              "message_params": null,
+              "order": 1,
+              "result": {
+                "quantity": 2
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.request_validation.title"
+            },
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          },
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "0d78d2f8-8f59-43b8-948f-7cb5c7ca703b",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-04T04:48:49.355402957Z",
+            "schema_version": 1,
+            "sequence": 3,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.running",
+              "message_params": null,
+              "order": 2,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          },
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "b3f9dcb1-fb58-4121-b2c4-aef994294bb8",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-04T04:48:49.366289269Z",
+            "schema_version": 1,
+            "sequence": 4,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.success",
+              "message_params": null,
+              "order": 2,
+              "result": {
+                "mbomId": "5d5e51a3-30a6-40a0-ba70-797d893d756f",
+                "productionVersionId": "6fc82db1-3986-4f2b-88c6-fbbe1012d996",
+                "routingId": "e4a016a4-402c-45ce-a240-f5e7b92409a4"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          },
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "3c7ecbfd-a910-4c6c-a98b-bf3add704bef",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-04T04:48:49.368794682Z",
+            "schema_version": 1,
+            "sequence": 5,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.running",
+              "message_params": null,
+              "order": 3,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          },
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "056fd586-99d2-494f-831f-baa83c46ef49",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-04T04:48:49.40890612Z",
+            "schema_version": 1,
+            "sequence": 6,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.success",
+              "message_params": null,
+              "order": 3,
+              "result": {
+                "fallbackReason": "",
+                "lineSelectionStatus": "READY",
+                "materialCount": 1,
+                "operationCount": 4,
+                "selectedProductionLineCode": "WST-SEED-LINE-1",
+                "selectedProductionLineId": "ffcb0f4a-8cec-4845-bbdc-7e6c8dc7a390",
+                "status": "Draft",
+                "workOrderCode": "WO-20260804-0001",
+                "workOrderId": "3f68c09a-5dde-41bc-adef-19a13c5f9bb0"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          },
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "f9e64e62-aab8-4b44-850e-391db94561b1",
+            "event_type": "step.event_queued",
+            "occurred_at": "2026-08-04T04:48:49.411307733Z",
+            "schema_version": 1,
+            "sequence": 7,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "outbox_queued",
+              "message_key": "workOrders.creation.steps.outbox.success",
+              "message_params": null,
+              "order": 4,
+              "result": {
+                "eventType": "MES.Execution.WOCreated.v1"
+              },
+              "status": "event_queued",
+              "title_key": "workOrders.creation.steps.outbox_queued.title"
+            },
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          },
+          {
+            "correlation_id": "dde62eb3-241b-4056-b45e-993bca4337a0",
+            "event_id": "4fef790a-3873-419c-8f3d-6f7a87310409",
+            "event_type": "workflow.succeeded",
+            "occurred_at": "2026-08-04T04:48:49.413236342Z",
+            "schema_version": 1,
+            "sequence": 8,
+            "source_service": "mes-execution-service",
+            "workflow": {
+              "status": "succeeded",
+              "work_order_code": "WO-20260804-0001",
+              "work_order_id": "3f68c09a-5dde-41bc-adef-19a13c5f9bb0"
+            },
+            "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+          }
+        ],
+        "last_sequence": 8,
+        "status": "succeeded",
+        "work_order_code": "WO-20260804-0001",
+        "work_order_id": "3f68c09a-5dde-41bc-adef-19a13c5f9bb0",
+        "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b"
+      }
+    },
+    {
+      "name": "verify automatic Primary READY line selection",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:49.596Z",
+      "finished_at": "2026-08-04T04:48:49.596Z",
+      "data": {
+        "selected_line_id": "ffcb0f4a-8cec-4845-bbdc-7e6c8dc7a390",
+        "selected_line_code": "WST-SEED-LINE-1",
+        "status": "READY",
+        "mode": "PRIMARY",
+        "automatic_semantics": "PRIMARY means automatic primary selection in current backend contract"
+      }
+    },
+    {
+      "name": "verify candidates and commit exact resources for every operation",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:49.596Z",
+      "finished_at": "2026-08-04T04:48:49.918Z",
+      "data": {
+        "mandatory_operations": 4,
+        "committed_count": 4,
+        "committed": [
+          {
+            "operation_code": "WST-SEED-OP-BINDING",
+            "allocation_id": "4bb37755-b73b-478d-a69b-b2189352f8e9"
+          },
+          {
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "allocation_id": "3876c76e-8510-4609-b41a-30f99472ff8a"
+          },
+          {
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "allocation_id": "2e20b7cf-79cf-4c3f-bd20-04b69195898e"
+          },
+          {
+            "operation_code": "WST-SEED-OP-PACKING",
+            "allocation_id": "11a09d7d-58ee-4ef0-8452-8cd53321a41f"
+          }
+        ]
+      }
+    },
+    {
+      "name": "revalidate all allocations",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:49.918Z",
+      "finished_at": "2026-08-04T04:48:50.042Z",
+      "data": {
+        "operations": [
+          {
+            "valid": true,
+            "wo_operation_id": "e91437be-b623-4661-a9b2-72eba2ddb7ed"
+          },
+          {
+            "valid": true,
+            "wo_operation_id": "c18f6f5e-5019-42bf-b7c0-069815cbf6ad"
+          },
+          {
+            "valid": true,
+            "wo_operation_id": "049c3c07-59a6-4fde-97e7-5d5300ff80df"
+          },
+          {
+            "valid": true,
+            "wo_operation_id": "df6ac3ff-e501-4dcb-8a29-cdba2676f5b6"
+          }
+        ],
+        "valid": true,
+        "wo_id": "3f68c09a-5dde-41bc-adef-19a13c5f9bb0"
+      }
+    },
+    {
+      "name": "approve Work Order with strict allocation gate",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:50.042Z",
+      "finished_at": "2026-08-04T04:48:50.182Z",
+      "data": {
+        "approval_mode": "STANDARD",
+        "approval_policy": "Strict",
+        "approved_by": "00000000-0000-0000-0000-000000000001",
+        "event_published": true,
+        "event_type": "MES.Execution.WOApproved.v1",
+        "material_staging_bypassed": false,
+        "print_triggered_on_approval": false,
+        "status": "Released",
+        "wo_code": "WO-20260804-0001",
+        "wo_id": "3f68c09a-5dde-41bc-adef-19a13c5f9bb0"
+      }
+    },
+    {
+      "name": "start Work Order execution",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:50.182Z",
+      "finished_at": "2026-08-04T04:48:50.203Z",
+      "data": {
+        "queued_operations": 1,
+        "status": "InProgress",
+        "wo_id": "3f68c09a-5dde-41bc-adef-19a13c5f9bb0"
+      }
+    },
+    {
+      "name": "exactly clean certification Work Order",
+      "status": "passed",
+      "started_at": "2026-08-04T04:48:50.211Z",
+      "finished_at": "2026-08-04T04:48:53.346Z",
+      "data": {
+        "work_orders_removed": 1,
+        "remaining_work_orders": 0,
+        "cleanup_output": "{\"success\":true,\"workOrderIds\":[\"3f68c09a-5dde-41bc-adef-19a13c5f9bb0\"],\"workOrdersRemoved\":1,\"remainingWorkOrders\":0,\"sharedFixtureRestored\":true}"
+      }
+    }
+  ],
+  "work_order": {
+    "workflow_id": "851cac3a-3dca-44bc-901a-229c084a955b",
+    "work_order_id": "3f68c09a-5dde-41bc-adef-19a13c5f9bb0",
+    "work_order_code": "WO-20260804-0001"
+  },
+  "final_state": {
+    "status": "InProgress"
+  },
+  "cleanup": {
+    "work_orders_removed": 1,
+    "remaining_work_orders": 0,
+    "cleanup_output": "{\"success\":true,\"workOrderIds\":[\"3f68c09a-5dde-41bc-adef-19a13c5f9bb0\"],\"workOrdersRemoved\":1,\"remainingWorkOrders\":0,\"sharedFixtureRestored\":true}"
+  },
+  "completed_at": "2026-08-04T04:48:53.346Z"
+}

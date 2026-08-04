@@ -1,7 +1,14 @@
 import type { LineEvaluationResult, WorkOrderDetail } from './workOrderContracts';
 
 export function normalizeEvaluatedLine(result: any): LineEvaluationResult {
-  const dimensions = Array.isArray(result?.dimensions) ? result.dimensions : [];
+  const dimensions = Array.isArray(result?.dimensions)
+    ? result.dimensions.map((dimension: any) => ({
+      ...dimension,
+      key: dimension.key || dimension.dimension_code,
+      dimension_code: dimension.dimension_code || dimension.key,
+      details: Array.isArray(dimension.details) ? dimension.details : [],
+    })).filter((dimension: any) => Boolean(dimension.key))
+    : [];
   return { ...result, blockers: Array.isArray(result?.blockers) ? result.blockers : [], dimensions };
 }
 
@@ -10,7 +17,10 @@ export function normalizeWorkOrderDetail(data: any): WorkOrderDetail['header'] &
   const header = payload?.header || payload;
   if (!header || typeof header !== 'object' || !header.wo_id) throw new Error('Invalid work order detail response');
   const evaluated = Array.isArray(header.evaluated_line_results) ? header.evaluated_line_results.map(normalizeEvaluatedLine) : [];
-  return { ...header, evaluated_line_results: evaluated, operations: Array.isArray(payload?.operations) ? payload.operations : [], material_requirements: Array.isArray(payload?.material_requirements) ? payload.material_requirements : [], approval_logs: Array.isArray(payload?.approval_logs) ? payload.approval_logs : [], allocation_history: Array.isArray(payload?.allocation_history) ? payload.allocation_history : [], gate_summary: payload?.gate_summary, print_jobs: Array.isArray(payload?.print_jobs) ? payload.print_jobs : [] } as WorkOrderDetail['header'] & WorkOrderDetail;
+  const resourceDimensions = Array.isArray(payload?.resource_evaluation_dimensions)
+    ? payload.resource_evaluation_dimensions.map((dimension: any) => ({ ...dimension, key: dimension.key || dimension.dimension_code, dimension_code: dimension.dimension_code || dimension.key, details: Array.isArray(dimension.details) ? dimension.details : [] }))
+    : [];
+  return { ...header, evaluated_line_results: evaluated, operations: Array.isArray(payload?.operations) ? payload.operations : [], material_requirements: Array.isArray(payload?.material_requirements) ? payload.material_requirements : [], approval_logs: Array.isArray(payload?.approval_logs) ? payload.approval_logs : [], allocation_history: Array.isArray(payload?.allocation_history) ? payload.allocation_history : [], resource_evaluation_dimensions: resourceDimensions, gate_summary: payload?.gate_summary, print_jobs: Array.isArray(payload?.print_jobs) ? payload.print_jobs : [] } as WorkOrderDetail['header'] & WorkOrderDetail;
 }
 
 export function localizedText(value: any): string {

@@ -1,0 +1,22 @@
+{
+  "source": "services/mes-console/src/routes/work-orders/WODetailScreen.tsx",
+  "behavior": "Renders only authoritative backend dimensions with status, stage, localized reason, timestamp, policy, and counts.",
+  "legacy_behavior": "Shows one compatibility notice when a historical line result has no dimensions.",
+  "status_mapping": {
+    "READY": "Dat",
+    "BLOCKED": "Bi chan",
+    "NOT_EVALUATED": "Chua danh gia",
+    "NOT_APPLICABLE": "Khong ap dung",
+    "DEFERRED": "Hoan den buoc phan bo nguon luc",
+    "WARNING": "Canh bao",
+    "UNKNOWN": "Khong xac dinh"
+  },
+  "gate_separation": [
+    "Work Order",
+    "Line Selection",
+    "Resource Allocation",
+    "Capacity/Revalidation",
+    "Approval",
+    "Execution"
+  ]
+}

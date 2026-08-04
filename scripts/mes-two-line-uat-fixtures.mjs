@@ -22,12 +22,20 @@ const environment = String(process.env.MES_ENV || '').toLowerCase();
 const allowMutation = process.env.ALLOW_TWO_LINE_UAT_MUTATION === 'true';
 const userId = process.env.MES_E2E_USER_ID || '00000000-0000-0000-0000-000000000001';
 const roleCode = process.env.MES_E2E_ROLE_CODE || 'PLANT_MANAGER';
-const targetDate = process.env.MES_TWO_LINE_UAT_DATE || '2026-08-03';
+const targetDate = process.env.MES_TWO_LINE_UAT_DATE || defaultPlanningDate();
 const prefix = 'MES-UAT-UI02';
 const db = new Client({ connectionString: executionUrl });
 
+function defaultPlanningDate() {
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 6) date.setUTCDate(date.getUTCDate() + 2);
+  if (day === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function assertSafety() {
-  if (!['development', 'local', 'test', 'staging'].includes(environment)) throw new Error('MES_ENV must be development, local, test, or staging.');
+  if (!['development', 'local', 'test', 'uat', 'staging'].includes(environment)) throw new Error('MES_ENV must be development, local, test, uat, or staging.');
   if (!allowMutation) throw new Error('Set ALLOW_TWO_LINE_UAT_MUTATION=true for UI-02 fixture lifecycle.');
   const host = new URL(executionUrl).hostname;
   if (!['localhost', '127.0.0.1', '::1'].includes(host)) throw new Error(`Execution DB must be local/test: ${host}`);
@@ -172,6 +180,27 @@ function evaluated(body) {
   return typeof raw === 'string' ? JSON.parse(raw) : raw;
 }
 
+function assertDimensionEvidence(name, lines) {
+  const allowedStatuses = new Set(['READY', 'BLOCKED', 'NOT_EVALUATED', 'NOT_APPLICABLE', 'DEFERRED', 'WARNING', 'UNKNOWN']);
+  const mandatory = new Set(['eligibility', 'work_centers', 'capability', 'production_standard', 'calendar_shift', 'capacity']);
+  for (const line of lines) {
+    if (line.policy_version !== 'MES_LINE_SELECTION_V2' || !line.evaluated_at) throw new Error(`${name}: line evaluation metadata missing ${JSON.stringify(line)}`);
+    if (!Array.isArray(line.dimensions) || line.dimensions.length !== 13) throw new Error(`${name}: expected 13 authoritative dimensions ${JSON.stringify(line.dimensions)}`);
+    for (const dimension of line.dimensions) {
+      if (!dimension.dimension_code || !allowedStatuses.has(dimension.status) || typeof dimension.blocking !== 'boolean' || !dimension.evaluation_stage || !dimension.reason_code || !dimension.localized_message_key || !Array.isArray(dimension.details) || !dimension.source) {
+        throw new Error(`${name}: invalid dimension contract ${JSON.stringify(dimension)}`);
+      }
+      if (dimension.status === 'DEFERRED' && dimension.evaluation_stage === 'LINE_SELECTION') throw new Error(`${name}: deferred dimension has no later stage ${JSON.stringify(dimension)}`);
+    }
+    if (line.status === 'Ready') {
+      const dimensions = new Map(line.dimensions.map((dimension) => [dimension.dimension_code, dimension.status]));
+      for (const code of mandatory) {
+        if (!['READY', 'NOT_APPLICABLE'].includes(dimensions.get(code))) throw new Error(`${name}: Ready line has incomplete mandatory ${code}: ${dimensions.get(code)}`);
+      }
+    }
+  }
+}
+
 async function cleanupWorkOrders(ids) {
   const woIds = [...new Set((ids || []).filter(Boolean))];
   if (!woIds.length) return { work_orders_removed: 0, remaining_work_orders: 0 };
@@ -215,6 +244,7 @@ async function validateScenario(name, fixture, model) {
   const operationLineIds = (body.operations || []).map((op) => op.production_line_id || '');
   const selectedOperationMismatch = selectedLine ? operationLineIds.some((lineID) => lineID !== selectedLine) : operationLineIds.some(Boolean);
   if (selectedOperationMismatch) throw new Error(`${name}: operation line mismatch ${JSON.stringify(operationLineIds)}`);
+  assertDimensionEvidence(name, lines);
   if (name === 'primary-ready') {
     if (h.line_selection_status !== 'READY' || selectedLine !== model.primary_line.production_line_id || h.fallback_reason) throw new Error(`${name}: header mismatch ${JSON.stringify(h)}`);
     if (!lines.some((line) => line.production_line_id === model.primary_line.production_line_id && line.status === 'Ready')) throw new Error(`${name}: primary line not Ready`);

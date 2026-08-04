@@ -1,0 +1,29 @@
+{
+  "run_id": "20260804T042956Z",
+  "success": true,
+  "real_backend": true,
+  "mocked_dimension_responses": false,
+  "declared": 4,
+  "executed": 4,
+  "passed": 4,
+  "failed": 0,
+  "skipped": 0,
+  "tests": [
+    "PV-01 Primary READY with authoritative READY and DEFERRED evidence plus refresh persistence",
+    "PV-02 Primary BLOCKED and selected Backup with fallback evidence",
+    "PV-03 both lines BLOCKED, RESOURCE_HOLD, and allocation unavailable",
+    "Tablet-width diagnostics, labelled gates, and raw-i18n-key guard"
+  ],
+  "screenshots": [
+    "final-browser/pv-01-primary-ready.png",
+    "final-browser/pv-02-backup-fallback.png",
+    "final-browser/pv-03-resource-hold.png",
+    "final-browser/pv-01-tablet.png"
+  ],
+  "traces": [
+    "final-browser/traces/trace-1.zip",
+    "final-browser/traces/trace-2.zip",
+    "final-browser/traces/trace-3.zip",
+    "final-browser/traces/trace-4.zip"
+  ]
+}

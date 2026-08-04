@@ -1,0 +1,13 @@
+{
+  "run_id": "20260804T042956Z",
+  "status": "MES_WO_LINE_DIMENSION_STATUS_FIX_COMPLETE",
+  "success": true,
+  "target_work_order": {"work_order_id": "ac305617-410c-49d6-9b22-a3002d568bd6", "work_order_code": "WO-20260804-0005"},
+  "root_cause": "The selector evaluated mandatory feasibility but persisted only line-level outcome; the HTTP adapter fabricated a fixed 13-row matrix with NotPersisted values, and the console rendered those synthetic values as Not Evaluated.",
+  "mandatory_dimensions_evaluated": true,
+  "intentionally_deferred_dimensions": ["workstations", "machine_requirements", "equipment_units", "assignments", "worker_skill_labor"],
+  "api_integration": {"declared": 155, "executed": 155, "passed": 155, "failed": 0, "skipped": 0},
+  "playwright": {"declared": 4, "executed": 4, "passed": 4, "failed": 0, "skipped": 0},
+  "cleanup_complete": true,
+  "runtime": {"mes_master_data_service": "healthy", "mes_execution_service": "healthy", "mes_console": "running", "http_health_checks": "200"}
+}

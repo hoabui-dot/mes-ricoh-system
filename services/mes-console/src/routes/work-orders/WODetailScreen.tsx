@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum } from '../../lib/i18nLabels';
 import { normalizeWorkOrderDetail, localizedText } from './workOrderDetail';
-import type { LineEvaluationResult, WorkOrderDetail } from './workOrderContracts';
+import type { LineEvaluationResult, ReadinessDimension, WorkOrderDetail } from './workOrderContracts';
 import { gatewayBaseUrl } from '../../lib/masterDataApi';
 import { translateWorkOrderError } from '../../lib/errorMessages';
 import { FieldHelpPopover } from '../../components/ui';
@@ -92,6 +92,40 @@ export const WODetailScreen: React.FC = () => {
     if (translated !== key) return translated;
     const readable = value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
     return t('woDetail.dimensionUnknown', { dimension: readable });
+  };
+  const dimensionStatusLabel = (status?: string | null) => {
+    const normalized = String(status || 'UNKNOWN').toUpperCase();
+    const key = `woDetail.dimensionStatus.${normalized}`;
+    const translated = t(key);
+    return translated === key ? t('woDetail.dimensionStatus.UNKNOWN') : translated;
+  };
+  const dimensionStatusClass = (status?: string | null) => {
+    const normalized = String(status || '').toUpperCase();
+    if (normalized === 'READY') return 'text-emerald-300';
+    if (normalized === 'BLOCKED' || normalized === 'UNKNOWN') return 'text-rose-300';
+    if (normalized === 'DEFERRED') return 'text-sky-300';
+    if (normalized === 'WARNING') return 'text-amber-300';
+    return 'text-slate-400';
+  };
+  const dimensionStageLabel = (stage?: string | null) => {
+    const key = `woDetail.dimensionStage.${stage || 'UNKNOWN'}`;
+    const translated = t(key);
+    return translated === key ? t('woDetail.dimensionStage.UNKNOWN') : translated;
+  };
+  const dimensionReasonLabel = (dimension: ReadinessDimension) => {
+    const directKey = dimension.localized_message_key || `woDetail.dimensionReason.${dimension.reason_code || 'UNKNOWN'}`;
+    const direct = t(directKey);
+    if (direct !== directKey) return direct;
+    const blocker = translateWorkOrderError(dimension.reason_code, t);
+    if (blocker) return blocker;
+    const readable = String(dimension.reason_code || 'UNKNOWN').replace(/[_-]+/g, ' ').toLowerCase();
+    return t('woDetail.dimensionReasonUnknown', { reason: readable });
+  };
+  const gateStatusLabel = (value?: string | null) => {
+    if (!value) return t('common.notAvailable');
+    const key = `woDetail.gateStatus.${value}`;
+    const translated = t(key);
+    return translated === key ? value : translated;
   };
 
   const fetchWODetail = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -575,18 +609,36 @@ export const WODetailScreen: React.FC = () => {
         </div>
         {wo.line_selection_status === 'RESOURCE_HOLD' && <div data-testid="line-resource-hold-warning" className="rounded-md border border-rose-800 bg-rose-950/30 p-3 text-sm text-rose-200"><div className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" />{t('woDetail.resourceHold')}</div><p className="mt-1 text-xs text-rose-100">{translateWorkOrderError(wo.resource_hold_reason?.code, t) || wo.resource_hold_reason?.code || t('woDetail.lineNotReady')}</p></div>}
         <div className="grid gap-3 md:grid-cols-2">
-          {evaluatedLineResults.map((result: LineEvaluationResult) => (
+          {evaluatedLineResults.map((result: LineEvaluationResult) => {
+            const selected = Boolean(result.production_line_id && result.production_line_id === wo.selected_production_line_id);
+            const currentResourceDimensions = selected && Array.isArray(wo.resource_evaluation_dimensions) ? wo.resource_evaluation_dimensions : [];
+            const currentResourceByCode = new Map(currentResourceDimensions.map((dimension: any) => [dimension.dimension_code || dimension.key, dimension]));
+            const dimensions = (result.dimensions || []).map((dimension) => currentResourceByCode.get(dimension.dimension_code || dimension.key) || dimension);
+            const blockerCount = dimensions.filter((dimension) => dimension.status === 'BLOCKED').length;
+            const deferredCount = dimensions.filter((dimension) => dimension.status === 'DEFERRED').length;
+            const warningCount = dimensions.filter((dimension) => dimension.status === 'WARNING').length;
+            return (
             <div key={`${result.production_line_id}-${result.selection_role}`} className={`rounded-md border bg-slate-950 p-3 ${lineResultStatusClass(result.status)}`} data-testid={`line-result-${String(result.selection_role || '').toLowerCase()}`}>
               <div className="flex items-start justify-between gap-3">
-                <div><div className="text-xs font-semibold uppercase text-slate-500">{lineSelectionLabel('role', result.selection_role || '')}</div><div className="font-semibold text-slate-100">{result.production_line_code || t('common.notAvailable')}</div></div>
+                <div><div className="text-xs font-semibold uppercase text-slate-500">{lineSelectionLabel('role', result.selection_role || '')}</div><div className="font-semibold text-slate-100">{result.production_line_code || t('common.notAvailable')}</div><div className={selected ? 'mt-1 text-xs text-emerald-300' : 'mt-1 text-xs text-slate-500'}>{selected ? t('woDetail.selectedEvaluationLine') : t('woDetail.notSelectedEvaluationLine')}</div></div>
                 <span className="text-xs font-semibold">{translatedEnum(t, 'resourceReadiness.status', result.status || 'Unknown')}</span>
               </div>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400"><span>{t('woDetail.blockerCount', { count: blockerCount })}</span><span>{t('woDetail.deferredCount', { count: deferredCount })}</span><span>{t('woDetail.warningCount', { count: warningCount })}</span></div>
+              <div className="mt-1 text-xs text-slate-500">{t('woDetail.evaluatedAt')}: {result.evaluated_at ? formatDate(result.evaluated_at) : t('common.notAvailable')} · {t('woDetail.policyVersion')}: {result.policy_version || t('common.notAvailable')}</div>
+              {result.selection_reason && <div className="mt-2 text-xs text-slate-300">{t('woDetail.selectionReason')}: {lineSelectionLabel('reason', result.selection_reason)}</div>}
               {(result.blockers || []).map((blocker) => <div key={`${blocker.code}-${blocker.operation_code}`} className="mt-2 text-xs text-rose-300" data-testid="line-blocking-reason"><span>{translateWorkOrderError(blocker.code, t) || blocker.code}{blocker.operation_code ? ` · ${blocker.operation_code}` : ''}</span>{blocker.operation_code && <Link to={`/master-data/routings?operation_code=${encodeURIComponent(blocker.operation_code)}`} className="ml-2 inline-flex items-center text-amber-300" title={t('common.detail')}><ExternalLink className="h-3 w-3" /></Link>}</div>)}
-              <div className="mt-3 overflow-x-auto" data-testid={`line-dimension-matrix-${String(result.selection_role || '').toLowerCase()}`}><table className="w-full text-left text-xs"><thead className="text-slate-500"><tr><th className="py-1 pr-3">{t('woDetail.dimension')}</th><th className="py-1">{t('common.status')}</th></tr></thead><tbody>{(result.dimensions || []).map((dimension) => <tr key={dimension.key} className="border-t border-slate-800"><td className="py-1 pr-3 text-slate-300">{lineDimensionLabel(dimension.key)}</td><td className={dimension.status === 'Ready' || dimension.status === 'Evaluated' ? 'py-1 text-emerald-300' : dimension.status === 'Blocked' ? 'py-1 text-rose-300' : 'py-1 text-slate-500'}>{dimension.status === 'NotPersisted' ? t('woDetail.dimensionNotPersisted') : translatedEnum(t, 'resourceReadiness.status', dimension.status)}</td></tr>)}</tbody></table></div>
+              {dimensions.length > 0 ? <div className="mt-3 overflow-x-auto" data-testid={`line-dimension-matrix-${String(result.selection_role || '').toLowerCase()}`}><table className="w-full table-fixed text-left text-xs"><thead className="text-slate-500"><tr><th className="w-[27%] py-1 pr-3">{t('woDetail.dimension')}</th><th className="w-[20%] py-1 pr-3">{t('common.status')}</th><th className="w-[22%] py-1 pr-3">{t('woDetail.evaluationStage')}</th><th className="py-1">{t('woDetail.evaluationReason')}</th></tr></thead><tbody>{dimensions.map((dimension) => <tr key={dimension.key} data-testid={`line-dimension-${dimension.key}`} className="border-t border-slate-800 align-top"><td className="py-2 pr-3 text-slate-300">{lineDimensionLabel(dimension.key)}</td><td className={`py-2 pr-3 font-semibold ${dimensionStatusClass(dimension.status)}`}>{dimensionStatusLabel(dimension.status)}</td><td className="py-2 pr-3 text-slate-400">{dimensionStageLabel(dimension.evaluation_stage)}</td><td className="py-2 text-slate-400">{dimensionReasonLabel(dimension)}</td></tr>)}</tbody></table></div> : <div className="mt-3 rounded border border-amber-800/70 bg-amber-950/20 p-3 text-xs text-amber-200" data-testid="line-evaluation-legacy-notice">{t('woDetail.dimensionEvidenceUnavailable')}</div>}
             </div>
-          ))}
+          );})}
         </div>
-        <div className="grid gap-3 md:grid-cols-2" data-testid="work-order-operation-line-consistency"><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.operationLineConsistency')}</div><div className="mt-1 text-sm text-slate-200">{resourceOperations.length === 0 ? t('common.notAvailable') : resourceOperations.every((operation: any) => !operation.production_line_code || operation.production_line_code === wo.selected_production_line_code) ? t('woDetail.operationLineConsistent') : t('woDetail.operationLineMismatch')}</div></div><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.gateSummary')}</div><dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">{[['woDetail.gateWorkOrder', wo.status], ['woDetail.gateExecution', wo.gate_summary?.execution_state], ['woDetail.gateLineSelection', wo.line_selection_status], ['woDetail.gateAllocation', wo.gate_summary?.resource_allocation_state], ['woDetail.gateCapacity', (wo.gate_summary as any)?.capacity_state], ['woDetail.gateApproval', wo.gate_summary?.approval_state]].map(([label, value]) => <div key={label}><dt className="text-slate-500">{t(label)}</dt><dd className="text-slate-200">{value || t('woDetail.dimensionNotPersisted')}</dd></div>)}</dl>{wo.gate_summary?.blockers?.map((code: string) => <div key={code} className="mt-1 text-xs text-rose-300" data-testid="lifecycle-gate-blocker">{translateWorkOrderError(code, t) || code}</div>)}</div></div>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" data-testid="work-order-operation-line-consistency"><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.operationLineConsistency')}</div><div className="mt-1 text-sm text-slate-200">{resourceOperations.length === 0 ? t('common.notAvailable') : resourceOperations.every((operation: any) => !operation.production_line_code || operation.production_line_code === wo.selected_production_line_code) ? t('woDetail.operationLineConsistent') : t('woDetail.operationLineMismatch')}</div></div><div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.gateSummary')}</div><table className="mt-2 w-full text-left text-xs"><thead className="text-slate-500"><tr><th className="py-1 pr-2">{t('woDetail.gate')}</th><th className="py-1 pr-2">{t('common.status')}</th><th className="py-1 pr-2">{t('woDetail.gateMeaning')}</th><th className="py-1">{t('woDetail.gateNextAction')}</th></tr></thead><tbody>{[
+          ['WorkOrder', 'woDetail.gateWorkOrder', wo.status],
+          ['LineSelection', 'woDetail.gateLineSelection', wo.line_selection_status],
+          ['ResourceAllocation', 'woDetail.gateAllocation', wo.gate_summary?.resource_allocation_state],
+          ['Capacity', 'woDetail.gateCapacity', wo.gate_summary?.capacity_state],
+          ['Approval', 'woDetail.gateApproval', wo.gate_summary?.approval_state],
+          ['Execution', 'woDetail.gateExecution', wo.gate_summary?.execution_state],
+        ].map(([gate, label, value]) => <tr key={gate} className="border-t border-slate-800 align-top"><td className="py-2 pr-2 text-slate-300">{t(label)}</td><td className="py-2 pr-2 font-semibold text-slate-200">{gateStatusLabel(value)}</td><td className="py-2 pr-2 text-slate-400">{t(`woDetail.gateMeaning.${gate}`)}</td><td className="py-2 text-slate-400">{t(`woDetail.gateAction.${gate}`)}</td></tr>)}</tbody></table>{wo.gate_summary?.blockers?.map((code: string) => <div key={code} className="mt-1 text-xs text-rose-300" data-testid="lifecycle-gate-blocker">{translateWorkOrderError(code, t) || code}</div>)}</div></div>
         {revalidationResult && <div className="rounded-md border border-slate-800 bg-slate-950 p-3" data-testid="revalidation-results"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.revalidationResults')}</div><div className="mt-2 space-y-1 text-xs">{(revalidationResult.operations || []).map((result: any) => <div key={result.wo_operation_id} className={result.valid ? 'text-emerald-300' : 'text-rose-300'}>{result.wo_operation_id} · {result.valid ? t('woDetail.revalidationValid') : translateWorkOrderError(result.error_code, t) || t('woDetail.revalidationInvalid')}</div>)}</div></div>}
         {Array.isArray(wo.allocation_history) && wo.allocation_history.length > 0 && <div data-testid="work-order-allocation-history" className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.allocationHistory')}</div><div className="mt-2 space-y-1 text-xs text-slate-300">{wo.allocation_history.map((entry: any) => <div key={`${entry.allocation_id}-${entry.operation_code}`} className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-800 pt-1"><span>{entry.operation_code}</span><span>{entry.status || t('common.notAvailable')}</span><span>{entry.validation_status || t('common.notAvailable')}</span><span className="text-slate-500">{entry.planned_production_line_id || t('common.notAvailable')}</span></div>)}</div></div>}
         {lineReplanBlockedAfterStart && <p className="text-xs text-slate-400">{t('woDetail.lineTransferRequiresExecutionSegment')}</p>}

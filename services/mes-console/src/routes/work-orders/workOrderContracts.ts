@@ -10,7 +10,15 @@ export type WorkOrderBlocker = {
 
 export type ReadinessDimension = {
   key: string;
+  dimension_code?: string;
   status: string;
+  blocking?: boolean;
+  evaluation_stage?: string;
+  reason_code?: string;
+  localized_message_key?: string;
+  details?: WorkOrderBlocker[];
+  evaluated_at?: string | null;
+  source?: string;
   blockers?: WorkOrderBlocker[];
   detail?: string;
 };
@@ -30,6 +38,8 @@ export type LineEvaluationResult = ProductionLineReference & {
   blockers: WorkOrderBlocker[];
   dimensions?: ReadinessDimension[];
   selection_reason?: string;
+  evaluated_at?: string;
+  policy_version?: string;
 };
 
 export type AllocationHistoryEntry = {
@@ -48,6 +58,7 @@ export type GateSummary = {
   execution_state: string;
   line_selection_status: string;
   resource_allocation_state?: string;
+  capacity_state?: string;
   operation_count?: number;
   active_allocation_count?: number;
   valid_allocation_count?: number;
@@ -102,5 +113,6 @@ export type WorkOrderDetail = {
   material_requirements: Array<Record<string, unknown>>;
   approval_logs: Array<Record<string, unknown>>;
   allocation_history?: AllocationHistoryEntry[];
+  resource_evaluation_dimensions?: ReadinessDimension[];
   gate_summary?: GateSummary;
 };

@@ -1,0 +1,17 @@
+{
+  "run_id": "20260804T042956Z",
+  "success": true,
+  "declared": 6,
+  "executed": 6,
+  "passed": 6,
+  "failed": 0,
+  "skipped": 0,
+  "checks": [
+    {"name": "MES Console typecheck", "command": "npm --prefix services/mes-console run typecheck", "status": "passed"},
+    {"name": "MES Console production build", "command": "npm --prefix services/mes-console run build", "status": "passed", "note": "Vite emitted the existing large-chunk warning."},
+    {"name": "MES execution focused dimension tests", "command": "go test ./internal/application/usecase -run 'TestAggregateLineEvaluation|TestBuildLineEvaluation' -count=1", "status": "passed"},
+    {"name": "MES execution full Go test suite", "command": "go test ./...", "status": "passed"},
+    {"name": "Script syntax and diff hygiene", "command": "node --check scripts/mes-two-line-uat-fixtures.mjs && git diff --check", "status": "passed"},
+    {"name": "Docker rebuild and deployment", "command": "docker compose build/up for mes-master-data-service, mes-execution-service, and mes-console; final execution-service rebuild after aggregation guard", "status": "passed"}
+  ]
+}

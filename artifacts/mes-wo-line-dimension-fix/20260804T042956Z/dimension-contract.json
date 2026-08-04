@@ -1,0 +1,16 @@
+{
+  "version": "MES_LINE_SELECTION_V2",
+  "statuses": ["READY", "BLOCKED", "NOT_EVALUATED", "NOT_APPLICABLE", "DEFERRED", "WARNING", "UNKNOWN"],
+  "fields": ["dimension_code", "status", "blocking", "evaluation_stage", "reason_code", "localized_message_key", "details", "evaluated_at", "source"],
+  "mandatory_line_selection_dimensions": ["eligibility", "work_centers", "capability", "production_standard", "calendar_shift", "capacity"],
+  "deferred_resource_allocation_dimensions": ["workstations", "machine_requirements", "equipment_units", "assignments", "worker_skill_labor"],
+  "summary_dimensions": ["final_result", "selection_reason"],
+  "aggregation_rule": {
+    "ready_requires": "Every mandatory line-selection dimension is READY or NOT_APPLICABLE.",
+    "ready_forbids": ["mandatory BLOCKED", "mandatory UNKNOWN", "mandatory NOT_EVALUATED"],
+    "deferred_allowed": "Only explicitly later-stage, non-line-selection dimensions may be DEFERRED.",
+    "warning_behavior": "Non-mandatory warning-only dimensions do not block line selection.",
+    "missing_evidence": "Missing mandatory evidence cannot be converted to DEFERRED and cannot aggregate to READY."
+  },
+  "ready_semantics": "The backend found one complete eligible line with mandatory Work Center, capability, standard, calendar, and coarse reservation feasibility. It does not mean exact operation resources are committed, capacity is revalidated, approval is allowed, or execution may start."
+}

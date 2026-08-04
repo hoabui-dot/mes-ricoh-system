@@ -1,0 +1,21 @@
+{
+  "run_id": "20260804T042956Z",
+  "success": true,
+  "declared": 155,
+  "executed": 155,
+  "passed": 155,
+  "failed": 0,
+  "skipped": 0,
+  "suites": [
+    {"name": "Focused line-dimension aggregation and contract", "declared": 3, "executed": 3, "passed": 3, "failed": 0, "skipped": 0},
+    {"name": "Resource planning domain phase 1", "declared": 20, "executed": 20, "passed": 20, "failed": 0, "skipped": 0},
+    {"name": "Resource planning full flow phase 2", "declared": 14, "executed": 14, "passed": 14, "failed": 0, "skipped": 0},
+    {"name": "Phase 2 embedded negative matrix", "declared": 20, "executed": 20, "passed": 20, "failed": 0, "skipped": 0},
+    {"name": "Two-line resource planning phase 7", "declared": 19, "executed": 19, "passed": 19, "failed": 0, "skipped": 0},
+    {"name": "Two-line full regression phase 9", "declared": 19, "executed": 19, "passed": 19, "failed": 0, "skipped": 0},
+    {"name": "Canonical seed verification", "declared": 50, "executed": 50, "passed": 50, "failed": 0, "skipped": 0},
+    {"name": "Ready-to-run Work Order certification", "declared": 10, "executed": 10, "passed": 10, "failed": 0, "skipped": 0}
+  ],
+  "certification_status": "CERTIFIED_MES_CONSOLE_AND_READY_TO_RUN_WO",
+  "certification_result": "artifacts/mes-console-final-certification/WO-CERT-001-20260804044837/certification-result.json"
+}

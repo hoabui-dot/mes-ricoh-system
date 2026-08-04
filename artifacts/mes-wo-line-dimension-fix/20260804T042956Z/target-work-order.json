@@ -1,0 +1,19 @@
+{
+  "work_order_id": "ac305617-410c-49d6-9b22-a3002d568bd6",
+  "work_order_code": "WO-20260804-0005",
+  "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+  "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+  "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+  "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+  "quantity": 2,
+  "planned_start_at": "2026-08-04T08:00:00Z",
+  "shift_id": "f1a29f4f-3712-45f4-aa10-3144f9043b7e",
+  "selected_line_code": "WST-SEED-LINE-1",
+  "selected_line_role": "PRIMARY",
+  "selection_status": "READY",
+  "selection_reason": "PRIMARY_LINE_READY",
+  "work_order_status": "Draft",
+  "allocation_state": "NotEvaluated",
+  "approval_state": "Pending",
+  "execution_state": "NotStarted"
+}

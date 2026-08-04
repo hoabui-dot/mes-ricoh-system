@@ -1,0 +1,30 @@
+{
+  "entry_point": "services/mes-execution-service/internal/application/usecase/create_work_order.go",
+  "selector": "services/mes-execution-service/internal/application/usecase/line_selection.go:evaluateProductionLineSelection",
+  "selection_time_checks": [
+    "released/effective Production Version line eligibility",
+    "line and site compatibility",
+    "released/effective line Work Center membership",
+    "operation capability",
+    "production standard",
+    "resource calendar planning-window coverage",
+    "coarse Work Center reservation conflict"
+  ],
+  "deferred_checks": [
+    "workstation availability",
+    "machine requirements",
+    "equipment or Machine Unit availability",
+    "Resource Assignment",
+    "worker skill and labor"
+  ],
+  "persistence": [
+    "wo_header.evaluated_line_results",
+    "wo_line_selection_audit.evaluated_line_results"
+  ],
+  "read_api": "services/mes-execution-service/internal/infrastructure/http/router.go:handleGetWOByID",
+  "frontend_normalization": "services/mes-console/src/routes/work-orders/workOrderDetail.ts",
+  "frontend_rendering": "services/mes-console/src/routes/work-orders/WODetailScreen.tsx",
+  "baseline_root_cause": "The selector persisted only line-level status/blockers. The HTTP adapter fabricated a fixed 13-row matrix and marked all non-final dimensions NotPersisted. The Console translated NotPersisted to Chua danh gia.",
+  "fixed_contract_owner": "MES Execution line selector",
+  "policy_version": "MES_LINE_SELECTION_V2"
+}

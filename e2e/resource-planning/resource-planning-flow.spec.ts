@@ -103,7 +103,16 @@ test('[@smoke] creates a Work Order and commits every Ready resource candidate t
   const detail = await api.request.get(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}`, { headers: api.headers });
   expect(detail.ok()).toBeTruthy();
   const body = await detail.json();
-  expect((body.data ?? body).operations.every((operation: any) => operation.resource_allocation?.status === 'Committed')).toBeTruthy();
+  const committedDetail = body.data ?? body;
+  expect(committedDetail.operations.every((operation: any) => operation.resource_allocation?.status === 'Committed')).toBeTruthy();
+  expect(committedDetail.resource_evaluation_dimensions).toHaveLength(5);
+  expect(committedDetail.resource_evaluation_dimensions.every((dimension: any) => dimension.status === 'READY' && dimension.evaluation_stage === 'RESOURCE_ALLOCATION')).toBeTruthy();
+  const selectedRole = String(committedDetail.header?.line_selection_mode || committedDetail.line_selection_mode || 'PRIMARY').toLowerCase();
+  const selectedMatrix = page.getByTestId(`line-dimension-matrix-${selectedRole}`);
+  for (const dimension of ['workstations', 'machine_requirements', 'equipment_units', 'assignments', 'worker_skill_labor']) {
+    await expect(selectedMatrix.getByTestId(`line-dimension-${dimension}`)).toContainText(/Đạt|Ready/i);
+  }
+  await expect(selectedMatrix).not.toContainText(/Hoãn đến bước phân bổ nguồn lực|Deferred to resource allocation/i);
 });
 
 test('[@validation] blocks an invalid Work Order quantity before submit', async ({ page }) => {

@@ -1,0 +1,7 @@
+{
+  "source": "services/mes-console/src/routes/work-orders/WODetailScreen.tsx",
+  "behavior": "Rendered every API-provided matrix row and mapped NotPersisted to woDetail.dimensionNotPersisted.",
+  "visible_vi_value": "Chua danh gia",
+  "authority_problem": "The rows were fabricated by the HTTP adapter, not returned by the selector or persistence.",
+  "legacy_behavior": "Old records were indistinguishable from current evaluations because the adapter synthesized the same rows."
+}

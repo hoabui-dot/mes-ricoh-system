@@ -47,6 +47,129 @@ type lineEligibility struct {
 	Priority int
 }
 
+const lineSelectionPolicyVersion = "MES_LINE_SELECTION_V2"
+
+type lineEvaluationDimension struct {
+	DimensionCode       string                   `json:"dimension_code"`
+	Key                 string                   `json:"key"`
+	Status              string                   `json:"status"`
+	Blocking            bool                     `json:"blocking"`
+	EvaluationStage     string                   `json:"evaluation_stage"`
+	ReasonCode          string                   `json:"reason_code"`
+	LocalizedMessageKey string                   `json:"localized_message_key"`
+	Details             []map[string]interface{} `json:"details"`
+	EvaluatedAt         *time.Time               `json:"evaluated_at"`
+	Source              string                   `json:"source"`
+}
+
+var mandatoryLineSelectionDimensions = map[string]bool{
+	"eligibility": true, "work_centers": true, "capability": true,
+	"production_standard": true, "calendar_shift": true, "capacity": true,
+}
+
+var lineBlockerDimension = map[string]string{
+	"LINE_MISSING_WORK_CENTER":          "work_centers",
+	"LINE_OPERATION_CAPABILITY_MISSING": "capability",
+	"LINE_PRODUCTION_STANDARD_MISSING":  "production_standard",
+	"LINE_RESOURCE_CALENDAR_MISSING":    "calendar_shift",
+	"LINE_RESOURCE_CAPACITY_CONFLICT":   "capacity",
+}
+
+var lineSelectionDimensionOrder = []string{"eligibility", "work_centers", "capability", "production_standard", "calendar_shift", "capacity"}
+
+func dimensionResult(code, status, stage, reason string, details []map[string]interface{}, evaluatedAt *time.Time) lineEvaluationDimension {
+	return lineEvaluationDimension{
+		DimensionCode: code, Key: code, Status: status,
+		Blocking:        status == "BLOCKED" || status == "UNKNOWN" || (status == "NOT_EVALUATED" && mandatoryLineSelectionDimensions[code]),
+		EvaluationStage: stage, ReasonCode: reason,
+		LocalizedMessageKey: "woDetail.dimensionReason." + reason,
+		Details:             details, EvaluatedAt: evaluatedAt, Source: "MES_EXECUTION_LINE_SELECTOR",
+	}
+}
+
+func aggregateLineEvaluation(dimensions []lineEvaluationDimension) string {
+	evaluatedMandatory := make(map[string]bool, len(mandatoryLineSelectionDimensions))
+	for _, dimension := range dimensions {
+		if !mandatoryLineSelectionDimensions[dimension.DimensionCode] {
+			continue
+		}
+		evaluatedMandatory[dimension.DimensionCode] = true
+		if dimension.Status != "READY" && dimension.Status != "NOT_APPLICABLE" {
+			return "Blocked"
+		}
+	}
+	if len(evaluatedMandatory) != len(mandatoryLineSelectionDimensions) {
+		return "Blocked"
+	}
+	return "Ready"
+}
+
+func buildLineEvaluation(line lineEligibility, blockers []map[string]interface{}, selectionReason string, evaluatedAt time.Time) map[string]interface{} {
+	blockersByDimension := map[string][]map[string]interface{}{}
+	firstBlockedIndex := len(lineSelectionDimensionOrder)
+	for _, blocker := range blockers {
+		code, _ := blocker["code"].(string)
+		dimensionCode, known := lineBlockerDimension[code]
+		if !known {
+			dimensionCode = "work_centers"
+			blocker["classification"] = "UNKNOWN_BLOCKER"
+		}
+		blockersByDimension[dimensionCode] = append(blockersByDimension[dimensionCode], blocker)
+		for index, candidate := range lineSelectionDimensionOrder {
+			if candidate == dimensionCode && index < firstBlockedIndex {
+				firstBlockedIndex = index
+			}
+		}
+	}
+
+	dimensions := make([]lineEvaluationDimension, 0, 13)
+	readyReasons := map[string]string{
+		"eligibility": "LINE_ELIGIBILITY_READY", "work_centers": "LINE_WORK_CENTER_COVERAGE_READY",
+		"capability": "LINE_CAPABILITY_READY", "production_standard": "LINE_PRODUCTION_STANDARD_READY",
+		"calendar_shift": "LINE_CALENDAR_SHIFT_READY", "capacity": "LINE_COARSE_CAPACITY_READY",
+	}
+	for index, code := range lineSelectionDimensionOrder {
+		if failed := blockersByDimension[code]; len(failed) > 0 {
+			dimensions = append(dimensions, dimensionResult(code, "BLOCKED", "LINE_SELECTION", failed[0]["code"].(string), failed, &evaluatedAt))
+		} else if index > firstBlockedIndex {
+			dimensions = append(dimensions, dimensionResult(code, "NOT_EVALUATED", "LINE_SELECTION", "PREREQUISITE_DIMENSION_BLOCKED", []map[string]interface{}{}, nil))
+		} else {
+			dimensions = append(dimensions, dimensionResult(code, "READY", "LINE_SELECTION", readyReasons[code], []map[string]interface{}{}, &evaluatedAt))
+		}
+	}
+	for _, deferred := range []struct{ code, stage, reason string }{
+		{"workstations", "RESOURCE_ALLOCATION", "WORKSTATION_REQUIRES_EXACT_RESOURCE"},
+		{"machine_requirements", "RESOURCE_ALLOCATION", "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"},
+		{"equipment_units", "RESOURCE_ALLOCATION", "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"},
+		{"assignments", "RESOURCE_ALLOCATION", "ASSIGNMENT_REQUIRES_EXACT_RESOURCE"},
+		{"worker_skill_labor", "RESOURCE_ALLOCATION", "LABOR_REQUIRES_EXACT_RESOURCE"},
+	} {
+		dimensions = append(dimensions, dimensionResult(deferred.code, "DEFERRED", deferred.stage, deferred.reason, []map[string]interface{}{}, nil))
+	}
+	status := aggregateLineEvaluation(dimensions)
+	finalReason := "MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
+	if status == "Blocked" {
+		finalReason = "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
+	}
+	dimensions = append(dimensions, dimensionResult("final_result", map[string]string{"Ready": "READY", "Blocked": "BLOCKED"}[status], "LINE_SELECTION", finalReason, blockers, &evaluatedAt))
+	selectionStatus := "NOT_APPLICABLE"
+	selectionEvaluatedAt := (*time.Time)(nil)
+	if status == "Ready" && selectionReason != "" {
+		selectionStatus = "READY"
+		selectionEvaluatedAt = &evaluatedAt
+	} else if status == "Blocked" {
+		selectionReason = "LINE_NOT_SELECTED_BLOCKED"
+	}
+	dimensions = append(dimensions, dimensionResult("selection_reason", selectionStatus, "LINE_SELECTION", selectionReason, []map[string]interface{}{}, selectionEvaluatedAt))
+
+	return map[string]interface{}{
+		"production_line_id": line.LineID, "production_line_code": line.Code,
+		"selection_role": line.Role, "priority": line.Priority, "status": status,
+		"blockers": blockers, "dimensions": dimensions, "selection_reason": selectionReason,
+		"evaluated_at": evaluatedAt, "policy_version": lineSelectionPolicyVersion,
+	}
+}
+
 func evaluateProductionLineSelection(ctx context.Context, tx interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...any) pgx.Row
@@ -105,10 +228,17 @@ func evaluateProductionLineSelection(ctx context.Context, tx interface {
 			_ = name
 		}
 		status := "Blocked"
+		selectionReason := ""
 		if len(blockers) == 0 {
 			status = "Ready"
+			selectionReason = "PRIMARY_LINE_READY"
+			if line.Role == "BACKUP" {
+				selectionReason = "BACKUP_LINE_READY"
+			}
 		}
-		evaluated = append(evaluated, map[string]interface{}{"production_line_id": line.LineID, "production_line_code": line.Code, "selection_role": line.Role, "priority": line.Priority, "status": status, "blockers": blockers})
+		evaluation := buildLineEvaluation(line, blockers, selectionReason, time.Now().UTC())
+		status, _ = evaluation["status"].(string)
+		evaluated = append(evaluated, evaluation)
 		if status == "Ready" {
 			reason := "PRIMARY_LINE_READY"
 			fallback := ""

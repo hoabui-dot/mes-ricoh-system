@@ -21,41 +21,6 @@ import (
 
 const systemUserID = "00000000-0000-0000-0000-000000000001"
 
-var lineEvaluationDimensionKeys = []string{"eligibility", "work_centers", "workstations", "machine_requirements", "equipment_units", "assignments", "capability", "calendar_shift", "production_standard", "capacity", "worker_skill_labor", "final_result", "selection_reason"}
-
-func normalizeLineEvaluationDimensions(raw []byte) []byte {
-	var evaluations []map[string]interface{}
-	if err := json.Unmarshal(raw, &evaluations); err != nil {
-		return raw
-	}
-	for _, evaluation := range evaluations {
-		if _, exists := evaluation["dimensions"]; exists {
-			continue
-		}
-		dimensions := make([]map[string]interface{}, 0, len(lineEvaluationDimensionKeys))
-		for _, key := range lineEvaluationDimensionKeys {
-			status := "NotPersisted"
-			if key == "final_result" {
-				if value, ok := evaluation["status"].(string); ok {
-					status = value
-				}
-			}
-			dimensions = append(dimensions, map[string]interface{}{"key": key, "status": status, "blockers": func() interface{} {
-				if key == "final_result" {
-					return evaluation["blockers"]
-				}
-				return []interface{}{}
-			}()})
-		}
-		evaluation["dimensions"] = dimensions
-	}
-	result, err := json.Marshal(evaluations)
-	if err != nil {
-		return raw
-	}
-	return result
-}
-
 func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient, resourcePlanningClient *client.ResourcePlanningClient, failureReasonClient *client.FailureReasonClient) http.Handler {
 	r := chi.NewRouter()
 	keycloakURL := envOrDefault("KEYCLOAK_URL", "http://platform-keycloak:8080")
@@ -997,7 +962,6 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		_ = rows.Scan(&id, &code, &pvID, &pvCode, &pvNameI18n, &itemRevID, &itemRevCode, &itemRevNameI18n, &itemCode, &itemName, &mbomCode, &routingCode, &planningSnapshot, &qty, &uomID, &siteID, &shiftID, &plannedStartAt, &plannedEndAt, &status, &dispatchMode, &createdBy, &createdAt, &rowVersion, &selectedLineID, &selectedLineCode, &selectedLineName, &lineMode, &lineStatus, &lineReason, &fallbackReason, &resourceHoldReason, &evaluatedLineResults, &lineLockedAt)
 		rows.Close()
 
-		evaluatedLineResults = normalizeLineEvaluationDimensions(evaluatedLineResults)
 		header = map[string]interface{}{
 			"wo_id":                              id,
 			"wo_code":                            code,
@@ -1170,10 +1134,18 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		if allocationRows != nil {
 			allocationRows.Close()
 		}
-		var operationCount, validAllocationCount, activeAllocationCount int
+		var operationCount, validAllocationCount, activeAllocationCount, invalidAllocationCount, allocationWarningCount int
+		var resourceEvaluatedAt *time.Time
 		_ = pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM wo_operation WHERE wo_id=$1`, woID).Scan(&operationCount)
-		_ = pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM wo_resource_allocation WHERE wo_id=$1 AND status='Committed' AND validation_status IN ('Valid','ValidWithWarnings')`, woID).Scan(&validAllocationCount)
-		_ = pool.QueryRow(r.Context(), `SELECT COUNT(*) FROM wo_resource_allocation WHERE wo_id=$1 AND status IN ('Draft','Validated','Committed')`, woID).Scan(&activeAllocationCount)
+		_ = pool.QueryRow(r.Context(), `
+			SELECT COUNT(*) FILTER (WHERE status='Committed' AND validation_status IN ('Valid','ValidWithWarnings')),
+			       COUNT(*) FILTER (WHERE status IN ('Draft','Validated','Committed')),
+			       COUNT(*) FILTER (WHERE status IN ('Draft','Validated','Committed') AND validation_status IN ('Invalid','Stale')),
+			       COALESCE(SUM(jsonb_array_length(COALESCE(warning_codes, '[]'::jsonb))) FILTER (WHERE status IN ('Draft','Validated','Committed')), 0)::int,
+			       MAX(allocated_at) FILTER (WHERE status IN ('Draft','Validated','Committed'))
+			FROM wo_resource_allocation WHERE wo_id=$1
+		`, woID).Scan(&validAllocationCount, &activeAllocationCount, &invalidAllocationCount, &allocationWarningCount, &resourceEvaluatedAt)
+		resourceEvaluationDimensions := buildResourceEvaluationDimensions(operationCount, activeAllocationCount, validAllocationCount, invalidAllocationCount, allocationWarningCount, resourceEvaluatedAt)
 		gateBlockers := []string{}
 		if lineStatus != "READY" {
 			gateBlockers = append(gateBlockers, "WO_LINE_NOT_READY")
@@ -1183,7 +1155,17 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 		approvalEligible := status == "Draft" && len(gateBlockers) == 0
 		executionEligible := status == "Released" && len(gateBlockers) == 0
-		gateSummary := map[string]interface{}{"approval_state": "Pending", "execution_state": "NotStarted", "line_selection_status": lineStatus, "resource_allocation_state": "NotEvaluated", "operation_count": operationCount, "active_allocation_count": activeAllocationCount, "valid_allocation_count": validAllocationCount, "approval_eligible": approvalEligible, "execution_eligible": executionEligible, "blockers": gateBlockers}
+		allocationState := "NOT_STARTED"
+		capacityState := "DEFERRED"
+		if activeAllocationCount > 0 {
+			allocationState = "IN_PROGRESS"
+			capacityState = "NOT_EVALUATED"
+		}
+		if operationCount > 0 && validAllocationCount == operationCount {
+			allocationState = "READY"
+			capacityState = "READY"
+		}
+		gateSummary := map[string]interface{}{"approval_state": "Pending", "execution_state": "NotStarted", "line_selection_status": lineStatus, "resource_allocation_state": allocationState, "capacity_state": capacityState, "operation_count": operationCount, "active_allocation_count": activeAllocationCount, "valid_allocation_count": validAllocationCount, "approval_eligible": approvalEligible, "execution_eligible": executionEligible, "blockers": gateBlockers}
 		if status == "Approved" || status == "Released" || status == "InProgress" || status == "Completed" || status == "Closed" {
 			gateSummary["approval_state"] = "Approved"
 		}
@@ -1192,21 +1174,60 @@ func handleGetWOByID(pool *pgxpool.Pool) http.HandlerFunc {
 		} else if status == "Completed" || status == "Closed" {
 			gateSummary["execution_state"] = status
 		}
-		if len(allocationHistory) > 0 {
-			gateSummary["resource_allocation_state"] = "HasHistory"
-		}
-
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"header":                header,
-			"operations":            ops,
-			"material_requirements": reqs,
-			"approval_logs":         logs,
-			"print_jobs":            printJobs,
-			"allocation_history":    allocationHistory,
-			"gate_summary":          gateSummary,
+			"header":                         header,
+			"operations":                     ops,
+			"material_requirements":          reqs,
+			"approval_logs":                  logs,
+			"print_jobs":                     printJobs,
+			"allocation_history":             allocationHistory,
+			"resource_evaluation_dimensions": resourceEvaluationDimensions,
+			"gate_summary":                   gateSummary,
 		})
 	}
+}
+
+func buildResourceEvaluationDimensions(operationCount, activeCount, validCount, invalidCount, warningCount int, evaluatedAt *time.Time) []map[string]interface{} {
+	status := "DEFERRED"
+	reason := "RESOURCE_ALLOCATION_NOT_STARTED"
+	blocking := false
+	resultEvaluatedAt := interface{}(nil)
+	if operationCount == 0 {
+		status = "NOT_APPLICABLE"
+		reason = "WORK_ORDER_HAS_NO_RESOURCE_OPERATIONS"
+	} else if validCount == operationCount {
+		status = "READY"
+		reason = "RESOURCE_ALLOCATION_VALIDATED"
+		resultEvaluatedAt = evaluatedAt
+	} else if invalidCount > 0 {
+		status = "BLOCKED"
+		reason = "RESOURCE_ALLOCATION_INVALID"
+		blocking = true
+		resultEvaluatedAt = evaluatedAt
+	} else if activeCount > 0 {
+		status = "NOT_EVALUATED"
+		reason = "RESOURCE_ALLOCATION_INCOMPLETE"
+		blocking = true
+		resultEvaluatedAt = evaluatedAt
+	}
+
+	details := []map[string]interface{}{{
+		"operation_count": operationCount, "active_allocation_count": activeCount,
+		"valid_allocation_count": validCount, "invalid_allocation_count": invalidCount,
+		"warning_count": warningCount,
+	}}
+	dimensions := make([]map[string]interface{}, 0, 5)
+	for _, code := range []string{"workstations", "machine_requirements", "equipment_units", "assignments", "worker_skill_labor"} {
+		dimensions = append(dimensions, map[string]interface{}{
+			"dimension_code": code, "key": code, "status": status, "blocking": blocking,
+			"evaluation_stage": "RESOURCE_ALLOCATION", "reason_code": reason,
+			"localized_message_key": "woDetail.dimensionReason." + reason,
+			"details":               details, "evaluated_at": resultEvaluatedAt,
+			"source": "MES_EXECUTION_RESOURCE_ALLOCATION",
+		})
+	}
+	return dimensions
 }
 
 func handleListWorkOrders(pool *pgxpool.Pool) http.HandlerFunc {
