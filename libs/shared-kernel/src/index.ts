@@ -21,6 +21,8 @@ export {
   type OutboxRelayConfig,
   OutboxRelayWorker,
   writeToOutbox,
+  readOutboxMetrics,
+  replayOutboxEvent,
   OUTBOX_TABLE_SQL,
 } from './outbox-publisher.js';
 

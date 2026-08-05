@@ -1,0 +1,71 @@
+{
+  "mode": "live",
+  "component_revision": {
+    "master_id": "24f71b88-79ad-4cb2-886a-45946f1f4c0b",
+    "code": "SFG-MET-CM01-R1",
+    "name": {
+      "en": "Treated metal revision 1",
+      "ja": "処理済み金属リビジョン 1",
+      "ko": "처리 금속 개정 1",
+      "vi": "Lõi kim loại đã xử lý phiên bản 1"
+    },
+    "version_no": 1,
+    "lifecycle_status": "Released",
+    "effective_from": "2026-07-21T00:00:00.000Z",
+    "effective_to": null,
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "created_at": "2026-08-04T05:06:26.638Z",
+    "updated_by": "00000000-0000-0000-0000-000000000001",
+    "updated_at": "2026-08-04T05:06:26.638Z",
+    "approved_by": "00000000-0000-0000-0000-000000000001",
+    "approved_at": "2026-07-21T00:00:00.000Z",
+    "row_version": 1,
+    "attributes": {},
+    "item_id": "21d4211d-a191-496e-91fc-c8e956245526",
+    "revision_code": "R1",
+    "site_id": "009d3fb2-52f3-4efc-8e8d-08460d264554",
+    "is_default": true,
+    "item_group": "SFG_TREATED_METAL",
+    "base_uom_id": "0777956a-0a7d-403d-8bfc-26de4693a746",
+    "planning_strategy": "MakeToStock",
+    "procurement_type": "Make",
+    "tracking_level": "None",
+    "default_scrap_rate": "0.0000",
+    "specification_ref": null,
+    "change_reason": null,
+    "released_by": null,
+    "previous_revision_id": null,
+    "material_group_id": "84881ef8-b3da-4787-ba24-9c6c9453a108",
+    "item_code": "SFG-MET-CM01",
+    "item_lifecycle_status": "Released"
+  },
+  "required_quantity": 2,
+  "available_quantity": 2035,
+  "balances": [
+    {
+      "lot_code": "LOT-MET-CM01-260428-A",
+      "item_revision_id": "24f71b88-79ad-4cb2-886a-45946f1f4c0b",
+      "expiry_date": "2027-07-22T00:00:00.000Z",
+      "status": "Active",
+      "location_id": "9858e360-d2f9-461a-9436-1be576cf28c5",
+      "on_hand_qty": "95.000"
+    },
+    {
+      "lot_code": "LOT-MET-CM01-260428-A",
+      "item_revision_id": "24f71b88-79ad-4cb2-886a-45946f1f4c0b",
+      "expiry_date": "2027-07-22T00:00:00.000Z",
+      "status": "Active",
+      "location_id": "b637d867-54c3-47b0-8788-23b271a3f844",
+      "on_hand_qty": "760.000"
+    },
+    {
+      "lot_code": "LOT-MET-CM01-260610-B",
+      "item_revision_id": "24f71b88-79ad-4cb2-886a-45946f1f4c0b",
+      "expiry_date": "2027-07-22T00:00:00.000Z",
+      "status": "Active",
+      "location_id": "b637d867-54c3-47b0-8788-23b271a3f844",
+      "on_hand_qty": "1180.000"
+    }
+  ],
+  "passed": true
+}

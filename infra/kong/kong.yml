@@ -89,9 +89,32 @@ consumers:
           -----BEGIN PUBLIC KEY-----
           MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqFZqojEswqdlL8gYxn/mKeyI2P2MckJBxXGXnEqz4DzMtfl7meUYLYdlzQD1cBc+Xsb8lAqOOwj/5LY7ZyV0F2wp+vdJQ3RwOjmxPBfqxbEJNotuBddkornG/YcYKVuofSAoVxxsOgyWss+XyzwgXEl6a0lpA6ZH67xmGTYBt9c5la9+UKm5yQoG6HvTYFpvtKQoNXQcXCswu62mWcOQSHu+4Gr7zUuKmIYOhDcvkjkUtuts/IFWBHXGlua6K1S41wP81CO6Glen6EGP0zkCGhnAPSzjoJKxFr0HejVWknIQ3/x2xS25+iNbfriIyMJjQcb9XEnFHNoxI9d40x38QIDAQAB
           -----END PUBLIC KEY-----
+      # Quick-tunnel issuer used by the current browser-accessible Keycloak.
+      # Replace with the stable Keycloak issuer when the named tunnel is available.
+      - key: https://wizard-whatever-old-reel.trycloudflare.com/realms/wonsealtech
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqFZqojEswqdlL8gYxn/mKeyI2P2MckJBxXGXnEqz4DzMtfl7meUYLYdlzQD1cBc+Xsb8lAqOOwj/5LY7ZyV0F2wp+vdJQ3RwOjmxPBfqxbEJNotuBddkornG/YcYKVuofSAoVxxsOgyWss+XyzwgXEl6a0lpA6ZH67xmGTYBt9c5la9+UKm5yQoG6HvTYFpvtKQoNXQcXCswu62mWcOQSHu+4Gr7zUuKmIYOhDcvkjkUtuts/IFWBHXGlua6K1S41wP81CO6Glen6EGP0zkCGhnAPSzjoJKxFr0HejVWknIQ3/x2xS25+iNbfriIyMJjQcb9XEnFHNoxI9d40x38QIDAQAB
+          -----END PUBLIC KEY-----
 
 # ─── Services + Routes ────────────────────────────────────────────────────────
 services:
+
+  # ── WMS Console UI ───────────────────────────────────────────────────────
+  # The API routes below remain JWT-protected. This route only serves the
+  # browser shell; the Console obtains a Keycloak token before API calls.
+  - name: wms-console
+    url: http://wms-console:3091
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-console-route
+        paths:
+          - /
+        strip_path: false
+        methods: [GET, HEAD, OPTIONS]
 
   # ── MES Cluster placeholder (Phase 1) ────────────────────────────────────
   - name: mes-master-data-service

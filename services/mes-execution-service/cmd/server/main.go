@@ -65,6 +65,9 @@ func main() {
 	wmsMaterialResults := events.NewWMSMaterialResultConsumer(brokers, pool)
 	wmsMaterialResults.Start()
 	defer wmsMaterialResults.Stop()
+	wmsInventoryResults := events.NewWMSInventoryResultConsumer(brokers, pool)
+	wmsInventoryResults.Start()
+	defer wmsInventoryResults.Stop()
 
 	relay := sharedkernel.NewOutboxRelayWorker(sharedkernel.OutboxRelayConfig{
 		Pool:           pool,
@@ -167,6 +170,11 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000024_manual_operation_failure_state_machine.up.sql",
 		"migrations/000025_work_order_dispatch_policy.up.sql",
 		"migrations/000026_item_revision_uom_code_projection.up.sql",
+		"migrations/000027_outbox_event_metadata.up.sql",
+		"migrations/000028_outbox_dead_letter_replay.up.sql",
+		"migrations/000029_versioned_material_demand.up.sql",
+		"migrations/000030_wms_material_result_inbox.up.sql",
+		"migrations/000031_wms_inventory_result_inbox.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

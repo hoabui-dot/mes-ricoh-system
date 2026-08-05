@@ -154,14 +154,14 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 		return map[string]interface{}{"wo_id": input.WOID, "status": currentStatus, "approval_mode": "DEMO_PRINT_ON_APPROVAL", "material_staging_bypassed": true, "print_triggered_on_approval": queued > 0, "print_jobs_queued": queued, "idempotent_replay": true}, nil
 	}
 
-	var woCode, itemRevID, pStart, pEnd string
+	var woCode, itemRevID, itemCode, itemName, uomID, siteID, pStart, pEnd string
 	var quantity float64
 	err = tx.QueryRow(ctx, `
 		UPDATE wo_header
 		SET status = 'Released', approved_by = $1, approved_at = NOW(), updated_by = $1, updated_at = NOW()
 		WHERE wo_id = $2 AND status IN ('Draft', 'PendingApproval')
-		RETURNING wo_code, item_revision_id, quantity, planned_start_at::text, planned_end_at::text
-	`, input.UserID, input.WOID).Scan(&woCode, &itemRevID, &quantity, &pStart, &pEnd)
+		RETURNING wo_code, item_revision_id, item_code, item_name, uom_id, site_id, quantity, planned_start_at::text, planned_end_at::text
+	`, input.UserID, input.WOID).Scan(&woCode, &itemRevID, &itemCode, &itemName, &uomID, &siteID, &quantity, &pStart, &pEnd)
 	if err != nil {
 		return nil, fmt.Errorf("work order is not in an approvable state: %w", err)
 	}
@@ -215,6 +215,48 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	envelope := sharedkernel.CreateEventEnvelope("MES.Execution.WOApproved.v1", "mes-execution-service", input.TraceID, payload)
 	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.WOApproved.v1", envelope); err != nil {
 		return nil, fmt.Errorf("failed to write WOApproved event to outbox: %w", err)
+	}
+	workOrderPayload := map[string]interface{}{
+		"wo_id": input.WOID, "wo_code": woCode, "item_revision_id": itemRevID,
+		"item_code": itemCode, "item_name": itemName, "uom_id": uomID,
+		"quantity": quantity, "site_id": siteID, "planned_start_at": pStart,
+		"planned_end_at": pEnd, "status": "Released", "aggregate_version": 1,
+	}
+	workOrderReleased := sharedkernel.CreateEventEnvelope("MES.Execution.WorkOrderReleased.v1", "mes-execution-service", input.TraceID, workOrderPayload)
+	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.WorkOrderReleased.v1", workOrderReleased); err != nil {
+		return nil, fmt.Errorf("failed to write WorkOrderReleased event to outbox: %w", err)
+	}
+	requirementRows, err := tx.Query(ctx, `SELECT requirement_id, component_item_revision_id, component_item_code, required_qty, uom_id, COALESCE(issue_operation_id::text, ''), demand_version FROM wo_material_requirement WHERE wo_id = $1 ORDER BY requirement_id`, input.WOID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load material requirements: %w", err)
+	}
+	type materialRequirement struct {
+		ID, ComponentRevisionID, ComponentCode, UOM, IssueOperationID string
+		RequiredQty float64
+		DemandVersion int
+	}
+	requirements := make([]materialRequirement, 0)
+	for requirementRows.Next() {
+		var requirementID, componentRevisionID, componentCode, requirementUOM, issueOperationID string
+		var requiredQty float64
+		var demandVersion int
+		if err := requirementRows.Scan(&requirementID, &componentRevisionID, &componentCode, &requiredQty, &requirementUOM, &issueOperationID, &demandVersion); err != nil {
+			requirementRows.Close()
+			return nil, err
+		}
+		requirements = append(requirements, materialRequirement{ID: requirementID, ComponentRevisionID: componentRevisionID, ComponentCode: componentCode, UOM: requirementUOM, IssueOperationID: issueOperationID, RequiredQty: requiredQty, DemandVersion: demandVersion})
+	}
+	if err := requirementRows.Err(); err != nil {
+		requirementRows.Close()
+		return nil, fmt.Errorf("failed to read material requirements: %w", err)
+	}
+	requirementRows.Close()
+	for _, requirement := range requirements {
+		demandPayload := map[string]interface{}{"demand_id": requirement.ID, "demand_version": requirement.DemandVersion, "wo_id": input.WOID, "wo_code": woCode, "site_id": siteID, "item_revision_id": requirement.ComponentRevisionID, "item_code": requirement.ComponentCode, "required_qty": requirement.RequiredQty, "uom_id": requirement.UOM, "issue_operation_id": requirement.IssueOperationID, "status": "Released"}
+		demandEvent := sharedkernel.CreateEventEnvelope("MES.Execution.MaterialRequirementPublished.v1", "mes-execution-service", input.TraceID, demandPayload)
+		if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.MaterialRequirementPublished.v1", demandEvent); err != nil {
+			return nil, fmt.Errorf("failed to write MaterialRequirementPublished event: %w", err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

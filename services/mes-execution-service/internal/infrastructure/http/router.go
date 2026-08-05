@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -48,8 +49,14 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 	})
 
 	r.Get("/metrics", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte("# HELP mes_execution_service_up Service health\n# TYPE mes_execution_service_up gauge\nmes_execution_service_up 1\n"))
+		metrics, err := sharedkernel.ReadOutboxMetrics(context.Background(), pool)
+		if err != nil { metrics = sharedkernel.OutboxMetrics{} }
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+		fmt.Fprintf(w, "# HELP mes_execution_service_up Service health\n# TYPE mes_execution_service_up gauge\nmes_execution_service_up 1\n# TYPE mes_outbox_pending gauge\nmes_outbox_pending %d\n# TYPE mes_outbox_failed gauge\nmes_outbox_failed %d\n# TYPE mes_outbox_oldest_pending_age_seconds gauge\nmes_outbox_oldest_pending_age_seconds %.3f\n", metrics.Pending, metrics.Failed, metrics.OldestPendingAgeSeconds)
+	})
+	r.Post("/api/mes/execution/outbox/{eventID}/replay", func(w http.ResponseWriter, r *http.Request) {
+		if err := sharedkernel.ReplayOutboxEvent(r.Context(), pool, chi.URLParam(r, "eventID")); err != nil { http.Error(w, err.Error(), http.StatusNotFound); return }
+		json.NewEncoder(w).Encode(map[string]string{"event_id": chi.URLParam(r, "eventID"), "status": "REQUEUED"})
 	})
 
 	r.Route("/api/mes/execution", func(r chi.Router) {

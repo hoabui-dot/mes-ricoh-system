@@ -34,6 +34,16 @@ export interface EventEnvelope<TPayload = unknown> {
    */
   readonly trace_id: string;
 
+  /** Optional vNext metadata; existing v1 producers may omit these fields. */
+  readonly aggregate_type?: string;
+  readonly aggregate_id?: string;
+  readonly aggregate_version?: number;
+  readonly correlation_id?: string;
+  readonly causation_id?: string;
+  readonly site_id?: string;
+  readonly schema_version?: number;
+  readonly metadata?: Record<string, unknown>;
+
   /** Domain-specific event payload. Strongly typed per event. */
   readonly payload: TPayload;
 }
@@ -78,4 +88,9 @@ export function isEventEnvelope(value: unknown): value is EventEnvelope {
     typeof obj['trace_id'] === 'string' &&
     'payload' in obj
   );
+}
+
+/** Stable Kafka key without changing the meaning of existing event versions. */
+export function eventPartitionKey(envelope: Pick<EventEnvelope, 'event_id' | 'aggregate_id'>): string {
+  return envelope.aggregate_id || envelope.event_id;
 }

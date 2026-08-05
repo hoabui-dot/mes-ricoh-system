@@ -92,6 +92,7 @@ type OutboxRow struct {
 	Topic      string
 	Payload    []byte
 	RetryCount int
+	PartitionKey string
 }
 
 // Logical event names are kept in domain outboxes, while station-agent Kafka
@@ -143,7 +144,7 @@ func (w *OutboxRelayWorker) pollAndPublish(ctx context.Context) error {
 	for _, evt := range events {
 		msg := kafka.Message{
 			Topic: kafkaTopic(evt.Topic),
-			Key:   []byte(evt.ID),
+			Key:   []byte(partitionKeyFromPayload(evt.Payload, evt.ID)),
 			Value: evt.Payload,
 			Headers: []kafka.Header{{
 				// Station Agent consumers route logical printer commands from
@@ -214,4 +215,16 @@ func WriteToOutbox(ctx context.Context, tx Execable, topic string, envelope inte
 		VALUES ($1, $2, $3, $4, 'PENDING')
 	`, eventID, eventType, topic, payloadBytes)
 	return err
+}
+
+func partitionKeyFromPayload(payload []byte, fallback string) string {
+	var envelope struct {
+		AggregateID string `json:"aggregate_id"`
+		Payload map[string]any `json:"payload"`
+	}
+	if json.Unmarshal(payload, &envelope) == nil {
+		if envelope.AggregateID != "" { return envelope.AggregateID }
+		if value, ok := envelope.Payload["aggregate_id"].(string); ok && value != "" { return value }
+	}
+	return fallback
 }

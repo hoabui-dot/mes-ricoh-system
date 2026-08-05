@@ -3,7 +3,7 @@ import './instrumentation.js';
 
 import express from 'express';
 import { Pool } from 'pg';
-import { OutboxRelayWorker } from '@mom-platform/shared-kernel';
+import { OutboxRelayWorker, readOutboxMetrics, replayOutboxEvent } from '@mom-platform/shared-kernel';
 import { runMigrations } from './infrastructure/db/migrate.js';
 import { seedMasterData } from './infrastructure/db/seed.js';
 import { masterDataRouter } from './infrastructure/http/master-data.router.js';
@@ -76,7 +76,10 @@ async function bootstrap() {
   });
   app.get('/metrics', (_req, res) => {
     res.set('Content-Type', 'text/plain');
-    res.send(`# HELP mes_master_data_service_up Service health\n# TYPE mes_master_data_service_up gauge\nmes_master_data_service_up 1\n`);
+    void readOutboxMetrics(pool).then((metrics) => res.send(`# HELP mes_master_data_service_up Service health\n# TYPE mes_master_data_service_up gauge\nmes_master_data_service_up 1\n# TYPE mes_master_data_outbox_pending gauge\nmes_master_data_outbox_pending ${metrics.pending}\n# TYPE mes_master_data_outbox_failed gauge\nmes_master_data_outbox_failed ${metrics.failed}\n# TYPE mes_master_data_outbox_oldest_pending_age_seconds gauge\nmes_master_data_outbox_oldest_pending_age_seconds ${metrics.oldestPendingAgeSeconds.toFixed(3)}\n`)).catch(() => res.status(503).send('mes_master_data_outbox_metrics 0\n'));
+  });
+  app.post('/api/mes/master-data/outbox/:eventId/replay', (req, res) => {
+    void replayOutboxEvent(pool, req.params.eventId).then(() => res.json({ event_id: req.params.eventId, status: 'REQUEUED' })).catch((error: Error) => res.status(404).json({ error: error.message }));
   });
   app.use('/api/mes/master-data', masterDataRouter(pool));
   app.use((_req, res) => res.status(404).json({ error: 'Not Found' }));

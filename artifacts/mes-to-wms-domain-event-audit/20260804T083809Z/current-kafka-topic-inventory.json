@@ -1,0 +1,29 @@
+{
+  "run_id":"20260804T083809Z",
+  "runtime_verified":true,
+  "relevant_topics":[
+    {"topic":"MES.MasterData.ItemRevisionReleased.v2","partitions":1,"producer":"mes-master-data-service","wms_relevance":"P0 master projection"},
+    {"topic":"MES.MasterData.WorkCenterActivated.v2","partitions":1,"producer":"mes-master-data-service","wms_relevance":"P0 staging reference"},
+    {"topic":"MES.MasterData.MBOMReleased.v2","producer":"mes-master-data-service","wms_relevance":"no full WMS copy"},
+    {"topic":"MES.MasterData.ProductionVersionReleased.v1","producer":"mes-master-data-service","wms_relevance":"optional reference"},
+    {"topic":"MES.Execution.WOApproved.v1","partitions":3,"producer":"mes-execution-service","wms_relevance":"partial WorkOrderReleased equivalent; no WMS consumer proven in this checkout"},
+    {"topic":"MES.Execution.MaterialStagingRequested.v1","partitions":1,"producer":"mes-execution-service","wms_relevance":"implemented command"},
+    {"topic":"MES.Execution.MaterialConsumed.v1","partitions":3,"producer":"mes-execution-service","wms_relevance":"implemented fact"},
+    {"topic":"MES.Execution.WOCompleted.v1","partitions":3,"producer":"mes-execution-service","wms_relevance":"insufficient as expected receipt/output contract"},
+    {"topic":"MES.Traceability.LabelIssued.v1","producer":"mes-traceability-service","wms_relevance":"partial production lot/serial identity"},
+    {"topic":"MES.Traceability.GenealogyRecorded.v1","producer":"mes-traceability-service","wms_relevance":"optional advanced traceability"},
+    {"topic":"WMS.Outbound.MaterialStaged.v1","producer":"WMS Outbound","wms_relevance":"implemented MES consumer"},
+    {"topic":"WMS.Outbound.MaterialShortageDeclared.v1","producer":"WMS Outbound","wms_relevance":"implemented MES consumer"}
+  ],
+  "current_pattern":"one physical topic per event type",
+  "issues":["Event ID is commonly used as Kafka key instead of aggregate identity.","Retention and compaction are not explicitly configured on audited topics.","Topic partition counts are inconsistent and ordering scope is undocumented.","No MES/WMS DLQ topic was found for this boundary."],
+  "recommended_logical_topics":[
+    {"topic":"mes.master-data.item-events.v1","key":"item_id","compaction":true,"retention":"long-lived"},
+    {"topic":"mes.master-data.reference-events.v1","key":"aggregate_type:aggregate_id","compaction":true,"retention":"long-lived"},
+    {"topic":"mes.execution.work-order-events.v1","key":"wo_id","compaction":false,"retention":"policy decision"},
+    {"topic":"mes.execution.material-events.v1","key":"logical_demand_id or consumption_id","compaction":false,"retention":"audit/replay policy"},
+    {"topic":"mes.execution.production-output-events.v1","key":"output_id","compaction":false,"retention":"audit/replay policy"},
+    {"topic":"mes.traceability.lot-serial-events.v1","key":"lot_or_serial identity","compaction":false,"retention":"traceability policy"}
+  ],
+  "migration_note":"Do not rename current topics in place. Introduce grouped topics only through dual-publish/consumer migration and approved contracts."
+}

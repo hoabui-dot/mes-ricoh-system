@@ -82,8 +82,8 @@ async function executionApi(pathname, options = {}, allowed = []) {
 }
 
 async function getContext() {
-  const [sites, workCenters, workstations, uoms, revisions] = await Promise.all([
-    data('/sites?limit=500'), data('/work-centers?limit=500'), data('/workstations?limit=500'), data('/uoms?limit=500'), data('/item-revisions?limit=500'),
+  const [sites, workCenters, workstations, uoms, revisions, materialGroups, productionLines] = await Promise.all([
+    data('/sites?limit=500'), data('/work-centers?limit=500'), data('/workstations?limit=500'), data('/uoms?limit=500'), data('/item-revisions?limit=500'), data('/material-groups?limit=500'), data('/production-lines?limit=500'),
   ]);
   const site = sites.find((row) => row.code === (process.env.E2E_SITE_CODE || 'SITE-KZ3') && row.lifecycle_status === 'Released');
   if (!site) throw new Error('SEED_MASTER_DATA: released SITE-KZ3 is required');
@@ -91,10 +91,25 @@ async function getContext() {
   if (!workstation) throw new Error('SEED_MASTER_DATA: released physical-print workstation is required');
   const workCenter = workCenters.find((row) => row.master_id === workstation.work_center_id) || workCenters.find((row) => row.code === 'WC-MIXING');
   const pcs = uoms.find((row) => row.code === 'PCS' && row.lifecycle_status === 'Released');
+  const materialGroup = materialGroups.find((row) => row.code === 'FG_RUBBER_METAL' && row.lifecycle_status === 'Released')
+    || materialGroups.find((row) => row.lifecycle_status === 'Released');
+  const coveredLines = (await master.query(`
+    SELECT pl.master_id, pl.code, pl.name, pl.site_id, pl.lifecycle_status, pl.active_flag
+    FROM md_production_line pl
+    JOIN md_production_line_work_center lwc ON lwc.production_line_id = pl.master_id
+    WHERE lwc.work_center_id = $1
+      AND lwc.active_flag = TRUE
+      AND (lwc.effective_to IS NULL OR lwc.effective_to > NOW())
+      AND pl.lifecycle_status = 'Released'
+      AND pl.active_flag = TRUE
+    ORDER BY pl.code`, [workCenter.master_id])).rows;
+  const productionLine = coveredLines.find((row) => row.code === 'LINE-BASE-1')
+    || coveredLines.find((row) => productionLines.some((candidate) => candidate.master_id === row.master_id && Number(candidate.active_eligibility_count || 0) > 0))
+    || coveredLines[0];
   const componentCandidate = revisions.find((row) => row.revision_code === names.component || row.code === names.component);
   const component = componentCandidate && (await master.query(`SELECT r.*, i.code AS item_code, i.lifecycle_status AS item_lifecycle_status FROM md_item_revision r JOIN md_item i ON i.master_id=r.item_id WHERE r.master_id=$1 AND r.lifecycle_status='Released' AND i.lifecycle_status='Released' AND r.effective_from <= NOW() AND (r.effective_to IS NULL OR r.effective_to > NOW())`, [componentCandidate.master_id])).rows[0];
-  if (!workCenter || !pcs || !component) throw new Error('SEED_MASTER_DATA: active released work center, PCS UOM, and effective released component revision are required');
-  return { site, workstation, workCenter, pcs, component };
+  if (!workCenter || !pcs || !materialGroup || !productionLine || !component) throw new Error('SEED_MASTER_DATA: active released work center, PCS UOM, material group, production line, and effective released component revision are required');
+  return { site, workstation, workCenter, pcs, materialGroup, productionLine, component };
 }
 
 async function cleanupOwned() {
@@ -139,6 +154,7 @@ async function cleanupOwned() {
       ['resource_capabilities', `DELETE FROM md_resource_capability WHERE operation_id=ANY($1::uuid[])`, opList],
       ['operation_skills', `DELETE FROM md_operation_skill_requirement WHERE operation_id=ANY($1::uuid[])`, opList],
       ['production_standards', `DELETE FROM md_production_standard WHERE operation_id=ANY($1::uuid[]) OR routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[]))`, routeList],
+      ['production_version_line_eligibility', `DELETE FROM md_production_version_line_eligibility WHERE production_version_id=ANY($1::uuid[])`, owned.pvIds],
       ['production_versions', `DELETE FROM md_production_version WHERE master_id=ANY($1::uuid[])`, owned.pvIds],
       ['mbom_lines', `DELETE FROM md_mbom_line WHERE mbom_header_id=ANY($1::uuid[])`, mbomList],
       ['routing_operations', `DELETE FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[])`, routeList],
@@ -260,6 +276,9 @@ async function seedTraceability(manifest) {
 }
 
 async function ensurePrintStation(context) {
+  if (process.env.ALLOW_PRINT_STATION_OFFLINE === 'true') {
+    return { skipped: true, reason: 'PRINT_STATION_OFFLINE_ALLOWED_FOR_MES_WMS_MATERIAL_FLOW', runtimeMustBeVerified: false };
+  }
   const stationCode = process.env.E2E_PRINT_STATION_CODE || 'PRINT-STATION-01';
   const stations = await data('/print-stations?limit=500');
   let station = stations.find((row) => row.code === stationCode);
@@ -284,9 +303,12 @@ async function ensurePrintStation(context) {
   return { ...station, binding: { workstation_id: context.workstation.master_id, role: 'PRIMARY', allocated_printer_quantity: 1 }, runtimeMustBeVerified: true };
 }
 
-async function seedSupportingData() {
+async function seedSupportingData(context) {
   runCommand('bash', ['scripts/seed-mes-labor-demo.sh'], 'Seeding employees, shifts, skills, and work calendars');
-  runCommand('npm', ['--prefix', '../ricoh-wms', 'run', 'seed:demo'], 'Seeding WMS data through the separate ricoh-wms repository');
+  runCommand('npm', ['--prefix', '../ricoh-wms', 'run', 'seed:demo'], 'Seeding WMS data through the separate ricoh-wms repository', {
+    WMS_DEMO_COMPONENT_ITEM_REVISION_ID: context.component.master_id,
+    WMS_DEMO_WORK_CENTER_ID: context.workCenter.master_id,
+  });
   return { labor: true, wms: true };
 }
 
@@ -395,7 +417,7 @@ async function verifyWmsComponentStock(component, requiredQty = 2, targetDate) {
 async function createScenario(context) {
   const localized = { vi: 'Sản phẩm E2E WO in nhãn', en: 'E2E WO Label Product', ja: 'E2E WO ラベル製品', ko: 'E2E WO 라벨 제품' };
   const component = context.component;
-  const item = await data('/items', { method: 'POST', body: JSON.stringify({ code: names.item, name: localized, item_type: 'FG', item_group: 'E2E', base_uom_id: context.pcs.master_id, site_id: context.site.master_id }) });
+  const item = await data('/items', { method: 'POST', body: JSON.stringify({ code: names.item, name: localized, item_type: 'FG', item_group: 'E2E', material_group_id: context.materialGroup.master_id, base_uom_id: context.pcs.master_id, site_id: context.site.master_id }) });
   const revision = item.revision;
   await data(`/items/${item.master_id}/release`, { method: 'POST', body: '{}' });
   await data(`/item-revisions/${revision.master_id}/release`, { method: 'POST', body: '{}' });
@@ -422,19 +444,25 @@ async function createScenario(context) {
   await data('/mbom-lines', { method: 'POST', body: JSON.stringify({ code: 'E2E-WO-MBOM-L01', name: 'E2E metal component', mbom_header_id: mbom.master_id, seq: 10, component_revision_id: component.master_id, quantity_per: 1, uom_id: context.pcs.master_id, scrap_rate: 0, issue_operation_id: operations[0].master_id, backflush_flag: false, phantom_flag: false }) });
   await data(`/mbom-headers/${mbom.master_id}/release`, { method: 'POST', body: '{}' });
   const pv = await data('/production-versions', { method: 'POST', body: JSON.stringify({ name_i18n: { vi: names.pvNameVi, en: 'E2E WO Label Production Version', ja: 'E2E WO ラベル生産バージョン', ko: 'E2E WO 라벨 생산 버전' }, item_revision_id: revision.master_id, ebom_header_id: ebom.master_id, mbom_header_id: mbom.master_id, routing_header_id: routing.master_id, min_lot_size: 1, max_lot_size: 100, is_default: false }) });
-  const validation = await data(`/production-versions/${pv.master_id}/validate`, { method: 'POST', body: '{}' });
-  if (!validation.valid) throw new Error(`PRODUCTION_VERSION_READINESS: ${JSON.stringify(validation.failures || validation)}`);
-  const releasedPV = await data(`/production-versions/${pv.master_id}/release`, { method: 'POST', body: '{}' });
-  // Some legacy release handlers return the pre-transition DTO. The database
-  // transition and readiness endpoint are authoritative, so keep the manifest
-  // truthful instead of recording a stale Draft status.
   const releasedItem = { ...item, lifecycle_status: 'Released', revision: { ...revision, lifecycle_status: 'Released' } };
   const releasedRevision = { ...revision, lifecycle_status: 'Released' };
   const releasedEbom = { ...ebom, lifecycle_status: 'Released' };
   const releasedMbom = { ...mbom, lifecycle_status: 'Released' };
   const releasedRoutingManifest = { ...releasedRouting, lifecycle_status: 'Released' };
-  const releasedProductionVersion = { ...releasedPV, lifecycle_status: 'Released' };
-  return { item: releasedItem, revision: releasedRevision, component, operations, ebom: releasedEbom, routing: releasedRoutingManifest, mbom: releasedMbom, production_version: releasedProductionVersion, workstation: context.workstation, work_center: context.workCenter, site: context.site, uom: context.pcs };
+  return { item: releasedItem, revision: releasedRevision, component, operations, ebom: releasedEbom, routing: releasedRoutingManifest, mbom: releasedMbom, production_version: { ...pv, lifecycle_status: 'Draft' }, production_line: context.productionLine, workstation: context.workstation, work_center: context.workCenter, site: context.site, uom: context.pcs };
+}
+
+async function releaseScenarioProductionVersion(manifest, targetDate) {
+  const productionVersionID = manifest.production_version.master_id;
+  await api(`/production-versions/${productionVersionID}/line-eligibility`, {
+    method: 'PUT',
+    body: JSON.stringify({ lines: [{ production_line_id: manifest.production_line.master_id, is_primary: true, priority_no: 1, selection_mode: 'AutoPrimaryThenBackup', selection_policy: 'PrimaryThenBackup', effective_from: `${targetDate}T00:00:00.000Z` }] }),
+  });
+  const validation = await data(`/production-versions/${productionVersionID}/validate`, { method: 'POST', body: '{}' });
+  if (!validation.valid) throw new Error(`PRODUCTION_VERSION_READINESS: ${JSON.stringify(validation.failures || validation)}`);
+  const released = await data(`/production-versions/${productionVersionID}/release`, { method: 'POST', body: '{}' });
+  manifest.production_version = { ...manifest.production_version, ...released, lifecycle_status: 'Released' };
+  return manifest.production_version;
 }
 
 async function rebuildOwnedReadModel(manifest, targetDate) {
@@ -461,6 +489,9 @@ async function rebuildOwnedReadModel(manifest, targetDate) {
   const employeeSchedules = (await master.query(`SELECT s.schedule_id, s.employee_id, s.shift_id, s.work_center_id, s.schedule_date, s.schedule_status FROM md_employee_shift_schedule s JOIN md_employee e ON e.master_id=s.employee_id WHERE e.site_id=$1 AND s.schedule_date=$2::date`, [manifest.site.master_id, targetDate])).rows;
   const skills = (await master.query(`SELECT DISTINCT s.master_id, s.code, s.name, s.lifecycle_status FROM md_skill s JOIN md_employee_skill es ON es.skill_id=s.master_id JOIN md_employee e ON e.master_id=es.employee_id WHERE e.site_id=$1`, [manifest.site.master_id])).rows;
   const operationRequirements = (await master.query(`SELECT r.master_id, r.operation_id, r.skill_id, r.minimum_level, r.required_persons, r.mandatory_flag FROM md_operation_skill_requirement r WHERE r.routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id=$1) AND r.active_flag=TRUE AND r.effective_to IS NULL`, [manifest.routing.master_id])).rows;
+  const lineEligibilities = (await master.query(`SELECT eligibility_id, production_version_id, production_line_id, is_primary, priority_no, effective_from, effective_to, active_flag, lifecycle_status FROM md_production_version_line_eligibility WHERE production_version_id=$1 AND active_flag=TRUE AND effective_to IS NULL`, [manifest.production_version.master_id])).rows;
+  const resourceCapabilities = (await master.query(`SELECT master_id, operation_id, work_center_id, equipment_id, capability_type, active_flag, lifecycle_status FROM md_resource_capability WHERE operation_id = ANY($1::uuid[]) AND active_flag=TRUE AND effective_to IS NULL`, [routingOps.map((op) => op.operation_id)])).rows;
+  const productionStandards = (await master.query(`SELECT master_id, item_revision_id, operation_id, work_center_id, equipment_id, setup_time_min, cycle_time_sec, efficiency_factor, lifecycle_status FROM md_production_standard WHERE routing_operation_id = ANY($1::uuid[]) AND effective_to IS NULL`, [routingOps.map((op) => op.master_id)])).rows;
   await execution.query('BEGIN');
   try {
     await execution.query(`INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, lifecycle_status, updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,revision_code=EXCLUDED.revision_code,item_type=EXCLUDED.item_type,site_id=EXCLUDED.site_id,base_uom_id=EXCLUDED.base_uom_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [revision.master_id, revision.code, JSON.stringify(revision.name), revision.revision_code, 'FG', revision.site_id, revision.base_uom_id, revision.lifecycle_status]);
@@ -477,7 +508,11 @@ async function rebuildOwnedReadModel(manifest, targetDate) {
     for (const employeeSkill of employeeSkills) await execution.query(`INSERT INTO rm_employee_skill (employee_id,skill_id,level) VALUES ($1,$2,$3) ON CONFLICT (employee_id,skill_id) DO UPDATE SET level=EXCLUDED.level`, [employeeSkill.employee_id, employeeSkill.skill_id, employeeSkill.level]);
     for (const schedule of employeeSchedules) await execution.query(`INSERT INTO rm_employee_shift_schedule (schedule_id,employee_id,shift_id,work_center_id,schedule_date,schedule_status) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (schedule_id) DO UPDATE SET shift_id=EXCLUDED.shift_id,work_center_id=EXCLUDED.work_center_id,schedule_date=EXCLUDED.schedule_date,schedule_status=EXCLUDED.schedule_status`, [schedule.schedule_id, schedule.employee_id, schedule.shift_id, schedule.work_center_id, schedule.schedule_date, schedule.schedule_status]);
     for (const requirement of operationRequirements) await execution.query(`INSERT INTO rm_operation_skill_requirement (master_id,operation_id,skill_id,minimum_level,required_persons,mandatory_flag) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (master_id) DO UPDATE SET operation_id=EXCLUDED.operation_id,skill_id=EXCLUDED.skill_id,minimum_level=EXCLUDED.minimum_level,required_persons=EXCLUDED.required_persons,mandatory_flag=EXCLUDED.mandatory_flag`, [requirement.master_id, requirement.operation_id, requirement.skill_id, requirement.minimum_level, requirement.required_persons, requirement.mandatory_flag]);
+    for (const capability of resourceCapabilities) await execution.query(`INSERT INTO rm_resource_capability (master_id,operation_id,work_center_id,equipment_id,capability_type,active_flag,lifecycle_status) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (master_id) DO UPDATE SET operation_id=EXCLUDED.operation_id,work_center_id=EXCLUDED.work_center_id,equipment_id=EXCLUDED.equipment_id,capability_type=EXCLUDED.capability_type,active_flag=EXCLUDED.active_flag,lifecycle_status=EXCLUDED.lifecycle_status`, [capability.master_id, capability.operation_id, capability.work_center_id, capability.equipment_id, capability.capability_type, capability.active_flag, capability.lifecycle_status]);
+    for (const standard of productionStandards) await execution.query(`INSERT INTO rm_production_standard (master_id,item_revision_id,operation_id,work_center_id,equipment_id,setup_time_min,cycle_time_sec,efficiency_factor,lifecycle_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (master_id) DO UPDATE SET item_revision_id=EXCLUDED.item_revision_id,operation_id=EXCLUDED.operation_id,work_center_id=EXCLUDED.work_center_id,equipment_id=EXCLUDED.equipment_id,setup_time_min=EXCLUDED.setup_time_min,cycle_time_sec=EXCLUDED.cycle_time_sec,efficiency_factor=EXCLUDED.efficiency_factor,lifecycle_status=EXCLUDED.lifecycle_status`, [standard.master_id, standard.item_revision_id, standard.operation_id, standard.work_center_id, standard.equipment_id, standard.setup_time_min, standard.cycle_time_sec, standard.efficiency_factor, standard.lifecycle_status]);
     await execution.query(`INSERT INTO rm_production_version (master_id,code,name_i18n,item_revision_id,mbom_header_id,routing_header_id,site_id,lifecycle_status,is_default,min_lot_size,max_lot_size,updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,$9,$10,$11,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name_i18n=EXCLUDED.name_i18n,item_revision_id=EXCLUDED.item_revision_id,mbom_header_id=EXCLUDED.mbom_header_id,routing_header_id=EXCLUDED.routing_header_id,site_id=EXCLUDED.site_id,lifecycle_status=EXCLUDED.lifecycle_status,min_lot_size=EXCLUDED.min_lot_size,max_lot_size=EXCLUDED.max_lot_size,updated_at=NOW()`, [pv.master_id, pv.code, JSON.stringify(pv.name_i18n), pv.item_revision_id, pv.mbom_header_id, pv.routing_header_id, pv.site_id, pv.lifecycle_status, pv.is_default, pv.min_lot_size, pv.max_lot_size]);
+    await execution.query(`DELETE FROM rm_production_version_line_eligibility WHERE production_version_id=$1`, [pv.master_id]);
+    for (const eligibility of lineEligibilities) await execution.query(`INSERT INTO rm_production_version_line_eligibility (master_id,production_version_id,production_line_id,selection_role,priority,effective_from,effective_to,active_flag,lifecycle_status,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`, [eligibility.eligibility_id, eligibility.production_version_id, eligibility.production_line_id, eligibility.is_primary ? 'PRIMARY' : 'BACKUP', eligibility.priority_no, eligibility.effective_from, eligibility.effective_to, eligibility.active_flag, eligibility.lifecycle_status]);
     await execution.query('COMMIT');
   } catch (error) { await execution.query('ROLLBACK'); throw new Error(`ROUTING_READ_MODEL: ${error.message}`); }
 }
@@ -615,9 +650,10 @@ async function main() {
   const manifest = await createScenario(context);
   manifest.print_station = await ensurePrintStation(context);
   const traceabilitySeed = await seedTraceability(manifest);
-  const supportingSeeds = await seedSupportingData();
+  const supportingSeeds = await seedSupportingData(context);
   const machineGroup = await ensureDemoMachineGroup(context);
   const planningMatrix = await seedPlanningMatrix(manifest, context, targetDate);
+  await releaseScenarioProductionVersion(manifest, targetDate);
   await rebuildOwnedReadModel(manifest, targetDate);
   const readiness = await preflight(manifest, targetDate);
   const masterDataVerification = await verifySeededMasterData(manifest);

@@ -1,0 +1,17 @@
+{
+  "run_id":"20260804T083809Z",
+  "phase_count":11,
+  "phases":[
+    {"phase":0,"name":"Ownership and event-contract approval","scope":"Approve ownership, item categories, state/version/identity and command-vs-fact catalog","owner":"MES/WMS/Product/Platform","entry":"Blueprint approved","completion":"ADRs and schemas reviewed","risk":"Unresolved inventory policy"},
+    {"phase":1,"name":"Outbox hardening and event envelope","scope":"Add envelope/outbox metadata, stable keys, relay claim safety, replay and metrics","owner":"MES shared kernels","entry":"Phase 0 contracts","completion":"Atomicity/concurrency/restart tests pass","risk":"Backward compatibility"},
+    {"phase":2,"name":"Item Revision UOM master synchronization","scope":"P0 Site/Item/Revision/UOM/WorkCenter events and WMS projections","owner":"MES Master Data + WMS projection owner","entry":"Envelope vNext available","completion":"Lifecycle and contract tests pass","risk":"Legacy row backfill"},
+    {"phase":3,"name":"Bootstrap and reconciliation","scope":"Consistent snapshot API, watermark, projection digest and repair","owner":"MES Master Data + WMS","entry":"P0 master projections exist","completion":"Late WMS bootstrap converges","risk":"Snapshot/event handoff race"},
+    {"phase":4,"name":"Work Order material requirement integration","scope":"WorkOrderReleased and stable MaterialRequirementPublished/Changed identities","owner":"MES Execution","entry":"Master sync ready","completion":"WMS receives versioned demand context","risk":"Legacy flat demand model"},
+    {"phase":5,"name":"Reservation staging and issue workflow","scope":"Reservation/staging/issue commands and acknowledgements with inbox","owner":"MES Execution + WMS Inventory/Outbound","entry":"Stable demand identity","completion":"Idempotent full staging flows pass","risk":"Cross-domain ordering"},
+    {"phase":6,"name":"Consumption return and scrap","scope":"Consumption hardening, reversal, return and scrap compensation","owner":"MES Execution + WMS Inventory","entry":"Issue workflow stable","completion":"Inventory converges after corrections","risk":"Scrap ownership ambiguity"},
+    {"phase":7,"name":"Finished and semi-finished receipt","scope":"Output aggregate, expected receipt, accept/reject/reversal","owner":"MES Execution + WMS Inbound","entry":"FG/SFG policies approved","completion":"Duplicate-safe receipt flow passes","risk":"SFG mode decision"},
+    {"phase":8,"name":"Lot serial and traceability","scope":"Production lot/serial facts and warehouse-relevant genealogy","owner":"MES Traceability + WMS Inventory","entry":"Tracking policy approved","completion":"Lot/serial identity reconciles","risk":"Label is not always inventory identity"},
+    {"phase":9,"name":"Observability DLQ replay and security","scope":"ACLs, dashboards, alerts, parked events, controlled replay","owner":"Platform + MES + WMS","entry":"All core consumers exist","completion":"Failure drills and access tests pass","risk":"Shared-environment disruption"},
+    {"phase":10,"name":"Full E2E certification","scope":"Bootstrap, P0/P1 flows, migration, outage, restart, replay and reconciliation evidence","owner":"MES/WMS/Platform QA","entry":"Phases 0-9 complete","completion":"Signed evidence and zero unresolved P0","risk":"External WMS fixture availability"}
+  ]
+}

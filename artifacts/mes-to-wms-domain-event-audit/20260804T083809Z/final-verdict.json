@@ -1,0 +1,20 @@
+{
+  "run_id":"20260804T083809Z",
+  "mes_owned_objects_discovered":34,
+  "mes_owned_object_count_method":"48 audited ownership rows minus 8 WMS-authoritative rows, 5 currently unassigned concepts, and 1 QMS-owned quality object",
+  "wms_relevant_objects":33,
+  "proposed_domain_event_count":46,
+  "current_exact_implemented_event_count":6,
+  "partial_catalog_rows":4,
+  "partial_existing_event_surfaces":3,
+  "missing_p0_event_count":10,
+  "current_outbox_verdict":"TRANSACTIONALLY_ATOMIC_WRITES_BUT_OPERATIONALLY_INCOMPLETE",
+  "cdc":{"application_publisher":"RECOMMENDED_NOW","cdc_on_outbox":"ACCEPTABLE_LATER","cdc_on_business_tables":"NOT_RECOMMENDED"},
+  "bootstrap":"CONSISTENT_SITE_SCOPED_SNAPSHOT_PLUS_WATERMARK_AND_KAFKA_CATCHUP",
+  "reconciliation":"HOURLY_INCREMENTAL_DAILY_FULL_AND_ON_DEMAND_WITH_CONTROLLED_REPLAY",
+  "highest_severity_gaps":["GAP-005","GAP-007","GAP-010","GAP-011","GAP-012","GAP-015","GAP-017"],
+  "implementation_roadmap_phase_count":11,
+  "architecture_ready_for_implementation":true,
+  "integration_ready_for_production":false,
+  "verdict":"MES_TO_WMS_EVENT_OUTBOX_BLUEPRINT_READY_FOR_IMPLEMENTATION"
+}

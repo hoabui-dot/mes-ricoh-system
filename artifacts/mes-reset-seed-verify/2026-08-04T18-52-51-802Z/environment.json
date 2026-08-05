@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "mode": "seed",
+  "environment": "development",
+  "reasons": [],
+  "master": {
+    "host": "localhost",
+    "port": "15434",
+    "database": "mes_master_data_db",
+    "user": "mes_master_data_user"
+  },
+  "execution": {
+    "host": "localhost",
+    "port": "15435",
+    "database": "mes_execution_db",
+    "user": "mes_execution_user"
+  },
+  "traceability": {
+    "host": "localhost",
+    "port": "15436",
+    "database": "traceability_db",
+    "user": "traceability_user"
+  }
+}

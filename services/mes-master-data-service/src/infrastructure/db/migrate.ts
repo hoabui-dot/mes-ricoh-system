@@ -3059,6 +3059,129 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
       WHERE revision.lifecycle_status = 'Released';
     `,
   },
+  {
+    name: '0064_outbox_event_metadata',
+    sql: `
+      ALTER TABLE outbox_events
+        ADD COLUMN IF NOT EXISTS available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS aggregate_type TEXT,
+        ADD COLUMN IF NOT EXISTS aggregate_id UUID,
+        ADD COLUMN IF NOT EXISTS aggregate_version BIGINT,
+        ADD COLUMN IF NOT EXISTS event_version INTEGER,
+        ADD COLUMN IF NOT EXISTS correlation_id TEXT,
+        ADD COLUMN IF NOT EXISTS causation_id TEXT,
+        ADD COLUMN IF NOT EXISTS trace_id TEXT,
+        ADD COLUMN IF NOT EXISTS partition_key TEXT;
+      CREATE INDEX IF NOT EXISTS idx_outbox_events_available
+        ON outbox_events (status, available_at, created_at);
+      CREATE TABLE IF NOT EXISTS outbox_dead_letters (
+        event_id UUID PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        retry_count INTEGER NOT NULL,
+        error_message TEXT,
+        parked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `,
+  },
+  {
+    name: '0065_outbox_dead_letter_replay',
+    sql: `
+      ALTER TABLE outbox_dead_letters
+        ADD COLUMN IF NOT EXISTS replayed_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS replay_count INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
+  {
+    name: '0066_allow_draft_production_version_line_eligibility',
+    sql: `
+      -- Line eligibility must be configured before Production Version release,
+      -- because release validation requires one active primary line. Release
+      -- and line lifecycle checks remain enforced by this trigger.
+      CREATE OR REPLACE FUNCTION fn_validate_pv_line_eligibility()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      DECLARE pv_row RECORD; line_row RECORD; missing_count INTEGER;
+      BEGIN
+        SELECT master_id, site_id, routing_header_id, lifecycle_status, effective_from, effective_to INTO pv_row
+        FROM md_production_version WHERE master_id = NEW.production_version_id;
+        SELECT master_id, site_id, lifecycle_status, active_flag, effective_from, effective_to INTO line_row
+        FROM md_production_line WHERE master_id = NEW.production_line_id;
+        IF pv_row.master_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_VERSION_NOT_FOUND'; END IF;
+        IF line_row.master_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_LINE_NOT_FOUND'; END IF;
+        IF pv_row.site_id <> line_row.site_id THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_SITE_MISMATCH'; END IF;
+        IF pv_row.lifecycle_status NOT IN ('Draft', 'Released') THEN
+          RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_PV_NOT_EDITABLE';
+        END IF;
+        IF line_row.lifecycle_status <> 'Released' OR line_row.active_flag <> TRUE THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_NOT_RELEASED'; END IF;
+        SELECT COUNT(*)::INTEGER INTO missing_count
+        FROM md_routing_operation ro
+        JOIN md_operation op ON op.master_id = ro.operation_id
+        WHERE ro.routing_header_id = pv_row.routing_header_id
+          AND ro.effective_to IS NULL
+          AND ro.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND op.is_schedulable = TRUE
+          AND NOT EXISTS (
+            SELECT 1
+            FROM md_production_line_work_center lwc
+            JOIN md_resource_capability rc ON rc.work_center_id = lwc.work_center_id
+              AND rc.operation_id = ro.operation_id
+              AND rc.eligibility = TRUE
+              AND rc.active_flag = TRUE
+              AND rc.lifecycle_status = 'Released'
+            WHERE lwc.production_line_id = NEW.production_line_id
+              AND lwc.active_flag = TRUE
+              AND tstzrange(lwc.effective_from, COALESCE(lwc.effective_to, 'infinity'::timestamptz), '[)')
+                  && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')
+          );
+        IF missing_count > 0 THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_OPERATION_CAPABILITY_UNRESOLVED'; END IF;
+        RETURN NEW;
+      END; $$;
+    `,
+  },
+  {
+    name: '0067_fix_draft_production_version_line_eligibility_enum',
+    sql: `
+      CREATE OR REPLACE FUNCTION fn_validate_pv_line_eligibility()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      DECLARE pv_row RECORD; line_row RECORD; missing_count INTEGER;
+      BEGIN
+        SELECT master_id, site_id, routing_header_id, lifecycle_status, effective_from, effective_to INTO pv_row
+        FROM md_production_version WHERE master_id = NEW.production_version_id;
+        SELECT master_id, site_id, lifecycle_status, active_flag, effective_from, effective_to INTO line_row
+        FROM md_production_line WHERE master_id = NEW.production_line_id;
+        IF pv_row.master_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_VERSION_NOT_FOUND'; END IF;
+        IF line_row.master_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_LINE_NOT_FOUND'; END IF;
+        IF pv_row.site_id <> line_row.site_id THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_SITE_MISMATCH'; END IF;
+        IF pv_row.lifecycle_status NOT IN ('Draft', 'Released') THEN
+          RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_PV_NOT_EDITABLE';
+        END IF;
+        IF line_row.lifecycle_status <> 'Released' OR line_row.active_flag <> TRUE THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_NOT_RELEASED'; END IF;
+        SELECT COUNT(*)::INTEGER INTO missing_count
+        FROM md_routing_operation ro
+        JOIN md_operation op ON op.master_id = ro.operation_id
+        WHERE ro.routing_header_id = pv_row.routing_header_id
+          AND ro.effective_to IS NULL
+          AND ro.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND op.is_schedulable = TRUE
+          AND NOT EXISTS (
+            SELECT 1
+            FROM md_production_line_work_center lwc
+            JOIN md_resource_capability rc ON rc.work_center_id = lwc.work_center_id
+              AND rc.operation_id = ro.operation_id
+              AND rc.eligibility = TRUE
+              AND rc.active_flag = TRUE
+              AND rc.lifecycle_status = 'Released'
+            WHERE lwc.production_line_id = NEW.production_line_id
+              AND lwc.active_flag = TRUE
+              AND tstzrange(lwc.effective_from, COALESCE(lwc.effective_to, 'infinity'::timestamptz), '[)')
+                  && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')
+          );
+        IF missing_count > 0 THEN RAISE EXCEPTION 'PRODUCTION_VERSION_LINE_OPERATION_CAPABILITY_UNRESOLVED'; END IF;
+        RETURN NEW;
+      END; $$;
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

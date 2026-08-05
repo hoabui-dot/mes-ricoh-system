@@ -1,0 +1,45 @@
+{
+  "workOrders": [
+    {
+      "wo_id": "1f9bf329-c70f-4142-90a2-7adcf39a95c8",
+      "wo_code": "WO-20260804-0006",
+      "status": "Draft",
+      "created_at": "2026-08-04T05:09:02.797Z",
+      "production_version_id": "a3800b30-6f10-4417-8911-dea95ce652fd",
+      "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
+      "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+      "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+      "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+      "planning_snapshot": {
+        "mbom_id": "64728761-81cf-4608-9b15-9d6310777c67",
+        "shift_id": "f9abaf59-d249-42d9-9560-fcb39cf929e5",
+        "routing_id": "ac4d1565-dfda-4eda-8f7f-c1eaf2188777",
+        "production_version_id": "a3800b30-6f10-4417-8911-dea95ce652fd",
+        "production_version_code": "WST-UAT-PV-01-PRIMARY-READY"
+      },
+      "operation_count": 4,
+      "material_count": 1,
+      "allocation_count": 4,
+      "print_job_count": 0,
+      "pv_status": "Released",
+      "routing_status": "Released",
+      "mbom_status": "Released",
+      "item_revision_status": "Released",
+      "primary_reason": null,
+      "classification": "VALID",
+      "reasons": []
+    }
+  ],
+  "orphans": {
+    "operation_without_header": 0,
+    "material_without_header": 0,
+    "session_without_operation": 0,
+    "confirmation_without_operation": 0,
+    "print_job_without_header": 0,
+    "print_attempt_without_job": 0,
+    "print_event_without_job": 0,
+    "allocation_without_operation": 0,
+    "reservation_without_allocation": 0,
+    "workflow_without_work_order": 0
+  }
+}

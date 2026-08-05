@@ -1,0 +1,45 @@
+{
+  "run_id":"20260804T083809Z",
+  "bootstrap":{
+    "recommendation":"CONSISTENT_SNAPSHOT_PLUS_WATERMARK_THEN_KAFKA_CATCHUP",
+    "steps":[
+      "Authorize a WMS bootstrap service identity and freeze one site-scoped logical snapshot watermark.",
+      "Page through Released/currently-effective WMS-relevant Sites, UOMs, conversions, material groups, Items, Item Revisions and Work Centers.",
+      "Upsert WMS projections by shared ID and aggregate version; retain WMS-owned extension fields.",
+      "Persist snapshot watermark and matching Kafka offsets in WMS sync state.",
+      "Consume events strictly after the watermark/offset and apply idempotently.",
+      "Run reconciliation before marking the site WMS_MASTER_SYNC_READY."
+    ],
+    "required_mes_interfaces":[
+      {"interface":"GET /api/mes/master-data/integration/wms/snapshot","status":"MISSING","contract":"site_id, object_types, effective_at, cursor, limit, watermark"},
+      {"interface":"GET /api/mes/master-data/integration/wms/snapshot/{watermark}","status":"MISSING","contract":"stable paginated snapshot pages"}
+    ],
+    "pagination":"opaque cursor; deterministic aggregate_type + aggregate_id order; bounded limit",
+    "filters":"site scope, Released, effective_at; include inactive tombstones only for reconciliation",
+    "authentication":"Keycloak service account through Kong or approved internal mTLS/JWT policy",
+    "prohibited":"WMS reads MES database directly"
+  },
+  "wms_projections":[
+    {"table":"wms_mes_site_projection","key":"site_id","version":"aggregate_version","update":"newer version only"},
+    {"table":"wms_item_projection","key":"item_id","version":"aggregate_version","update":"upsert; deactivate not delete"},
+    {"table":"wms_item_revision_projection","key":"revision_id","version":"aggregate_version","update":"upsert with lifecycle/effectivity"},
+    {"table":"wms_uom_projection","key":"uom_id","version":"aggregate_version","update":"upsert; reject unsupported precision explicitly"},
+    {"table":"wms_uom_conversion_projection","key":"conversion_id","version":"aggregate_version","update":"upsert/deactivate"},
+    {"table":"wms_material_group_projection","key":"material_group_id","version":"aggregate_version","update":"upsert/deactivate"},
+    {"table":"wms_work_center_projection","key":"work_center_id","version":"aggregate_version","update":"upsert; preserve WMS staging-location mapping"},
+    {"table":"wms_mes_sync_state","key":"site_id + projection_type","version":"watermark/offset","update":"transactional progress"},
+    {"table":"wms_consumed_event","key":"consumer_name + event_id","version":"payload_hash","update":"duplicate no-op, conflicting duplicate park"}
+  ],
+  "reconciliation":{
+    "frequency":"hourly incremental plus daily full site comparison; on-demand after replay/bootstrap",
+    "checks":["missing item","missing revision","lifecycle mismatch","effectivity mismatch","UOM mismatch","inventory-policy mismatch","barcode mismatch","packaging mismatch","stale aggregate version","unknown WMS projection"],
+    "comparison":"MES signed/versioned snapshot digest or paginated reconciliation API versus WMS projection digest",
+    "auto_repair":"replay exact event or upsert newer authoritative snapshot for non-conflicting projection gaps",
+    "manual_approval":"identity conflict, version regression, WMS extension conflict, policy semantic conflict",
+    "evidence":"durable run ID, site, object ID, MES/WMS versions, mismatch code, action, actor and timestamps",
+    "owner":"MES owns source correction; WMS owns projection repair; Platform owns transport evidence",
+    "not_a_replacement_for_events":true
+  },
+  "readiness_states":["WMS_MASTER_SYNC_READY","WMS_MASTER_SYNC_PENDING","WMS_MASTER_SYNC_FAILED","WMS_ITEM_NOT_FOUND","WMS_REVISION_NOT_SYNCHRONIZED","WMS_UOM_NOT_SUPPORTED"],
+  "gates":{"work_order_create":"ALLOW_WITH_VISIBLE_SYNC_STATUS","work_order_release":"WARN_OR_BLOCK_ONLY_WHEN_POLICY_REQUIRES_EARLY_RESERVATION","material_reservation":"BLOCK","material_staging":"BLOCK","material_issue":"BLOCK","execution_start":"BLOCK_WHEN_MANDATORY_MATERIAL_NOT_STAGED","work_order_completion":"DO_NOT_BLOCK_ON_RECEIPT_ACK; create durable hold/reconciliation","finished_goods_receipt":"BLOCK UNTIL MASTER READY"}
+}

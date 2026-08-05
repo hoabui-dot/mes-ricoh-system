@@ -1,0 +1,42 @@
+{
+  "run_id": "20260804T083809Z",
+  "generated_at": "2026-08-04T08:38:09Z",
+  "mode": "READ_ONLY_AUDIT",
+  "repositories": {"mes_source_present": true, "wms_source_present": false},
+  "services": [
+    {"name": "mes-master-data-service", "database": "mes_master_data_db", "role": "authoritative MES master data and master-data outbox"},
+    {"name": "mes-execution-service", "database": "mes_execution_db", "role": "Work Orders, material requirements, execution and execution outbox"},
+    {"name": "mes-traceability-service", "database": "mes_traceability_db", "role": "labels, genealogy and traceability outbox"},
+    {"name": "mes-kiosk-gateway-service", "database": "mes_kiosk_gateway_db", "role": "consumer/projection only for this boundary"},
+    {"name": "mes-console", "database": null, "role": "operator UI; not an integration producer"}
+  ],
+  "runtime_counts": {
+    "master_data_tables": 63,
+    "execution_tables": 41,
+    "traceability_tables": 12,
+    "items": 8,
+    "item_revisions": 8,
+    "uoms": 7,
+    "material_groups": 5,
+    "traceability_labels": 0,
+    "genealogy_events": 0
+  },
+  "principal_tables": [
+    "md_site", "md_uom", "md_uom_conversion", "md_material_group", "md_item", "md_item_revision",
+    "md_mbom_header", "md_mbom_line", "md_routing_header", "md_routing_operation", "md_production_version",
+    "md_production_line", "md_work_center", "md_workstation", "md_equipment", "md_machine_unit",
+    "wo_header", "wo_operation", "wo_material_requirement", "material_consumption", "operation_confirmation",
+    "label_instance", "genealogy_event", "outbox_events"
+  ],
+  "source_paths": [
+    "AI_CONTEXT.md", "UI_AI_CONTEXT.md", "AI_document/01_BUSINESS_DOMAIN.md", "AI_document/06_SERVICE_BOUNDARIES.md",
+    "AI_document/08_EVENT_DRIVEN_ARCHITECTURE.md", "AI_document/14_WORKFLOW_AND_USECASES.md", "AI_document/19_KNOWN_LIMITATIONS.md",
+    "product-doc/product-doc.md", "services/mes-master-data-service/src", "services/mes-execution-service",
+    "services/mes-traceability-service", "libs/shared-kernel", "libs/shared-kernel-go", "infra/schemas", "scripts", "e2e"
+  ],
+  "limitations": [
+    "No WMS source exists in this checkout; WMS implementation details are external evidence.",
+    "Runtime inspection was read-only and did not publish or consume audit events.",
+    "Historical implementation reports that describe synchronous MES-to-WMS HTTP are not current source truth."
+  ]
+}

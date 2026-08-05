@@ -7,14 +7,14 @@ export interface TableDefinition {
 }
 
 export const TABLES: TableDefinition[] = [
-  { resource: 'sites', tableName: 'md_site' },
+  { resource: 'sites', tableName: 'md_site', eventType: 'MES.MasterData.SiteReleased.v1', releaseEventName: 'SiteReleased' },
   { resource: 'shopfloors', tableName: 'md_shopfloor' },
   { resource: 'production-areas', tableName: 'md_production_area' },
-  { resource: 'uoms', tableName: 'md_uom' },
+  { resource: 'uoms', tableName: 'md_uom', eventType: 'MES.MasterData.UomReleased.v1', releaseEventName: 'UomReleased' },
   { resource: 'uom-conversions', tableName: 'md_uom_conversion' },
   { resource: 'shifts', tableName: 'md_shift' },
   { resource: 'reason-codes', tableName: 'md_reason_code' },
-  { resource: 'items', tableName: 'md_item' },
+  { resource: 'items', tableName: 'md_item', eventType: 'MES.MasterData.ItemReleased.v1', releaseEventName: 'ItemReleased' },
   { resource: 'material-groups', tableName: 'md_material_group' },
   {
     resource: 'item-revisions',

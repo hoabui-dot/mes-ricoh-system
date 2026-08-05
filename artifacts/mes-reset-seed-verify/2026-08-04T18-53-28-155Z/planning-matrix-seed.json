@@ -1,0 +1,15 @@
+{
+  "target_date": "2026-08-04",
+  "machine_group": {
+    "id": "f632e570-2b87-4693-8c19-60db298c05d7",
+    "code": "MG-MOLD-KIOSK01",
+    "previous_status": "Released",
+    "lifecycle_status": "Released",
+    "active_member_count": 1,
+    "primary_count": 1
+  },
+  "capabilities": 3,
+  "standards": 3,
+  "calendars": 3,
+  "worker_requirements": 3
+}

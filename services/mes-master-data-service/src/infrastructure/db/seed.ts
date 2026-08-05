@@ -270,11 +270,18 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	      ON CONFLICT (employee_id, skill_id) WHERE active_flag = TRUE AND effective_to IS NULL
 	      DO UPDATE SET level='L3', qualification_status='Active', certified_at=$4, updated_by=$3, updated_at=NOW()
 	    `, [employeeId, skillMixId, SYSTEM_USER_ID, now]);
-	    await client.query(`
-	      INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
-	      VALUES ($1, $2, $3, $4, $6::date, 'Scheduled', $5)
-	      ON CONFLICT (employee_id, schedule_date) DO UPDATE SET shift_id=EXCLUDED.shift_id, work_center_id=EXCLUDED.work_center_id, schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
-	    `, [scheduleId, employeeId, shiftAId, wcMixId, SYSTEM_USER_ID, targetDate]);
+    await client.query(`
+      WITH updated AS (
+        UPDATE md_employee_shift_schedule
+        SET employee_id=$2, shift_id=$3, work_center_id=$4, schedule_date=$6::date,
+            schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
+        WHERE schedule_id=$1 OR (employee_id=$2 AND schedule_date=$6::date)
+        RETURNING schedule_id
+      )
+      INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
+      SELECT $1, $2, $3, $4, $6::date, 'Scheduled', $5
+      WHERE NOT EXISTS (SELECT 1 FROM updated)
+    `, [scheduleId, employeeId, shiftAId, wcMixId, SYSTEM_USER_ID, targetDate]);
 	    const ensureBaseMachine = async (fixture: { equipmentCode: string; equipmentName: string; unitCode: string; serial: string; groupCode: string; groupName: string; assignmentCode: string; workCenterId: string; workstationId: string; equipmentType: string }) => {
 	      const equipmentId = await upsertMaster(client, 'md_equipment', { ...common, code: fixture.equipmentCode, name: fixture.equipmentName, site_id: siteId, work_center_id: fixture.workCenterId, equipment_type: fixture.equipmentType, active_flag: true, planning_resource_flag: true, execution_status: 'Available' });
 	      const unitResult = await client.query(`
@@ -318,11 +325,18 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	        ON CONFLICT (employee_id, skill_id) WHERE active_flag = TRUE AND effective_to IS NULL
 	        DO UPDATE SET level=EXCLUDED.level, qualification_status='Active', certified_at=$5, updated_by=$4, updated_at=NOW()
 	      `, [empId, skillId, level, SYSTEM_USER_ID, now]);
-	      await client.query(`
-	        INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
-	        VALUES ($1, $2, $3, $4, $6::date, 'Scheduled', $5)
-	        ON CONFLICT (employee_id, schedule_date) DO UPDATE SET shift_id=EXCLUDED.shift_id, work_center_id=EXCLUDED.work_center_id, schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
-	      `, [schedule, empId, shiftAId, wcId, SYSTEM_USER_ID, targetDate]);
+      await client.query(`
+        WITH updated AS (
+          UPDATE md_employee_shift_schedule
+          SET employee_id=$2, shift_id=$3, work_center_id=$4, schedule_date=$6::date,
+              schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
+          WHERE schedule_id=$1 OR (employee_id=$2 AND schedule_date=$6::date)
+          RETURNING schedule_id
+        )
+        INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
+        SELECT $1, $2, $3, $4, $6::date, 'Scheduled', $5
+        WHERE NOT EXISTS (SELECT 1 FROM updated)
+      `, [schedule, empId, shiftAId, wcId, SYSTEM_USER_ID, targetDate]);
 	    }
 
 	    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', site_id: siteId, item_revision_id: fgRevId, base_quantity: '100.000000', base_uom_id: pcsId });

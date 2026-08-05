@@ -1,0 +1,14 @@
+{
+  "run_id": "20260804T083809Z",
+  "MES_AUTHORITATIVE_WMS_PROJECTION_REQUIRED": ["Item","Item Revision","UOM","UOM Conversion","Material Group","Item Type","Raw Material","Finished Product","Material Consumption","Production Output","Lot/Serial created by production","Work Center"],
+  "MES_AUTHORITATIVE_WMS_REFERENCE_OPTIONAL": ["Label policy","Production Version","Work Order Operation","Print/label result relevant to receipt","Production Line"],
+  "WMS_AUTHORITATIVE": ["Material Reservation","Material Issue","Warehouse","Zone/Bin","Putaway/Picking/Replenishment strategy","On-hand inventory","Inventory reservation","Inventory transaction"],
+  "SHARED_WORKFLOW_NO_MASTER_COPY": ["Work Order","Material Requirement","Material Staging","Finished-Goods Expected Receipt"],
+  "NOT_REQUIRED_IN_WMS": ["MBOM","Routing","Routing Operation","Workstation","Machine Unit","Worker Skill","Employee"],
+  "DECISION_REQUIRED": ["Semi-Finished Product","Packaging Material","Consumable","Lot-control policy","Serial-control policy","Shelf-life/expiry policy","Barcode/GTIN identity","Packaging specification","Material Return","Material Scrap","Semi-Finished Expected Receipt","Quality status relevant to inventory"],
+  "operational_lifecycle": {
+    "allowed": ["Released and currently effective", "Inactive/deactivated as a tombstone/update"],
+    "not_operational": ["Draft", "InReview", "Obsolete without an explicit deactivation/supersession fact"],
+    "rule": "WMS may retain inactive history but must not use it for new warehouse transactions."
+  }
+}

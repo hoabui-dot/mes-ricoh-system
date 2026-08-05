@@ -1,0 +1,18 @@
+{
+  "operation_count": 3,
+  "invalid_count": 0,
+  "validated": [
+    {
+      "sequence_no": 10,
+      "operation_code": "OP-20260804-0043"
+    },
+    {
+      "sequence_no": 20,
+      "operation_code": "OP-20260804-0044"
+    },
+    {
+      "sequence_no": 30,
+      "operation_code": "OP-20260804-0045"
+    }
+  ]
+}

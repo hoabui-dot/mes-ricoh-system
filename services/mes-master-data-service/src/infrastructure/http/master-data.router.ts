@@ -612,6 +612,18 @@ function eventPayloadFor(table: TableDefinition, row: Record<string, unknown>): 
   if (table.tableName === 'md_item_revision') {
     return { ...base, revision_code: row['revision_code'], item_id: row['item_id'], item_type: row['item_type'], site_id: row['site_id'], effective_from: row['effective_from'], effective_to: row['effective_to'], base_uom_id: row['base_uom_id'], base_uom_code: row['base_uom_code'], item_group: row['item_group'], material_group_id: row['material_group_id'], planning_strategy: row['planning_strategy'], procurement_type: row['procurement_type'], tracking_level: row['tracking_level'], default_scrap_rate: row['default_scrap_rate'] };
   }
+  if (table.tableName === 'md_item') {
+    return { ...base, item_group: row['item_group'], material_group_id: row['material_group_id'], item_type: row['item_type'], base_uom_id: row['base_uom_id'] };
+  }
+  if (table.tableName === 'md_uom') {
+    return { ...base, uom_class: row['uom_class'], decimal_precision: row['decimal_precision'], site_id: row['site_id'] };
+  }
+  if (table.tableName === 'md_site') {
+    return { ...base, timezone: row['timezone'], address: row['address'] };
+  }
+  if (table.tableName === 'md_work_center') {
+    return { ...base, site_id: row['site_id'], work_center_type: row['work_center_type'], active_flag: row['active_flag'], resource_type: row['resource_type'], capacity_model: row['capacity_model'] };
+  }
   return { ...base, site_id: row['site_id'], item_revision_id: row['item_revision_id'], work_center_id: row['work_center_id'], equipment_type: row['equipment_type'] };
 }
 
@@ -670,6 +682,40 @@ function eachDate(from: string, to: string, daysOfWeek?: number[]): string[] {
 
 export function masterDataRouter(pool: Pool): Router {
   const router = Router();
+
+  router.get('/integration/snapshot', async (req, res, next) => {
+    const requestedLimit = Number(req.query['limit'] ?? 500);
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 5000) : 500;
+    const cursorValue = typeof req.query['cursor'] === 'string' ? req.query['cursor'] : '';
+    let offset = 0;
+    try {
+      if (cursorValue) offset = Number(JSON.parse(Buffer.from(cursorValue, 'base64url').toString('utf8')).offset ?? 0);
+    } catch { return res.status(400).json({ error: 'SNAPSHOT_CURSOR_INVALID' }); }
+    if (!Number.isInteger(offset) || offset < 0) return res.status(400).json({ error: 'SNAPSHOT_CURSOR_INVALID' });
+    const siteId = typeof req.query['site_id'] === 'string' && req.query['site_id'] ? req.query['site_id'] : null;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      const watermark = await client.query<{ snapshot_at: string }>(`SELECT transaction_timestamp()::text AS snapshot_at`);
+      const [sites, uoms, conversions, items, revisions, workCenters] = await Promise.all([
+        client.query(`SELECT * FROM md_site WHERE lifecycle_status IN ('Released','Inactive','Obsolete') AND ($1::uuid IS NULL OR master_id = $1::uuid) ORDER BY master_id LIMIT $2 OFFSET $3`, [siteId, limit, offset]),
+        client.query(`SELECT * FROM md_uom WHERE lifecycle_status IN ('Released','Inactive','Obsolete') ORDER BY master_id LIMIT $1 OFFSET $2`, [limit, offset]),
+        client.query(`SELECT * FROM md_uom_conversion WHERE lifecycle_status IN ('Released','Inactive','Obsolete') ORDER BY master_id LIMIT $1 OFFSET $2`, [limit, offset]),
+        client.query(`SELECT * FROM md_item WHERE lifecycle_status IN ('Released','Inactive','Obsolete') ORDER BY master_id LIMIT $1 OFFSET $2`, [limit, offset]),
+        client.query(`SELECT * FROM md_item_revision WHERE lifecycle_status IN ('Released','Inactive','Obsolete') AND ($1::uuid IS NULL OR site_id = $1::uuid) ORDER BY master_id LIMIT $2 OFFSET $3`, [siteId, limit, offset]),
+        client.query(`SELECT * FROM md_work_center WHERE lifecycle_status IN ('Released','Inactive','Obsolete') AND ($1::uuid IS NULL OR site_id = $1::uuid) ORDER BY master_id LIMIT $2 OFFSET $3`, [siteId, limit, offset]),
+      ]);
+      const results = [sites, uoms, conversions, items, revisions, workCenters];
+      const complete = results.every((result) => result.rows.length < limit);
+      const nextOffset = offset + limit;
+      const nextCursor = complete ? null : Buffer.from(JSON.stringify({ offset: nextOffset })).toString('base64url');
+      await client.query('COMMIT');
+      return res.json({ source_service: SERVICE_NAME, contract_version: 'mes-master-data-snapshot-v1', site_id: siteId, snapshot_at: watermark.rows[0]?.snapshot_at, watermark: { snapshot_at: watermark.rows[0]?.snapshot_at, offset }, complete, next_cursor: nextCursor, data: { sites: sites.rows, uoms: uoms.rows, conversions: conversions.rows, items: items.rows, revisions: revisions.rows, work_centers: workCenters.rows } });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      return next(err);
+    } finally { client.release(); }
+  });
 
   router.get('/material-groups', async (req, res, next) => {
     try {

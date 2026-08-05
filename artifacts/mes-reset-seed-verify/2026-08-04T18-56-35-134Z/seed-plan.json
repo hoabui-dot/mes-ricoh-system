@@ -1,0 +1,18 @@
+{
+  "ownedCodes": {
+    "item": "E2E-WO-FG-01",
+    "component": "SFG-MET-CM01-R1",
+    "routing": "E2E-WO-ROUTING-01",
+    "mbom": "E2E-WO-MBOM-01",
+    "pvNameVi": "Cấu hình E2E WO in nhãn",
+    "operationPrefix": "E2E-WO-OP-"
+  },
+  "reused": {
+    "site": "SITE-KZ3",
+    "work_center": "WC-VULCAN-MOLD",
+    "workstation": "WS-MOLD-KIOSK01",
+    "component_revision": "SFG-MET-CM01-R1",
+    "uom": "PCS"
+  },
+  "mode": "seed"
+}

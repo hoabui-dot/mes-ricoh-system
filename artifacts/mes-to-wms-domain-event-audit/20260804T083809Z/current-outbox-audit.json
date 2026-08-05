@@ -1,0 +1,21 @@
+{
+  "run_id": "20260804T083809Z",
+  "verdict": "TRANSACTIONALLY_ATOMIC_WRITES_BUT_OPERATIONALLY_INCOMPLETE",
+  "implementations": [
+    {"service":"mes-master-data-service","writer":"libs/shared-kernel/src/outbox-publisher.ts","publisher":"application polling worker","transactional_write":true,"lock_claim":"FOR UPDATE SKIP LOCKED without explicit transaction in TypeScript relay","risk":"lock is released at statement completion; concurrent relay instances may publish duplicates"},
+    {"service":"mes-execution-service","writer":"libs/shared-kernel-go/outbox.go","publisher":"application polling worker","transactional_write":true,"lock_claim":"transaction + FOR UPDATE SKIP LOCKED","risk":"publish-before-status-commit is at-least-once and requires consumer idempotency"},
+    {"service":"mes-traceability-service","writer":"libs/shared-kernel-go/outbox.go","publisher":"application polling worker","transactional_write":true,"lock_claim":"transaction + FOR UPDATE SKIP LOCKED","risk":"same at-least-once requirement"}
+  ],
+  "current_columns": ["id","event_type","topic","payload","status","created_at","published_at","retry_count","error_message"],
+  "missing_columns_or_semantics": ["aggregate_type","aggregate_id","aggregate_version","event_version","headers","available_at","correlation_id","causation_id","partition_key","retention/cleanup metadata"],
+  "runtime_snapshot": {
+    "master_data_outbox": {},
+    "execution_outbox": {"FAILED":4,"PUBLISHED":1},
+    "traceability_outbox": {},
+    "note":"Empty objects mean no rows at audit time, not an unavailable query."
+  },
+  "retry": {"max_attempts":3,"terminal_state":"FAILED","operator_replay_command":false},
+  "monitoring": {"pending_count":false,"oldest_age":false,"publish_metrics":false,"failed_alert":false},
+  "retention_cleanup": "not defined",
+  "cdc": {"business_table_cdc_present":false,"outbox_cdc_present":false}
+}

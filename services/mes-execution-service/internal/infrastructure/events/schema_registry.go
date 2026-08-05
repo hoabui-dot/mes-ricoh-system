@@ -12,6 +12,8 @@ import (
 var executionEventTypes = []string{
 	"MES.Execution.WOCreated.v1",
 	"MES.Execution.WOApproved.v1",
+	"MES.Execution.WorkOrderReleased.v1",
+	"MES.Execution.MaterialRequirementPublished.v1",
 	"MES.Execution.OperationStarted.v1",
 	"MES.Execution.OperationFinished.v1",
 	"MES.Execution.OperationFailed.v1",

@@ -76,19 +76,20 @@ func ConfirmOperation(
 	}
 
 	// 1. Fetch WOOperation and WOHeader details
-	var opID, opCode, opStatus, executionTarget, siteID, itemRevID, uomID, workCenterID string
+	var opID, opCode, opStatus, executionTarget, siteID, itemRevID, uomID, uomCode, workCenterID string
 	var woCode, dispatchMode, productionLineID, workstationID string
 	var sequenceNo int
 	err = tx.QueryRow(ctx, `
 		SELECT o.operation_id, o.operation_code, o.status, o.execution_target_type,
-		       h.site_id, h.item_revision_id, h.uom_id, o.work_center_id,
+		 h.site_id, h.item_revision_id, h.uom_id, COALESCE(ir.base_uom_code, ''), o.work_center_id,
 		       h.wo_code,h.dispatch_mode,COALESCE(h.selected_production_line_id::text,''),
 		       COALESCE(o.workstation_id::text,''),o.sequence_no
 		FROM wo_operation o
 		JOIN wo_header h ON o.wo_id = h.wo_id
+		LEFT JOIN rm_item_revision ir ON ir.master_id = h.item_revision_id
 		WHERE o.wo_operation_id = $1 AND o.wo_id = $2
 		FOR UPDATE OF o, h
-	`, input.WOOperationID, input.WOID).Scan(&opID, &opCode, &opStatus, &executionTarget, &siteID, &itemRevID, &uomID, &workCenterID, &woCode, &dispatchMode, &productionLineID, &workstationID, &sequenceNo)
+	`, input.WOOperationID, input.WOID).Scan(&opID, &opCode, &opStatus, &executionTarget, &siteID, &itemRevID, &uomID, &uomCode, &workCenterID, &woCode, &dispatchMode, &productionLineID, &workstationID, &sequenceNo)
 	if err != nil {
 		return nil, fmt.Errorf("operation %s not found for WO %s: %w", input.WOOperationID, input.WOID, err)
 	}
@@ -346,6 +347,32 @@ func ConfirmOperation(
 	)
 	if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.OperationFinished.v1", env); err != nil {
 		return nil, fmt.Errorf("failed to write outbox event: %w", err)
+	}
+
+	if input.QtyGood > 0 {
+		outputID := uuid.New().String()
+		if outputLabelID != nil && *outputLabelID != "" {
+			outputID = *outputLabelID
+		}
+		receiptRequestID := uuid.New().String()
+		outputPayload := map[string]interface{}{
+			"output_id": outputID, "request_id": receiptRequestID, "wo_id": input.WOID,
+			"item_revision_id": itemRevID, "qty": input.QtyGood, "uom_code": uomCode,
+			"site_id": siteID, "operation_code": opCode, "source_confirmation_id": confirmationID,
+		}
+		outputEvent := sharedkernel.CreateEventEnvelope("MES.Execution.ProductionOutputDeclared.v1", "mes-execution-service", input.WOID, outputPayload)
+		if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.ProductionOutputDeclared.v1", outputEvent); err != nil {
+			return nil, fmt.Errorf("failed to write production output event: %w", err)
+		}
+		receiptPayload := map[string]interface{}{
+			"request_id": receiptRequestID, "output_id": outputID, "wo_id": input.WOID,
+			"item_revision_id": itemRevID, "qty": input.QtyGood, "uom_code": uomCode,
+			"site_id": siteID, "source_confirmation_id": confirmationID,
+		}
+		receiptEvent := sharedkernel.CreateEventEnvelope("MES.Execution.FinishedGoodsReceiptRequested.v1", "mes-execution-service", input.WOID, receiptPayload)
+		if err := sharedkernel.WriteToOutbox(ctx, tx, "MES.Execution.FinishedGoodsReceiptRequested.v1", receiptEvent); err != nil {
+			return nil, fmt.Errorf("failed to write finished goods receipt event: %w", err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

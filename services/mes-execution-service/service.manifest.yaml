@@ -16,6 +16,10 @@ publishes_events:
     payload: wo_id, wo_code, item_revision_id, quantity, site_id, status
   - name: MES.Execution.WOApproved.v1
     topic: MES.Execution.WOApproved.v1
+  - name: MES.Execution.WorkOrderReleased.v1
+    topic: MES.Execution.WorkOrderReleased.v1
+  - name: MES.Execution.MaterialRequirementPublished.v1
+    topic: MES.Execution.MaterialRequirementPublished.v1
     payload: wo_id, wo_code, item_revision_id, quantity, planned_start_at, planned_end_at, material_requirements
   - name: MES.Execution.MaterialConsumed.v1
     topic: MES.Execution.MaterialConsumed.v1
@@ -65,6 +69,22 @@ consumes_events:
     topic: WMS.Outbound.MaterialStaged.v1
   - name: WMS.Outbound.MaterialShortageDeclared.v1
     topic: WMS.Outbound.MaterialShortageDeclared.v1
+  - name: WMS.Inventory.StockReserved.v1
+    topic: WMS.Inventory.StockReserved.v1
+  - name: WMS.Inventory.StockAllocated.v1
+    topic: WMS.Inventory.StockAllocated.v1
+  - name: WMS.Inventory.StockReservationReleased.v1
+    topic: WMS.Inventory.StockReservationReleased.v1
+  - name: WMS.Inventory.ReservationConsumed.v1
+    topic: WMS.Inventory.ReservationConsumed.v1
+  - name: WMS.Inventory.MaterialIssueRejected.v1
+    topic: WMS.Inventory.MaterialIssueRejected.v1
+  - name: WMS.Inventory.MaterialReturnRejected.v1
+    topic: WMS.Inventory.MaterialReturnRejected.v1
+  - name: WMS.Inventory.MaterialReversalAcknowledged.v1
+    topic: WMS.Inventory.MaterialReversalAcknowledged.v1
+  - name: WMS.Inventory.MaterialScrapAcknowledged.v1
+    topic: WMS.Inventory.MaterialScrapAcknowledged.v1
 
 synchronous_dependencies:
   - service: mes-master-data-service

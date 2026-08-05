@@ -1,4 +1,7 @@
 const EVENT_TYPES = [
+  'MES.MasterData.SiteReleased.v1',
+  'MES.MasterData.ItemReleased.v1',
+  'MES.MasterData.UomReleased.v1',
   'MES.MasterData.ItemRevisionReleased.v1',
   'MES.MasterData.ItemRevisionReleased.v2',
   'MES.MasterData.MBOMReleased.v1',
@@ -31,16 +34,6 @@ const schema = {
       properties: {
         master_id: { type: 'string' },
         code: { type: 'string' },
-        name: {
-          type: ['object', 'string', 'null'],
-          additionalProperties: { type: 'string' },
-          properties: {
-            vi: { type: 'string' },
-            en: { type: 'string' },
-            ja: { type: 'string' },
-            ko: { type: 'string' },
-          },
-        },
         version_no: { type: 'integer' },
         site_id: { type: ['string', 'null'] },
       },
