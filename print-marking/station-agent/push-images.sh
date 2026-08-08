@@ -14,6 +14,7 @@
 #   ./push-images.sh --arch arm64            # build & push linux/arm64 only (uses Dockerfile.arm64 if present)
 #   ./push-images.sh --service kiosk-ui      # build & push one service only (multi-platform)
 #   ./push-images.sh --arch arm64 --service kiosk-ui  # build & push linux/arm64 of one service
+#   ./push-images.sh --arch arm64 --service printer-adapter --tag 2026.08.06.2
 #   ./push-images.sh --push-only             # docker push existing local images (single-arch only)
 #   ./push-images.sh --build-only            # build locally only (no push to registry)
 #   ./push-images.sh --no-cache              # force full rebuild (no layer cache)
@@ -30,6 +31,7 @@ BUILD=true
 NO_CACHE=""
 ONLY_SERVICE=""
 BUILD_ARCH=""
+IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 # ── Parse flags ───────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -38,6 +40,7 @@ while [[ $# -gt 0 ]]; do
     --build-only)  PUSH=false  ;;
     --no-cache)    NO_CACHE="--no-cache" ;;
     --service)     ONLY_SERVICE="$2"; shift ;;
+    --tag)         IMAGE_TAG="$2"; shift ;;
     --arch)
       BUILD_ARCH="$2"; shift
       case "$BUILD_ARCH" in
@@ -68,15 +71,15 @@ section() {
 # ── Service definitions ────────────────────────────────────────────────────────
 # Format: "service_name|image_tag|dockerfile_path"
 declare -a SERVICE_DEFS=(
-  "station-gateway|${REGISTRY_USER}/station-gateway:latest|services/mqtt-adapter/docker/Dockerfile"
-  "job-engine|${REGISTRY_USER}/job-engine:latest|services/job-engine/docker/Dockerfile"
-  "printer-adapter|${REGISTRY_USER}/printer-adapter:latest|services/printer-adapter/docker/Dockerfile"
-  "laser-adapter|${REGISTRY_USER}/laser-adapter:latest|services/laser-adapter/docker/Dockerfile"
-  "vision-service|${REGISTRY_USER}/vision-service:latest|services/vision-service/docker/Dockerfile"
-  "plc-adapter|${REGISTRY_USER}/plc-adapter:latest|services/plc-adapter/docker/Dockerfile"
-  "kiosk-ui|${REGISTRY_USER}/kiosk-ui:latest|services/kiosk-ui/docker/Dockerfile"
-  "device-simulator|${REGISTRY_USER}/device-simulator:latest|services/device-simulator/Dockerfile"
-  "projection-service|${REGISTRY_USER}/projection-service:latest|services/projection-service/docker/Dockerfile"
+  "station-gateway|${REGISTRY_USER}/station-gateway:${IMAGE_TAG}|services/mqtt-adapter/docker/Dockerfile"
+  "job-engine|${REGISTRY_USER}/job-engine:${IMAGE_TAG}|services/job-engine/docker/Dockerfile"
+  "printer-adapter|${REGISTRY_USER}/printer-adapter:${IMAGE_TAG}|services/printer-adapter/docker/Dockerfile"
+  "laser-adapter|${REGISTRY_USER}/laser-adapter:${IMAGE_TAG}|services/laser-adapter/docker/Dockerfile"
+  "vision-service|${REGISTRY_USER}/vision-service:${IMAGE_TAG}|services/vision-service/docker/Dockerfile"
+  "plc-adapter|${REGISTRY_USER}/plc-adapter:${IMAGE_TAG}|services/plc-adapter/docker/Dockerfile"
+  "kiosk-ui|${REGISTRY_USER}/kiosk-ui:${IMAGE_TAG}|services/kiosk-ui/docker/Dockerfile"
+  "device-simulator|${REGISTRY_USER}/device-simulator:${IMAGE_TAG}|services/device-simulator/Dockerfile"
+  "projection-service|${REGISTRY_USER}/projection-service:${IMAGE_TAG}|services/projection-service/docker/Dockerfile"
 )
 
 # ── Docker login check ────────────────────────────────────────────────────────
@@ -187,8 +190,14 @@ else
     img="${images[$i]}"
     log_file="${log_files[$i]}"
 
-    wait "$pid"
-    exit_status=$?
+    # `set -e` would otherwise terminate the script immediately on a failed
+    # background build, hiding the per-service Buildx log that is needed to
+    # diagnose a platform-specific release failure.
+    if wait "$pid"; then
+      exit_status=0
+    else
+      exit_status=$?
+    fi
 
     if [ $exit_status -eq 0 ]; then
       PUSHED+=("$img")

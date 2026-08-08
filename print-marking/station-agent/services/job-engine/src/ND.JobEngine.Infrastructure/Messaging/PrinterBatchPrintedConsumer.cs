@@ -25,7 +25,7 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 public sealed class PrinterBatchPrintedConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventConsumer _consumer;
+    private readonly IRabbitMqConsumer _consumer;
     private readonly ILogger<PrinterBatchPrintedConsumer> _logger;
 
     private const string Exchange = "station.events";
@@ -37,7 +37,7 @@ public sealed class PrinterBatchPrintedConsumer : BackgroundService
 
     public PrinterBatchPrintedConsumer(
         IServiceScopeFactory scopeFactory,
-        IEventConsumer consumer,
+        IRabbitMqConsumer consumer,
         ILogger<PrinterBatchPrintedConsumer> logger)
     {
         _scopeFactory = scopeFactory;
@@ -82,16 +82,6 @@ public sealed class PrinterBatchPrintedConsumer : BackgroundService
             return;
         }
 
-        await ApplyEventAsync(evt, cancellationToken);
-    }
-
-    /// <summary>
-    /// Applies a printer result received from the authoritative Kafka
-    /// production path. Kept public for focused tests and administrative
-    /// replay tooling; the scheduler does not call it during dispatch.
-    /// </summary>
-    public async Task ApplyEventAsync(ProductionBatchPrintedEvent evt, CancellationToken cancellationToken)
-    {
         _logger.LogInformation(
             "Processing batch result: PO={OrderNo} Succeeded={Succeeded} Failed={Failed}",
             evt.ProductionOrderNo, evt.SucceededJobIds.Count, evt.FailedJobIds.Count);

@@ -32,6 +32,8 @@ import { PlanningConstraintsScreen } from './routes/master-data/PlanningConstrai
 import { OperationCatalogScreen } from './routes/master-data/OperationCatalogScreen';
 import { PrintStationsScreen } from './routes/master-data/PrintStationsScreen';
 import { NotFoundScreen } from './routes/NotFoundScreen';
+import { AnalyticsOverviewScreen } from './routes/analytics/AnalyticsOverviewScreen';
+import { AnalyticsDeepDiveScreen } from './routes/analytics/AnalyticsDeepDiveScreen';
 
 import { WOListScreen } from './routes/work-orders/WOListScreen';
 import { WOCreateScreen } from './routes/work-orders/WOCreateScreen';
@@ -51,6 +53,13 @@ const AppRoutes: React.FC = () => {
     <RouteErrorBoundary resetKey={location.pathname}>
       <Routes>
         <Route path="/" element={<Navigate to="/work-orders" replace />} />
+        <Route path="/analytics" element={<AnalyticsOverviewScreen />} />
+        <Route path="/analytics/production" element={<AnalyticsDeepDiveScreen />} />
+        <Route path="/analytics/lines-resources" element={<AnalyticsDeepDiveScreen />} />
+        <Route path="/analytics/execution-quality" element={<AnalyticsDeepDiveScreen />} />
+        <Route path="/analytics/materials-traceability" element={<AnalyticsDeepDiveScreen />} />
+        <Route path="/analytics/print-system" element={<AnalyticsDeepDiveScreen />} />
+        <Route path="/analytics/:tab" element={<AnalyticsDeepDiveScreen />} />
 
         {/* Area B: Work Order Planning */}
         <Route path="/work-orders" element={<WOListScreen />} />

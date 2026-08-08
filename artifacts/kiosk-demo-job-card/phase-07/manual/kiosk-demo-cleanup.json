@@ -1,7 +1,7 @@
 {
   "success": true,
   "action": "cleanup",
-  "generated_at": "2026-08-08T08:22:34.634Z",
+  "generated_at": "2026-08-08T08:57:42.917Z",
   "checks": [
     {
       "name": "cleanup leaves zero preparation workflows",
@@ -76,28 +76,33 @@
   ],
   "data": {
     "removed_work_order_ids": [
-      "9900dc83-bb29-47bb-93cd-b4f24ae9d963",
-      "2759c8c6-b68c-4716-89cf-f9a8933d8b14"
+      "8801b776-7789-4221-895b-858cfa076ab5"
     ],
     "removed_event_ids": [
-      "e7c26a24-ceac-45be-83a9-94a76fdcfa5f",
-      "3b72a0fe-8db4-465e-ae0f-8bfdb91a33f8",
-      "56fc8a38-c465-4df5-9545-6670ceea95bf",
-      "416726bd-0f13-44cd-9a12-482f9a077aa4",
-      "d3d4bf28-bd1b-4579-9a3d-58142da87ff3",
-      "614a5d2c-69d3-41a6-bb40-acc962e27c05",
-      "ba7128cc-2b39-4238-ab58-6669f553246f",
-      "61275f0d-2a69-442d-819c-eb0a8b7814dc",
-      "9daade47-b5ef-45b6-aef0-36e86eaa5782",
-      "af774e9c-32af-4ee3-acf0-9a0d3946cb18",
-      "44f96cd9-d094-44d8-a412-2a3f96cae221",
-      "d9dc3aca-0529-4a21-82d5-dd172ae34680",
-      "be380e54-798a-482a-9bc1-70808168b65b",
-      "f6c31112-abd8-4f5d-b2a9-4debb10d0e0d",
-      "aff88fa5-640e-4c29-91bf-f1206b137a53",
-      "9cec3891-13ec-4290-b99c-4d0882c7a24f",
-      "b6278420-fdd2-466a-a672-fca3fe01d162",
-      "8add1d63-ebe8-4026-b6b2-e1da87900e8a"
+      "0987bff8-bd7e-4a9b-b53c-522347daac81",
+      "8cac8825-aa7a-41fd-9d06-08c345db561b",
+      "3cda81f6-b134-46f9-b661-8a1e81f7474f",
+      "4b0d199a-7ca3-43f9-9fa9-752b28a34c9d",
+      "6c72a645-f10f-46aa-a7ec-47d87d6a71c3",
+      "ee1637dc-165d-43f5-bf88-46ab8100a11e",
+      "6738c615-9923-4c3d-8c86-79e77c4a5c79",
+      "afd4a6fc-a3eb-4fbe-8f18-c8c543455171",
+      "61902e6f-e1e7-40c2-a3a8-1bad080a6251",
+      "e3540acb-f6d5-46e6-9f5c-51c87358ec2f",
+      "ebb5e47e-10e0-4d48-8776-4da04886e3c9",
+      "fa6b0fc2-a50b-4a85-84ac-10fc98e7def7",
+      "1f098a3a-7433-4fb4-a051-a5517bbccb40",
+      "715c5b7f-4b47-4890-9a34-f964a86558be",
+      "bdbf0180-6575-476e-963d-78fea1c25a33",
+      "7ffeb858-feac-4eae-aa97-24cacbd83c3d",
+      "be945431-c8e6-4fa7-b3a5-75dfa3bc4da6",
+      "3a3899d8-ef69-481a-a102-1c3244597f1e",
+      "01f41ebb-9647-4786-a821-259932196c28",
+      "25eb6a9f-73a0-4c2f-99b5-169a9d7ca3a4",
+      "a2c1b671-1170-4b7a-8228-5140aa9094f3",
+      "45a65302-70fd-471f-a08e-cf84a37b9686",
+      "2d3ed0ea-7575-4143-91bd-b63669fba1b9",
+      "7c81d91f-c3b9-49eb-a98d-0f0f728d9fde"
     ],
     "leftovers": {
       "workflows": 0,
@@ -110,5 +115,5 @@
     "gateway_queue_leaks": 0,
     "consumed_event_leaks": 0
   },
-  "completed_at": "2026-08-08T08:22:38.791Z"
+  "completed_at": "2026-08-08T08:57:50.254Z"
 }

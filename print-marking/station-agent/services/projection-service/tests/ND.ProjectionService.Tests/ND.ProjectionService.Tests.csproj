@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>ND.ProjectionService.Tests</AssemblyName>
+    <RootNamespace>ND.ProjectionService.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ND.ProjectionService.Domain\ND.ProjectionService.Domain.csproj" />
+    <ProjectReference Include="..\..\src\ND.ProjectionService.Application\ND.ProjectionService.Application.csproj" />
+    <ProjectReference Include="..\..\src\ND.ProjectionService.Infrastructure\ND.ProjectionService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\shared\ND.Testing\ND.Testing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+</Project>

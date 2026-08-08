@@ -64,9 +64,10 @@ public sealed class LoginHandler
 
         // Get user roles and permissions
         var permissions = await _rbacRepository.GetUserPermissionsAsync(user.Id, cancellationToken);
+        var roles = await _rbacRepository.GetUserRolesAsync(user.Id, cancellationToken);
 
         // Generate JWT
-        var token = GenerateJwt(user, permissions);
+        var token = GenerateJwt(user, permissions, roles);
         var session = KioskSession.Create(user.Id, token, command.IpAddress, command.UserAgent, _jwtOptions.ExpiryMinutes);
 
         await _sessionRepository.AddAsync(session, cancellationToken);
@@ -82,7 +83,7 @@ public sealed class LoginHandler
         return new LoginResult(token, user.Id, user.Username, user.FullName, session.ExpiresAt);
     }
 
-    private string GenerateJwt(KioskUser user, IReadOnlyList<string> permissions)
+    private string GenerateJwt(KioskUser user, IReadOnlyList<string> permissions, IReadOnlyList<string> roles)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -95,6 +96,7 @@ public sealed class LoginHandler
         };
 
         claims.AddRange(permissions.Select(p => new Claim("permission", p)));
+        claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
         var token = new JwtSecurityToken(
             issuer: _jwtOptions.Issuer,

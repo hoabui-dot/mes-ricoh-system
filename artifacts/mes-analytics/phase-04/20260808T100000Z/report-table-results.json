@@ -1,0 +1,8 @@
+{
+  "phase": "04",
+  "status": "PASS",
+  "tables": ["work_order_report", "execution_group_report", "traceability_report", "readiness_report"],
+  "server_pagination": ["work_order_report", "traceability_report"],
+  "drilldowns": ["work_order_detail", "work_order_list"],
+  "boundary_checks": ["no_wms_on_hand", "no_qms_metrics", "no_kafka_health_in_executive_kpis"]
+}

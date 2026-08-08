@@ -1,7 +1,7 @@
 {
   "passed": true,
   "mode": "reset",
-  "environment": "development",
+  "environment": "local",
   "reasons": [],
   "execution": {
     "host": "localhost",
@@ -20,6 +20,6 @@
   "host": "staging-master",
   "git": {
     "branch": "main",
-    "commit": "89c78b6"
+    "commit": "19b7ad5"
   }
 }

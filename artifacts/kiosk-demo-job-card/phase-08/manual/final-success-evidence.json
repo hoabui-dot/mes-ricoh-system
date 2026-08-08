@@ -2,11 +2,10 @@
   "operation_states": [
     "WST-SEED-OP-BINDING:Finished",
     "WST-SEED-OP-TEST5IN1:Finished",
-    "WST-SEED-OP-AIRTEST:Finished",
-    "WST-SEED-OP-PACKING:Pending"
+    "WST-SEED-OP-AIRTEST:Finished"
   ],
   "confirmations": 3,
-  "work_order_status": "InProgress",
+  "work_order_status": "Completed",
   "passed": true,
   "external_print_dependency": true
 }

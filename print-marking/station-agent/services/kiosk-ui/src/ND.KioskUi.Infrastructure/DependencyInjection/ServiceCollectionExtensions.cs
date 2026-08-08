@@ -8,7 +8,6 @@ using ND.KioskUi.Application.Interfaces;
 using ND.KioskUi.Application.Options;
 using ND.KioskUi.Infrastructure.Persistence;
 using ND.KioskUi.Infrastructure.Repositories;
-using ND.KioskUi.Infrastructure.Messaging;
 using ND.SharedKernel.Abstractions;
 using StackExchange.Redis;
 
@@ -44,12 +43,9 @@ public static class ServiceCollectionExtensions
         // Application handlers
         services.AddScoped<LoginHandler>();
 
-        // Kafka Publisher
-        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
-        services.AddSingleton<IEventPublisher, KafkaPublisher>();
-        services.AddSingleton<IEventConsumer, KafkaConsumer>();
-        services.AddSingleton<PrinterManagementKafkaClient>();
-        services.AddHostedService(sp => sp.GetRequiredService<PrinterManagementKafkaClient>());
+        // RabbitMQ Publisher
+        services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
+        services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
         return services;
     }

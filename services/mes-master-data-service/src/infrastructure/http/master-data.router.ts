@@ -972,6 +972,28 @@ export function masterDataRouter(pool: Pool): Router {
     } finally { client.release(); }
   });
 
+  router.get('/analytics/readiness', async (req, res, next) => {
+    const siteId = typeof req.query['site_id'] === 'string' && req.query['site_id'] ? String(req.query['site_id']) : null;
+    try {
+      const scope = siteId ? ' AND site_id = $1::uuid' : '';
+      const args = siteId ? [siteId] : [];
+      const [productionVersions, productionLines, blockedLines, workstations, machineUnits, expiredAssignments, missingCapabilities, missingCalendars, missingStandards, missingSkills] = await Promise.all([
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_production_version WHERE lifecycle_status = 'Released' AND (effective_to IS NULL OR effective_to > NOW())${scope}`, args),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_production_line WHERE lifecycle_status = 'Released' AND active_flag = TRUE${scope}`, args),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_production_line l WHERE l.active_flag = TRUE AND (l.lifecycle_status <> 'Released' OR NOT EXISTS (SELECT 1 FROM md_production_line_work_center lw WHERE lw.production_line_id = l.master_id AND lw.active_flag = TRUE AND lw.effective_to IS NULL))${scope.replace('site_id', 'l.site_id')}`, args),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_workstation WHERE active_flag = TRUE AND lifecycle_status = 'Released'${scope}`, args),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_machine_unit mu JOIN md_equipment e ON e.master_id = mu.machine_id WHERE mu.active_flag = TRUE AND mu.execution_status = 'Available'${scope.replace('site_id', 'e.site_id')}`, args),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_resource_assignment WHERE lifecycle_status NOT IN ('Inactive','Obsolete') AND effective_to IS NOT NULL AND effective_to <= NOW()${scope}`, args),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_routing_operation ro WHERE NOT EXISTS (SELECT 1 FROM md_workstation_operation_capability c WHERE c.operation_id = ro.operation_id AND c.active_flag = TRUE AND c.effective_to IS NULL)`, []),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_workstation ws WHERE ws.active_flag = TRUE AND NOT EXISTS (SELECT 1 FROM md_resource_calendar c WHERE c.resource_type = 'Workstation' AND c.resource_id = ws.master_id AND c.availability_status = 'Available' AND c.available_to > NOW())`, []),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_routing_operation ro WHERE NOT EXISTS (SELECT 1 FROM md_production_standard ps WHERE ps.routing_operation_id = ro.master_id AND ps.lifecycle_status = 'Released' AND (ps.effective_to IS NULL OR ps.effective_to > NOW()))`, []),
+        pool.query(`SELECT COUNT(*)::int AS count FROM md_operation_skill_requirement r WHERE NOT EXISTS (SELECT 1 FROM md_employee_skill es WHERE es.skill_id = r.skill_id AND es.active_flag = TRUE AND es.effective_to IS NULL)`, []),
+      ]);
+      const value = (result: { rows: Array<{ count: number }> }) => Number(result.rows[0]?.count ?? 0);
+      return res.json({ data: { released_production_versions: value(productionVersions), released_production_lines: value(productionLines), blocked_or_incomplete_lines: value(blockedLines), active_workstations: value(workstations), available_machine_units: value(machineUnits), expired_resource_assignments: value(expiredAssignments), missing_capabilities: value(missingCapabilities), missing_calendars: value(missingCalendars), missing_production_standards: value(missingStandards), missing_worker_skills: value(missingSkills) }, filters: { site_id: siteId } });
+    } catch (err) { return next(err); }
+  });
+
   router.get('/material-groups', async (req, res, next) => {
     try {
       const search = typeof req.query['search'] === 'string' ? `%${String(req.query['search']).trim()}%` : null;

@@ -1,0 +1,7 @@
+{
+  "phase": "05",
+  "status": "PASS",
+  "locales": ["vi", "en", "ja", "ko"],
+  "default_locale": "vi",
+  "analytics_keys": ["analytics.title", "analytics.subtitle", "analytics.metric.fallbackRate", "analytics.metric.resourceHoldRate", "analytics.metric.scrapRate", "analytics.metric.plannedQuantity", "analytics.metric.goodQuantity", "analytics.metric.lastRefreshed"]
+}

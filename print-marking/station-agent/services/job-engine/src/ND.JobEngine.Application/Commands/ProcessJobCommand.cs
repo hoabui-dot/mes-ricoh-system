@@ -121,7 +121,7 @@ public sealed class ProcessJobHandler
         if (firstStep is not null)
         {
             var deviceId = firstStep.StepName.ToUpperInvariant() switch {
-                "PRINT_LABEL" => job.AssignedPrinter,
+                "PRINT_LABEL" => job.AssignedPrinter ?? "printer-01",
                 "LASER_MARK" => "laser-01",
                 "VISION_CHECK" => "camera-01",
                 "PLC_REJECT" => "plc-01",

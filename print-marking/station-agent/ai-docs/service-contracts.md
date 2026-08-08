@@ -1,29 +1,40 @@
 # Realtime Kiosk Architecture — Service Contracts
 
-This document contains contract details and serialized JSON payload schemas for events published to Kafka.
+This document contains contract details, serialization schemas, and topic configurations for events published to Apache Kafka.
 
-## 1. MQTT Inbound Contract
+---
 
-### Event: `MqttMessageReceived`
-- **Routing Key**: `mqtt.MqttMessage.MqttMessageReceived`
+## 1. Gateway Inbound Contract
 
-#### Schema Example
+### Event: `UnifiedEventReceived`
+- **Topic**: `station.gateway-orders`
+- **Partition Key**: `EventId` (String)
+
+#### Schema Example (Value JSON)
 ```json
 {
   "eventId": "evt_01j3m89xyz...",
-  "timestamp": "2026-06-21T13:50:58Z",
+  "timestamp": "2026-08-04T12:00:00Z",
+  "site": "NMDDuongDuong",
+  "area": "Assembly",
+  "line": "Chuyen03",
+  "machine": "GW-MES-01",
+  "edge_id": "factory-gateway-main",
   "data": [
     {
-      "tag": "OperationType",
-      "value": "PRINT_AND_MARK"
+      "tag": "operation.type",
+      "value": "PRINT_AND_MARK",
+      "quality": "GOOD"
     },
     {
-      "tag": "ProductId",
-      "value": "SKU-9908"
+      "tag": "product.id",
+      "value": "SKU-9908",
+      "quality": "GOOD"
     },
     {
-      "tag": "MarkingSerial",
-      "value": "SN-2026-0004"
+      "tag": "marking.serial",
+      "value": "SN-2026-0004",
+      "quality": "GOOD"
     }
   ]
 }
@@ -34,11 +45,12 @@ This document contains contract details and serialized JSON payload schemas for 
 ## 2. Job Engine Event Contracts
 
 All Job Engine events share a base structure with common header properties.
+- **Topic**: `station.job-events`
+- **Partition Key**: `JobId` (String)
 
 ### Event: `JobCreatedEvent`
-- **Routing Key**: `job.created`
 
-#### Schema Example
+#### Schema Example (Value JSON)
 ```json
 {
   "event_type": "JobCreated",
@@ -49,17 +61,16 @@ All Job Engine events share a base structure with common header properties.
   "product_code": "SKU-9908",
   "product_serial": "SN-2026-0004",
   "status": "CREATED",
-  "source_system": "MQTT_ADAPTER",
-  "timestamp": "2026-06-21T13:51:02.145Z"
+  "source_system": "STATION_GATEWAY",
+  "timestamp": "2026-08-04T12:00:02.145Z"
 }
 ```
 
 ---
 
 ### Event: `JobProcessingEvent`
-- **Routing Key**: `job.processing`
 
-#### Schema Example
+#### Schema Example (Value JSON)
 ```json
 {
   "event_type": "JobProcessing",
@@ -70,8 +81,8 @@ All Job Engine events share a base structure with common header properties.
   "product_code": "SKU-9908",
   "product_serial": "SN-2026-0004",
   "status": "PROCESSING",
-  "source_system": "MQTT_ADAPTER",
-  "timestamp": "2026-06-21T13:51:03.220Z",
+  "source_system": "STATION_GATEWAY",
+  "timestamp": "2026-08-04T12:00:03.220Z",
   "attempt_no": 1
 }
 ```
@@ -79,9 +90,8 @@ All Job Engine events share a base structure with common header properties.
 ---
 
 ### Event: `JobCompletedEvent`
-- **Routing Key**: `job.completed`
 
-#### Schema Example
+#### Schema Example (Value JSON)
 ```json
 {
   "event_type": "JobCompleted",
@@ -92,18 +102,17 @@ All Job Engine events share a base structure with common header properties.
   "product_code": "SKU-9908",
   "product_serial": "SN-2026-0004",
   "status": "COMPLETED",
-  "source_system": "MQTT_ADAPTER",
-  "timestamp": "2026-06-21T13:51:09.112Z",
-  "completed_at": "2026-06-21T13:51:09.112Z"
+  "source_system": "STATION_GATEWAY",
+  "timestamp": "2026-08-04T12:00:09.112Z",
+  "completed_at": "2026-08-04T12:00:09.112Z"
 }
 ```
 
 ---
 
 ### Event: `JobFailedEvent`
-- **Routing Key**: `job.failed`
 
-#### Schema Example
+#### Schema Example (Value JSON)
 ```json
 {
   "event_type": "JobFailed",
@@ -114,8 +123,8 @@ All Job Engine events share a base structure with common header properties.
   "product_code": "SKU-9908",
   "product_serial": "SN-2026-0004",
   "status": "FAILED",
-  "source_system": "MQTT_ADAPTER",
-  "timestamp": "2026-06-21T13:51:05.412Z",
+  "source_system": "STATION_GATEWAY",
+  "timestamp": "2026-08-04T12:00:05.412Z",
   "error_message": "Vision Check failed on camera-01 (OCR mismatch)."
 }
 ```
@@ -125,16 +134,17 @@ All Job Engine events share a base structure with common header properties.
 ## 3. Device Status Heartbeat Contracts
 
 ### Event: `DeviceStatusHeartbeat`
-- **Routing Key**: `device.heartbeat.{device_id}`
+- **Topic**: `station.device-heartbeats`
+- **Partition Key**: `DeviceId` (String)
 
-#### Schema Example
+#### Schema Example (Value JSON)
 ```json
 {
   "DeviceId": "PRINTER01",
   "DeviceType": "Printer",
   "IsOnline": true,
   "LifecycleState": "Paper Out",
-  "Timestamp": "2026-07-12T05:30:15.112Z",
+  "Timestamp": "2026-08-04T12:00:15.112Z",
   "SerialNumber": "SN-SIM-PRINTER01",
   "LifetimePrintCounter": 1024,
   "ThermalTemp": 27.5,

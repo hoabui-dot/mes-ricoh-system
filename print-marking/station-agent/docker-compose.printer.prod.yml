@@ -1,0 +1,109 @@
+# Co-located Mac deployment:
+# printer-adapter and printer-adapter-ui run in this same Compose project.
+# Container-to-container calls must use the Compose service name, not the host
+# IP and not localhost (localhost inside printer-adapter-ui points back to the
+# UI container).
+#
+# CUPS host on macOS:
+# On Docker Desktop for Mac, host.docker.internal resolves to 192.168.65.254
+# (the Docker Desktop VM gateway), NOT macOS localhost. CUPS on macOS is only
+# reachable from inside containers via the Mac's LAN IP (192.168.2.31).
+# Update CUPS_HEALTH_HOST if the Mac's LAN IP changes.
+# If the adapter is deployed on a different server,
+# use a separate override with the published adapter host and port instead.
+name: print-adapter
+
+services:
+  printer-adapter:
+    image: vanhoadotbui2628/printer-adapter:latest
+    platform: linux/arm64
+    container_name: printer-adapter
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    environment:
+      ASPNETCORE_URLS: http://+:5003
+      ASPNETCORE_ENVIRONMENT: Production
+      SQLITE_PRINTER_PATH: /data/printer.db
+      CUPS_HEALTH_PORT: "631"
+      CUPS_HEALTH_HOST: 192.168.2.31
+      CUPS_SERVER: 192.168.2.31:631
+      # CUPS_HEALTH_HOST: 192.168.1.107
+      # CUPS_SERVER: 192.168.1.107:631
+      CUPS_USER: hoabui
+      CUPS_QUEUE: Zebra_Technologies_ZTC_GK420t
+      # The adapter is the runtime endpoint for MES Print Station PRINT-STATION-01.
+      # Workstation binding is owned by MES master data, not duplicated here.
+      PRINT_STATION_ID: PRINT-STATION-01
+      PRINTER_ADAPTER_ID: PRINT-ADAPTER-01
+      KAFKA_BOOTSTRAP_SERVERS: 100.68.50.41:19092
+      KAFKA_CLIENT_ID: PRINT-ADAPTER-01
+      KAFKA_SECURITY_PROTOCOL: Plaintext
+      KAFKA_CONNECTION_NAME: PRINT-ADAPTER-01
+      # ASP.NET Core binds nested options with double underscores. Keep these
+      # explicit values authoritative; the legacy KAFKA_* variables above are
+      # retained only for compatibility with external diagnostics.
+      Kafka__BootstrapServers: 100.68.50.41:19092
+      Kafka__SecurityProtocol: Plaintext
+      Kafka__ClientId: PRINT-ADAPTER-01
+      Kafka__JobEventsTopic: station.job-events
+      Kafka__DeviceHeartbeatsTopic: station.device-heartbeats
+      Kafka__BatchPrintCommandsTopic: station.commands.printer
+      Kafka__ManagementCommandsTopic: station.commands.printer
+      Kafka__ManagementEventsTopic: station.events.printer
+      Kafka__PrintStationId: PRINT-STATION-01
+      PrinterAdapter__HeartbeatIntervalSeconds: "15"
+    volumes:
+      - printer-adapter-data:/data
+    # extra_hosts not needed: CUPS_HEALTH_HOST uses the Mac LAN IP directly
+    # (host.docker.internal on Docker Desktop Mac ≠ macOS localhost)
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/5003 &&
+          printf "GET /api/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 &&
+          timeout 3 cat <&3 | grep -q status'
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  printer-adapter-ui:
+    image: vanhoadotbui2628/printer-adapter-ui:latest
+    container_name: printer-adapter-ui
+    restart: unless-stopped
+    ports:
+      - "5010:5010"
+    environment:
+      ASPNETCORE_URLS: http://+:5010
+      ASPNETCORE_ENVIRONMENT: Production
+      # The Adapter API is published by this same Mac host.
+      PRINTER_ADAPTER_URL: http://100.108.194.102:5003
+      PROJECTION_SERVICE_URL: http://100.68.50.41:5009
+      KAFKA_BOOTSTRAP_SERVERS: 100.68.50.41:19092
+      KAFKA_SECURITY_PROTOCOL: Plaintext
+      KAFKA_CLIENT_ID: PRINT-ADAPTER-UI-01
+      KAFKA_CONNECTION_NAME: PRINT-ADAPTER-01
+      Kafka__BootstrapServers: 100.68.50.41:19092
+      Kafka__SecurityProtocol: Plaintext
+      Kafka__ClientId: PRINT-ADAPTER-UI-01
+      PRINT_STATION_ID: PRINT-STATION-01
+      PRINTER_ADAPTER_ID: PRINT-ADAPTER-01
+      MONITOR_REFRESH_INTERVAL_SECONDS: "5"
+      MONITOR_STALE_HEARTBEAT_SECONDS: "45"
+      MONITOR_HTTP_TIMEOUT_SECONDS: "5"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/5010 &&
+          printf "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 &&
+          grep -q "printer-adapter-ui" <&3'
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  printer-adapter-data:

@@ -14,13 +14,13 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 public sealed class HeartbeatHostedService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventPublisher _publisher;
+    private readonly IRabbitMqPublisher _publisher;
     private readonly ILogger<HeartbeatHostedService> _logger;
     private const string Exchange = "station.events";
 
     public HeartbeatHostedService(
         IServiceScopeFactory scopeFactory,
-        IEventPublisher publisher,
+        IRabbitMqPublisher publisher,
         ILogger<HeartbeatHostedService> logger)
     {
         _scopeFactory = scopeFactory;
@@ -41,72 +41,7 @@ public sealed class HeartbeatHostedService : BackgroundService
                 var stepRepo = scope.ServiceProvider.GetRequiredService<IJobStepRepository>();
                 var attemptRepo = scope.ServiceProvider.GetRequiredService<IJobAttemptRepository>();
 
-                // Check active steps
-                var activeJobs = await jobRepo.GetByStatusAsync("Running", stoppingToken);
-                
-                string plcState = "Idle";
-                string cameraState = "Idle";
-                string gatewayState = "Connected";
-
-                if (activeJobs.Count > 0)
-                {
-                    var activeJob = activeJobs[0];
-                    var attempts = await attemptRepo.GetByJobIdAsync(activeJob.Id, stoppingToken);
-                    var activeAttempt = attempts.OrderByDescending(a => a.RetrySequence).FirstOrDefault();
-                    if (activeAttempt != null)
-                    {
-                        var steps = await stepRepo.GetByAttemptIdAsync(activeAttempt.Id, stoppingToken);
-                        var runningStep = steps.FirstOrDefault(s => s.Status == StepStatus.Running);
-                        if (runningStep != null)
-                        {
-                            var name = runningStep.StepName.ToUpperInvariant();
-                            if (name == "VISION_CHECK")
-                            {
-                                cameraState = "Verifying";
-                                plcState = "Busy";
-                            }
-                            else if (name == "PLC_REJECT")
-                            {
-                                plcState = "Rejecting";
-                                cameraState = "Idle";
-                            }
-                            else
-                            {
-                                plcState = "Busy";
-                            }
-                        }
-                    }
-                }
-
-                // Publish gateway-01 heartbeat
-                var gwHb = new DeviceStatusHeartbeat(
-                    "gateway-01",
-                    "Gateway",
-                    true,
-                    gatewayState,
-                    DateTime.UtcNow.ToString("o")
-                );
-                await _publisher.PublishAsync(Exchange, "device.heartbeat.gateway-01", JsonSerializer.Serialize(gwHb), stoppingToken);
-
-                // Publish plc-01 heartbeat
-                var plcHb = new DeviceStatusHeartbeat(
-                    "plc-01",
-                    "PLC",
-                    true,
-                    plcState,
-                    DateTime.UtcNow.ToString("o")
-                );
-                await _publisher.PublishAsync(Exchange, "device.heartbeat.plc-01", JsonSerializer.Serialize(plcHb), stoppingToken);
-
-                // Publish camera-01 heartbeat
-                var cameraHb = new DeviceStatusHeartbeat(
-                    "camera-01",
-                    "VisionCamera",
-                    true,
-                    cameraState,
-                    DateTime.UtcNow.ToString("o")
-                );
-                await _publisher.PublishAsync(Exchange, "device.heartbeat.camera-01", JsonSerializer.Serialize(cameraHb), stoppingToken);
+                _logger.LogDebug("Job Engine Heartbeat service active.");
             }
             catch (Exception ex)
             {

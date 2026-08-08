@@ -86,6 +86,13 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Delete("/work-orders/{id}/operations/{opId}/resource-allocation", handleDeleteResourceAllocation(pool))
 		r.Post("/work-orders/{id}/resource-allocations/revalidate", handleRevalidateResourceAllocations(allocationService))
 		r.Get("/work-orders", handleListWorkOrders(pool))
+		r.Get("/analytics/overview", handleAnalyticsOverview(pool))
+		r.Get("/analytics/work-orders", handleAnalyticsWorkOrders(pool))
+		r.Get("/analytics/lines", handleAnalyticsLines(pool))
+		r.Get("/analytics/operations", handleAnalyticsOperations(pool))
+		r.Get("/analytics/resources", handleAnalyticsResources(pool))
+		r.Get("/analytics/materials", handleAnalyticsMaterials(pool))
+		r.Get("/analytics/print", handleAnalyticsPrint(pool))
 		r.Group(func(kiosk chi.Router) {
 			kiosk.Use(requireKioskOperator(kioskVerifier))
 			kiosk.Get("/kiosk/terminals/{terminalRef}/work-orders", handleListKioskWorkOrders(pool))

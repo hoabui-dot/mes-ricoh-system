@@ -14,21 +14,18 @@ using ND.UnifiedContracts.Constants;
 using ND.UnifiedContracts.Events;
 using ND.ProjectionService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using ND.ProjectionService.Application.Alarms;
 
 namespace ND.ProjectionService.Infrastructure.Messaging;
 
 /// <summary>
-/// Background worker that consumes job and mqtt events from Kafka,
+/// Background worker that consumes job and mqtt events from RabbitMQ,
 /// updates the projection read model, and pushes updates to Kiosk UI via SignalR.
 /// </summary>
 public sealed class ProjectionEventConsumer : BackgroundService
 {
-    private static readonly HashSet<string> RemovedSimulatorPrinters = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "printer-01", "printer-02", "printer-03"
-    };
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventConsumer _consumer;
+    private readonly IRabbitMqConsumer _consumer;
     private readonly IHubContext<ProductionHub> _hubContext;
     private readonly ILogger<ProjectionEventConsumer> _logger;
     private readonly string _stationId;
@@ -48,7 +45,7 @@ public sealed class ProjectionEventConsumer : BackgroundService
 
     public ProjectionEventConsumer(
         IServiceScopeFactory scopeFactory,
-        IEventConsumer consumer,
+        IRabbitMqConsumer consumer,
         IHubContext<ProductionHub> hubContext,
         IConfiguration configuration,
         ILogger<ProjectionEventConsumer> logger)
@@ -57,7 +54,7 @@ public sealed class ProjectionEventConsumer : BackgroundService
         _consumer = consumer;
         _hubContext = hubContext;
         _logger = logger;
-        _stationId = configuration["STATION_ID"] ?? string.Empty;
+        _stationId = configuration["STATION_ID"] ?? "STATION-01";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -95,40 +92,6 @@ public sealed class ProjectionEventConsumer : BackgroundService
             queue: MqttQueue,
             routingKeyPattern: MqttPattern,
             onMessage: (routingKey, json) => HandleMqttEventAsync(routingKey, json, stoppingToken),
-            cancellationToken: stoppingToken);
-
-        // MES execution outbox events are published to the shared Kafka
-        // integration topic. This subscription is the authoritative bridge
-        // from MES WO/operation state into the Print Station read model.
-        await _consumer.StartConsumingAsync(
-            exchange: Exchange,
-            queue: "projection-service.mes-execution-events",
-            routingKeyPattern: "MES.Execution.#",
-            onMessage: (routingKey, json) => HandleMesExecutionEventAsync(routingKey, json, stoppingToken),
-            cancellationToken: stoppingToken);
-
-        // The MES print command is the authoritative creation event for the
-        // current print dashboard. It is separate from the legacy job queue so
-        // a batch command is projected once as a batch, not once per label.
-        await _consumer.StartConsumingAsync(
-            exchange: Exchange,
-            queue: "projection-service.print-commands",
-            routingKeyPattern: "command.printer.print.#",
-            onMessage: (routingKey, json) => HandlePrintCommandEventAsync(routingKey, json, stoppingToken),
-            cancellationToken: stoppingToken);
-
-        await _consumer.StartConsumingAsync(
-            exchange: Exchange,
-            queue: "projection-service.print-results",
-            routingKeyPattern: "printer.batch.printed",
-            onMessage: (routingKey, json) => HandlePrintResultEventAsync(routingKey, json, stoppingToken),
-            cancellationToken: stoppingToken);
-
-        await _consumer.StartConsumingAsync(
-            exchange: Exchange,
-            queue: "projection-service.print-progress",
-            routingKeyPattern: "printer.printed",
-            onMessage: (routingKey, json) => HandlePrintStartedEventAsync(routingKey, json, stoppingToken),
             cancellationToken: stoppingToken);
 
         // 5. Consume manual requested events (reprint, re-marking, reprocess)
@@ -183,19 +146,6 @@ public sealed class ProjectionEventConsumer : BackgroundService
             queue: "projection-service.batch-printed-events",
             routingKeyPattern: JobEventRoutingKeys.PrinterBatchPrinted,
             onMessage: (routingKey, json) => HandleJobEventAsync(routingKey, json, stoppingToken),
-            cancellationToken: stoppingToken);
-
-        // Remote Printer Adapter runtime state. Use one consumer for this queue.
-        // Kafka load-balances messages between consumers on the same queue and
-        // does not re-apply each consumer's binding pattern at delivery time.
-        // Separate handlers on one queue would therefore deserialize a heartbeat
-        // as a status/error event. The dispatcher keeps the queue single-consumer
-        // while retaining explicit routing-key bindings.
-        await _consumer.StartConsumingAsync(
-            exchange: Exchange,
-            queue: "projection-service.printer-runtime-events",
-            routingKeyPattern: "printer.#",
-            onMessage: (routingKey, json) => HandlePrinterRuntimeEventAsync(routingKey, json, stoppingToken),
             cancellationToken: stoppingToken);
 
         // Keep service alive
@@ -503,53 +453,14 @@ public sealed class ProjectionEventConsumer : BackgroundService
                         productionRecordToPush = record;
                     }
 
-                    // ── Create/Deduplicate Alarm for Job Failure ─────────────────────────
-                    try
-                    {
-                        var alarmRepo = scope.ServiceProvider.GetRequiredService<IAlarmRepository>();
-
-                        // Dedup: use jobId as the group key — one active alarm per job
-                        var existingAlarm = await alarmRepo.GetActiveByGroupKeyAsync(evt.JobId, cancellationToken);
-                        if (existingAlarm != null)
-                        {
-                            // Same job has failed multiple times — bump repeat count, no new broadcast
-                            existingAlarm.UpdateRepeat();
-                            await alarmRepo.UpdateAsync(existingAlarm, cancellationToken);
-                            _logger.LogDebug(
-                                "Alarm dedup: updated existing job failure alarm for {JobId}, RepeatCount={Rc}",
-                                evt.JobId, existingAlarm.RepeatCount);
-                        }
-                        else
-                        {
-                            // First failure — create new alarm and broadcast
-                            var alarm = Alarm.Create(
-                                severity: "Error",
-                                source: "Workflow",
-                                message: $"Công việc {evt.JobNo} thất bại: {evt.ErrorMessage ?? "Lỗi không xác định"}",
-                                deviceId: null,
-                                deviceName: null,
-                                alarmType: "ProductionError",
-                                alarmGroupKey: evt.JobId,
-                                productionOrderId: evt.JobNo
-                            );
-                            await alarmRepo.AddAsync(alarm, cancellationToken);
-
-                            var alarmDto = new AlarmDto(
-                                alarm.Id, alarm.AlarmType, alarm.AlarmGroupKey,
-                                alarm.Severity, alarm.Source, alarm.Message,
-                                alarm.DeviceId, alarm.DeviceName, alarm.ProductionOrderId,
-                                alarm.IsAcknowledged, alarm.CurrentState,
-                                alarm.AcknowledgedBy, alarm.AcknowledgedAt,
-                                alarm.FirstOccurredAt, alarm.LastOccurredAt,
-                                alarm.RepeatCount, alarm.ResolvedAt, alarm.CreatedAt
-                            );
-                            await _hubContext.Clients.Group(_stationId).SendAsync("OnAlarmRaised", alarmDto, cancellationToken);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to raise job failure alarm for {JobId}", evt.JobId);
-                    }
+                    var ingestion = scope.ServiceProvider.GetRequiredService<IAlarmEventIngestionService>();
+                    var alarm = await ingestion.ProcessAsync(JobQueue, evt.EventId,
+                        new AlarmCondition("JOB_FAILED", _stationId, "job-engine", "JOB", evt.JobId,
+                            JobId: evt.JobId, WorkOrderNo: evt.JobNo, ProductCode: evt.ProductCode,
+                            ProductSerial: evt.ProductSerial, TechnicalMessage: evt.ErrorMessage),
+                        ct: cancellationToken);
+                    if (alarm is not null)
+                        await _hubContext.Clients.Group(_stationId).SendAsync("OnAlarmRaised", ToAlarmDto(alarm), cancellationToken);
 
                 }
             }
@@ -630,330 +541,6 @@ public sealed class ProjectionEventConsumer : BackgroundService
             _logger.LogError(ex, "Failed to handle job event: {RoutingKey}", routingKey);
             throw; // Will Nack
         }
-    }
-
-    private async Task HandleMesExecutionEventAsync(string routingKey, string payloadJson, CancellationToken ct)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(payloadJson);
-            var root = document.RootElement;
-            var payload = root.TryGetProperty("payload", out var lowerPayload)
-                ? lowerPayload
-                : root.TryGetProperty("Payload", out var upperPayload) ? upperPayload : root;
-            var eventType = ReadString(root, "event_type", "eventType", "EventType") ?? routingKey;
-            var eventId = ReadString(root, "event_id", "eventId", "EventId") ?? Guid.NewGuid().ToString();
-            var occurredAt = ReadString(root, "occurred_at", "occurredAt", "OccurredAt") ?? DateTimeOffset.UtcNow.ToString("o");
-            var woId = ReadString(payload, "wo_id", "woId", "work_order_id", "workOrderId");
-            if (string.IsNullOrWhiteSpace(woId)) return;
-
-            using var scope = _scopeFactory.CreateScope();
-            var recordRepo = scope.ServiceProvider.GetRequiredService<IProductionRecordRepository>();
-            var orderRepo = scope.ServiceProvider.GetRequiredService<IProductionOrderViewRepository>();
-            var productionRepo = scope.ServiceProvider.GetRequiredService<IProductionViewRepository>();
-            var activityRepo = scope.ServiceProvider.GetRequiredService<IActivityLogRepository>();
-            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
-
-            // Claim the event inside the same SQLite transaction as the projection
-            // writes. Redelivery therefore becomes a no-op, while a failed handler
-            // rolls the claim back and remains eligible for the configured retry/DLQ.
-            await using var transaction = await db.Database.BeginTransactionAsync(ct);
-            var claimed = await db.Database.ExecuteSqlInterpolatedAsync($@"
-                INSERT OR IGNORE INTO projection_event_dedup
-                    (event_id, event_type, occurred_at, processed_at)
-                VALUES ({eventId}, {eventType}, {occurredAt}, {DateTimeOffset.UtcNow.ToString("o")});", ct);
-            if (claimed == 0)
-            {
-                _logger.LogDebug("Ignoring duplicate MES execution event {EventId}", eventId);
-                await transaction.RollbackAsync(ct);
-                return;
-            }
-
-            var record = await recordRepo.GetByJobIdAsync(woId, ct);
-            var woCode = ReadString(payload, "wo_code", "woCode", "work_order_code", "workOrderCode")
-                ?? record?.JobNo
-                ?? woId;
-            var productCode = ReadString(payload, "item_code", "itemCode", "product_code", "productCode")
-                ?? record?.ProductCode
-                ?? "MES";
-            var quantity = ReadInt(payload, "quantity", "planned_qty", "plannedQty") ?? 1;
-            var status = MesEventStatus(eventType);
-
-            var dashboard = await ApplyMesDashboardEventAsync(
-                db, payload, eventId, eventType, occurredAt, woId, woCode, productCode, status, ct);
-
-            // WOCreated creates the durable correlation row. Later events may
-            // arrive without wo_code/item_code and resolve through wo_id.
-            if (record is null)
-            {
-                record = ProductionRecord.Create(woId, woCode, productCode, null, "MES_WORK_ORDER", _stationId, status);
-                await recordRepo.AddAsync(record, ct);
-            }
-            else if (StatusRank(status) >= StatusRank(record.CurrentStatus))
-            {
-                record.UpdateDetails(woId, woCode, productCode, record.ProductSerial, status);
-            }
-
-            var order = await orderRepo.GetByOrderNoAsync(woCode, ct);
-            if (order is null)
-            {
-                order = ProductionOrderView.Create(woCode, productCode, quantity);
-                await orderRepo.AddAsync(order, ct);
-            }
-            else if (StatusRank(status) >= StatusRank(order.Status))
-            {
-                var completed = status == "COMPLETED" ? quantity : order.CompletedQty;
-                order.UpdateProgress(completed, Math.Max(0, quantity - completed), status);
-            }
-
-            var view = await productionRepo.GetByStationIdAsync(_stationId, ct);
-            if (view is null)
-            {
-                view = ProductionView.Create(_stationId, woId, woCode, productCode, null, status);
-                await productionRepo.AddAsync(view, ct);
-            }
-            else if (StatusRank(status) >= StatusRank(view.JobStatus))
-            {
-                view.Update(woId, woCode, productCode, null, status);
-            }
-
-            var log = ActivityLog.Create(eventType, woId, woCode, productCode, status, $"MES execution event: {eventType}", occurredAt);
-            await activityRepo.AddAsync(log, ct);
-            await activityRepo.TrimExcessAsync(500, ct);
-            await uow.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-
-            var recordDto = new ProductionRecordDto(record.Id, record.JobId, record.JobNo, record.ProductCode, record.ProductSerial, record.JobType, record.CurrentStatus, record.StationId, record.CreatedAt, record.UpdatedAt);
-            var viewDto = new ProductionViewDto(view.StationId, view.JobId, view.WorkOrderNo, view.ProductCode, view.ProductSerial, view.JobStatus, view.UpdatedAt);
-            var logDto = new ActivityLogDto(log.Id, log.EventType, log.JobId, log.JobNo, log.ProductCode, log.Status, log.Message, log.OccurredAt);
-            await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionUpdate", viewDto, ct);
-            await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionRecordUpdate", recordDto, ct);
-            await _hubContext.Clients.Group(_stationId).SendAsync("OnActivityUpdate", logDto, ct);
-            await _hubContext.Clients.Group(_stationId).SendAsync("OnProductionOrderUpdate", new { order.OrderNo, order.ProductCode, order.PlannedQty, order.CompletedQty, order.RemainingQty, order.Status, order.UpdatedAt }, ct);
-            if (dashboard is not null)
-                await SendPrintDashboardAsync(dashboard, ct);
-            _logger.LogInformation("Projected MES execution event {EventType} for WO {WorkOrderNo} event_id={EventId}", eventType, woCode, eventId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to project MES execution event {RoutingKey}", routingKey);
-            throw;
-        }
-    }
-
-    private static string? ReadString(JsonElement value, params string[] names)
-    {
-        foreach (var name in names)
-            if (value.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String)
-                return property.GetString();
-        return null;
-    }
-
-    private static int? ReadInt(JsonElement value, params string[] names)
-    {
-        foreach (var name in names)
-            if (value.TryGetProperty(name, out var property) && property.TryGetInt32(out var number)) return number;
-        return null;
-    }
-
-    private static string MesEventStatus(string eventType)
-    {
-        var value = eventType.ToUpperInvariant();
-        if (value.Contains("WOCREATED")) return "CREATED";
-        if (value.Contains("WOAPPROVED")) return "RELEASED";
-        if (value.Contains("WOCOMPLETED")) return "COMPLETED";
-        if (value.Contains("OPERATIONFINISHED")) return "IN_PROGRESS";
-        if (value.Contains("FAILED") || value.Contains("ERROR")) return "FAILED";
-        return "IN_PROGRESS";
-    }
-
-    private static int StatusRank(string? status) => status?.ToUpperInvariant() switch
-    {
-        "CREATED" or "RECEIVED" or "DRAFT" => 10,
-        "RELEASED" or "APPROVED" => 20,
-        "IN_PROGRESS" or "PROCESSING" or "PRINTING" => 30,
-        "FAILED" => 35,
-        "COMPLETED" or "FINISHED" => 40,
-        _ => 0
-    };
-
-    private async Task HandlePrintCommandEventAsync(string routingKey, string payloadJson, CancellationToken ct)
-    {
-        if (!routingKey.Equals(JobEventRoutingKeys.BatchPrint, StringComparison.OrdinalIgnoreCase) &&
-            !routingKey.Equals(JobEventRoutingKeys.Print, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        using var document = JsonDocument.Parse(payloadJson);
-        var root = document.RootElement;
-        var payload = PayloadOf(root);
-        var eventId = ReadString(root, "event_id", "eventId", "EventId")
-            ?? ReadString(payload, "event_id", "eventId") ?? Guid.NewGuid().ToString();
-        var eventType = ReadString(root, "event_type", "eventType") ?? routingKey;
-        var eventAt = ReadString(root, "occurred_at", "occurredAt", "timestamp")
-            ?? ReadString(payload, "timestamp", "occurred_at") ?? DateTimeOffset.UtcNow.ToString("o");
-        var workOrderId = ReadString(payload, "work_order_id", "workOrderId", "wo_id", "woId")
-            ?? ReadString(root, "work_order_id", "workOrderId", "wo_id", "woId");
-        var workOrderCode = ReadString(payload, "production_order_no", "productionOrderNo", "work_order_code", "workOrderCode", "wo_code", "woCode")
-            ?? ReadString(root, "production_order_no", "productionOrderNo", "work_order_code", "workOrderCode", "wo_code", "woCode");
-        if (string.IsNullOrWhiteSpace(workOrderId)) workOrderId = workOrderCode;
-        if (string.IsNullOrWhiteSpace(workOrderId) || string.IsNullOrWhiteSpace(workOrderCode))
-            return;
-
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var claimed = await ClaimEventAsync(db, eventId, eventType, eventAt, ct);
-        if (!claimed) { await tx.RollbackAsync(ct); return; }
-
-        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.Id == $"{_stationId}:{workOrderId}", ct)
-            ?? PrintDashboardView.Create(_stationId, workOrderId, workOrderCode, ReadString(payload, "product_code", "productCode") ?? "MES");
-        var total = ReadDecimal(payload, "total_copies", "totalCopies", "print_copies", "label_count", "required_labels") ?? 0;
-        var required = ReadDecimal(payload, "required_labels", "requiredLabels", "label_count") ?? total;
-        var requested = ReadDecimal(payload, "requested_quantity", "requestedQuantity", "quantity") ?? 0;
-        var batchSize = ReadInt(payload, "batch_size", "batchSize") ?? 0;
-        var totalBatches = batchSize > 0 && total > 0 ? (int)Math.Ceiling(total / batchSize) : 0;
-        view.Apply(workOrderCode, ReadString(payload, "product_code", "productCode") ?? view.ProductCode,
-            ReadString(payload, "operation_code", "operationCode"), ReadString(payload, "operation_name", "operationName"),
-            ReadString(payload, "workstation_code", "workstationCode"), ReadString(payload, "print_station_id", "printStationId"),
-            ReadString(payload, "printer_code", "printerCode", "target_printer"), requestedQuantity: requested,
-            requiredLabelQuantity: required, totalLabelCount: total, queuedLabelCount: total, printedLabelCount: 0,
-            failedLabelCount: 0, remainingLabelCount: total,
-            printJobId: ReadString(payload, "print_job_id", "printJobId", "job_id", "jobId"), printJobStatus: "Queued",
-            batchSize: batchSize, totalBatches: totalBatches, completedBatches: 0,
-            workOrderStatus: "RELEASED", eventId: eventId, eventType: eventType, eventAt: eventAt);
-        if (db.Entry(view).State == EntityState.Detached) db.PrintDashboards.Add(view);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        await SendPrintDashboardAsync(view, ct);
-        _logger.LogInformation("Projected print command {EventId} for WO {WorkOrderCode}", eventId, workOrderCode);
-    }
-
-    private async Task HandlePrintResultEventAsync(string routingKey, string payloadJson, CancellationToken ct)
-    {
-        using var document = JsonDocument.Parse(payloadJson);
-        var root = document.RootElement;
-        var payload = PayloadOf(root);
-        var eventId = ReadString(root, "event_id", "eventId") ?? ReadString(payload, "event_id", "eventId") ?? Guid.NewGuid().ToString();
-        var eventType = ReadString(root, "event_type", "eventType") ?? routingKey;
-        var eventAt = ReadString(root, "occurred_at", "occurredAt", "timestamp") ?? DateTimeOffset.UtcNow.ToString("o");
-        var workOrderCode = ReadString(payload, "production_order_no", "productionOrderNo", "work_order_code", "workOrderCode", "wo_code", "woCode");
-        if (string.IsNullOrWhiteSpace(workOrderCode)) return;
-        var succeeded = CountArray(payload, "succeeded_job_ids", "succeededJobIds");
-        var failed = CountArray(payload, "failed_job_ids", "failedJobIds");
-        var completed = ReadDecimal(payload, "completed_count", "completedCount") ?? succeeded;
-        var total = completed + failed;
-
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        if (!await ClaimEventAsync(db, eventId, eventType, eventAt, ct)) { await tx.RollbackAsync(ct); return; }
-        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.StationId == _stationId && x.WorkOrderCode == workOrderCode, ct);
-        if (view is null)
-        {
-            await tx.RollbackAsync(ct);
-            _logger.LogWarning("Print result {EventId} arrived before command projection for {WorkOrderCode}", eventId, workOrderCode);
-            return;
-        }
-        var finalTotal = view.TotalLabelCount > 0 ? view.TotalLabelCount : total;
-        var status = failed > 0 && completed > 0 ? "PartiallyFailed" : failed > 0 ? "Failed" : "Completed";
-        view.Apply(view.WorkOrderCode, view.ProductCode, view.OperationCode, view.OperationName, view.WorkstationCode,
-            view.PrintStationCode, ReadString(payload, "printer_code", "printerCode") ?? view.PrinterCode,
-            requestedQuantity: view.RequestedQuantity, requiredLabelQuantity: view.RequiredLabelQuantity,
-            totalLabelCount: finalTotal, queuedLabelCount: 0, printedLabelCount: completed,
-            failedLabelCount: failed, remainingLabelCount: Math.Max(0, finalTotal - completed - failed),
-            printJobId: view.PrintJobId, printJobStatus: status, batchSize: view.BatchSize,
-            totalBatches: view.TotalBatches, completedBatches: view.TotalBatches,
-            workOrderStatus: view.WorkOrderStatus, eventId: eventId, eventType: eventType, eventAt: eventAt, printerResultAt: eventAt);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        await SendPrintDashboardAsync(view, ct);
-    }
-
-    private async Task HandlePrintStartedEventAsync(string routingKey, string payloadJson, CancellationToken ct)
-    {
-        var evt = JsonSerializer.Deserialize<PrinterPrintedEvent>(payloadJson, JsonSerializerOptions);
-        if (evt is null) return;
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        if (!await ClaimEventAsync(db, evt.EventId, evt.EventType, evt.Timestamp, ct)) { await tx.RollbackAsync(ct); return; }
-        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.StationId == _stationId &&
-            (x.PrintJobId == evt.JobId || x.WorkOrderCode == evt.JobNo), ct);
-        if (view is null) { await tx.RollbackAsync(ct); return; }
-        view.Apply(view.WorkOrderCode, view.ProductCode, view.OperationCode, view.OperationName, view.WorkstationCode,
-            view.PrintStationCode, evt.PrinterCode, view.RequestedQuantity, view.RequiredLabelQuantity,
-            view.TotalLabelCount, view.QueuedLabelCount, view.PrintedLabelCount, view.FailedLabelCount,
-            view.RemainingLabelCount, view.PrintJobId, evt.Success ? "Printing" : "Failed", view.BatchSize,
-            view.TotalBatches, view.CompletedBatches, view.WorkOrderStatus, evt.EventId, evt.EventType, evt.Timestamp);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        await SendPrintDashboardAsync(view, ct);
-    }
-
-    private async Task<PrintDashboardView?> ApplyMesDashboardEventAsync(
-        ProjectionDbContext db, JsonElement payload, string eventId, string eventType, string eventAt,
-        string workOrderId, string workOrderCode, string productCode, string status, CancellationToken ct)
-    {
-        var view = await db.PrintDashboards.FirstOrDefaultAsync(x => x.Id == $"{_stationId}:{workOrderId}", ct)
-            ?? PrintDashboardView.Create(_stationId, workOrderId, workOrderCode, productCode);
-        var printStatus = status == "RELEASED" ? view.PrintJobStatus : null;
-        var operationStatus = status == "COMPLETED" ? "Completed" : null;
-        view.Apply(workOrderCode, productCode,
-            ReadString(payload, "operation_code", "operationCode"), ReadString(payload, "operation_name", "operationName"),
-            ReadString(payload, "workstation_code", "workstationCode"), ReadString(payload, "print_station_id", "printStationId"),
-            ReadString(payload, "printer_code", "printerCode"),
-            requestedQuantity: ReadDecimal(payload, "quantity", "planned_qty", "plannedQty"),
-            requiredLabelQuantity: null, totalLabelCount: null, queuedLabelCount: null,
-            printedLabelCount: null, failedLabelCount: null, remainingLabelCount: null,
-            printJobId: ReadString(payload, "print_job_id", "printJobId"), printJobStatus: operationStatus ?? printStatus,
-            batchSize: null, totalBatches: null, completedBatches: null,
-            workOrderStatus: status, eventId: eventId, eventType: eventType, eventAt: eventAt,
-            productName: ReadString(payload, "product_name", "productName"));
-        if (db.Entry(view).State == EntityState.Detached) db.PrintDashboards.Add(view);
-        return view;
-    }
-
-    private async Task SendPrintDashboardAsync(PrintDashboardView view, CancellationToken ct)
-    {
-        var dto = new PrintDashboardDto(view.StationId, view.WorkOrderId, view.WorkOrderCode, view.WorkOrderStatus,
-            view.ProductCode, view.ProductName, view.OperationCode, view.OperationName, view.WorkstationCode,
-            view.PrintStationCode, view.PrinterCode, view.RequestedQuantity, view.RequiredLabelQuantity,
-            view.TotalLabelCount, view.QueuedLabelCount, view.PrintedLabelCount, view.FailedLabelCount,
-            view.RemainingLabelCount, view.PrintJobId, view.PrintJobStatus, view.BatchSize, view.TotalBatches,
-            view.CompletedBatches, view.LastKafkaEventId, view.LastKafkaEventType, view.LastKafkaEventAt,
-            view.LastPrinterResultAt, view.UpdatedAt);
-        await _hubContext.Clients.Group(_stationId).SendAsync("OnPrintDashboardUpdate", dto, ct);
-    }
-
-    private static JsonElement PayloadOf(JsonElement root) =>
-        root.TryGetProperty("payload", out var p) ? p : root.TryGetProperty("Payload", out var upper) ? upper : root;
-
-    private static async Task<bool> ClaimEventAsync(ProjectionDbContext db, string eventId, string eventType, string occurredAt, CancellationToken ct)
-    {
-        var count = await db.Database.ExecuteSqlInterpolatedAsync($@"
-            INSERT OR IGNORE INTO projection_event_dedup (event_id, event_type, occurred_at, processed_at)
-            VALUES ({eventId}, {eventType}, {occurredAt}, {DateTimeOffset.UtcNow.ToString("o")});", ct);
-        return count > 0;
-    }
-
-    private static decimal? ReadDecimal(JsonElement value, params string[] names)
-    {
-        foreach (var name in names)
-        {
-            if (!value.TryGetProperty(name, out var property)) continue;
-            if (property.ValueKind == JsonValueKind.Number && property.TryGetDecimal(out var number)) return number;
-            if (property.ValueKind == JsonValueKind.String && decimal.TryParse(property.GetString(), out var text)) return text;
-        }
-        return null;
-    }
-
-    private static int CountArray(JsonElement value, params string[] names)
-    {
-        foreach (var name in names)
-            if (value.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.Array)
-                return property.GetArrayLength();
-        return 0;
     }
 
     private async Task HandleMqttEventAsync(string routingKey, string payloadJson, CancellationToken cancellationToken)
@@ -1176,46 +763,29 @@ public sealed class ProjectionEventConsumer : BackgroundService
         {
             var heartbeat = JsonSerializer.Deserialize<ND.UnifiedContracts.Events.DeviceStatusHeartbeat>(payloadJson, JsonSerializerOptions);
             if (heartbeat == null) return;
-            // Older device producers used snake_case fields while the station
-            // contract is camel/Pascal case. Never let an empty identity reach
-            // EF as a null primary key; use the routing-key identity only for
-            // legacy device telemetry.
-            var deviceId = string.IsNullOrWhiteSpace(heartbeat.DeviceId)
-                ? routingKey.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()
-                : heartbeat.DeviceId;
-            if (string.IsNullOrWhiteSpace(deviceId)) return;
-            var heartbeatTimestamp = string.IsNullOrWhiteSpace(heartbeat.Timestamp)
-                ? DateTime.UtcNow.ToString("o")
-                : heartbeat.Timestamp;
-            var heartbeatLifecycle = string.IsNullOrWhiteSpace(heartbeat.LifecycleState)
-                ? (heartbeat.IsOnline ? "Online" : "Offline")
-                : heartbeat.LifecycleState;
 
             using var scope = _scopeFactory.CreateScope();
             var deviceRepo = scope.ServiceProvider.GetRequiredService<IDeviceStatusRepository>();
             var dbContext = scope.ServiceProvider.GetRequiredService<ProjectionDbContext>();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            // DeviceId is the external business identity. Older projection
-            // rows may use a generated database Id, so resolving by EF primary
-            // key can produce a stale update/concurrency failure.
-            var device = await deviceRepo.GetByDeviceIdAsync(deviceId, cancellationToken);
+            var device = await deviceRepo.GetByIdAsync(heartbeat.DeviceId, cancellationToken);
             bool wasOnline  = device != null && device.IsOnline;
             bool wasOffline = device != null && !device.IsOnline;
             string? oldLifecycle = device?.LifecycleState;
 
-            bool stateChanged = device == null
-                || device.IsOnline != heartbeat.IsOnline
-                || device.LifecycleState != heartbeatLifecycle;
+            bool stateChanged = device == null 
+                || device.IsOnline != heartbeat.IsOnline 
+                || device.LifecycleState != heartbeat.LifecycleState;
 
             if (device == null)
             {
                 device = DeviceStatus.Create(
-                    deviceId,
-                    heartbeat.DeviceType,
-                    heartbeat.IsOnline,
-                    heartbeatTimestamp,
-                    heartbeatLifecycle,
+                    heartbeat.DeviceId, 
+                    heartbeat.DeviceType, 
+                    heartbeat.IsOnline, 
+                    heartbeat.Timestamp, 
+                    heartbeat.LifecycleState,
                     heartbeat.SerialNumber,
                     heartbeat.LifetimePrintCounter,
                     heartbeat.ThermalTemp,
@@ -1226,8 +796,8 @@ public sealed class ProjectionEventConsumer : BackgroundService
             {
                 device.UpdateStatus(
                     heartbeat.IsOnline, 
-                    heartbeatTimestamp,
-                    heartbeatLifecycle,
+                    heartbeat.Timestamp, 
+                    heartbeat.LifecycleState,
                     heartbeat.SerialNumber,
                     heartbeat.LifetimePrintCounter,
                     heartbeat.ThermalTemp,
@@ -1238,10 +808,10 @@ public sealed class ProjectionEventConsumer : BackgroundService
             {
                 // Phase 11: Log transition to history
                 var transitionHistory = DeviceStatusHistory.Create(
-                    deviceId,
-                    heartbeatLifecycle,
+                    heartbeat.DeviceId,
+                    heartbeat.LifecycleState,
                     heartbeat.IsOnline,
-                    heartbeatTimestamp
+                    heartbeat.Timestamp
                 );
                 await dbContext.DeviceStatusHistories.AddAsync(transitionHistory, cancellationToken);
             }
@@ -1257,12 +827,12 @@ public sealed class ProjectionEventConsumer : BackgroundService
             }
 
             // Phase 7: Alarms for fault states (Offline, Paper Out, Ribbon Out, Head Open, Buffer Full, Thermal Warning)
-            bool isFaultState = !heartbeat.IsOnline
-                || heartbeatLifecycle is "Paper Out"
-                || heartbeatLifecycle is "Ribbon Out"
-                || heartbeatLifecycle is "Head Open"
-                || heartbeatLifecycle is "Buffer Full"
-                || heartbeatLifecycle is "Thermal Warning";
+            bool isFaultState = !heartbeat.IsOnline 
+                || heartbeat.LifecycleState is "Paper Out" 
+                || heartbeat.LifecycleState is "Ribbon Out" 
+                || heartbeat.LifecycleState is "Head Open" 
+                || heartbeat.LifecycleState is "Buffer Full" 
+                || heartbeat.LifecycleState is "Thermal Warning";
 
             bool wasFaultState = !wasOnline 
                 || oldLifecycle is "Paper Out" 
@@ -1271,164 +841,74 @@ public sealed class ProjectionEventConsumer : BackgroundService
                 || oldLifecycle is "Buffer Full" 
                 || oldLifecycle is "Thermal Warning";
 
-            if (isFaultState && (!wasFaultState || oldLifecycle != heartbeatLifecycle))
+            if (isFaultState)
             {
-                try
-                {
-                    var alarmRepo = scope.ServiceProvider.GetRequiredService<IAlarmRepository>();
-                    var alarmGroupKey = $"{deviceId}-{heartbeatLifecycle.Replace(" ", "")}";
-                    var existingAlarm = await alarmRepo.GetActiveByGroupKeyAsync(alarmGroupKey, cancellationToken);
-
-                    if (existingAlarm != null && existingAlarm.CurrentState == "Active")
-                    {
-                        existingAlarm.UpdateRepeat(heartbeatTimestamp);
-                        await unitOfWork.SaveChangesAsync(cancellationToken);
-                        _logger.LogDebug(
-                            "Alarm dedup: updated existing device alarm for {DeviceId}, RepeatCount={Rc}",
-                            deviceId, existingAlarm.RepeatCount);
-                    }
-                    else
-                    {
-                        var lifecycleDetail = heartbeatLifecycle is not "Offline"
-                            ? $" (trạng thái: {heartbeatLifecycle})"
-                            : string.Empty;
-
-                        var alarm = Alarm.Create(
-                            severity: "Error",
-                            source: "Device",
-                            message: $"Thiết bị {deviceId} ({heartbeat.DeviceType ?? "DEVICE"}) báo lỗi hoặc mất kết nối{lifecycleDetail}.",
-                            deviceId: deviceId,
-                            deviceName: deviceId,
-                            alarmType: "DeviceConnection",
-                            alarmGroupKey: alarmGroupKey
-                        );
-                        await alarmRepo.AddAsync(alarm, cancellationToken);
-                        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-                        var alarmDto = new AlarmDto(
-                            alarm.Id, alarm.AlarmType, alarm.AlarmGroupKey,
-                            alarm.Severity, alarm.Source, alarm.Message,
-                            alarm.DeviceId, alarm.DeviceName, alarm.ProductionOrderId,
-                            alarm.IsAcknowledged, alarm.CurrentState,
-                            alarm.AcknowledgedBy, alarm.AcknowledgedAt,
-                            alarm.FirstOccurredAt, alarm.LastOccurredAt,
-                            alarm.RepeatCount, alarm.ResolvedAt, alarm.CreatedAt
-                        );
-                        await _hubContext.Clients.Group(_stationId).SendAsync("OnAlarmRaised", alarmDto, cancellationToken);
-
-                        _logger.LogWarning("Device {DeviceId} went offline or reports fault {Fault} — alarm raised", deviceId, heartbeatLifecycle);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to raise device offline or fault alarm for {DeviceId}", deviceId);
-                }
+                var conditionName = MapHeartbeatCondition(heartbeat);
+                var activeView = await scope.ServiceProvider.GetRequiredService<IProductionViewRepository>()
+                    .GetByStationIdAsync(_stationId, cancellationToken);
+                var blocked = activeView?.JobStatus is "QUEUED" or "PROCESSING" or "PRINTING" or "VERIFYING";
+                var ingestion = scope.ServiceProvider.GetRequiredService<IAlarmEventIngestionService>();
+                var eventId = $"heartbeat:{heartbeat.DeviceId}:{heartbeat.Timestamp}:{heartbeat.IsOnline}:{heartbeat.LifecycleState}:{conditionName}";
+                var alarm = await ingestion.ProcessAsync("projection-service.device-heartbeats", eventId,
+                    BuildDeviceCondition(heartbeat, conditionName, blocked), ct: cancellationToken);
+                if (alarm is not null && (!wasFaultState || oldLifecycle != heartbeat.LifecycleState))
+                    await _hubContext.Clients.Group(_stationId).SendAsync("OnAlarmRaised", ToAlarmDto(alarm), cancellationToken);
             }
 
-            // Phase 7: Recovered/Operational - auto-resolve active alarms
             if (!isFaultState && wasFaultState)
             {
-                try
+                var ingestion = scope.ServiceProvider.GetRequiredService<IAlarmEventIngestionService>();
+                foreach (var conditionName in DeviceRecoveryConditions(heartbeat.DeviceType))
                 {
-                    var alarmRepo = scope.ServiceProvider.GetRequiredService<IAlarmRepository>();
-                    var activeAlarms = await dbContext.Alarms
-                        .Where(a => a.DeviceId == heartbeat.DeviceId && a.CurrentState == "Active")
-                        .ToListAsync(cancellationToken);
-
-                    foreach (var existingAlarm in activeAlarms)
-                    {
-                        existingAlarm.Resolve(resolvedBy: "System");
-                        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-                        var alarmDto = new AlarmDto(
-                            existingAlarm.Id, existingAlarm.AlarmType, existingAlarm.AlarmGroupKey,
-                            existingAlarm.Severity, existingAlarm.Source, existingAlarm.Message,
-                            existingAlarm.DeviceId, existingAlarm.DeviceName, existingAlarm.ProductionOrderId,
-                            existingAlarm.IsAcknowledged, existingAlarm.CurrentState,
-                            existingAlarm.AcknowledgedBy, existingAlarm.AcknowledgedAt,
-                            existingAlarm.FirstOccurredAt, existingAlarm.LastOccurredAt,
-                            existingAlarm.RepeatCount, existingAlarm.ResolvedAt, existingAlarm.CreatedAt
-                        );
-                        await _hubContext.Clients.Group(_stationId).SendAsync("OnAlarmRaised", alarmDto, cancellationToken);
-
-                        _logger.LogInformation("Device {DeviceId} recovered — resolved alarm {AlarmId}", heartbeat.DeviceId, existingAlarm.Id);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to auto-resolve alarm for recovered device {DeviceId}", heartbeat.DeviceId);
+                    var eventId = $"heartbeat:{heartbeat.DeviceId}:{heartbeat.Timestamp}:recovery:{conditionName}";
+                    var alarm = await ingestion.ProcessAsync("projection-service.device-heartbeats", eventId,
+                        BuildDeviceCondition(heartbeat, conditionName, false), recovered: true, ct: cancellationToken);
+                    if (alarm is not null)
+                        await _hubContext.Clients.Group(_stationId).SendAsync("OnAlarmRaised", ToAlarmDto(alarm), cancellationToken);
                 }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to handle device heartbeat: {RoutingKey}", routingKey);
+            throw;
         }
     }
 
-    private async Task HandlePrinterHeartbeatAsync(string payloadJson, CancellationToken ct)
+    private static string MapHeartbeatCondition(DeviceStatusHeartbeat heartbeat)
     {
-        var evt = JsonSerializer.Deserialize<PrinterHeartbeatEvent>(payloadJson, JsonSerializerOptions);
-        if (evt is null) return;
-        if (IsRemovedSimulatorPrinter(evt.PrinterCode, evt.Details))
+        if (heartbeat.LifecycleState.Equals("Paper Out", StringComparison.OrdinalIgnoreCase)) return "PRINTER_PAPER_OUT";
+        if (heartbeat.LifecycleState.Equals("Ribbon Out", StringComparison.OrdinalIgnoreCase)) return "PRINTER_RIBBON_OUT";
+        if (heartbeat.LifecycleState.Equals("Head Open", StringComparison.OrdinalIgnoreCase)) return "PRINTER_HEAD_OPEN";
+        return heartbeat.DeviceType.ToUpperInvariant() switch
         {
-            _logger.LogWarning("Ignoring removed simulator printer heartbeat. PrinterCode={PrinterCode}", evt.PrinterCode);
-            return;
-        }
-        var heartbeat = new DeviceStatusHeartbeat(
-            evt.PrinterCode,
-            "PRINTER",
-            !string.Equals(evt.Status, "OFFLINE", StringComparison.OrdinalIgnoreCase),
-            evt.Status,
-            evt.Timestamp,
-            ConnectionDetails: evt.Details?.ToString());
-        await HandleDeviceHeartbeatAsync(JobEventRoutingKeys.PrinterHeartbeat,
-            JsonSerializer.Serialize(heartbeat), ct);
-        await _hubContext.Clients.Group(_stationId).SendAsync("OnPrinterHeartbeat", evt, ct);
-    }
-
-    private Task HandlePrinterRuntimeEventAsync(string routingKey, string payloadJson, CancellationToken ct) =>
-        routingKey switch
-        {
-            JobEventRoutingKeys.PrinterHeartbeat => HandlePrinterHeartbeatAsync(payloadJson, ct),
-            JobEventRoutingKeys.PrinterStatusChanged => HandlePrinterStatusChangedAsync(payloadJson, ct),
-            JobEventRoutingKeys.PrinterError => HandlePrinterErrorAsync(payloadJson, ct),
-            _ => Task.CompletedTask
+            "PRINTER" => "PRINTER_OFFLINE", "LASER" => "LASER_OFFLINE", "PLC" => "PLC_OFFLINE", _ => "DEVICE_OFFLINE"
         };
+    }
 
-    private async Task HandlePrinterStatusChangedAsync(string payloadJson, CancellationToken ct)
+    private AlarmCondition BuildDeviceCondition(DeviceStatusHeartbeat heartbeat, string condition, bool blocked) =>
+        new(condition, _stationId, $"{heartbeat.DeviceType.ToLowerInvariant()}-adapter", heartbeat.DeviceType,
+            heartbeat.DeviceId, blocked, DeviceId: heartbeat.DeviceId,
+            TechnicalMessage: $"LifecycleState={heartbeat.LifecycleState}; IsOnline={heartbeat.IsOnline}");
+
+    private static IEnumerable<string> DeviceRecoveryConditions(string deviceType)
     {
-        var evt = JsonSerializer.Deserialize<PrinterStatusChangedEvent>(payloadJson, JsonSerializerOptions);
-        if (evt is null) return;
-        if (IsRemovedSimulatorPrinter(evt.PrinterCode, evt.Details))
+        yield return deviceType.ToUpperInvariant() switch
         {
-            _logger.LogWarning("Ignoring removed simulator printer status event. PrinterCode={PrinterCode}", evt.PrinterCode);
-            return;
+            "PRINTER" => "PRINTER_OFFLINE", "LASER" => "LASER_OFFLINE", "PLC" => "PLC_OFFLINE", _ => "DEVICE_OFFLINE"
+        };
+        if (deviceType.Equals("PRINTER", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return "PRINTER_PAPER_OUT";
+            yield return "PRINTER_RIBBON_OUT";
+            yield return "PRINTER_HEAD_OPEN";
         }
-        await _hubContext.Clients.Group(_stationId).SendAsync("OnPrinterStatusChanged", evt, ct);
-        var heartbeat = new DeviceStatusHeartbeat(
-            evt.PrinterCode,
-            "PRINTER",
-            !string.Equals(evt.Status, "OFFLINE", StringComparison.OrdinalIgnoreCase),
-            evt.Status,
-            evt.Timestamp);
-        await HandleDeviceHeartbeatAsync(JobEventRoutingKeys.PrinterStatusChanged,
-            JsonSerializer.Serialize(heartbeat), ct);
     }
 
-    private static bool IsRemovedSimulatorPrinter(string? printerCode, object? details)
-    {
-        if (!string.IsNullOrWhiteSpace(printerCode) && RemovedSimulatorPrinters.Contains(printerCode))
-            return true;
-
-        return details?.ToString()?.Contains("simulation", StringComparison.OrdinalIgnoreCase) == true;
-    }
-
-    private async Task HandlePrinterErrorAsync(string payloadJson, CancellationToken ct)
-    {
-        var evt = JsonSerializer.Deserialize<PrinterErrorEvent>(payloadJson, JsonSerializerOptions);
-        if (evt is not null)
-            await _hubContext.Clients.Group(_stationId).SendAsync("OnPrinterError", evt, ct);
-    }
+    private static AlarmDto ToAlarmDto(Alarm alarm) => new(
+        alarm.Id, alarm.AlarmType, alarm.AlarmGroupKey, alarm.Severity, alarm.Source, alarm.Message,
+        alarm.DeviceId, alarm.DeviceName, alarm.ProductionOrderId, alarm.IsAcknowledged, alarm.CurrentState,
+        alarm.AcknowledgedBy, alarm.AcknowledgedAt, alarm.FirstOccurredAt, alarm.LastOccurredAt,
+        alarm.RepeatCount, alarm.ResolvedAt, alarm.CreatedAt);
 
 }

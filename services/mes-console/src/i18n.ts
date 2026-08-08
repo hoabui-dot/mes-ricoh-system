@@ -2,6 +2,7 @@ import { createI18nConfig } from '@mom-platform/i18n-ui-shared';
 
 export const mesConsoleI18n = createI18nConfig('mes-console', {
   vi: {
+    'analytics.title': 'Phân tích sản xuất', 'analytics.subtitle': 'Theo dõi Work Order, sản lượng và rủi ro nguồn lực theo khoảng thời gian giới hạn.',
     'woDetail.operationFeasibility': 'Khả thi theo công đoạn', 'woDetail.feasibleCandidates': '{{count}} / {{total}} candidate khả thi', 'woDetail.completeLineResult': 'Kết quả toàn dây chuyền',
     'common.add': 'Thêm', 'resourceFoundation.releaseLine': 'Phát hành dây chuyền', 'resourceFoundation.releaseLineHelp': 'Phát hành dây chuyền sau khi cấu hình Work Center và phạm vi nguồn lực thực thi đã sẵn sàng.',
     'common.menu': 'Mở menu',
@@ -1850,6 +1851,36 @@ for (const [locale, resources] of Object.entries({
   en: { 'resourceFoundation.equipment': 'Equipment', 'resourceFoundation.selectEquipment': 'Search equipment by name or code', 'resourceFoundation.machineSerialSelectionHelp': 'Select ready, unassigned physical machines. Each serial can belong to only one Workstation at a time.', 'resourceFoundation.selectedUnits': 'serial(s) selected', 'resourceFoundation.selectEquipmentFirst': 'Select equipment first', 'resourceFoundation.noAvailableMachineUnits': 'No available unassigned physical machine units.', 'resourceFoundation.machineSerialSelectionRequired': 'Select the required physical serials for every equipment row.' },
   ja: { 'resourceFoundation.equipment': '設備', 'resourceFoundation.selectEquipment': '設備名またはコードで検索', 'resourceFoundation.machineSerialSelectionHelp': '使用可能で未割当の物理設備を選択します。各シリアルは同時に1つのWorkstationだけに所属できます。', 'resourceFoundation.selectedUnits': 'シリアル選択済み', 'resourceFoundation.selectEquipmentFirst': '設備を先に選択', 'resourceFoundation.noAvailableMachineUnits': '使用可能な未割当物理設備はありません。', 'resourceFoundation.machineSerialSelectionRequired': '各設備行に必要な物理シリアルを選択してください。' },
   ko: { 'resourceFoundation.equipment': '설비', 'resourceFoundation.selectEquipment': '설비명 또는 코드로 검색', 'resourceFoundation.machineSerialSelectionHelp': '사용 가능하고 미할당된 물리 설비를 선택합니다. 각 시리얼은 동시에 하나의 Workstation에만 속할 수 있습니다.', 'resourceFoundation.selectedUnits': '개 시리얼 선택', 'resourceFoundation.selectEquipmentFirst': '설비를 먼저 선택하세요', 'resourceFoundation.noAvailableMachineUnits': '사용 가능한 미할당 물리 설비가 없습니다.', 'resourceFoundation.machineSerialSelectionRequired': '각 설비 행에 필요한 물리 시리얼을 선택하세요.' },
+})) mesConsoleI18n.addResourceBundle(locale, 'translation', resources, true, true);
+
+for (const [locale, resources] of Object.entries({
+  vi: {
+    'analytics.tabs.overview': 'Tổng quan', 'analytics.tabs.production': 'Sản xuất & Work Order', 'analytics.tabs.lines': 'Line & Nguồn lực', 'analytics.tabs.execution': 'Thực thi & Chất lượng', 'analytics.tabs.materials': 'Vật tư & Truy xuất', 'analytics.tabs.print': 'In & Hệ thống',
+    'analytics.filters.from': 'Từ ngày', 'analytics.filters.to': 'Đến ngày', 'analytics.filters.site': 'Nhà máy', 'analytics.filters.line': 'Dây chuyền', 'analytics.filters.status': 'Trạng thái WO', 'analytics.filters.allStatuses': 'Tất cả trạng thái', 'analytics.filters.more': 'Bộ lọc khác', 'analytics.filters.search': 'Tìm WO / Item', 'analytics.filters.reset': 'Đặt lại', 'analytics.refresh': 'Làm mới', 'analytics.nav': 'Phân hệ analytics',
+    'analytics.empty': 'Chưa có dữ liệu trong khoảng thời gian đã chọn.', 'analytics.emptyHint': 'Thử đổi khoảng ngày hoặc xóa bộ lọc.', 'analytics.error': 'Không tải được dữ liệu phân tích.', 'analytics.retry': 'Thử lại', 'analytics.report': 'Báo cáo điều tra chi tiết', 'analytics.scope': 'Phạm vi đang xem', 'analytics.metricNote': 'Metric proxy được ghi rõ khi backend chưa có contract chính thức.', 'analytics.loading': 'Đang tải dữ liệu',
+  },
+  en: {
+    'analytics.tabs.overview': 'Overview', 'analytics.tabs.production': 'Production & Work Orders', 'analytics.tabs.lines': 'Lines & Resources', 'analytics.tabs.execution': 'Execution & Quality', 'analytics.tabs.materials': 'Materials & Traceability', 'analytics.tabs.print': 'Print & System',
+    'analytics.filters.from': 'From date', 'analytics.filters.to': 'To date', 'analytics.filters.site': 'Site', 'analytics.filters.line': 'Production line', 'analytics.filters.status': 'WO status', 'analytics.filters.allStatuses': 'All statuses', 'analytics.filters.more': 'More filters', 'analytics.filters.search': 'Search WO / Item', 'analytics.filters.reset': 'Reset', 'analytics.refresh': 'Refresh', 'analytics.nav': 'Analytics workspace',
+    'analytics.empty': 'No data was found for the selected range.', 'analytics.emptyHint': 'Try changing the date range or clearing filters.', 'analytics.error': 'Analytics data could not be loaded.', 'analytics.retry': 'Retry', 'analytics.report': 'Investigation report', 'analytics.scope': 'Current scope', 'analytics.metricNote': 'Proxy metrics are labelled when an owner contract is not available.', 'analytics.loading': 'Loading data',
+  },
+  ja: {
+    'analytics.tabs.overview': '概要', 'analytics.tabs.production': '生産と作業指図', 'analytics.tabs.lines': 'ラインとリソース', 'analytics.tabs.execution': '実行と品質', 'analytics.tabs.materials': '資材とトレーサビリティ', 'analytics.tabs.print': '印刷とシステム',
+    'analytics.filters.from': '開始日', 'analytics.filters.to': '終了日', 'analytics.filters.site': '工場', 'analytics.filters.line': '生産ライン', 'analytics.filters.status': 'WOステータス', 'analytics.filters.allStatuses': 'すべてのステータス', 'analytics.filters.more': 'その他のフィルター', 'analytics.filters.search': 'WO / Itemを検索', 'analytics.filters.reset': 'リセット', 'analytics.refresh': '更新', 'analytics.nav': '分析ワークスペース',
+    'analytics.empty': '選択した期間にデータがありません。', 'analytics.emptyHint': '期間を変更するか、フィルターを解除してください。', 'analytics.error': '分析データを読み込めません。', 'analytics.retry': '再試行', 'analytics.report': '調査レポート', 'analytics.scope': '現在の範囲', 'analytics.metricNote': '所有者契約がない指標はProxyとして表示します。', 'analytics.loading': 'データを読み込み中',
+  },
+  ko: {
+    'analytics.tabs.overview': '개요', 'analytics.tabs.production': '생산 및 작업지시', 'analytics.tabs.lines': '라인 및 리소스', 'analytics.tabs.execution': '실행 및 품질', 'analytics.tabs.materials': '자재 및 추적성', 'analytics.tabs.print': '인쇄 및 시스템',
+    'analytics.filters.from': '시작일', 'analytics.filters.to': '종료일', 'analytics.filters.site': '사이트', 'analytics.filters.line': '생산 라인', 'analytics.filters.status': 'WO 상태', 'analytics.filters.allStatuses': '전체 상태', 'analytics.filters.more': '추가 필터', 'analytics.filters.search': 'WO / Item 검색', 'analytics.filters.reset': '초기화', 'analytics.refresh': '새로 고침', 'analytics.nav': '분석 작업공간',
+    'analytics.empty': '선택한 기간에 데이터가 없습니다.', 'analytics.emptyHint': '기간을 변경하거나 필터를 지워보세요.', 'analytics.error': '분석 데이터를 불러오지 못했습니다.', 'analytics.retry': '다시 시도', 'analytics.report': '조사 보고서', 'analytics.scope': '현재 범위', 'analytics.metricNote': '소유자 계약이 없으면 Proxy 지표로 표시합니다.', 'analytics.loading': '데이터 로드 중',
+  },
+})) mesConsoleI18n.addResourceBundle(locale, 'translation', resources, true, true);
+
+for (const [locale, resources] of Object.entries({
+  vi: { 'analytics.title': 'Phân tích sản xuất', 'analytics.subtitle': 'Theo dõi Work Order, sản lượng và rủi ro nguồn lực trong khoảng thời gian giới hạn.', 'analytics.metric.fallbackRate': 'Tỷ lệ dùng line phụ', 'analytics.metric.resourceHoldRate': 'Tỷ lệ giữ do nguồn lực', 'analytics.metric.scrapRate': 'Tỷ lệ sản lượng lỗi', 'analytics.metric.plannedQuantity': 'Sản lượng kế hoạch', 'analytics.metric.goodQuantity': 'Sản lượng đạt', 'analytics.metric.lastRefreshed': 'Cập nhật lúc' },
+  en: { 'analytics.title': 'Production analytics', 'analytics.subtitle': 'Monitor Work Orders, output, and resource risk within a bounded time range.', 'analytics.metric.fallbackRate': 'Fallback rate', 'analytics.metric.resourceHoldRate': 'Resource hold rate', 'analytics.metric.scrapRate': 'Scrap rate', 'analytics.metric.plannedQuantity': 'Planned quantity', 'analytics.metric.goodQuantity': 'Good quantity', 'analytics.metric.lastRefreshed': 'Last refreshed' },
+  ja: { 'analytics.title': '生産分析', 'analytics.subtitle': '期間を限定して Work Order、生産量、資源リスクを確認します。', 'analytics.metric.fallbackRate': 'Backup 使用率', 'analytics.metric.resourceHoldRate': 'Resource Hold 率', 'analytics.metric.scrapRate': '不良率', 'analytics.metric.plannedQuantity': '計画数量', 'analytics.metric.goodQuantity': '良品数量', 'analytics.metric.lastRefreshed': '最終更新' },
+  ko: { 'analytics.title': '생산 분석', 'analytics.subtitle': '제한된 기간에서 Work Order, 생산량 및 자원 위험을 확인합니다.', 'analytics.metric.fallbackRate': 'Backup 사용률', 'analytics.metric.resourceHoldRate': 'Resource Hold 비율', 'analytics.metric.scrapRate': '불량률', 'analytics.metric.plannedQuantity': '계획 수량', 'analytics.metric.goodQuantity': '양품 수량', 'analytics.metric.lastRefreshed': '마지막 갱신' },
 })) mesConsoleI18n.addResourceBundle(locale, 'translation', resources, true, true);
 
 for (const [locale, resources] of Object.entries({

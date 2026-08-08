@@ -1,0 +1,66 @@
+{
+  "package": "MES Analytics Dashboard Prompts",
+  "version": "1.0",
+  "files": [
+    {
+      "path": "AI_document/MES-Analytics/GLOBAL_RULES.md",
+      "lines": 614,
+      "bytes": 10064,
+      "sha256": "b08ece149e9ab5532c5ce50b91c1477021ab222e7ac3d7a2455abe9d4dc75b1e"
+    },
+    {
+      "path": "AI_document/MES-Analytics/Phase-00/PROMPT_PHASE_00.md",
+      "lines": 201,
+      "bytes": 3787,
+      "sha256": "b46cdce22d37d971e4253909ce3231b24b71ac2bf1e5ceff5bcd846705a07f50"
+    },
+    {
+      "path": "AI_document/MES-Analytics/Phase-01/PROMPT_PHASE_01.md",
+      "lines": 168,
+      "bytes": 3164,
+      "sha256": "648ffed3fa9de04d234edac5bb526fddfb9fc68ca7a7ccff972c9a64d8d94cfa"
+    },
+    {
+      "path": "AI_document/MES-Analytics/Phase-02/PROMPT_PHASE_02.md",
+      "lines": 130,
+      "bytes": 2143,
+      "sha256": "96eae6fd28d960a67f9715e31a48adfbb3de0a636a276e8d075b0f986c4d69a6"
+    },
+    {
+      "path": "AI_document/MES-Analytics/Phase-03/PROMPT_PHASE_03.md",
+      "lines": 183,
+      "bytes": 2853,
+      "sha256": "c5e10eb50631dd6e8c44bfe82e3beef72825950dc4baca2db2a10567a777142b"
+    },
+    {
+      "path": "AI_document/MES-Analytics/Phase-04/PROMPT_PHASE_04.md",
+      "lines": 207,
+      "bytes": 3095,
+      "sha256": "8540827e2da62cec1ca5bcde51206c063e9a6f207643234243a20094077c3176"
+    },
+    {
+      "path": "AI_document/MES-Analytics/Phase-05/PROMPT_PHASE_05.md",
+      "lines": 158,
+      "bytes": 2376,
+      "sha256": "4410e6bf8d18eb43b56708ae1fc64ae85d5d7474fb2080b1eaaaf7bca4be63d1"
+    },
+    {
+      "path": "AI_document/MES-Analytics/Phase-06/PROMPT_PHASE_06.md",
+      "lines": 217,
+      "bytes": 3759,
+      "sha256": "c477321c249ca185fa9473a8633ac23575169a564c77a358d0c196dc8668d2c0"
+    },
+    {
+      "path": "AI_document/MES-Analytics/REPORT_TEMPLATE.md",
+      "lines": 28,
+      "bytes": 569,
+      "sha256": "f765167d8bf27069950ce2f0b82fd085ed4fffd555da8f30a7ca081cd4e738ee"
+    },
+    {
+      "path": "README.md",
+      "lines": 38,
+      "bytes": 1141,
+      "sha256": "93f7aa85079648e5707403f475f54f500b83a29d0b8664bb00b0696f32e316bc"
+    }
+  ]
+}

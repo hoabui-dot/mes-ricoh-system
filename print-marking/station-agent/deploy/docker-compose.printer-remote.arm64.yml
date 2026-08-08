@@ -1,0 +1,12 @@
+services:
+  # This override is for the separate Printer Adapter host only.
+  # It prevents Docker from selecting an amd64 image on an ARM64 server.
+  printer-adapter:
+    platform: linux/arm64
+    image: ${DOCKER_REGISTRY:-vanhoadotbui2628}/printer-adapter:${PRINTER_ADAPTER_IMAGE_TAG:-2026.08.06.5}
+
+  # Label/printer UI is currently delivered by kiosk-ui. Keep an explicit
+  # platform here for a future remote UI image release.
+  kiosk-ui:
+    platform: linux/arm64
+    image: ${DOCKER_REGISTRY:-vanhoadotbui2628}/kiosk-ui:${PRINTER_ADAPTER_UI_IMAGE_TAG:-latest}

@@ -1,7 +1,7 @@
 {
   "success": true,
   "action": "verify",
-  "generated_at": "2026-08-08T08:22:33.750Z",
+  "generated_at": "2026-08-08T08:55:08.746Z",
   "checks": [
     {
       "name": "exactly two deterministic preparation workflows",
@@ -32,12 +32,9 @@
       ]
     },
     {
-      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 excludes Print Station from manual cards",
-      "passed": true
-    },
-    {
-      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has one read-only Print Station operation",
-      "passed": true
+      "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has no Print Station dependency",
+      "passed": true,
+      "actual": []
     },
     {
       "name": "KIOSK-DEMO-PHASE07-FAILURE-V1 has Work Center and Workstation context",
@@ -71,12 +68,9 @@
       ]
     },
     {
-      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 excludes Print Station from manual cards",
-      "passed": true
-    },
-    {
-      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has one read-only Print Station operation",
-      "passed": true
+      "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has no Print Station dependency",
+      "passed": true,
+      "actual": []
     },
     {
       "name": "KIOSK-DEMO-PHASE07-SUCCESS-V1 has Work Center and Workstation context",
@@ -106,15 +100,15 @@
     {
       "name": "every prepared operation has one committed allocation",
       "passed": true,
-      "allocations": 8,
-      "operations": 8
+      "allocations": 6,
+      "operations": 6
     },
     {
       "name": "every prepared operation has a complete committed resource reservation set",
       "passed": true,
-      "reservation_sets": 8,
-      "reservations": 24,
-      "operations": 8
+      "reservation_sets": 6,
+      "reservations": 18,
+      "operations": 6
     },
     {
       "name": "prepared scenarios have no duplicate resource reservation",
@@ -132,28 +126,28 @@
     "work_orders": [
       {
         "idempotency_key": "KIOSK-DEMO-PHASE07-FAILURE-V1",
-        "workflow_id": "3d33cb11-f693-4df3-95e9-25f901f3ae10",
-        "work_order_id": "9900dc83-bb29-47bb-93cd-b4f24ae9d963",
-        "wo_code": "WO-20260808-0022",
+        "workflow_id": "a23b2dc4-ae86-49fd-802d-e1e6d1ef64ff",
+        "work_order_id": "db7457c1-f5a9-424b-8c82-a9b639ae5453",
+        "wo_code": "WO-20260808-0026",
         "status": "InProgress",
         "dispatch_mode": "DEMO_SHARED_KIOSK"
       },
       {
         "idempotency_key": "KIOSK-DEMO-PHASE07-SUCCESS-V1",
-        "workflow_id": "78eac7e9-c107-4309-9833-291f2b0e32c8",
-        "work_order_id": "2759c8c6-b68c-4716-89cf-f9a8933d8b14",
-        "wo_code": "WO-20260808-0021",
+        "workflow_id": "142ffaf1-3306-4082-94fa-85cde64d0681",
+        "work_order_id": "5ae5a3c8-698b-4dea-a760-c251c4aa54fd",
+        "wo_code": "WO-20260808-0025",
         "status": "InProgress",
         "dispatch_mode": "DEMO_SHARED_KIOSK"
       }
     ],
     "runtime": {
       "sessions": 0,
-      "allocations": 8,
-      "reservations": 24,
-      "complete_reservation_sets": 8,
+      "allocations": 6,
+      "reservations": 18,
+      "complete_reservation_sets": 6,
       "duplicate_reservations": 0,
-      "operations": 8
+      "operations": 6
     },
     "queue": {
       "messages": 1,
@@ -161,5 +155,5 @@
     },
     "verified": 2
   },
-  "completed_at": "2026-08-08T08:22:34.340Z"
+  "completed_at": "2026-08-08T08:55:09.413Z"
 }

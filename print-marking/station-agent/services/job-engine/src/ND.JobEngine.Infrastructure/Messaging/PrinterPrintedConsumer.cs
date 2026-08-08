@@ -9,7 +9,7 @@ using ND.UnifiedContracts.Events;
 namespace ND.JobEngine.Infrastructure.Messaging;
 
 /// <summary>
-/// Background service that consumes <c>PrinterPrintedEvent</c> events from Kafka
+/// Background service that consumes <c>PrinterPrintedEvent</c> events from RabbitMQ
 /// and dispatches a command to complete/fail the corresponding job step in the Job Engine.
 ///
 /// Subscription:
@@ -20,7 +20,7 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 public sealed class PrinterPrintedConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventConsumer _consumer;
+    private readonly IRabbitMqConsumer _consumer;
     private readonly ILogger<PrinterPrintedConsumer> _logger;
 
     private const string Exchange = "station.events";
@@ -29,7 +29,7 @@ public sealed class PrinterPrintedConsumer : BackgroundService
 
     public PrinterPrintedConsumer(
         IServiceScopeFactory scopeFactory,
-        IEventConsumer consumer,
+        IRabbitMqConsumer consumer,
         ILogger<PrinterPrintedConsumer> logger)
     {
         _scopeFactory = scopeFactory;
@@ -68,13 +68,13 @@ public sealed class PrinterPrintedConsumer : BackgroundService
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to deserialise PrinterPrintedEvent payload from Kafka message");
+            _logger.LogError(ex, "Failed to deserialise PrinterPrintedEvent payload from RabbitMQ message");
             throw; // Nack — invalid JSON should not be requeued
         }
 
         if (printedEvent is null)
         {
-            _logger.LogWarning("Received null PrinterPrintedEvent from Kafka — skipping");
+            _logger.LogWarning("Received null PrinterPrintedEvent from RabbitMQ — skipping");
             return;
         }
 

@@ -340,7 +340,8 @@ public sealed class AlarmRepository : IAlarmRepository
     /// </summary>
     public async Task<Alarm?> GetActiveByGroupKeyAsync(string groupKey, CancellationToken ct = default)
         => await _context.Alarms
-            .Where(a => a.AlarmGroupKey == groupKey && a.CurrentState == "Active")
+            .Where(a => a.DedupeKey == groupKey &&
+                (a.State == "RAISED" || a.State == "ACKNOWLEDGED" || a.State == "IN_PROGRESS" || a.State == "SUPPRESSED"))
             .OrderByDescending(a => a.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
@@ -363,17 +364,23 @@ public sealed class AlarmRepository : IAlarmRepository
 
         // ── Category filter ─────────────────────────────────────────────────────
         if (!string.IsNullOrWhiteSpace(alarmType))
-            query = query.Where(a => a.AlarmType == alarmType);
+            query = alarmType == "DeviceConnection"
+                ? query.Where(a => a.Category == "DEVICE")
+                : alarmType == "ProductionError"
+                    ? query.Where(a => a.Category != "DEVICE")
+                    : query.Where(a => a.Category == alarmType);
 
         // ── Status filter ──────────────────────────────────────────────────────
         if (!string.IsNullOrWhiteSpace(status))
         {
             if (status.Equals("Active", StringComparison.OrdinalIgnoreCase))
-                query = query.Where(a => a.CurrentState == "Active");
+                query = query.Where(a => a.State == "RAISED");
             else if (status.Equals("Acknowledged", StringComparison.OrdinalIgnoreCase))
-                query = query.Where(a => a.CurrentState == "Acknowledged");
+                query = query.Where(a => a.State == "ACKNOWLEDGED" || a.State == "IN_PROGRESS");
             else if (status.Equals("Resolved", StringComparison.OrdinalIgnoreCase))
-                query = query.Where(a => a.CurrentState == "Resolved");
+                query = query.Where(a => a.State == "CLEARED" || a.State == "CLOSED");
+            else
+                query = query.Where(a => a.State == status);
         }
 
         // ── Severity filter ────────────────────────────────────────────────────
@@ -409,13 +416,14 @@ public sealed class AlarmRepository : IAlarmRepository
         {
             var s = search.ToLower();
             query = query.Where(a =>
-                a.Message.ToLower().Contains(s) ||
+                (a.TechnicalMessage != null && a.TechnicalMessage.ToLower().Contains(s)) ||
+                a.AlarmCode.ToLower().Contains(s) ||
                 (a.DeviceId != null && a.DeviceId.ToLower().Contains(s)) ||
-                (a.DeviceName != null && a.DeviceName.ToLower().Contains(s)) ||
-                (a.ProductionOrderId != null && a.ProductionOrderId.ToLower().Contains(s)));
+                a.SourceType.ToLower().Contains(s) ||
+                (a.JobId != null && a.JobId.ToLower().Contains(s)));
         }
 
-        query = query.OrderByDescending(a => a.LastOccurredAt);
+        query = query.OrderByDescending(a => a.LastSeenAt);
 
         var totalCount = await query.CountAsync(ct);
         var items = await query
@@ -428,7 +436,94 @@ public sealed class AlarmRepository : IAlarmRepository
 
     /// <summary>Count of Active (unacknowledged) alarms — for dashboard banner.</summary>
     public async Task<int> GetActiveCountAsync(CancellationToken ct = default)
-        => await _context.Alarms.CountAsync(a => a.CurrentState == "Active", ct);
+        => await _context.Alarms.CountAsync(a => a.State == "RAISED", ct);
+
+    public async Task<(IReadOnlyList<Alarm> Items, int TotalCount)> GetAdvancedPagedAsync(
+        int page, int pageSize, string? stationId = null, string? state = null,
+        string? severity = null, string? category = null, string? deviceId = null,
+        string? jobId = null, string? workOrderNo = null, string? assignedTo = null,
+        bool productionImpactOnly = false, string? from = null, string? to = null,
+        string? sort = null, CancellationToken ct = default)
+    {
+        var query = _context.Alarms.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(stationId)) query = query.Where(x => x.StationId == stationId);
+        if (state == "ACTIVE") query = query.Where(x => x.State == "RAISED" || x.State == "ACKNOWLEDGED" || x.State == "IN_PROGRESS");
+        else if (state == "HISTORY") query = query.Where(x => x.State == "CLEARED" || x.State == "CLOSED");
+        else if (!string.IsNullOrWhiteSpace(state)) query = query.Where(x => x.State == state);
+        if (!string.IsNullOrWhiteSpace(severity)) query = query.Where(x => x.Severity == severity);
+        if (!string.IsNullOrWhiteSpace(category)) query = query.Where(x => x.Category == category);
+        if (!string.IsNullOrWhiteSpace(deviceId)) query = query.Where(x => x.DeviceId == deviceId);
+        if (!string.IsNullOrWhiteSpace(jobId)) query = query.Where(x => x.JobId == jobId);
+        if (!string.IsNullOrWhiteSpace(workOrderNo)) query = query.Where(x => x.WorkOrderNo == workOrderNo);
+        if (!string.IsNullOrWhiteSpace(assignedTo)) query = query.Where(x => x.AssignedTo == assignedTo);
+        if (productionImpactOnly) query = query.Where(x => x.ProductionImpact != null && x.ProductionImpact != "NONE");
+        if (!string.IsNullOrWhiteSpace(from)) query = query.Where(x => string.Compare(x.FirstSeenAt, from) >= 0);
+        if (!string.IsNullOrWhiteSpace(to)) query = query.Where(x => string.Compare(x.FirstSeenAt, to) <= 0);
+
+        var total = await query.CountAsync(ct);
+        query = sort?.ToLowerInvariant() switch
+        {
+            "newest" => query.OrderByDescending(x => x.LastSeenAt).ThenBy(x => x.Id),
+            "oldest" => query.OrderBy(x => x.FirstSeenAt).ThenBy(x => x.Id),
+            _ => query
+                .OrderBy(x => x.State == "RAISED" ? 0 : x.State == "ACKNOWLEDGED" ? 1 : x.State == "IN_PROGRESS" ? 2 : 3)
+                .ThenBy(x => x.Severity == "CRITICAL" ? 0 : x.Severity == "HIGH" ? 1 : x.Severity == "MEDIUM" ? 2 : x.Severity == "LOW" ? 3 : 4)
+                .ThenBy(x => x.FirstSeenAt).ThenBy(x => x.Id)
+        };
+        return (await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct), total);
+    }
+
+    public async Task<AlarmSummary> GetSummaryAsync(string? stationId = null, CancellationToken ct = default)
+    {
+        var query = _context.Alarms.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(stationId)) query = query.Where(x => x.StationId == stationId);
+        var today = DateTime.UtcNow.Date.ToString("yyyy-MM-dd");
+        return new AlarmSummary(
+            await query.CountAsync(x => x.State == "RAISED" || x.State == "ACKNOWLEDGED" || x.State == "IN_PROGRESS" || x.State == "SUPPRESSED", ct),
+            await query.CountAsync(x => x.State == "RAISED", ct),
+            await query.CountAsync(x => x.Severity == "CRITICAL" && x.State != "CLOSED" && x.State != "CLEARED", ct),
+            await query.CountAsync(x => x.State == "IN_PROGRESS", ct),
+            await query.CountAsync(x => x.State == "CLEARED" && x.ResolvedAt != null && x.ResolvedAt.StartsWith(today), ct));
+    }
+}
+
+public sealed class AlarmTimelineRepository : IAlarmTimelineRepository
+{
+    private readonly ProjectionDbContext _context;
+    public AlarmTimelineRepository(ProjectionDbContext context) => _context = context;
+    public async Task<AlarmTimelineEvent?> GetByIdAsync(string id, CancellationToken ct = default) => await _context.AlarmTimelineEvents.FindAsync([id], ct);
+    public async Task<IReadOnlyList<AlarmTimelineEvent>> GetAllAsync(CancellationToken ct = default) => await _context.AlarmTimelineEvents.AsNoTracking().ToListAsync(ct);
+    public async Task<IReadOnlyList<AlarmTimelineEvent>> GetByAlarmIdAsync(string alarmId, CancellationToken ct = default) =>
+        await _context.AlarmTimelineEvents.AsNoTracking().Where(x => x.AlarmId == alarmId).OrderBy(x => x.OccurredAt).ToListAsync(ct);
+    public async Task AddAsync(AlarmTimelineEvent entity, CancellationToken ct = default) => await _context.AlarmTimelineEvents.AddAsync(entity, ct);
+    public Task UpdateAsync(AlarmTimelineEvent entity, CancellationToken ct = default) => throw new NotSupportedException("Alarm timeline is immutable.");
+    public Task DeleteAsync(string id, CancellationToken ct = default) => throw new NotSupportedException("Alarm timeline is immutable.");
+}
+
+public sealed class AlarmOutboxRepository : IAlarmOutboxRepository
+{
+    private readonly ProjectionDbContext _context;
+    public AlarmOutboxRepository(ProjectionDbContext context) => _context = context;
+    public async Task<AlarmOutboxEvent?> GetByIdAsync(string id, CancellationToken ct = default) => await _context.AlarmOutboxEvents.FindAsync([id], ct);
+    public async Task<IReadOnlyList<AlarmOutboxEvent>> GetAllAsync(CancellationToken ct = default) => await _context.AlarmOutboxEvents.ToListAsync(ct);
+    public async Task<IReadOnlyList<AlarmOutboxEvent>> GetPendingAsync(int batchSize, string now, CancellationToken ct = default) =>
+        await _context.AlarmOutboxEvents.Where(x => x.Status == "PENDING" && (x.NextRetryAt == null || string.Compare(x.NextRetryAt, now) <= 0))
+            .OrderBy(x => x.CreatedAt).Take(batchSize).ToListAsync(ct);
+    public async Task AddAsync(AlarmOutboxEvent entity, CancellationToken ct = default) => await _context.AlarmOutboxEvents.AddAsync(entity, ct);
+    public Task UpdateAsync(AlarmOutboxEvent entity, CancellationToken ct = default) { _context.AlarmOutboxEvents.Update(entity); return Task.CompletedTask; }
+    public async Task DeleteAsync(string id, CancellationToken ct = default) { var item = await GetByIdAsync(id, ct); if (item is not null) _context.AlarmOutboxEvents.Remove(item); }
+}
+
+public sealed class AlarmInboxRepository : IAlarmInboxRepository
+{
+    private readonly ProjectionDbContext _context;
+    public AlarmInboxRepository(ProjectionDbContext context) => _context = context;
+    public async Task<AlarmInboxMessage?> GetByIdAsync(string id, CancellationToken ct = default) => await _context.AlarmInboxMessages.FindAsync([id], ct);
+    public async Task<IReadOnlyList<AlarmInboxMessage>> GetAllAsync(CancellationToken ct = default) => await _context.AlarmInboxMessages.AsNoTracking().ToListAsync(ct);
+    public Task<bool> ExistsAsync(string consumerName, string eventId, CancellationToken ct = default) => _context.AlarmInboxMessages.AnyAsync(x => x.ConsumerName == consumerName && x.EventId == eventId, ct);
+    public async Task AddAsync(AlarmInboxMessage entity, CancellationToken ct = default) => await _context.AlarmInboxMessages.AddAsync(entity, ct);
+    public Task UpdateAsync(AlarmInboxMessage entity, CancellationToken ct = default) => throw new NotSupportedException("Alarm inbox is immutable.");
+    public Task DeleteAsync(string id, CancellationToken ct = default) => throw new NotSupportedException("Alarm inbox is immutable.");
 }
 
 public sealed class ProductionOrderViewRepository : IProductionOrderViewRepository

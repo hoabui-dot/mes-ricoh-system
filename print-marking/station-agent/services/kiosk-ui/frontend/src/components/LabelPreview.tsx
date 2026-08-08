@@ -262,16 +262,14 @@ export function LabelPreview({
     return <div className={errorCls} style={{ width, height: placeholderH }}>Lỗi phân tích Template</div>
   }
 
-  const { cols, gapMm } = resolveLayout(template, parsed)
+  const { cols } = resolveLayout(template, parsed)
   const mmWidth  = parsed.width  || 50
   const mmHeight = parsed.height || 30
   const totalH   = Math.round((width * mmHeight) / mmWidth)
 
-  const gapPx = Math.max(0, (gapMm / mmWidth) * width)
-  const tileWidth = cols > 1 ? (width - gapPx * (cols - 1)) / cols : width
   return (
-    <div className={`relative flex ${className}`} style={{ width, height: totalH, gap: gapPx }}>
-      {Array.from({ length: cols }, (_, index) => <SingleLabelTile key={index} parsed={parsed} data={data} tileWidth={tileWidth} />)}
+    <div className={`relative ${className}`} style={{ width, height: totalH }}>
+      <SingleLabelTile parsed={parsed} data={data} tileWidth={width} />
       
       {/* Column badge */}
       {cols > 1 && (

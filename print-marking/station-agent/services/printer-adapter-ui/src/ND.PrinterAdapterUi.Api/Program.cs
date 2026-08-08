@@ -3,17 +3,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Serilog;
 using ND.Infrastructure.Observability;
-using ND.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 Log.Logger = SerilogConfiguration.Configure(
     new LoggerConfiguration(), builder.Configuration, "printer-adapter-ui").CreateLogger();
 builder.Host.UseSerilog();
-builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
-builder.Services.AddSingleton<IEventConsumer, KafkaConsumer>();
-builder.Services.AddSingleton<IEventPublisher, KafkaPublisher>();
-builder.Services.AddSingleton<PrinterManagementKafkaClient>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<PrinterManagementKafkaClient>());
+builder.Services.AddHttpClient<PrinterManagementKafkaClient>(client =>
+    client.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("MONITOR_HTTP_TIMEOUT_SECONDS", 5)));
 builder.Services.AddSingleton<MonitoringService>();
 builder.Services.AddOpenApi();
 
@@ -101,12 +97,12 @@ sealed class MonitoringService
         var started = Stopwatch.GetTimestamp();
         try
         {
-            var health = await GetAdapterJsonAsync("/api/health", null, ct);
+            var health = await GetAdapterJsonAsync("/health", null, ct);
             var status = health?["status"]?.GetValue<string>() ?? "Unknown";
             return new JsonObject
             {
                 ["status"] = status.Equals("Healthy", StringComparison.OrdinalIgnoreCase) ? "Online" : "Degraded",
-                ["transport"] = "Kafka",
+                ["transport"] = "HTTP",
                 ["responseTimeMs"] = ElapsedMs(started),
                 ["health"] = health,
                 ["lastSuccessfulCheck"] = DateTimeOffset.UtcNow
@@ -115,7 +111,7 @@ sealed class MonitoringService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Printer Adapter monitoring request failed");
-            return new JsonObject { ["status"] = "Offline", ["transport"] = "Kafka", ["latestError"] = SafeError(ex) };
+            return new JsonObject { ["status"] = "Offline", ["transport"] = "HTTP", ["latestError"] = SafeError(ex) };
         }
     }
 
@@ -138,7 +134,7 @@ sealed class MonitoringService
         JsonNode? health = null;
         try
         {
-            health = await GetAdapterJsonAsync("/api/health", null, ct);
+            health = await GetAdapterJsonAsync("/health", null, ct);
         }
         catch (Exception ex)
         {
@@ -163,16 +159,10 @@ sealed class MonitoringService
 
     public async Task<JsonObject> GetKafkaAsync(CancellationToken ct)
     {
-        var adapterHealth = await GetAdapterJsonAsync("/api/health", null, ct);
-        var connected = string.Equals(adapterHealth?["kafka"]?["status"]?.GetValue<string>(), "Connected", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(adapterHealth?["kafka"]?["status"]?.GetValue<string>(), "Healthy", StringComparison.OrdinalIgnoreCase);
         return new JsonObject
         {
-            ["status"] = connected ? "Connected" : "Unavailable",
-            ["bootstrapServers"] = adapterHealth?["kafka"]?["bootstrapServers"]?.DeepClone() ?? _config["KAFKA_BOOTSTRAP_SERVERS"],
-            ["clientId"] = adapterHealth?["kafka"]?["clientId"]?.DeepClone() ?? _config["KAFKA_CLIENT_ID"],
-            ["consumerGroup"] = adapterHealth?["kafka"]?["consumerGroup"]?.DeepClone(),
-            ["transport"] = "Kafka"
+            ["status"] = "NotRequired",
+            ["transport"] = "HTTP"
         };
     }
 

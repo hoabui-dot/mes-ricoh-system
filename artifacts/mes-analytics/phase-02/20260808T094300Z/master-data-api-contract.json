@@ -1,0 +1,8 @@
+{
+  "phase": "02",
+  "service": "mes-master-data-service",
+  "status": "PASS",
+  "endpoint": "GET /api/mes/master-data/analytics/readiness",
+  "filters": ["site_id"],
+  "metrics": ["released_production_versions", "released_production_lines", "blocked_or_incomplete_lines", "active_workstations", "available_machine_units", "expired_resource_assignments", "missing_capabilities", "missing_calendars", "missing_production_standards", "missing_worker_skills"]
+}

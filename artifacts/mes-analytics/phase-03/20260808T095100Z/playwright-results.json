@@ -1,0 +1,7 @@
+{
+  "phase": "03",
+  "status": "PENDING_FULL_AUTH_RUN",
+  "build": "passed",
+  "authenticated_overview": "scheduled_for_phase_06",
+  "reason": "Phase 06 owns the full certification run after all analytics routes are present."
+}

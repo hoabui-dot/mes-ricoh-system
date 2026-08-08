@@ -14,8 +14,6 @@
 # Stage 1 — React frontend (always runs on host, JS has no arch dependency)
 FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-build
 WORKDIR /frontend
-ARG VITE_STATION_ID
-ENV VITE_STATION_ID=${VITE_STATION_ID}
 COPY services/kiosk-ui/frontend/package.json ./
 RUN npm install
 COPY services/kiosk-ui/frontend/ ./
@@ -41,11 +39,12 @@ RUN dotnet publish services/kiosk-ui/src/ND.KioskUi.Api/ND.KioskUi.Api.csproj -c
 # Stage 3: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+USER root
+RUN mkdir -p /data /logs && chown -R 1654:1654 /data /logs /app
+USER app
 COPY --chown=app:app --from=api-build /app/publish .
-COPY services/kiosk-ui/docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && mkdir -p /data /logs
 VOLUME ["/data", "/logs"]
 EXPOSE 5007
 ENV DOTNET_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:5007
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["dotnet", "ND.KioskUi.Api.dll"]

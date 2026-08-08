@@ -10,12 +10,12 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 
 /// <summary>
 /// Background worker that polls <c>job_engine_outbox_events</c> and publishes
-/// each PENDING event to the Kafka topic exchange <c>station.events</c>.
+/// each PENDING event to the RabbitMQ topic exchange <c>station.events</c>.
 /// </summary>
 public sealed class JobEngineOutboxProcessorWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventPublisher _kafkaPublisher;
+    private readonly IRabbitMqPublisher _rabbitMqPublisher;
     private readonly ILogger<JobEngineOutboxProcessorWorker> _logger;
     private readonly int _intervalSeconds;
     private readonly int _batchSize;
@@ -24,12 +24,12 @@ public sealed class JobEngineOutboxProcessorWorker : BackgroundService
 
     public JobEngineOutboxProcessorWorker(
         IServiceScopeFactory scopeFactory,
-        IEventPublisher kafkaPublisher,
+        IRabbitMqPublisher rabbitMqPublisher,
         IConfiguration configuration,
         ILogger<JobEngineOutboxProcessorWorker> logger)
     {
         _scopeFactory = scopeFactory;
-        _kafkaPublisher = kafkaPublisher;
+        _rabbitMqPublisher = rabbitMqPublisher;
         _logger = logger;
 
         _intervalSeconds = int.TryParse(configuration["JobEngine:OutboxIntervalSeconds"], out var valSec) ? valSec : 3;
@@ -39,7 +39,7 @@ public sealed class JobEngineOutboxProcessorWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "Job Engine Outbox processor started. Polling every {Interval}s → Kafka exchange '{Exchange}'",
+            "Job Engine Outbox processor started. Polling every {Interval}s → RabbitMQ exchange '{Exchange}'",
             _intervalSeconds, Exchange);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -78,7 +78,7 @@ public sealed class JobEngineOutboxProcessorWorker : BackgroundService
 
             try
             {
-                await _kafkaPublisher.PublishAsync(
+                await _rabbitMqPublisher.PublishAsync(
                     exchange: Exchange,
                     routingKey: routingKey,
                     messageJson: outboxEvent.PayloadJson,
@@ -96,7 +96,7 @@ public sealed class JobEngineOutboxProcessorWorker : BackgroundService
                 outboxEvent.MarkFailed();
 
                 _logger.LogError(ex,
-                    "Failed to publish Job Engine outbox event to Kafka. " +
+                    "Failed to publish Job Engine outbox event to RabbitMQ. " +
                     "routingKey={RoutingKey} retryCount={RetryCount} nextRetryAt={NextRetryAt}",
                     routingKey, outboxEvent.RetryCount, outboxEvent.NextRetryAt);
             }

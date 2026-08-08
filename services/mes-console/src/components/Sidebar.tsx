@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   AlertTriangle,
+  Activity,
   Award,
   CalendarDays,
   ChevronDown,
@@ -30,6 +31,7 @@ type NavItem = { to: string; labelKey: string; icon: LucideIcon };
 
 const sections: Array<{ id: SectionId; labelKey: string; icon: LucideIcon; items: NavItem[] }> = [
   { id: 'operations', labelKey: 'nav.productionOperations', icon: ClipboardList, items: [
+    { to: '/analytics', labelKey: 'analytics.title', icon: Activity },
     { to: '/work-orders', labelKey: 'nav.workOrders', icon: ClipboardList },
   ] },
   { id: 'product', labelKey: 'nav.productDefinition', icon: Package, items: [

@@ -77,9 +77,9 @@ try
     builder.Services.AddSingleton<SimulatorStateService>();
     builder.Services.AddSingleton<ISimulatorStateService>(sp => sp.GetRequiredService<SimulatorStateService>());
 
-    // ── Kafka (for gateway heartbeat publishing to projection service) ─────
-    builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
-    builder.Services.AddSingleton<IEventPublisher, KafkaPublisher>();
+    // ── RabbitMQ (for gateway heartbeat publishing to projection service) ─────
+    builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+    builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
     // ── Virtual device services ───────────────────────────────────────────────
     builder.Services.AddSingleton<VirtualVisionService>();
@@ -284,7 +284,7 @@ try
 
             if (pcs == 1)
             {
-                var dispatchTarget = body?.DispatchTarget ?? "production-printer";
+                var dispatchTarget = body?.DispatchTarget ?? "simulation";
                 var data = new List<UnifiedTagRequest>
                 {
                     new("operation.type", "PRINT_ONLY"),
@@ -338,7 +338,7 @@ try
 
                         for (int i = 0; i < pcs; i++)
                         {
-                            var dispatchTarget2 = body?.DispatchTarget ?? "production-printer";
+                            var dispatchTarget2 = body?.DispatchTarget ?? "simulation";
                         var data = new List<UnifiedTagRequest>
                             {
                                 new("operation.type", "PRINT_ONLY"),
@@ -393,7 +393,7 @@ try
     {
         try
         {
-            var markDispatchTarget = req.DispatchTarget ?? "production-printer";
+            var markDispatchTarget = req.DispatchTarget ?? "simulation";
             var data = new List<UnifiedTagRequest>
             {
                 new("operation.type", "MARK_ONLY"),
@@ -438,7 +438,7 @@ try
     {
         try
         {
-            var pmDispatchTarget = req.DispatchTarget ?? "production-printer";
+            var pmDispatchTarget = req.DispatchTarget ?? "simulation";
             var data = new List<UnifiedTagRequest>
             {
                 new("operation.type", "PRINT_AND_MARK"),
@@ -1132,7 +1132,7 @@ try
     });
 
     // ── Printer Adapter Service Proxy for Label Templates & Print History ─────
-    var printerAdapterUrl = builder.Configuration["PRINTER_ADAPTER_URL"] ?? "http://100.68.50.41:5003";
+    var printerAdapterUrl = builder.Configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
 
     async Task ProxyToPrinterAdapterAsync(HttpContext context, string targetUrl, HttpClient client)
     {
@@ -1196,6 +1196,32 @@ try
         await ProxyToPrinterAdapterAsync(context, targetUrl, client);
     });
 
+    // ── Simulation Printer Control Proxy ─────────────────────────────────────
+    // Forwards connect/disconnect/mode calls to printer-adapter's VirtualPrinterSimulator
+    app.MapGet("/api/printers/simulation-status", async (HttpContext context, HttpClient client) =>
+    {
+        var targetUrl = $"{printerAdapterUrl}/api/simulation/printers";
+        await ProxyToPrinterAdapterAsync(context, targetUrl, client);
+    });
+
+    app.MapPost("/api/printers/simulation-status/{code}/connect", async (string code, HttpContext context, HttpClient client) =>
+    {
+        var targetUrl = $"{printerAdapterUrl}/api/simulation/printers/{code}/connect";
+        await ProxyToPrinterAdapterAsync(context, targetUrl, client);
+    });
+
+    app.MapPost("/api/printers/simulation-status/{code}/disconnect", async (string code, HttpContext context, HttpClient client) =>
+    {
+        var targetUrl = $"{printerAdapterUrl}/api/simulation/printers/{code}/disconnect";
+        await ProxyToPrinterAdapterAsync(context, targetUrl, client);
+    });
+
+    app.MapPost("/api/printers/simulation-status/{code}/mode", async (string code, HttpContext context, HttpClient client) =>
+    {
+        var targetUrl = $"{printerAdapterUrl}/api/simulation/printers/{code}/mode";
+        await ProxyToPrinterAdapterAsync(context, targetUrl, client);
+    });
+
     app.MapFallbackToFile("index.html");
 
 
@@ -1216,7 +1242,7 @@ return 0;
 public record TriggerJobRequest(
     string? Scenario,
     int? Pcs = null,
-    string? DispatchTarget = "production-printer",
+    string? DispatchTarget = "simulation",
     string? Station = null,
     string? Team = null,
     string? Notes = null

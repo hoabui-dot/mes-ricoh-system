@@ -1,0 +1,13 @@
+{
+  "run_id": "20260808T092758Z",
+  "metrics": [
+    {"code":"OEE","status":"UNSUPPORTED_IN_CURRENT_DEMO_SCOPE","reason":"No authoritative Availability, Performance, and Quality denominator contract in current owner data."},
+    {"code":"ON_TIME_DELIVERY","status":"UNSUPPORTED_IN_CURRENT_DEMO_SCOPE","reason":"No committed promised delivery timestamp and authoritative finish timestamp."},
+    {"code":"MACHINE_AVAILABILITY_PERCENT","status":"UNSUPPORTED_IN_CURRENT_DEMO_SCOPE","reason":"Resource calendars and runtime state exist, but downtime/available-time semantics are not a single authoritative KPI contract."},
+    {"code":"CAPACITY_UTILIZATION","status":"PROXY_ONLY","reason":"Reservations provide numerator; authoritative available capacity denominator needs an approved contract."},
+    {"code":"ACTUAL_CYCLE_TIME_VARIANCE","status":"PROXY_ONLY","reason":"Sessions and standard snapshots exist, but session-to-operation cycle semantics need Phase 01 contract."},
+    {"code":"TRACEABILITY_ANALYTICS","status":"API_GAP","reason":"Traceability has detail endpoints but no bounded aggregate/report endpoint."},
+    {"code":"MASTER_DATA_READINESS_ANALYTICS","status":"API_GAP","reason":"Readiness exists in business flows but no aggregate analytics API."}
+  ],
+  "ui_rule":"Do not render unsupported metrics under authoritative names; show explicit unavailable/proxy state."
+}

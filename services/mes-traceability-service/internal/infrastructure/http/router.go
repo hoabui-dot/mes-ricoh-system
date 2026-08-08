@@ -36,6 +36,9 @@ func NewRouter(pool *pgxpool.Pool) *chi.Mux {
 	genealogyUC := usecase.NewGetGenealogyUseCase(pool)
 
 	r.Route("/api/mes/traceability", func(r chi.Router) {
+		r.Get("/analytics/overview", handleTraceAnalyticsOverview(pool))
+		r.Get("/analytics/labels", handleTraceAnalyticsLabels(pool))
+		r.Get("/analytics/genealogy", handleTraceAnalyticsGenealogy(pool))
 		r.Post("/policies/resolve", func(w http.ResponseWriter, r *http.Request) {
 			var in usecase.ResolvePolicyInput
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {

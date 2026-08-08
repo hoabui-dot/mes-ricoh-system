@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 </Project>

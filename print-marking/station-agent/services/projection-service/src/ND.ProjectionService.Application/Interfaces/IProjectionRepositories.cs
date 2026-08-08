@@ -69,6 +69,31 @@ public interface IAlarmRepository : IRepository<Alarm>
     /// Count of active (unacknowledged, non-resolved) alarms only — for dashboard banner.
     /// </summary>
     Task<int> GetActiveCountAsync(CancellationToken ct = default);
+    Task<(IReadOnlyList<Alarm> Items, int TotalCount)> GetAdvancedPagedAsync(
+        int page, int pageSize, string? stationId = null, string? state = null,
+        string? severity = null, string? category = null, string? deviceId = null,
+        string? jobId = null, string? workOrderNo = null, string? assignedTo = null,
+        bool productionImpactOnly = false, string? from = null, string? to = null,
+        string? sort = null, CancellationToken ct = default);
+    Task<AlarmSummary> GetSummaryAsync(string? stationId = null, CancellationToken ct = default);
+}
+
+public sealed record AlarmSummary(int ActiveCount, int UnacknowledgedCount, int CriticalCount,
+    int InProgressCount, int ClearedTodayCount);
+
+public interface IAlarmTimelineRepository : IRepository<AlarmTimelineEvent>
+{
+    Task<IReadOnlyList<AlarmTimelineEvent>> GetByAlarmIdAsync(string alarmId, CancellationToken ct = default);
+}
+
+public interface IAlarmOutboxRepository : IRepository<AlarmOutboxEvent>
+{
+    Task<IReadOnlyList<AlarmOutboxEvent>> GetPendingAsync(int batchSize, string now, CancellationToken ct = default);
+}
+
+public interface IAlarmInboxRepository : IRepository<AlarmInboxMessage>
+{
+    Task<bool> ExistsAsync(string consumerName, string eventId, CancellationToken ct = default);
 }
 
 public interface IProductionOrderViewRepository : IRepository<ProductionOrderView>
@@ -76,4 +101,3 @@ public interface IProductionOrderViewRepository : IRepository<ProductionOrderVie
     Task<ProductionOrderView?> GetByOrderNoAsync(string orderNo, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ProductionOrderView>> GetLatestAsync(int limit, CancellationToken cancellationToken = default);
 }
-

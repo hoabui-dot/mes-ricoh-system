@@ -94,6 +94,12 @@ builder.Services.AddReverseProxy()
             },
             new RouteConfig
             {
+                RouteId = "alarm-api",
+                ClusterId = "projection-cluster",
+                Match = new RouteMatch { Path = "/api/alarms/{**catch-all}" }
+            },
+            new RouteConfig
+            {
                 RouteId = "projection-hub",
                 ClusterId = "projection-cluster",
                 Match = new RouteMatch { Path = "/hubs/production/{**catch-all}" }
@@ -272,7 +278,12 @@ if (System.Linq.Enumerable.Contains(args, "--seed-only"))
         var kioskDbDir = Path.GetDirectoryName(Path.GetFullPath(kioskDbPath));
         if (!string.IsNullOrEmpty(kioskDbDir)) Directory.CreateDirectory(kioskDbDir);
         await db.Database.EnsureCreatedAsync();
-        await KioskDbSeeder.SeedAsync(db);
+        var seedAlarmUsers = app.Environment.IsDevelopment() ||
+            string.Equals(app.Configuration["ALARM_SEED_ENABLED"], "true", StringComparison.OrdinalIgnoreCase);
+        var seedPassword = app.Environment.IsDevelopment()
+            ? app.Configuration["ALARM_SEED_PASSWORD"] ?? "AlarmDemo!2026"
+            : app.Configuration["ALARM_SEED_PASSWORD"];
+        await KioskDbSeeder.SeedAsync(db, seedAlarmUsers, seedPassword);
         await MigratePermissionsAsync(db);
     }
     Console.WriteLine("Database initialized and seeded successfully.");
@@ -287,7 +298,12 @@ using (var scope = app.Services.CreateScope())
     var kioskDbDir = Path.GetDirectoryName(Path.GetFullPath(kioskDbPath));
     if (!string.IsNullOrEmpty(kioskDbDir)) Directory.CreateDirectory(kioskDbDir);
     await db.Database.EnsureCreatedAsync();
-    await KioskDbSeeder.SeedAsync(db);
+    var seedAlarmUsers = app.Environment.IsDevelopment() ||
+        string.Equals(app.Configuration["ALARM_SEED_ENABLED"], "true", StringComparison.OrdinalIgnoreCase);
+    var seedPassword = app.Environment.IsDevelopment()
+        ? app.Configuration["ALARM_SEED_PASSWORD"] ?? "AlarmDemo!2026"
+        : app.Configuration["ALARM_SEED_PASSWORD"];
+    await KioskDbSeeder.SeedAsync(db, seedAlarmUsers, seedPassword);
     await MigratePermissionsAsync(db);
 }
 
@@ -418,7 +434,7 @@ app.MapDelete("/api/rbac/users/{id}", async (string id, KioskDbContext db, HttpC
     var user = await db.Users.FindAsync([id], ct);
     if (user is null) return Results.NotFound();
 
-    if (user.Username is "admin" or "admin123")
+    if (user.Username == "admin123")
         return Results.BadRequest(new { error = "Cannot delete the default super admin user" });
 
     var deletedUsername = user.Username;
@@ -463,7 +479,7 @@ app.MapPost("/api/rbac/users/{userId}/toggle-active", async (string userId, Kios
     var user = await db.Users.FindAsync([userId], ct);
     if (user is null) return Results.NotFound();
 
-    if (user.Username is "admin" or "admin123")
+    if (user.Username == "admin123")
         return Results.BadRequest(new { error = "Cannot modify the default super admin user" });
 
     var oldVal = user.IsActive ? "ACTIVE" : "DISABLED";
@@ -852,7 +868,7 @@ app.MapPost("/api/commands/manual-override", async (
     HttpContext ctx,
     KioskDbContext db,
     ND.KioskUi.Application.Interfaces.IKioskRbacRepository rbac,
-    IEventPublisher publisher,
+    IRabbitMqPublisher publisher,
     IConfiguration config,
     CancellationToken ct) =>
 {
@@ -904,7 +920,7 @@ app.MapPost("/api/commands/manual-override", async (
         return Results.Forbid();
     }
 
-    var stationId = config["STATION_ID"] ?? throw new InvalidOperationException("STATION_ID is required");
+    var stationId = config["STATION_ID"] ?? "STATION-01";
     string routingKey;
     string eventJson;
     string eventId;
@@ -972,7 +988,7 @@ app.MapPost("/api/commands/manual-override", async (
     }
     catch (Exception ex)
     {
-        await WriteAuditLogAsync(db, userId, sessionId, $"MANUAL_OVERRIDE_{overrideType}", "JOB", jobId, "FAILED", $"Lỗi gửi Kafka: {ex.Message}");
+        await WriteAuditLogAsync(db, userId, sessionId, $"MANUAL_OVERRIDE_{overrideType}", "JOB", jobId, "FAILED", $"Lỗi gửi RabbitMQ: {ex.Message}");
 
         return Results.Problem(ex.Message, statusCode: 502);
     }
@@ -980,7 +996,7 @@ app.MapPost("/api/commands/manual-override", async (
 
 // ── Dispatch Order command ──────────────────────────────────────────────────
 // Triggered by the Dispatch Dialog in the frontend. Takes a production order
-// and a dispatchTarget ("production-printer"), fetches queued
+// and a dispatchTarget ("simulation" | "production-printer"), fetches queued
 // jobs for that order from the job engine, then triggers each one.
 app.MapPost("/api/commands/dispatch-order", async (
     HttpContext ctx,
@@ -1006,13 +1022,11 @@ app.MapPost("/api/commands/dispatch-order", async (
     if (reqData is null) return Results.BadRequest(new { error = "Invalid request body" });
 
     var orderNo = reqData["orderNo"]?.ToString();
-    var dispatchTarget = reqData["dispatchTarget"]?.ToString() ?? "production-printer";
+    var dispatchTarget = reqData["dispatchTarget"]?.ToString() ?? "simulation";
     var notes = reqData["notes"]?.ToString() ?? "";
 
     if (string.IsNullOrEmpty(orderNo))
         return Results.BadRequest(new { error = "orderNo is required" });
-    if (!string.Equals(dispatchTarget, "production-printer", StringComparison.OrdinalIgnoreCase))
-        return Results.BadRequest(new { error = "Only the real production-printer dispatch target is supported." });
 
     var jobEngineHost = Environment.GetEnvironmentVariable("JOB_ENGINE_HOST") ?? config["JobEngine:Host"] ?? "localhost";
     var jobEnginePort = Environment.GetEnvironmentVariable("JOB_ENGINE_PORT") ?? config["JobEngine:Port"] ?? "5002";
@@ -1087,35 +1101,138 @@ app.MapPost("/api/commands/dispatch-order", async (
     }
 }).RequireAuthorization();
 
-// ── Kafka Printer Adapter management boundary ────────────────────────────────
-async Task<IResult> ProxyPrinterAdapterAsync(string method, string relativePath, HttpContext ctx, CancellationToken ct)
+// ── Printer Adapter proxy endpoints ──────────────────────────────────────────
+string GetPrinterAdapterBaseUrl()
+{
+    var configuredUrl = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_URL")
+        ?? builder.Configuration["PRINTER_ADAPTER_URL"];
+    if (!string.IsNullOrWhiteSpace(configuredUrl))
+        return configuredUrl.TrimEnd('/');
+
+    // Compatibility fallback for older local compose files.
+    var printerHost = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_HOST")
+        ?? builder.Configuration["PrinterAdapter:Host"] ?? "localhost";
+    var printerPort = Environment.GetEnvironmentVariable("PRINTER_ADAPTER_PORT")
+        ?? builder.Configuration["PrinterAdapter:Port"] ?? "5004";
+    return $"http://{printerHost}:{printerPort}";
+}
+
+async Task<IResult> ProxyPrinterAdapterGetAsync(string relativePath, HttpContext ctx, CancellationToken ct)
 {
     var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     if (userId is null) return Results.Unauthorized();
+
+    var targetUrl = $"{GetPrinterAdapterBaseUrl()}/{relativePath}{ctx.Request.QueryString.Value}";
+
     try
     {
-        var client = ctx.RequestServices.GetRequiredService<ND.KioskUi.Infrastructure.Messaging.PrinterManagementKafkaClient>();
-        var body = string.Empty;
-        if (HttpMethods.IsPost(method) || HttpMethods.IsPut(method))
+        using var httpClient = new HttpClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, targetUrl);
+        var response = await httpClient.SendAsync(request, ct);
+        
+        var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
+        if (contentType.Contains("application/json") || contentType.Contains("text/"))
         {
-            using var reader = new StreamReader(ctx.Request.Body, System.Text.Encoding.UTF8, true, 1024, true);
-            body = await reader.ReadToEndAsync(ct);
+            var content = await response.Content.ReadAsStringAsync(ct);
+            return Results.Content(content, contentType, statusCode: (int)response.StatusCode);
         }
-        var response = await client.RequestAsync(method, relativePath, ctx.Request.QueryString.Value, body, userId, ct);
-        if (response.IsBase64)
-            return Results.File(Convert.FromBase64String(response.Body), response.ContentType, response.FileName);
-        return Results.Content(response.Body, response.ContentType, statusCode: response.StatusCode);
+        else
+        {
+            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+            return Results.File(bytes, contentType);
+        }
     }
     catch (Exception ex)
     {
-        return Results.Problem(title: "Printer Adapter unavailable", detail: "The remote Printer Adapter did not answer through Kafka.", statusCode: StatusCodes.Status503ServiceUnavailable, extensions: new Dictionary<string, object?> { ["dependency"] = "printer-adapter-kafka", ["error"] = ex.Message });
+        return Results.Problem(ex.Message, statusCode: 502);
     }
 }
 
-Task<IResult> ProxyPrinterAdapterGetAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("GET", relativePath, ctx, ct);
-Task<IResult> ProxyPrinterAdapterPostAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("POST", relativePath, ctx, ct);
-Task<IResult> ProxyPrinterAdapterPutAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("PUT", relativePath, ctx, ct);
-Task<IResult> ProxyPrinterAdapterDeleteAsync(string relativePath, HttpContext ctx, CancellationToken ct) => ProxyPrinterAdapterAsync("DELETE", relativePath, ctx, ct);
+async Task<IResult> ProxyPrinterAdapterPostAsync(string relativePath, HttpContext ctx, CancellationToken ct)
+{
+    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    if (userId is null) return Results.Unauthorized();
+
+    var targetUrl = $"{GetPrinterAdapterBaseUrl()}/{relativePath}";
+
+    try
+    {
+        using var httpClient = new HttpClient();
+        var request = new HttpRequestMessage(HttpMethod.Post, targetUrl);
+        
+        ctx.Request.EnableBuffering();
+        using var reader = new StreamReader(ctx.Request.Body, System.Text.Encoding.UTF8, true, 1024, true);
+        var bodyStr = await reader.ReadToEndAsync(ct);
+        ctx.Request.Body.Position = 0;
+        
+        request.Content = new StringContent(bodyStr, System.Text.Encoding.UTF8, "application/json");
+        
+        var response = await httpClient.SendAsync(request, ct);
+        var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
+        if (contentType.Contains("image/") || contentType.Contains("application/octet-stream"))
+        {
+            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+            return Results.File(bytes, contentType);
+        }
+        
+        var content = await response.Content.ReadAsStringAsync(ct);
+        return Results.Content(content, contentType, statusCode: (int)response.StatusCode);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 502);
+    }
+}
+
+async Task<IResult> ProxyPrinterAdapterPutAsync(string relativePath, HttpContext ctx, CancellationToken ct)
+{
+    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    if (userId is null) return Results.Unauthorized();
+
+    var targetUrl = $"{GetPrinterAdapterBaseUrl()}/{relativePath}";
+
+    try
+    {
+        using var httpClient = new HttpClient();
+        var request = new HttpRequestMessage(HttpMethod.Put, targetUrl);
+        
+        ctx.Request.EnableBuffering();
+        using var reader = new StreamReader(ctx.Request.Body, System.Text.Encoding.UTF8, true, 1024, true);
+        var bodyStr = await reader.ReadToEndAsync(ct);
+        ctx.Request.Body.Position = 0;
+        
+        request.Content = new StringContent(bodyStr, System.Text.Encoding.UTF8, "application/json");
+        
+        var response = await httpClient.SendAsync(request, ct);
+        var content = await response.Content.ReadAsStringAsync(ct);
+        return Results.Content(content, response.Content.Headers.ContentType?.ToString() ?? "application/json", statusCode: (int)response.StatusCode);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 502);
+    }
+}
+
+async Task<IResult> ProxyPrinterAdapterDeleteAsync(string relativePath, HttpContext ctx, CancellationToken ct)
+{
+    var userId = ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    if (userId is null) return Results.Unauthorized();
+
+    var targetUrl = $"{GetPrinterAdapterBaseUrl()}/{relativePath}";
+
+    try
+    {
+        using var httpClient = new HttpClient();
+        var request = new HttpRequestMessage(HttpMethod.Delete, targetUrl);
+        var response = await httpClient.SendAsync(request, ct);
+        var content = await response.Content.ReadAsStringAsync(ct);
+        return Results.Content(content, response.Content.Headers.ContentType?.ToString() ?? "application/json", statusCode: (int)response.StatusCode);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 502);
+    }
+}
 
 app.MapGet("/api/label-templates", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync("api/label-templates", ctx, ct)).RequireAuthorization();
@@ -1131,9 +1248,6 @@ app.MapPost("/api/label-templates/preview", async (HttpContext ctx, Cancellation
 
 app.MapPost("/api/label-templates/render", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterPostAsync("api/label-templates/render", ctx, ct)).RequireAuthorization();
-
-app.MapPost("/api/label-templates/{id}/render-with-data", async (string id, HttpContext ctx, CancellationToken ct) =>
-    await ProxyPrinterAdapterPostAsync($"api/label-templates/{id}/render-with-data", ctx, ct)).RequireAuthorization();
 
 app.MapPost("/api/label-templates", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterPostAsync("api/label-templates", ctx, ct)).RequireAuthorization();
@@ -1198,23 +1312,11 @@ app.MapGet("/api/print-history/{id}", async (string id, HttpContext ctx, Cancell
 app.MapGet("/api/printers", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync("api/printers", ctx, ct)).RequireAuthorization();
 
-app.MapGet("/api/printers/ready", async (HttpContext ctx, CancellationToken ct) =>
-    await ProxyPrinterAdapterGetAsync("api/printers/ready", ctx, ct)).RequireAuthorization();
-
-app.MapGet("/api/printers/active", async (HttpContext ctx, CancellationToken ct) =>
-    await ProxyPrinterAdapterGetAsync("api/printers/active", ctx, ct)).RequireAuthorization();
-
 app.MapGet("/api/printers/discover", async (HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync("api/printers/discover", ctx, ct)).RequireAuthorization();
 
 app.MapGet("/api/printers/{code}/health", async (string code, HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterGetAsync($"api/printers/{code}/health", ctx, ct)).RequireAuthorization();
-
-app.MapPost("/api/printers/{code}/activate", async (string code, HttpContext ctx, CancellationToken ct) =>
-    await ProxyPrinterAdapterPostAsync($"api/printers/{code}/activate", ctx, ct)).RequireAuthorization();
-
-app.MapPost("/api/printers/{code}/deactivate", async (string code, HttpContext ctx, CancellationToken ct) =>
-    await ProxyPrinterAdapterPostAsync($"api/printers/{code}/deactivate", ctx, ct)).RequireAuthorization();
 
 app.MapPost("/api/printers/{code}/test-connection", async (string code, HttpContext ctx, CancellationToken ct) =>
     await ProxyPrinterAdapterPostAsync($"api/printers/{code}/test-connection", ctx, ct)).RequireAuthorization();

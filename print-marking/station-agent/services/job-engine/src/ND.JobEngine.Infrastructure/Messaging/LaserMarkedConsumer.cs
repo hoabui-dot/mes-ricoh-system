@@ -9,7 +9,7 @@ using ND.UnifiedContracts.Events;
 namespace ND.JobEngine.Infrastructure.Messaging;
 
 /// <summary>
-/// Background service that consumes <c>LaserMarkedEvent</c> events from Kafka
+/// Background service that consumes <c>LaserMarkedEvent</c> events from RabbitMQ
 /// and dispatches a command to complete/fail the LASER_MARK step in the Job Engine.
 ///
 /// Subscription:
@@ -20,7 +20,7 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 public sealed class LaserMarkedConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventConsumer _consumer;
+    private readonly IRabbitMqConsumer _consumer;
     private readonly ILogger<LaserMarkedConsumer> _logger;
 
     private const string Exchange = "station.events";
@@ -29,7 +29,7 @@ public sealed class LaserMarkedConsumer : BackgroundService
 
     public LaserMarkedConsumer(
         IServiceScopeFactory scopeFactory,
-        IEventConsumer consumer,
+        IRabbitMqConsumer consumer,
         ILogger<LaserMarkedConsumer> logger)
     {
         _scopeFactory = scopeFactory;
@@ -68,13 +68,13 @@ public sealed class LaserMarkedConsumer : BackgroundService
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to deserialise LaserMarkedEvent payload from Kafka message");
+            _logger.LogError(ex, "Failed to deserialise LaserMarkedEvent payload from RabbitMQ message");
             throw; // Nack — invalid JSON should not be requeued
         }
 
         if (markedEvent is null)
         {
-            _logger.LogWarning("Received null LaserMarkedEvent from Kafka — skipping");
+            _logger.LogWarning("Received null LaserMarkedEvent from RabbitMQ — skipping");
             return;
         }
 

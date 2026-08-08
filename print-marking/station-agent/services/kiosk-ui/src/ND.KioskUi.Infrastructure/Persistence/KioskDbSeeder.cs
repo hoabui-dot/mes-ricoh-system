@@ -8,7 +8,7 @@ namespace ND.KioskUi.Infrastructure.Persistence;
 /// </summary>
 public static class KioskDbSeeder
 {
-    public static async Task SeedAsync(KioskDbContext context)
+    public static async Task SeedAsync(KioskDbContext context, bool seedAlarmDemoUsers = false, string? seedPassword = null)
     {
         // 1. Roles
         var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleCode == "SUPER_ADMIN");
@@ -25,6 +25,16 @@ public static class KioskDbSeeder
             await context.Roles.AddAsync(memberRole);
         }
 
+        var alarmRoles = new Dictionary<string, string>
+        {
+            ["OPERATOR"] = "Nhân viên vận hành",
+            ["SUPERVISOR"] = "Giám sát sản xuất",
+            ["MAINTENANCE"] = "Nhân viên bảo trì"
+        };
+        foreach (var role in alarmRoles)
+            if (!await context.Roles.AnyAsync(r => r.RoleCode == role.Key))
+                await context.Roles.AddAsync(KioskRole.Create(role.Key, role.Value));
+
         await context.SaveChangesAsync();
 
         // 2. Permissions
@@ -34,6 +44,18 @@ public static class KioskDbSeeder
             { PermissionCodes.JobReprocess, "Làm lại / Xử lý lại sản phẩm" },
             { PermissionCodes.UserManage, "Quản lý người dùng" },
             { PermissionCodes.SystemAdmin, "Toàn quyền hệ thống" }
+            ,{ PermissionCodes.AlarmView, "Xem cảnh báo" }
+            ,{ PermissionCodes.AlarmAcknowledge, "Xác nhận cảnh báo" }
+            ,{ PermissionCodes.AlarmAssign, "Nhận xử lý cảnh báo" }
+            ,{ PermissionCodes.AlarmAssignOthers, "Phân công cảnh báo cho người khác" }
+            ,{ PermissionCodes.AlarmStartWork, "Bắt đầu xử lý cảnh báo" }
+            ,{ PermissionCodes.AlarmRetryDevice, "Yêu cầu thử lại thiết bị" }
+            ,{ PermissionCodes.AlarmRetryJob, "Yêu cầu thử lại bước công việc" }
+            ,{ PermissionCodes.AlarmClear, "Xóa cảnh báo thủ công" }
+            ,{ PermissionCodes.AlarmClose, "Đóng cảnh báo" }
+            ,{ PermissionCodes.AlarmSuppress, "Tạm ẩn cảnh báo" }
+            ,{ PermissionCodes.AlarmEscalate, "Chuyển cấp cảnh báo" }
+            ,{ PermissionCodes.AlarmVisionBypass, "Bỏ qua kiểm tra vision có kiểm soát" }
         };
 
         foreach (var p in permissions)
@@ -70,40 +92,71 @@ public static class KioskDbSeeder
             }
         }
 
+
+        var rolePermissions = new Dictionary<string, string[]>
+        {
+            ["OPERATOR"] = [PermissionCodes.AlarmView, PermissionCodes.AlarmAcknowledge,
+                PermissionCodes.AlarmAssign, PermissionCodes.AlarmStartWork,
+                PermissionCodes.AlarmRetryDevice, PermissionCodes.AlarmRetryJob],
+            ["SUPERVISOR"] = [PermissionCodes.AlarmView, PermissionCodes.AlarmAcknowledge,
+                PermissionCodes.AlarmAssign, PermissionCodes.AlarmAssignOthers, PermissionCodes.AlarmStartWork,
+                PermissionCodes.AlarmRetryDevice, PermissionCodes.AlarmRetryJob, PermissionCodes.AlarmClear,
+                PermissionCodes.AlarmClose, PermissionCodes.AlarmSuppress, PermissionCodes.AlarmEscalate,
+                PermissionCodes.AlarmVisionBypass],
+            ["MAINTENANCE"] = [PermissionCodes.AlarmView, PermissionCodes.AlarmAcknowledge,
+                PermissionCodes.AlarmAssign, PermissionCodes.AlarmAssignOthers, PermissionCodes.AlarmStartWork,
+                PermissionCodes.AlarmRetryDevice, PermissionCodes.AlarmRetryJob, PermissionCodes.AlarmClear,
+                PermissionCodes.AlarmClose, PermissionCodes.AlarmSuppress, PermissionCodes.AlarmEscalate]
+        };
+        foreach (var mapping in rolePermissions)
+        {
+            var role = await context.Roles.FirstAsync(r => r.RoleCode == mapping.Key);
+            foreach (var code in mapping.Value)
+            {
+                var permissionId = permMap[code];
+                if (!await context.RolePermissions.AnyAsync(x => x.RoleId == role.Id && x.PermissionId == permissionId))
+                    await context.RolePermissions.AddAsync(KioskRolePermission.Create(role.Id, permissionId));
+            }
+        }
+
         await context.SaveChangesAsync();
 
-        // 4. Canonical demo admin and legacy compatibility account.
-        // Keep both accounts idempotent so existing installations can move to
-        // the documented `admin` login without breaking older test fixtures.
-        var defaultAdmins = new[]
+        // 4. Default admin123 user
+        var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin123");
+        if (adminUser == null)
         {
-            (Username: "admin", FullName: "Quản trị hệ thống"),
-            (Username: "admin123", FullName: "Quản trị hệ thống (Legacy)")
-        };
+            adminUser = KioskUser.Create("admin123", "Quản trị hệ thống", BCrypt.Net.BCrypt.HashPassword("admin123"));
+            await context.Users.AddAsync(adminUser);
+            await context.SaveChangesAsync();
 
-        foreach (var defaultAdmin in defaultAdmins)
+            // Assign SUPER_ADMIN role to admin123
+            await context.UserRoles.AddAsync(KioskUserRole.Create(adminUser.Id, adminRole.Id, "system"));
+            await context.SaveChangesAsync();
+        }
+
+
+        if (seedAlarmDemoUsers && !string.IsNullOrWhiteSpace(seedPassword))
         {
-            var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Username == defaultAdmin.Username);
-            if (adminUser == null)
+            var users = new[]
             {
-                adminUser = KioskUser.Create(defaultAdmin.Username, defaultAdmin.FullName,
-                    BCrypt.Net.BCrypt.HashPassword("admin123"));
-                await context.Users.AddAsync(adminUser);
-                await context.SaveChangesAsync();
-            }
-            else
+                ("operator.seed", "Nhân viên vận hành mẫu", "OPERATOR"),
+                ("supervisor.seed", "Giám sát mẫu", "SUPERVISOR"),
+                ("maintenance.seed", "Bảo trì mẫu", "MAINTENANCE"),
+                ("admin.seed", "Quản trị mẫu", "SUPER_ADMIN")
+            };
+            foreach (var (username, fullName, roleCode) in users)
             {
-                if (!adminUser.IsActive) adminUser.Activate();
-                if (!BCrypt.Net.BCrypt.Verify("admin123", adminUser.PasswordHash))
-                    adminUser.UpdatePassword(BCrypt.Net.BCrypt.HashPassword("admin123"));
-                await context.SaveChangesAsync();
+                var user = await context.Users.FirstOrDefaultAsync(x => x.Username == username);
+                if (user is null)
+                {
+                    user = KioskUser.Create(username, fullName, BCrypt.Net.BCrypt.HashPassword(seedPassword));
+                    await context.Users.AddAsync(user);
+                    await context.SaveChangesAsync();
+                }
+                var role = await context.Roles.FirstAsync(x => x.RoleCode == roleCode);
+                if (!await context.UserRoles.AnyAsync(x => x.UserId == user.Id && x.RoleId == role.Id))
+                    await context.UserRoles.AddAsync(KioskUserRole.Create(user.Id, role.Id, "alarm-seed"));
             }
-
-            var hasAdminRole = await context.UserRoles.AnyAsync(ur =>
-                ur.UserId == adminUser.Id && ur.RoleId == adminRole.Id);
-            if (!hasAdminRole)
-                await context.UserRoles.AddAsync(KioskUserRole.Create(adminUser.Id, adminRole.Id, "system"));
-
             await context.SaveChangesAsync();
         }
     }

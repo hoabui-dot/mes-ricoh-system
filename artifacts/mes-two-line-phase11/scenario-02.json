@@ -2,19 +2,19 @@
   "number": 2,
   "name": "Inactive Primary candidate is excluded while alternative remains",
   "status": "passed",
-  "started_at": "2026-08-07T10:38:43.454Z",
-  "finished_at": "2026-08-07T10:38:43.671Z",
+  "started_at": "2026-08-08T09:57:31.905Z",
+  "finished_at": "2026-08-08T09:57:32.220Z",
   "evidence": {
     "status": "READY",
     "mandatory": true,
-    "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+    "operation_id": "3a12dbc6-bcd9-4e03-82ef-729924826732",
     "candidate_ids": [
-      "f02a8ece-810e-484a-9199-3ab7f5a2d97a"
+      "10753fff-4240-474e-b5c5-3a4039e0b676"
     ],
     "operation_code": "WST-SEED-OP-BINDING",
     "operation_name": "WST-SEED-OP-BINDING",
-    "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
-    "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+    "work_center_id": "557d1a0b-03a7-4882-8505-d17ecd7b3e68",
+    "routing_operation_id": "ed1b36f9-3905-47f7-97e9-dae4531ce089",
     "total_candidate_count": 2,
     "feasible_candidate_count": 1,
     "excluded_candidate_reasons": {

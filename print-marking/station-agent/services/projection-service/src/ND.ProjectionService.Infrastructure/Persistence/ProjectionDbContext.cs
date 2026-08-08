@@ -14,8 +14,11 @@ public sealed class ProjectionDbContext : DbContext, IUnitOfWork
     public DbSet<DeviceStatusHistory> DeviceStatusHistories => Set<DeviceStatusHistory>();
     public DbSet<ProductionRecord> ProductionRecords => Set<ProductionRecord>();
     public DbSet<Alarm> Alarms => Set<Alarm>();
+    public DbSet<AlarmTimelineEvent> AlarmTimelineEvents => Set<AlarmTimelineEvent>();
+    public DbSet<AlarmOutboxEvent> AlarmOutboxEvents => Set<AlarmOutboxEvent>();
+    public DbSet<AlarmInboxMessage> AlarmInboxMessages => Set<AlarmInboxMessage>();
+    public DbSet<AlarmCommandReceipt> AlarmCommandReceipts => Set<AlarmCommandReceipt>();
     public DbSet<ProductionOrderView> ProductionOrders => Set<ProductionOrderView>();
-    public DbSet<PrintDashboardView> PrintDashboards => Set<PrintDashboardView>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -107,25 +110,99 @@ public sealed class ProjectionDbContext : DbContext, IUnitOfWork
             e.ToTable("projection_alarms");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.AlarmType).HasColumnName("alarm_type").IsRequired().HasDefaultValue("ProductionError");
-            e.Property(x => x.AlarmGroupKey).HasColumnName("alarm_group_key").IsRequired();
+            e.Property(x => x.AlarmCode).HasColumnName("alarm_code").IsRequired();
+            e.Property(x => x.DedupeKey).HasColumnName("dedupe_key").IsRequired();
             e.Property(x => x.Severity).HasColumnName("severity").IsRequired();
-            e.Property(x => x.Source).HasColumnName("source").IsRequired();
-            e.Property(x => x.Message).HasColumnName("message").IsRequired();
+            e.Property(x => x.Category).HasColumnName("category").IsRequired();
+            e.Property(x => x.State).HasColumnName("state").IsRequired();
+            e.Property(x => x.StationId).HasColumnName("station_id").IsRequired();
+            e.Property(x => x.SourceService).HasColumnName("source_service").IsRequired();
+            e.Property(x => x.SourceType).HasColumnName("source_type").IsRequired();
+            e.Property(x => x.SourceId).HasColumnName("source_id").IsRequired();
             e.Property(x => x.DeviceId).HasColumnName("device_id");
-            e.Property(x => x.DeviceName).HasColumnName("device_name");
-            e.Property(x => x.ProductionOrderId).HasColumnName("production_order_id");
-            e.Property(x => x.CurrentState).HasColumnName("current_state").IsRequired().HasDefaultValue("Active");
-            e.Property(x => x.FirstOccurredAt).HasColumnName("first_occurred_at").IsRequired();
-            e.Property(x => x.LastOccurredAt).HasColumnName("last_occurred_at").IsRequired();
-            e.Property(x => x.RepeatCount).HasColumnName("repeat_count").HasDefaultValue(0);
-            e.Property(x => x.ResolvedAt).HasColumnName("resolved_at");
-            e.Property(x => x.IsAcknowledged).HasColumnName("is_acknowledged").IsRequired();
+            e.Property(x => x.JobId).HasColumnName("job_id");
+            e.Property(x => x.WorkOrderNo).HasColumnName("work_order_no");
+            e.Property(x => x.ProductCode).HasColumnName("product_code");
+            e.Property(x => x.ProductSerial).HasColumnName("product_serial");
+            e.Property(x => x.ProductionImpact).HasColumnName("production_impact");
+            e.Property(x => x.TitleKey).HasColumnName("title_key").IsRequired();
+            e.Property(x => x.MessageKey).HasColumnName("message_key").IsRequired();
+            e.Property(x => x.MessageParamsJson).HasColumnName("message_params_json").IsRequired();
+            e.Property(x => x.TechnicalMessage).HasColumnName("technical_message");
+            e.Property(x => x.CorrelationId).HasColumnName("correlation_id");
+            e.Property(x => x.FirstSeenAt).HasColumnName("first_seen_at").IsRequired();
+            e.Property(x => x.LastSeenAt).HasColumnName("last_seen_at").IsRequired();
+            e.Property(x => x.OccurrenceCount).HasColumnName("occurrence_count").IsRequired();
             e.Property(x => x.AcknowledgedBy).HasColumnName("acknowledged_by");
             e.Property(x => x.AcknowledgedAt).HasColumnName("acknowledged_at");
+            e.Property(x => x.AssignedTo).HasColumnName("assigned_to");
+            e.Property(x => x.AssignedAt).HasColumnName("assigned_at");
+            e.Property(x => x.ResolvedBy).HasColumnName("resolved_by");
+            e.Property(x => x.ResolvedAt).HasColumnName("resolved_at");
+            e.Property(x => x.ResolutionCode).HasColumnName("resolution_code");
+            e.Property(x => x.ResolutionComment).HasColumnName("resolution_comment");
+            e.Property(x => x.SuppressedUntil).HasColumnName("suppressed_until");
+            e.Property(x => x.SuppressionReason).HasColumnName("suppression_reason");
+            e.Property(x => x.EscalationLevel).HasColumnName("escalation_level");
+            e.Property(x => x.EscalatedAt).HasColumnName("escalated_at");
             e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
-            // Index on alarm_group_key for fast dedup lookups
-            e.HasIndex(x => x.AlarmGroupKey);
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            e.Property(x => x.RowVersion).HasColumnName("row_version").IsConcurrencyToken();
+            e.Ignore(x => x.AlarmType); e.Ignore(x => x.AlarmGroupKey); e.Ignore(x => x.Source);
+            e.Ignore(x => x.Message); e.Ignore(x => x.DeviceName); e.Ignore(x => x.ProductionOrderId);
+            e.Ignore(x => x.IsAcknowledged); e.Ignore(x => x.CurrentState);
+            e.Ignore(x => x.FirstOccurredAt); e.Ignore(x => x.LastOccurredAt); e.Ignore(x => x.RepeatCount);
+            e.HasIndex(x => x.DedupeKey).IsUnique()
+                .HasFilter("state IN ('RAISED','ACKNOWLEDGED','IN_PROGRESS','SUPPRESSED')");
+            e.HasIndex(x => x.State); e.HasIndex(x => x.Severity); e.HasIndex(x => x.StationId);
+            e.HasIndex(x => x.DeviceId); e.HasIndex(x => x.JobId); e.HasIndex(x => x.FirstSeenAt);
+            e.HasIndex(x => x.LastSeenAt); e.HasIndex(x => x.AssignedTo);
+        });
+
+        modelBuilder.Entity<AlarmTimelineEvent>(e =>
+        {
+            e.ToTable("alarm_timeline_events"); e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id"); e.Property(x => x.AlarmId).HasColumnName("alarm_id").IsRequired();
+            e.Property(x => x.ActionType).HasColumnName("action_type").IsRequired();
+            e.Property(x => x.PreviousState).HasColumnName("previous_state"); e.Property(x => x.NewState).HasColumnName("new_state").IsRequired();
+            e.Property(x => x.ActorUserId).HasColumnName("actor_user_id"); e.Property(x => x.ActorUsername).HasColumnName("actor_username").IsRequired();
+            e.Property(x => x.ActorRole).HasColumnName("actor_role").IsRequired(); e.Property(x => x.Comment).HasColumnName("comment");
+            e.Property(x => x.MetadataJson).HasColumnName("metadata_json").IsRequired(); e.Property(x => x.OccurredAt).HasColumnName("occurred_at").IsRequired();
+            e.Property(x => x.CorrelationId).HasColumnName("correlation_id"); e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
+            e.HasIndex(x => new { x.AlarmId, x.OccurredAt });
+        });
+
+        modelBuilder.Entity<AlarmOutboxEvent>(e =>
+        {
+            e.ToTable("alarm_outbox_events"); e.HasKey(x => x.Id); e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.EventId).HasColumnName("event_id").IsRequired(); e.HasIndex(x => x.EventId).IsUnique();
+            e.Property(x => x.AlarmId).HasColumnName("alarm_id").IsRequired(); e.Property(x => x.EventType).HasColumnName("event_type").IsRequired();
+            e.Property(x => x.PayloadJson).HasColumnName("payload_json").IsRequired(); e.Property(x => x.RoutingKey).HasColumnName("routing_key").IsRequired();
+            e.Property(x => x.Status).HasColumnName("status").IsRequired(); e.Property(x => x.RetryCount).HasColumnName("retry_count");
+            e.Property(x => x.NextRetryAt).HasColumnName("next_retry_at"); e.Property(x => x.PublishedAt).HasColumnName("published_at");
+            e.Property(x => x.LastError).HasColumnName("last_error"); e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
+            e.HasIndex(x => new { x.Status, x.NextRetryAt });
+        });
+
+        modelBuilder.Entity<AlarmInboxMessage>(e =>
+        {
+            e.ToTable("alarm_inbox_messages"); e.HasKey(x => x.Id); e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.ConsumerName).HasColumnName("consumer_name").IsRequired(); e.Property(x => x.EventId).HasColumnName("event_id").IsRequired();
+            e.Property(x => x.ProcessedAt).HasColumnName("processed_at").IsRequired(); e.Property(x => x.CorrelationId).HasColumnName("correlation_id");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired(); e.HasIndex(x => new { x.ConsumerName, x.EventId }).IsUnique();
+        });
+
+        modelBuilder.Entity<AlarmCommandReceipt>(e =>
+        {
+            e.ToTable("alarm_command_receipts"); e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.IdempotencyKey).HasColumnName("idempotency_key").IsRequired();
+            e.Property(x => x.AlarmId).HasColumnName("alarm_id").IsRequired();
+            e.Property(x => x.CommandType).HasColumnName("command_type").IsRequired();
+            e.Property(x => x.ActorUserId).HasColumnName("actor_user_id").IsRequired();
+            e.Property(x => x.CompletedAt).HasColumnName("completed_at").IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
+            e.HasIndex(x => x.IdempotencyKey).IsUnique();
         });
 
 
@@ -143,43 +220,6 @@ public sealed class ProjectionDbContext : DbContext, IUnitOfWork
             e.Property(x => x.Status).HasColumnName("status").IsRequired();
             e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at").IsRequired();
-        });
-
-        modelBuilder.Entity<PrintDashboardView>(e =>
-        {
-            e.ToTable("projection_print_dashboard");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.StationId).HasColumnName("station_id").IsRequired();
-            e.HasIndex(x => new { x.StationId, x.WorkOrderId }).IsUnique();
-            e.Property(x => x.WorkOrderId).HasColumnName("work_order_id").IsRequired();
-            e.Property(x => x.WorkOrderCode).HasColumnName("work_order_code").IsRequired();
-            e.Property(x => x.WorkOrderStatus).HasColumnName("work_order_status").IsRequired();
-            e.Property(x => x.ProductCode).HasColumnName("product_code").IsRequired();
-            e.Property(x => x.ProductName).HasColumnName("product_name");
-            e.Property(x => x.OperationCode).HasColumnName("operation_code");
-            e.Property(x => x.OperationName).HasColumnName("operation_name");
-            e.Property(x => x.WorkstationCode).HasColumnName("workstation_code");
-            e.Property(x => x.PrintStationCode).HasColumnName("print_station_code");
-            e.Property(x => x.PrinterCode).HasColumnName("printer_code");
-            e.Property(x => x.RequestedQuantity).HasColumnName("requested_quantity");
-            e.Property(x => x.RequiredLabelQuantity).HasColumnName("required_label_quantity");
-            e.Property(x => x.TotalLabelCount).HasColumnName("total_label_count");
-            e.Property(x => x.QueuedLabelCount).HasColumnName("queued_label_count");
-            e.Property(x => x.PrintedLabelCount).HasColumnName("printed_label_count");
-            e.Property(x => x.FailedLabelCount).HasColumnName("failed_label_count");
-            e.Property(x => x.RemainingLabelCount).HasColumnName("remaining_label_count");
-            e.Property(x => x.PrintJobId).HasColumnName("print_job_id");
-            e.Property(x => x.PrintJobStatus).HasColumnName("print_job_status").IsRequired();
-            e.Property(x => x.BatchSize).HasColumnName("batch_size");
-            e.Property(x => x.TotalBatches).HasColumnName("total_batches");
-            e.Property(x => x.CompletedBatches).HasColumnName("completed_batches");
-            e.Property(x => x.LastKafkaEventId).HasColumnName("last_kafka_event_id");
-            e.Property(x => x.LastKafkaEventType).HasColumnName("last_kafka_event_type");
-            e.Property(x => x.LastKafkaEventAt).HasColumnName("last_kafka_event_at");
-            e.Property(x => x.LastPrinterResultAt).HasColumnName("last_printer_result_at");
-            e.Property(x => x.UpdatedAt).HasColumnName("updated_at").IsRequired();
-            e.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
         });
     }
 }

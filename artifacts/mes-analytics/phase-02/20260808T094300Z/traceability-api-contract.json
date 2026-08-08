@@ -1,0 +1,9 @@
+{
+  "phase": "02",
+  "service": "mes-traceability-service",
+  "status": "PASS",
+  "endpoints": ["GET /api/mes/traceability/analytics/overview", "GET /api/mes/traceability/analytics/labels", "GET /api/mes/traceability/analytics/genealogy"],
+  "filters": ["date_from", "date_to", "site", "item_revision", "status"],
+  "pagination": {"labels": true, "maximum_page_size": 200},
+  "date_policy": {"default_days": 30, "maximum_days": 366, "date_to_exclusive": true}
+}

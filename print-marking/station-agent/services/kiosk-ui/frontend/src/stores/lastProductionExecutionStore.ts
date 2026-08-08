@@ -151,7 +151,7 @@ export function buildExecution(params: {
     productSerial,
     workflow: existing?.workflow || 'Default Workflow',
     operation: existing?.operation || 'PRINT_LABEL',
-    station: existing?.station || '',
+    station: existing?.station || 'STATION-01',
     team: existing?.team || '—',
     operator: existing?.operator || '—',
     totalQuantity: total,

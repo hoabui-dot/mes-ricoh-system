@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog'
-import { History, Database, Clock, Package } from 'lucide-react'
+import { History, Database, Clock } from 'lucide-react'
 import client from '@/api/client'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -195,25 +195,6 @@ export function ProductionExecutionDetailModal({ open, onOpenChange, record, act
             <div className="mt-0.5">
               <StatusBadge status={record.currentStatus} jobType={record.jobType} />
             </div>
-          </div>
-        </div>
-
-        {/* Product information belongs to the selected station-log record.
-            Keep it projection-backed and avoid dashboard-level duplicate data. */}
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-brand">
-            <Package className="h-4 w-4" />
-            Thông tin sản phẩm
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div><span className="text-xs text-muted-fg block">Mã sản phẩm</span><span className="font-mono font-semibold">{record.productCode || '—'}</span></div>
-            <div><span className="text-xs text-muted-fg block">Serial / Mã vạch</span><span className="font-mono font-semibold">{record.productSerial || '—'}</span></div>
-            <div><span className="text-xs text-muted-fg block">Loại lệnh</span><span className="font-semibold">{record.jobType || '—'}</span></div>
-            <div><span className="text-xs text-muted-fg block">Trạm</span><span className="font-mono font-semibold">{record.stationId || '—'}</span></div>
-            <div><span className="text-xs text-muted-fg block">Số lượng kế hoạch</span><span className="font-mono font-semibold">{record.plannedQty ?? '—'}</span></div>
-            <div><span className="text-xs text-muted-fg block">Đã hoàn thành</span><span className="font-mono font-semibold">{record.completedQty ?? '—'}</span></div>
-            <div><span className="text-xs text-muted-fg block">Tạo lúc</span><span>{record.createdAt ? new Date(record.createdAt).toLocaleString('vi-VN') : '—'}</span></div>
-            <div><span className="text-xs text-muted-fg block">Cập nhật lúc</span><span>{record.updatedAt ? new Date(record.updatedAt).toLocaleString('vi-VN') : '—'}</span></div>
           </div>
         </div>
 

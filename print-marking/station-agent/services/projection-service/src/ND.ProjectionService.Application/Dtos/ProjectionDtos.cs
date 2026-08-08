@@ -38,36 +38,6 @@ public record ProductionRecordDto(
     string CreatedAt,
     string UpdatedAt);
 
-public record PrintDashboardDto(
-    string StationId,
-    string WorkOrderId,
-    string WorkOrderCode,
-    string WorkOrderStatus,
-    string ProductCode,
-    string? ProductName,
-    string? OperationCode,
-    string? OperationName,
-    string? WorkstationCode,
-    string? PrintStationCode,
-    string? PrinterCode,
-    decimal RequestedQuantity,
-    decimal RequiredLabelQuantity,
-    decimal TotalLabelCount,
-    decimal QueuedLabelCount,
-    decimal PrintedLabelCount,
-    decimal FailedLabelCount,
-    decimal RemainingLabelCount,
-    string? PrintJobId,
-    string PrintJobStatus,
-    int BatchSize,
-    int TotalBatches,
-    int CompletedBatches,
-    string? LastKafkaEventId,
-    string? LastKafkaEventType,
-    string? LastKafkaEventAt,
-    string? LastPrinterResultAt,
-    string UpdatedAt);
-
 public record PagedResult<T>(
     IReadOnlyList<T> Items,
     int TotalCount,
@@ -103,3 +73,18 @@ public record PagedAlarmResult(
     int PageSize,
     int TotalPages,
     int ActiveCount);
+
+public record AlarmV2Dto(
+    string AlarmId, string AlarmCode, string DedupeKey, string Severity, string Category,
+    string State, string StationId, string SourceService, string SourceType, string SourceId,
+    string? DeviceId, string? JobId, string? WorkOrderNo, string? ProductCode, string? ProductSerial,
+    string TitleKey, string MessageKey, object MessageParams, string? TechnicalMessage,
+    string? ProductionImpact, string FirstSeenAt, string LastSeenAt, int OccurrenceCount,
+    string? AcknowledgedBy, string? AcknowledgedAt, string? AssignedTo, string? AssignedAt,
+    string? ResolvedBy, string? ResolvedAt, string? ResolutionCode, string? ResolutionComment,
+    string? SuppressedUntil, string? SuppressionReason, int EscalationLevel, string? EscalatedAt,
+    string UpdatedAt, long RowVersion);
+
+public record AlarmTimelineDto(string Id, string AlarmId, string ActionType, string? PreviousState,
+    string NewState, string? ActorUserId, string ActorUsername, string ActorRole, string? Comment,
+    object Metadata, string OccurredAt, string? CorrelationId);

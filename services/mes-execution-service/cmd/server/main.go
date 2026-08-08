@@ -176,6 +176,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000030_wms_material_result_inbox.up.sql",
 		"migrations/000031_wms_inventory_result_inbox.up.sql",
 		"migrations/000032_decouple_mbom_from_site.up.sql",
+		"migrations/000033_analytics_read_indexes.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

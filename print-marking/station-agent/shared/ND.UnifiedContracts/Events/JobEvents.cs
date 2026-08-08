@@ -42,7 +42,7 @@ public record JobEventBase
 
 /// <summary>
 /// Published when a new Production Order is created.
-/// Kafka routing key: <c>production.order.created</c>
+/// RabbitMQ routing key: <c>production.order.created</c>
 /// </summary>
 public sealed record ProductionOrderCreatedEvent : JobEventBase
 {
@@ -73,7 +73,7 @@ public sealed record ProductionOrderCreatedEvent : JobEventBase
 
 /// <summary>
 /// Published when a new Job is created in the Job Engine.
-/// Kafka routing key: <c>job.created</c>
+/// RabbitMQ routing key: <c>job.created</c>
 /// </summary>
 public sealed record JobCreatedEvent : JobEventBase
 {
@@ -108,7 +108,7 @@ public sealed record JobCreatedEvent : JobEventBase
 
 /// <summary>
 /// Published when a Job starts processing (attempt begins).
-/// Kafka routing key: <c>job.processing</c>
+/// RabbitMQ routing key: <c>job.processing</c>
 /// </summary>
 public sealed record JobProcessingEvent : JobEventBase
 {
@@ -123,7 +123,7 @@ public sealed record JobProcessingEvent : JobEventBase
 
     /// <summary>
     /// Execution target chosen by the operator in the Dispatch Dialog.
-    /// Value: "production-printer"
+    /// Values: "simulation" (default) | "production-printer"
     /// </summary>
     [JsonPropertyName("dispatch_target")]
     public string? DispatchTarget { get; init; }
@@ -155,14 +155,14 @@ public sealed record JobProcessingEvent : JobEventBase
             AttemptNo = attemptNo,
             PayloadJson = payloadJson,
             TargetPrinter = targetPrinter,
-            DispatchTarget = dispatchTarget ?? "production-printer"
+            DispatchTarget = dispatchTarget ?? "simulation"
         };
     }
 }
 
 /// <summary>
 /// Published when a Job completes successfully.
-/// Kafka routing key: <c>job.completed</c>
+/// RabbitMQ routing key: <c>job.completed</c>
 /// </summary>
 public sealed record JobCompletedEvent : JobEventBase
 {
@@ -197,7 +197,7 @@ public sealed record JobCompletedEvent : JobEventBase
 
 /// <summary>
 /// Published when a Job fails permanently.
-/// Kafka routing key: <c>job.failed</c>
+/// RabbitMQ routing key: <c>job.failed</c>
 /// </summary>
 public sealed record JobFailedEvent : JobEventBase
 {
@@ -232,7 +232,7 @@ public sealed record JobFailedEvent : JobEventBase
 
 /// <summary>
 /// Published when a printer completes a print job.
-/// Kafka routing key: <c>printer.printed</c>
+/// RabbitMQ routing key: <c>printer.printed</c>
 /// </summary>
 public sealed record PrinterPrintedEvent
 {
@@ -263,7 +263,7 @@ public sealed record PrinterPrintedEvent
 
 /// <summary>
 /// Published when a laser adapter completes a mark job.
-/// Kafka routing key: <c>laser.marked</c>
+/// RabbitMQ routing key: <c>laser.marked</c>
 /// </summary>
 public sealed record LaserMarkedEvent
 {
@@ -298,7 +298,7 @@ public sealed record LaserMarkedEvent
 /// <summary>
 /// Published by the Kiosk UI API when an operator triggers a Manual Override action.
 /// Consuming services (e.g. Job Engine) decide how to process this command.
-/// Kafka routing key: <c>command.manual-override</c>
+/// RabbitMQ routing key: <c>command.manual-override</c>
 /// </summary>
 public sealed record ManualOverrideRequestedEvent
 {
@@ -636,7 +636,7 @@ public sealed record ManualReprintAndRemarkingRequestedEvent
 
 /// <summary>
 /// Published by the Printer Adapter health-check service every 15 seconds.
-/// Kafka routing key: <c>printer.health-changed</c>
+/// RabbitMQ routing key: <c>printer.health-changed</c>
 /// </summary>
 public sealed record PrinterHealthChangedEvent
 {
@@ -705,10 +705,6 @@ public static class JobEventRoutingKeys
     public const string ManualRemarking = "command.manual-remarking";
     public const string ManualReprocess = "command.manual-reprocess";
     public const string BatchPrint = "command.printer.print.batch";
-    public const string Print = "command.printer.print";
-    public const string PrinterStatusChanged = "printer.status.changed";
-    public const string PrinterHeartbeat = "printer.heartbeat";
-    public const string PrinterError = "printer.error";
 }
 
 // ────────────────── Batch Print Pipeline Events ───────────────────────────────
@@ -716,7 +712,7 @@ public static class JobEventRoutingKeys
 /// <summary>
 /// Published by Job Engine when a Production Order enters the PREPARING phase.
 /// The printer has NOT yet received any data — the system is rendering ZPL in memory.
-/// Kafka routing key: <c>job.preparing</c>
+/// RabbitMQ routing key: <c>job.preparing</c>
 /// </summary>
 public sealed record ProductionPreparingEvent
 {
@@ -770,7 +766,7 @@ public sealed record BatchLabelItem
 /// <summary>
 /// Published by Job Engine to instruct Printer Adapter to render + batch-print all labels
 /// for a Production Order in a single printer communication round-trip.
-/// Kafka routing key: <c>command.printer.print.batch</c>
+/// RabbitMQ routing key: <c>command.printer.print.batch</c>
 /// </summary>
 public sealed record ProductionBatchPrintCommand
 {
@@ -796,9 +792,9 @@ public sealed record ProductionBatchPrintCommand
     [JsonPropertyName("target_printer")]
     public string? TargetPrinter { get; init; }
 
-    /// <summary>"production-printer"</summary>
+    /// <summary>"simulation" | "production-printer"</summary>
     [JsonPropertyName("dispatch_target")]
-    public string DispatchTarget { get; init; } = "production-printer";
+    public string DispatchTarget { get; init; } = "simulation";
 
     /// <summary>All label items to render and print. Each item maps to one physical label.</summary>
     [JsonPropertyName("label_items")]
@@ -840,15 +836,12 @@ public sealed record ProductionBatchPrintCommand
 
 /// <summary>
 /// Published by Printer Adapter after a batch print completes (success or failure).
-/// Kafka routing key: <c>printer.batch.printed</c>
+/// RabbitMQ routing key: <c>printer.batch.printed</c>
 /// </summary>
 public sealed record ProductionBatchPrintedEvent
 {
     [JsonPropertyName("event_type")]
     public string EventType { get; init; } = "ProductionBatchPrinted";
-
-    [JsonPropertyName("command_id")]
-    public string? CommandId { get; init; }
 
     [JsonPropertyName("event_id")]
     public required string EventId { get; init; }
@@ -884,12 +877,10 @@ public sealed record ProductionBatchPrintedEvent
         string printerCode,
         IReadOnlyList<string> succeededJobIds,
         IReadOnlyList<string> failedJobIds,
-        string? errorMessage = null,
-        string? commandId = null)
+        string? errorMessage = null)
         => new()
         {
             EventId = $"evt-batch-printed-{Guid.NewGuid():N}",
-            CommandId = commandId,
             ProductionOrderNo = productionOrderNo,
             PrinterCode = printerCode,
             Success = failedJobIds.Count == 0,

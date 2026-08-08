@@ -51,11 +51,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<GetJobQueryHandler>();
         services.AddScoped<CompleteJobStepHandler>();
 
-        // Kafka Publisher & Consumer
-        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
-        services.AddSingleton<IEventConsumer, KafkaConsumer>();
-        services.AddSingleton<IEventPublisher, KafkaPublisher>();
-        services.AddSingleton<PrinterManagementKafkaClient>();
+        // RabbitMQ Publisher & Consumer
+        services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
+        services.AddSingleton<IRabbitMqConsumer, RabbitMqConsumer>();
+        services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
         // Background Workers / Hosted Services
         services.AddHostedService<MqttMessageReceivedConsumer>();
@@ -66,10 +65,8 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<ManualOverrideConsumer>();
         services.AddHostedService<VisionVerificationConsumer>();
         services.AddHostedService<PlcRejectConsumer>();
-        services.AddSingleton<PrinterBatchPrintedConsumer>();
-        services.AddHostedService(sp => sp.GetRequiredService<PrinterBatchPrintedConsumer>());
+        services.AddHostedService<PrinterBatchPrintedConsumer>();
         services.AddHostedService<HeartbeatHostedService>();
-        services.AddHostedService(sp => sp.GetRequiredService<PrinterManagementKafkaClient>());
 
         return services;
     }

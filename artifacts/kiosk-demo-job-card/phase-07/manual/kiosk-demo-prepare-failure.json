@@ -1,35 +1,31 @@
 {
   "success": true,
   "action": "prepare-failure",
-  "generated_at": "2026-08-08T08:22:32.350Z",
+  "generated_at": "2026-08-08T08:55:07.229Z",
   "checks": [],
   "data": {
     "scenario": "failure",
-    "workflow_id": "3d33cb11-f693-4df3-95e9-25f901f3ae10",
-    "work_order_id": "9900dc83-bb29-47bb-93cd-b4f24ae9d963",
-    "work_order_code": "WO-20260808-0022",
+    "workflow_id": "a23b2dc4-ae86-49fd-802d-e1e6d1ef64ff",
+    "work_order_id": "db7457c1-f5a9-424b-8c82-a9b639ae5453",
+    "work_order_code": "WO-20260808-0026",
     "status": "InProgress",
     "dispatch_mode": "DEMO_SHARED_KIOSK",
     "selected_line_code": "WST-SEED-LINE-1",
-    "operation_count": 4,
+    "operation_count": 3,
     "allocations": [
       {
         "operation_code": "WST-SEED-OP-BINDING",
-        "allocation_id": "cea7532d-4e3e-49d2-9506-fc948aead6de"
+        "allocation_id": "da1503ef-ecae-451c-833e-61e5910d3083"
       },
       {
         "operation_code": "WST-SEED-OP-TEST5IN1",
-        "allocation_id": "1776cb2c-469b-4540-b83d-a1b086f0822e"
+        "allocation_id": "dca28e28-e193-4644-908b-8093f26e3617"
       },
       {
         "operation_code": "WST-SEED-OP-AIRTEST",
-        "allocation_id": "e0005dc9-612b-402f-8128-71b3787f7d59"
-      },
-      {
-        "operation_code": "WST-SEED-OP-PACKING",
-        "allocation_id": "74913836-35bf-484f-b20a-e98eed10b3e0"
+        "allocation_id": "b749e381-847f-41b7-b310-b604a3c3a256"
       }
     ]
   },
-  "completed_at": "2026-08-08T08:22:33.508Z"
+  "completed_at": "2026-08-08T08:55:08.463Z"
 }

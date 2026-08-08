@@ -13,10 +13,10 @@ using ND.UnifiedContracts.Events;
 namespace ND.LaserAdapter.Infrastructure.Messaging;
 
 /// <summary>
-/// Background service that consumes <c>job.processing</c> events from Kafka,
+/// Background service that consumes <c>job.processing</c> events from RabbitMQ,
 /// filters for jobs that require laser marking (MARK_ONLY, LASER_MARK, PRINT_AND_MARK, REWORK, FULL_PROCESS),
 /// sends the laser mark command to the virtual/physical laser device,
-/// and publishes a <see cref="LaserMarkedEvent"/> back to Kafka.
+/// and publishes a <see cref="LaserMarkedEvent"/> back to RabbitMQ.
 ///
 /// Subscription:
 ///   Exchange:    station.events
@@ -26,9 +26,9 @@ namespace ND.LaserAdapter.Infrastructure.Messaging;
 public sealed class JobMarkingConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventConsumer _consumer;
+    private readonly IRabbitMqConsumer _consumer;
     private readonly ILaserAdapter _laserAdapter;
-    private readonly IEventPublisher _publisher;
+    private readonly IRabbitMqPublisher _publisher;
     private readonly ILogger<JobMarkingConsumer> _logger;
 
     private const string Exchange = "station.events";
@@ -42,9 +42,9 @@ public sealed class JobMarkingConsumer : BackgroundService
 
     public JobMarkingConsumer(
         IServiceScopeFactory scopeFactory,
-        IEventConsumer consumer,
+        IRabbitMqConsumer consumer,
         ILaserAdapter laserAdapter,
-        IEventPublisher publisher,
+        IRabbitMqPublisher publisher,
         ILogger<JobMarkingConsumer> logger)
     {
         _scopeFactory = scopeFactory;
@@ -144,7 +144,7 @@ public sealed class JobMarkingConsumer : BackgroundService
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Publish LaserMarkedEvent to Kafka
+        // Publish LaserMarkedEvent to RabbitMQ
         var markedEvent = new LaserMarkedEvent
         {
             EventId = $"evt-laser-marked-{Guid.NewGuid():N}",

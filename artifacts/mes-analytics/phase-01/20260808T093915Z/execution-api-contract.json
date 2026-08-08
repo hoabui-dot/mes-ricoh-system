@@ -1,0 +1,17 @@
+{
+  "phase": "01",
+  "service": "mes-execution-service",
+  "status": "PASS",
+  "endpoints": [
+    "GET /api/mes/execution/analytics/overview",
+    "GET /api/mes/execution/analytics/work-orders",
+    "GET /api/mes/execution/analytics/lines",
+    "GET /api/mes/execution/analytics/operations",
+    "GET /api/mes/execution/analytics/resources",
+    "GET /api/mes/execution/analytics/materials",
+    "GET /api/mes/execution/analytics/print"
+  ],
+  "query_parameters": ["date_from", "date_to", "site", "line", "shift", "status", "production_version", "search", "page", "page_size", "sort", "direction"],
+  "date_policy": {"format": "YYYY-MM-DD", "default_days": 30, "maximum_days": 366, "date_to_exclusive": true},
+  "pagination": {"work_orders": true, "maximum_page_size": 200}
+}

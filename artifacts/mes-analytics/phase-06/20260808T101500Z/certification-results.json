@@ -1,0 +1,12 @@
+{
+  "phase": "06",
+  "status": "NOT_CERTIFIED",
+  "counts": {
+    "two_line_regression": {"declared": 12, "executed": 5, "passed": 4, "failed": 1, "skipped": 7},
+    "analytics_playwright": {"declared": 1, "executed": 1, "passed": 0, "failed": 1, "skipped": 0},
+    "owner_api_gateway_smoke": {"declared": 3, "executed": 3, "passed": 3, "failed": 0, "skipped": 0},
+    "build_checks": {"declared": 5, "executed": 5, "passed": 5, "failed": 0, "skipped": 0}
+  },
+  "blockers": ["two-line scenario 05 Primary remained READY instead of falling back", "authenticated analytics Playwright smoke timeout"],
+  "final_gate": "MES_ANALYTICS_DASHBOARD_NOT_CERTIFIED"
+}

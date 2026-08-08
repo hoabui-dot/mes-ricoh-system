@@ -8,30 +8,30 @@ This document outlines the event-driven real-time architecture implemented for t
 graph TD
     %% Services
     FG[Factory Gateway]
-    MA[MQTT Adapter Service]
+    SG[Station Gateway API]
     JE[Job Engine Service]
     PS[Projection Service]
     KUI[Kiosk UI Frontend]
 
     %% Databases
-    DB_MA[(MQTT SQLite)]
+    DB_SG[(Gateway SQLite)]
     DB_JE[(Job Engine SQLite)]
     DB_PS[(Projection SQLite)]
 
     %% Message Brokers / WebSockets
-    RMQ{Kafka Exchange: station.events}
+    KFK{Kafka Topics: station.gateway-orders & station.job-events}
     SR[SignalR Hub: /hubs/production]
 
     %% Connections
-    FG -->|MQTT| MA
-    MA -->|Write Message & Outbox| DB_MA
-    MA -->|Outbox Poller| RMQ
+    FG -->|HTTP POST| SG
+    SG -->|Write Request & Outbox| DB_SG
+    SG -->|Outbox Poller| KFK
     
-    RMQ -->|Consume: mqtt.MqttMessage.*| JE
-    RMQ -->|Consume: job.* & mqtt.*| PS
+    KFK -->|Consume Group: job-engine-group| JE
+    KFK -->|Consume Group: projection-service-group| PS
     
     JE -->|Write Job & Outbox| DB_JE
-    JE -->|Outbox Poller| RMQ
+    JE -->|Outbox Poller| KFK
     
     PS -->|Upsert Read Model| DB_PS
     PS -->|Realtime Push| SR
@@ -42,23 +42,24 @@ graph TD
 
 ## Service Responsibilities
 
-### 1. MQTT Adapter Service
-- Binds to MQTT broker.
-- Receives inbound requests from the factory gateway.
-- Uses a transactional Unit of Work to write raw payloads into the local `mqtt_messages` database table and a pending event to the `mqtt_outbox_events` outbox table.
-- A background worker polls the outbox and publishes the `mqtt.MqttMessage.MqttMessageReceived` event to the `station.events` Kafka exchange.
+### 1. Station Gateway (HTTP API)
+- Binds to HTTP Port 5001.
+- Exposes REST endpoint `POST /api/gateway/orders` for Factory Gateway to submit production orders (via `UnifiedEvent` payload).
+- Implements 24-hour Redis-based idempotency checks to avoid double-processing orders.
+- Uses a transactional Unit of Work to write raw payloads into the local `gateway_requests` database table and a pending outbox event to the `gateway_outbox_events` table.
+- A background worker polls the outbox and publishes the gateway events to the `station.gateway-orders` Kafka topic.
 
 ### 2. Job Engine Service
-- Consumes the `mqtt.MqttMessage.MqttMessageReceived` event from Kafka.
+- Consumes events from the `station.gateway-orders` Kafka topic using consumer group `job-engine-group`.
 - Creates a new `Job` record and starts processing it.
-- Writes corresponding outbox events (`JobCreatedEvent`, `JobProcessingEvent`, etc.) to the local `job_engine_outbox_events` table.
-- A background worker polls the outbox and publishes `job.created`, `job.processing`, etc., events to the `station.events` Kafka exchange.
+- Writes corresponding outbox events (`JobCreated`, `JobProcessing`, `JobCompleted`, and `JobFailed`) to the local `job_engine_outbox_events` table.
+- A background worker polls the outbox and publishes these lifecycle updates to the `station.job-events` Kafka topic.
 
 ### 3. Projection Service (Read Model)
-- A new standalone service that listens to both `mqtt.*` and `job.*` events from Kafka.
+- A standalone service that listens to `station.gateway-orders`, `station.job-events`, and `station.device-heartbeats` Kafka topics using consumer group `projection-service-group`.
 - Computes and maintains a materialized view of:
   - `production_view`: The current active job SKU, work order number, serial number, status, and update timestamp at the station.
-  - `activity_log`: A list of the latest 10 production events (MQTT request received, job queued, job processing started, job completed/failed).
+  - `activity_log`: A list of the latest 10 production events (Gateway request received, job queued, job processing started, job completed/failed).
   - `device_status`: The connection status of PLC, Printer, Laser, and Vision Camera.
 - Exposes REST endpoints for fast initial Kiosk UI load.
 - Exposes a SignalR Hub (`/hubs/production`) for pushing sub-second state changes to subscribers.
@@ -66,4 +67,4 @@ graph TD
 ### 4. Kiosk UI (Frontend)
 - Connects directly to the Projection Service's SignalR Hub on startup.
 - Displays real-time station metrics, device connectivity, and a live scrollable activity stream.
-- No longer polls or directly queries multiple microservices, satisfying CQRS.
+- Satisfies CQRS: does not poll or directly query multiple microservices.

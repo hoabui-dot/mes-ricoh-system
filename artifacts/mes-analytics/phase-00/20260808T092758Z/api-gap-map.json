@@ -1,0 +1,24 @@
+{
+  "run_id": "20260808T092758Z",
+  "status": "PHASE_01_REQUIRED",
+  "existing": [
+    {"owner":"execution","path":"/work-orders","supports":"raw WO list; not analytics pagination contract","status":"REUSE_WITH_ADAPTER"},
+    {"owner":"execution","path":"/work-orders/{id}","supports":"WO detail and snapshots","status":"REUSE_FOR_DRILLDOWN"},
+    {"owner":"execution","path":"/work-orders/{id}/line-readiness","supports":"single-WO readiness","status":"REUSE_FOR_DRILLDOWN"},
+    {"owner":"execution","path":"/work-orders/{id}/operations/{opId}/consumption","supports":"single operation material consumption","status":"REUSE_FOR_DRILLDOWN"},
+    {"owner":"traceability","path":"/labels/{id}/genealogy","supports":"single label genealogy","status":"REUSE_FOR_DRILLDOWN"},
+    {"owner":"master-data","path":"/production-ready-versions and master CRUD routes","supports":"readiness/master records","status":"REUSE_WITH_ADAPTER"}
+  ],
+  "new_required": [
+    {"owner":"execution","path":"GET /analytics/overview","status":"GAP"},
+    {"owner":"execution","path":"GET /analytics/work-orders","status":"GAP"},
+    {"owner":"execution","path":"GET /analytics/lines","status":"GAP"},
+    {"owner":"execution","path":"GET /analytics/operations","status":"GAP"},
+    {"owner":"execution","path":"GET /analytics/resources","status":"GAP"},
+    {"owner":"execution","path":"GET /analytics/materials","status":"GAP"},
+    {"owner":"execution","path":"GET /analytics/print","status":"GAP"},
+    {"owner":"master-data","path":"GET /analytics/readiness","status":"GAP"},
+    {"owner":"traceability","path":"GET /analytics/labels and /analytics/genealogy","status":"GAP"}
+  ],
+  "ownership_rule": "Each new endpoint aggregates only its owner database; MES Console composes cross-domain responses."
+}

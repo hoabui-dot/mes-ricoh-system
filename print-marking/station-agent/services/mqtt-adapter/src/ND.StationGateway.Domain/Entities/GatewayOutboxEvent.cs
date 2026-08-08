@@ -3,7 +3,7 @@ using ND.SharedKernel.Primitives;
 namespace ND.StationGateway.Domain.Entities;
 
 /// <summary>
-/// Outbox event queued for async publishing to Kafka.
+/// Outbox event queued for async publishing to RabbitMQ.
 /// The OutboxProcessorWorker polls this table and publishes to station.events exchange.
 /// Routing key: gateway.{AggregateType}.{EventType}
 /// </summary>

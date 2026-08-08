@@ -20,9 +20,9 @@ public sealed class Printer : Entity
 
     /// <summary>
     /// Driver type used to route print jobs.
-    /// Values: "cups" (lpr via CUPS) | "tcp" (raw TCP)
+    /// Values: "simulation" (self-hosted TCP in printer-adapter) | "cups" (lpr via CUPS) | "tcp" (raw TCP)
     /// </summary>
-    public string DriverType { get; private set; } = "cups";
+    public string DriverType { get; private set; } = "simulation";
 
     /// <summary>
     /// CUPS queue name used when DriverType == "cups".
@@ -59,7 +59,7 @@ public sealed class Printer : Entity
         string protocol,
         string vendor,
         string? groupId = null,
-        string driverType = "cups",
+        string driverType = "simulation",
         string? cupsQueueName = null)
     {
         return new Printer
@@ -96,18 +96,6 @@ public sealed class Printer : Entity
     {
         DriverType = driverType;
         CupsQueueName = cupsQueueName;
-    }
-
-    /// <summary>
-    /// Refreshes the endpoint persisted for a managed printer. CUPS deployments
-    /// can move between Docker Desktop hosts while the SQLite volume is kept.
-    /// The runtime health probe remains environment-driven, but management and
-    /// diagnostics must expose the same current endpoint.
-    /// </summary>
-    public void UpdateEndpoint(string ipAddress, int port)
-    {
-        IpAddress = ipAddress;
-        Port = port;
     }
 
     public void UpdateStatus(string status, string? errorMessage = null)

@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using ND.JobEngine.Application.Interfaces;
 using ND.JobEngine.Domain.Entities;
 using ND.JobEngine.Domain.Enums;
-using ND.JobEngine.Infrastructure.Messaging;
 using ND.SharedKernel.Abstractions;
 using ND.UnifiedContracts.Events;
 
@@ -27,7 +27,7 @@ public record PrinterDetailDto(
 ///   QUEUED/WAITING jobs
 ///     → grouped by Production Order (JobNo)
 ///     → entire PO transitions to PREPARING
-///     → ONE ProductionBatchPrintCommand published to Kafka (command.printer.print.batch)
+///     → ONE ProductionBatchPrintCommand published to RabbitMQ (command.printer.print.batch)
 ///     → Printer Adapter renders ALL ZPL in one pass, sends ONE TCP/CUPS request
 ///
 /// Single-label manual reprints still flow through ProcessJobHandler / command.printer.print.
@@ -37,7 +37,7 @@ public sealed class JobQueueScheduler : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<JobQueueScheduler> _logger;
-    private readonly PrinterManagementKafkaClient _printerManagement;
+    private readonly HttpClient _httpClient;
 
     // Configurable via appsettings PrintBatch:ChunkSize (default 100 labels per ZPL chunk)
     private int _chunkSize = 100;
@@ -45,13 +45,12 @@ public sealed class JobQueueScheduler : BackgroundService
     public JobQueueScheduler(
         IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
-        ILogger<JobQueueScheduler> logger,
-        PrinterManagementKafkaClient printerManagement)
+        ILogger<JobQueueScheduler> logger)
     {
         _scopeFactory = scopeFactory;
         _configuration = configuration;
         _logger = logger;
-        _printerManagement = printerManagement;
+        _httpClient = new HttpClient();
         _chunkSize = configuration.GetValue<int>("PrintBatch:ChunkSize", 100);
     }
 
@@ -135,13 +134,12 @@ public sealed class JobQueueScheduler : BackgroundService
         if (!remainingJobs.Any()) return;
 
         // ── 3. Discover active printers ──────────────────────────────────────────
+        var adapterUrl = _configuration["PRINTER_ADAPTER_URL"] ?? "http://printer-adapter:5003";
         List<PrinterDetailDto>? activePrinters = null;
         try
         {
-            var response = await _printerManagement.RequestAsync("GET", "/api/printers/active", null, cancellationToken);
-            if (response.StatusCode is >= 200 and < 300)
-                activePrinters = JsonSerializer.Deserialize<List<PrinterDetailDto>>(response.Body,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            activePrinters = await _httpClient.GetFromJsonAsync<List<PrinterDetailDto>>(
+                $"{adapterUrl}/api/printers/active", cancellationToken);
         }
         catch (Exception ex)
         {
@@ -267,7 +265,7 @@ public sealed class JobQueueScheduler : BackgroundService
             await outboxRepository.AddAsync(preparingOutbox, cancellationToken);
 
             // c) Determine dispatch target from first job's payload
-            var dispatchTarget = ExtractDispatchTarget(orderJobs[0].PayloadJson) ?? "production-printer";
+            var dispatchTarget = ExtractDispatchTarget(orderJobs[0].PayloadJson) ?? "simulation";
 
             // d) Build label items list (sequence = position in the order)
             var labelItems = orderJobs
@@ -279,9 +277,7 @@ public sealed class JobQueueScheduler : BackgroundService
                 })
                 .ToList();
 
-            // e) Persist the command in the Job Engine outbox. The independent
-            // Printer Adapter is the only production consumer; HTTP is reserved
-            // for management/diagnostics and is never called from this path.
+            // e) Publish ProductionBatchPrintCommand via outbox
             var batchCmd = ProductionBatchPrintCommand.Create(
                 productionOrderNo: jobNo,
                 jobType: orderJobs[0].JobType,
@@ -292,12 +288,13 @@ public sealed class JobQueueScheduler : BackgroundService
                 labelItems: labelItems,
                 batchSize: _chunkSize);
 
-            await outboxRepository.AddAsync(JobEngineOutboxEvent.Create(
+            var batchOutbox = JobEngineOutboxEvent.Create(
                 nameof(ProductionBatchPrintCommand),
-                batchCmd.EventId,
+                jobNo,
                 batchCmd.EventType,
                 JobEventRoutingKeys.BatchPrint,
-                JsonSerializer.Serialize(batchCmd)), cancellationToken);
+                JsonSerializer.Serialize(batchCmd));
+            await outboxRepository.AddAsync(batchOutbox, cancellationToken);
 
             _logger.LogInformation(
                 "Scheduler: ProductionBatchPrintCommand queued for {OrderNo} — {Count} labels → printer {Printer}",

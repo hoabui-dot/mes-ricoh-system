@@ -17,13 +17,13 @@ namespace ND.LaserAdapter.Infrastructure.Messaging;
 public sealed class HeartbeatHostedService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventPublisher _publisher;
+    private readonly IRabbitMqPublisher _publisher;
     private readonly ILogger<HeartbeatHostedService> _logger;
     private const string Exchange = "station.events";
 
     public HeartbeatHostedService(
         IServiceScopeFactory scopeFactory,
-        IEventPublisher publisher,
+        IRabbitMqPublisher publisher,
         ILogger<HeartbeatHostedService> logger)
     {
         _scopeFactory = scopeFactory;

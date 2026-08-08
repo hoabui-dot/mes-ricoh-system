@@ -23,7 +23,6 @@ const productionVersionCode = 'WST-SEED-PV-SEAL-ASM-01';
 // the next working day because the current date may be a weekend.
 const targetDate = process.env.KIOSK_DEMO_TARGET_DATE || '2026-08-10';
 const expectedManualOperations = ['WST-SEED-OP-BINDING', 'WST-SEED-OP-TEST5IN1', 'WST-SEED-OP-AIRTEST'];
-const expectedPrintOperation = 'WST-SEED-OP-PACKING';
 const scenarios = {
   success: { idempotencyKey: 'KIOSK-DEMO-PHASE07-SUCCESS-V1', quantity: 2, start: `${targetDate}T08:00:00.000Z` },
   failure: { idempotencyKey: 'KIOSK-DEMO-PHASE07-FAILURE-V1', quantity: 3, start: `${targetDate}T13:00:00.000Z` },
@@ -206,8 +205,7 @@ async function verifyPreparedScenarios() {
       const detail = await request(executionBase, `/kiosk/terminals/${terminalCode}/work-orders/${row.work_order_id}`, { headers: bearer }, 'none');
       const manualCodes = detail.job_cards.map((item) => item.operation_code);
       check(`${row.idempotency_key} has expected manual Job Cards`, JSON.stringify(manualCodes) === JSON.stringify(expectedManualOperations), { actual: manualCodes });
-      check(`${row.idempotency_key} excludes Print Station from manual cards`, !manualCodes.includes(expectedPrintOperation));
-      check(`${row.idempotency_key} has one read-only Print Station operation`, detail.print_operations.length === 1 && detail.print_operations[0].operation_code === expectedPrintOperation && detail.print_operations[0].read_only === true);
+      check(`${row.idempotency_key} has no Print Station dependency`, detail.print_operations.length === 0, { actual: detail.print_operations });
       check(`${row.idempotency_key} has Work Center and Workstation context`, detail.job_cards.every((item) => item.resource.work_center?.code && item.resource.workstation?.id));
       check(`${row.idempotency_key} has deterministic predecessor sequences`, JSON.stringify(detail.job_cards.map((item) => item.predecessor_sequences)) === JSON.stringify([[], [10], [20]]));
       check(`${row.idempotency_key} first job is executable and successors blocked`, detail.job_cards[0].action_eligibility.can_start === true && detail.job_cards[1].predecessor_status === 'BLOCKED' && detail.job_cards[2].predecessor_status === 'BLOCKED');

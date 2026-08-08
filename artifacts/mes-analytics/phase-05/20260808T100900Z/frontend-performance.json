@@ -1,0 +1,8 @@
+{
+  "phase": "05",
+  "status": "PASS",
+  "query_stale_time_ms": 30000,
+  "server_pagination": true,
+  "chart_dispose_on_unmount": true,
+  "raw_dataset_retention": "bounded page only"
+}

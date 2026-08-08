@@ -1,11 +1,11 @@
 {
   "status": "PASS",
-  "generated_at": "2026-08-08T07:48:14.972Z",
-  "mode": "--seed",
+  "generated_at": "2026-08-08T10:44:25.202Z",
+  "mode": "--reset-seed",
   "safety": {
     "passed": true,
-    "mode": "--seed",
-    "environment": "development",
+    "mode": "--reset-seed",
+    "environment": "local",
     "reasons": [],
     "host": "staging-master",
     "databases": {
@@ -33,28 +33,47 @@
     }
   },
   "artifact_path": "/home/neurosus/recoh-system/mes-system/artifacts/mes-seed-verification-20260808.json",
-  "command_results": [],
+  "command_results": [
+    {
+      "label": "MES execution Work Order cleanup",
+      "command": "/usr/bin/node scripts/reset-mes-wo-test-data.mjs --reset",
+      "exit_code": 0,
+      "started_at": "2026-08-08T10:44:25.250Z",
+      "ended_at": "2026-08-08T10:44:25.913Z",
+      "stdout": "{\n  \"success\": true,\n  \"mode\": \"reset\",\n  \"artifactDir\": \"/home/neurosus/recoh-system/mes-system/artifacts/mes-reset-seed-verify/phase10-20260808\",\n  \"deleted\": {\n    \"operation_confirmations\": 282,\n    \"execution_sessions\": 282,\n    \"material_consumption\": 0,\n    \"print_events\": 0,\n    \"print_attempts\": 0,\n    \"capacity_reservations\": 0,\n    \"resource_allocation_audit\": 0,\n    \"allocation_idempotency\": 0,\n    \"print_jobs\": 0,\n    \"resource_allocations\": 0,\n    \"operation_labor_assignments\": 0,\n    \"materials\": 0,\n    \"operations\": 366,\n    \"approval_logs\": 0,\n    \"workflow_events\": 0,\n    \"workflows\": 0,\n    \"outbox_events\": 0,\n    \"work_orders\": 366,\n    \"orphan_confirmations\": 0,\n    \"orphan_execution_sessions\": 0,\n    \"orphan_material_consumption\": 0,\n    \"orphan_print_attempts\": 0,\n    \"orphan_print_events\": 0,\n    \"orphan_print_jobs\": 0,\n    \"orphan_allocations\": 0,\n    \"orphan_reservations\": 0,\n    \"orphan_workflow_events\": 0,\n    \"orphan_workflows\": 0,\n    \"kiosk_outbound_messages\": 0\n  },\n  \"orphansAfter\": {\n    \"operation_without_header\": 0,\n    \"material_without_header\": 0,\n    \"session_without_operation\": 0,\n    \"confirmation_without_operation\": 0,\n    \"print_job_without_header\": 0,\n    \"print_attempt_without_job\": 0,\n    \"print_event_without_job\": 0,\n    \"allocation_without_operation\": 0,\n    \"reservation_without_allocation\": 0,\n    \"workflow_without_work_order\": 0\n  },\n  \"remainingWorkOrders\": 0\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "Won Seal Tech machine reset",
+      "command": "/usr/bin/node scripts/reset-won-seal-tech-machines.mjs --reset",
+      "exit_code": 0,
+      "started_at": "2026-08-08T10:44:25.913Z",
+      "ended_at": "2026-08-08T10:44:26.420Z",
+      "stdout": "[CLEANUP] Won Seal Tech WST namespace removed safely\n[SEED] Won Seal Tech Machine dataset created\n{\n  \"machines\": {\n    \"count\": 19,\n    \"released\": 17\n  },\n  \"units\": {\n    \"count\": 47,\n    \"planning\": 44\n  },\n  \"groups\": {\n    \"count\": 17\n  },\n  \"assignments\": {\n    \"count\": 37\n  },\n  \"calendars\": {\n    \"count\": 17\n  },\n  \"invalid\": {\n    \"count\": 0\n  },\n  \"result\": \"PASSED\"\n}\n",
+      "stderr": ""
+    }
+  ],
   "cleanup": {
     "master_line_eligibility": 8,
-    "master_line_resource_scope": 9,
-    "master_line_work_centers": 8,
-    "master_operation_skill_requirements": 0,
-    "master_employee_schedules": 0,
-    "master_employee_skills": 0,
-    "master_employees": 0,
-    "master_skills": 0,
-    "master_work_center_shift_assignments": 0,
-    "master_work_center_shift_sets": 0,
-    "master_resource_capabilities": 13,
-    "master_resource_calendars": 9,
-    "master_production_standards": 16,
-    "master_resource_assignments": 9,
+    "master_line_resource_scope": 7,
+    "master_line_work_centers": 6,
+    "master_operation_skill_requirements": 9,
+    "master_employee_schedules": 6,
+    "master_employee_skills": 6,
+    "master_employees": 6,
+    "master_skills": 1,
+    "master_work_center_shift_assignments": 6,
+    "master_work_center_shift_sets": 6,
+    "master_resource_capabilities": 7,
+    "master_resource_calendars": 7,
+    "master_production_standards": 13,
+    "master_resource_assignments": 7,
     "master_production_versions_before_resources": 4,
-    "master_routing_operations_before_resources": 12,
-    "master_machine_units": 9,
-    "master_equipment": 9,
+    "master_routing_operations_before_resources": 9,
+    "master_machine_units": 7,
+    "master_equipment": 7,
     "master_workstation_print_station_bindings": 0,
-    "master_workstations": 9,
+    "master_workstations": 7,
     "master_production_versions": 0,
     "master_mbom_lines": 1,
     "master_routing_operations": 0,
@@ -62,28 +81,34 @@
     "master_mbom_headers": 1,
     "master_item_revisions": 2,
     "master_items": 2,
-    "master_operations": 6,
-    "master_work_centers": 8,
+    "master_operations": 3,
+    "master_work_centers": 6,
     "master_production_lines": 2,
     "master_outbox_events": 0,
+    "execution_analytics_history_operation_confirmations": 0,
+    "execution_analytics_history_sessions": 0,
+    "execution_analytics_history_operations": 0,
+    "execution_analytics_history_approval_logs": 0,
+    "execution_analytics_history_line_audit": 0,
+    "execution_analytics_history_work_orders": 0,
     "execution_line_eligibility": 8,
-    "execution_line_work_centers": 8,
-    "execution_resource_calendars": 8,
-    "execution_production_standards": 15,
-    "execution_resource_capabilities": 12,
-    "execution_operation_skill_requirements": 0,
-    "execution_routing_operations": 12,
+    "execution_line_work_centers": 6,
+    "execution_resource_calendars": 6,
+    "execution_production_standards": 12,
+    "execution_resource_capabilities": 6,
+    "execution_operation_skill_requirements": 9,
+    "execution_routing_operations": 9,
     "execution_routing_headers": 3,
     "execution_mbom_lines": 1,
     "execution_mbom_headers": 1,
     "execution_production_versions": 4,
     "execution_production_lines": 2,
-    "execution_work_centers": 8,
+    "execution_work_centers": 6,
     "execution_item_revisions": 1,
-    "execution_employee_schedules": 0,
-    "execution_employee_skills": 0,
-    "execution_employees": 0,
-    "execution_skills": 0,
+    "execution_employee_schedules": 6,
+    "execution_employee_skills": 6,
+    "execution_employees": 6,
+    "execution_skills": 1,
     "traceability_policies": 0,
     "traceability_templates": 0,
     "traceability_numbering": 0,
@@ -94,61 +119,73 @@
     "reason": "Phase 10 default seed is MES-owned only; legacy E2E seed delegates to WMS and requires a separate WMS seed contract."
   },
   "seed": {
-    "production_version_id": "870dee00-a107-4bc5-8835-16396185bc0c",
+    "production_version_id": "c61900a4-3bd4-4e5d-b8ca-c11400bad420",
     "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
-    "item_revision_id": "fdd82a79-d281-4918-863f-411c2a47c1d4",
+    "item_revision_id": "6fbfa9fb-fd6a-46e2-baed-e1eb0db4417b",
     "site_id": "ec3424e0-d634-486b-ae53-89a449a4685a",
     "shift_id": "813d94f8-cf91-4dad-b83c-306d754c1a4f",
     "target_date": "2026-08-10",
-    "line_1_id": "24a00c4f-b2df-454f-8efa-a671fbdb9c1c",
-    "line_2_id": "c99fc65f-78b4-4e71-9a39-0dd05ac94dd0",
-    "operation_count": 4,
+    "line_1_id": "bcf41832-0fc4-41fb-895a-c18ab3e6928a",
+    "line_2_id": "0af7439c-9bed-42cd-9a17-526523edc572",
+    "operation_count": 3,
+    "print_mode": "without-print",
     "scenarios": {
       "primary_ready": {
-        "production_version_id": "870dee00-a107-4bc5-8835-16396185bc0c",
+        "production_version_id": "c61900a4-3bd4-4e5d-b8ca-c11400bad420",
         "code": "WST-UAT-PV-01-PRIMARY-READY",
         "expected_line": "WST-SEED-LINE-1",
         "expected_status": "READY"
       },
       "backup_fallback": {
-        "production_version_id": "92fc27df-c3f7-470b-b7a0-185dc4b51756",
+        "production_version_id": "5c3f1882-cce0-4caf-8f99-3adfdfd0e4b6",
         "code": "WST-UAT-PV-02-BACKUP-FALLBACK",
         "expected_line": "WST-SEED-LINE-2",
         "expected_status": "READY"
       },
       "both_lines_hold": {
-        "production_version_id": "a6c35f2b-d008-4b74-8e9e-15cb6e389552",
+        "production_version_id": "dc76c24a-52df-4fe6-afa3-dcb78ec2535c",
         "code": "WST-UAT-PV-03-BOTH-LINES-HOLD",
         "expected_line": null,
         "expected_status": "RESOURCE_HOLD"
       },
       "routing_ids": [
-        "a2b55ad0-3613-4747-9a54-2e1073bee000",
-        "92fd366b-dff2-4c06-a869-3aa5e3697093"
+        "12784d14-80fb-4b2e-83b8-6fa37649164b",
+        "18a261c8-9c7b-4e56-aa95-16f98f2a09c3"
       ]
     },
     "labor": {
       "skill_code": "WST-SEED-SK-PRODUCTION-OPERATOR",
-      "employees": 8,
-      "schedules": 8,
-      "routing_operation_requirements": 12
+      "employees": 6,
+      "schedules": 6,
+      "routing_operation_requirements": 9
+    },
+    "analyticsHistory": {
+      "from": "2026-04-01",
+      "to": "2026-07-31",
+      "work_orders": 366,
+      "lines": [
+        "LINE-BASE-1",
+        "WST-SEED-LINE-1",
+        "WST-SEED-LINE-2"
+      ],
+      "source": "execution-owned analytics history seed"
     }
   },
   "counts": {
     "masterCounts": {
       "production_lines": 2,
-      "work_centers": 8,
-      "workstations": 9,
-      "equipment": 9,
-      "machine_units": 9,
-      "assignments": 9,
-      "capabilities": 13,
-      "calendars": 9,
-      "operations": 6,
+      "work_centers": 6,
+      "workstations": 7,
+      "equipment": 7,
+      "machine_units": 7,
+      "assignments": 7,
+      "capabilities": 7,
+      "calendars": 7,
+      "operations": 3,
       "labor_skills": 1,
-      "labor_employees": 8,
-      "labor_schedules": 8,
-      "labor_requirements": 12,
+      "labor_employees": 6,
+      "labor_schedules": 6,
+      "labor_requirements": 9,
       "production_versions": 4,
       "line_eligibilities": 8
     },
@@ -158,5 +195,55 @@
       "eligibility_orphans": 0
     }
   },
-  "completed_at": "2026-08-08T07:48:15.745Z"
+  "flow": {
+    "workflow_id": "3440ee4d-94a0-4052-a5cc-87eca23a4923",
+    "work_order_id": "de035ccc-6a60-4fe7-9859-5f0c8c3eed3d",
+    "work_order_code": "WO-20260808-0035",
+    "selected_production_line_id": "bcf41832-0fc4-41fb-895a-c18ab3e6928a",
+    "selected_production_line_code": "WST-SEED-LINE-1",
+    "operation_count": 3,
+    "committed_count": 3,
+    "revalidation": {
+      "operations": [
+        {
+          "valid": true,
+          "wo_operation_id": "ef8806ce-ea1d-42ca-9451-778030ad6f35"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "1079d6e5-90c2-4a6d-a456-8d3df00acfe9"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "2399a6cb-aa77-4ac2-932b-16244d0a0ba1"
+        }
+      ],
+      "valid": true,
+      "wo_id": "de035ccc-6a60-4fe7-9859-5f0c8c3eed3d"
+    },
+    "approval_status": "Released"
+  },
+  "flow_cleanup": {
+    "operation_confirmations": 0,
+    "execution_sessions": 0,
+    "material_consumption": 0,
+    "print_events": 0,
+    "print_attempts": 0,
+    "capacity_reservations": 9,
+    "resource_allocation_audit": 3,
+    "allocation_idempotency": 3,
+    "print_jobs": 0,
+    "resource_allocations": 3,
+    "operation_labor_assignments": 3,
+    "materials": 1,
+    "operations": 3,
+    "approval_logs": 1,
+    "line_audit": 1,
+    "outbox_events": 7,
+    "work_orders": 1,
+    "workflow_events": 8,
+    "workflows": 1,
+    "remaining_work_orders": 0
+  },
+  "completed_at": "2026-08-08T10:44:28.866Z"
 }

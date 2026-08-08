@@ -1,0 +1,9 @@
+{
+  "phase": "03",
+  "status": "PASS",
+  "chart_library": "echarts",
+  "query_library": "@tanstack/react-query",
+  "url_filters": ["from", "to", "site", "line", "status"],
+  "widgets": ["kpi_cards", "status_distribution", "line_planned_quantity", "work_order_report_preview"],
+  "drilldown": "/work-orders/:id"
+}

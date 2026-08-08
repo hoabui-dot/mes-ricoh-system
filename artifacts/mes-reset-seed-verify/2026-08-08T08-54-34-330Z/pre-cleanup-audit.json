@@ -1,0 +1,74 @@
+{
+  "workOrders": [
+    {
+      "wo_id": "7e7bdd23-179e-4efd-a90d-6c0ab6e886f3",
+      "wo_code": "WO-20260808-0014",
+      "status": "InProgress",
+      "created_at": "2026-08-08T08:08:30.899Z",
+      "production_version_id": "870dee00-a107-4bc5-8835-16396185bc0c",
+      "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
+      "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+      "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+      "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+      "planning_snapshot": {
+        "mbom_id": "1f5d0564-2f2d-48a0-be84-93b82fc523d2",
+        "shift_id": "813d94f8-cf91-4dad-b83c-306d754c1a4f",
+        "routing_id": "fae2c631-30e4-4e29-9de7-8d68209e0a95",
+        "production_version_id": "870dee00-a107-4bc5-8835-16396185bc0c",
+        "production_version_code": "WST-UAT-PV-01-PRIMARY-READY"
+      },
+      "operation_count": 4,
+      "material_count": 1,
+      "allocation_count": 4,
+      "print_job_count": 0,
+      "pv_status": "Released",
+      "routing_status": "Released",
+      "mbom_status": "Released",
+      "item_revision_status": "Released",
+      "primary_reason": null,
+      "classification": "VALID",
+      "reasons": []
+    },
+    {
+      "wo_id": "53392e6f-713e-422f-abc2-568b61b458b2",
+      "wo_code": "WO-20260808-0023",
+      "status": "InProgress",
+      "created_at": "2026-08-08T08:44:22.337Z",
+      "production_version_id": "92fc27df-c3f7-470b-b7a0-185dc4b51756",
+      "production_version_code": "WST-UAT-PV-02-BACKUP-FALLBACK",
+      "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+      "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+      "routing_code": "WST-SEED-UAT-ROUTING-BACKUP-FALLBACK",
+      "planning_snapshot": {
+        "mbom_id": "1f5d0564-2f2d-48a0-be84-93b82fc523d2",
+        "shift_id": "813d94f8-cf91-4dad-b83c-306d754c1a4f",
+        "routing_id": "a2b55ad0-3613-4747-9a54-2e1073bee000",
+        "production_version_id": "92fc27df-c3f7-470b-b7a0-185dc4b51756",
+        "production_version_code": "WST-UAT-PV-02-BACKUP-FALLBACK"
+      },
+      "operation_count": 4,
+      "material_count": 1,
+      "allocation_count": 4,
+      "print_job_count": 0,
+      "pv_status": "Released",
+      "routing_status": "Released",
+      "mbom_status": "Released",
+      "item_revision_status": "Released",
+      "primary_reason": null,
+      "classification": "VALID",
+      "reasons": []
+    }
+  ],
+  "orphans": {
+    "operation_without_header": 0,
+    "material_without_header": 0,
+    "session_without_operation": 0,
+    "confirmation_without_operation": 0,
+    "print_job_without_header": 0,
+    "print_attempt_without_job": 0,
+    "print_event_without_job": 0,
+    "allocation_without_operation": 0,
+    "reservation_without_allocation": 0,
+    "workflow_without_work_order": 0
+  }
+}

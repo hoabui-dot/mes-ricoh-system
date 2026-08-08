@@ -55,7 +55,7 @@ public sealed class PrintQueueProcessor : BackgroundService
     {
         _logger.LogInformation(
             "Processing print job — Printer={PrinterCode}, Driver={DriverType}, JobId={JobId}",
-            job.PrinterCode, job.DriverType ?? "cups", job.JobId);
+            job.PrinterCode, job.DriverType ?? "simulation", job.JobId);
 
         // Resolve the correct driver for this job
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -72,7 +72,7 @@ public sealed class PrintQueueProcessor : BackgroundService
         {
             // Fallback: use driver type from the job itself
             driver = _driverFactory.ResolveByType(
-                job.DriverType ?? "cups",
+                job.DriverType ?? "simulation",
                 job.IpAddress,
                 job.Port,
                 job.CupsQueueName);

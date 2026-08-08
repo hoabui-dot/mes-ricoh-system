@@ -1,23 +1,23 @@
 {
-  "generated_at": "2026-08-08T08:19:51.864Z",
+  "generated_at": "2026-08-08T08:55:21.331Z",
   "success": {
     "key": "KIOSK-DEMO-PHASE07-SUCCESS-V1",
-    "woID": "952b2188-c796-41f5-b474-3e07e73a6874",
-    "woCode": "WO-20260808-0019",
+    "woID": "5ae5a3c8-698b-4dea-a760-c251c4aa54fd",
+    "woCode": "WO-20260808-0025",
     "quantity": 2,
     "operations": [
       {
-        "id": "24bc4cc3-8580-490a-a50b-d8de3951c102",
+        "id": "7d265f7c-d46f-4dd0-a44e-78720f2e8725",
         "code": "WST-SEED-OP-BINDING",
         "sequence": 10
       },
       {
-        "id": "ce5a09f3-5992-4a55-9590-03e28826a1e9",
+        "id": "7796ee9c-790a-450a-a6a6-c5b327a44d9e",
         "code": "WST-SEED-OP-TEST5IN1",
         "sequence": 20
       },
       {
-        "id": "ada21b44-d1e5-4cbf-aadf-6542d1e1b00d",
+        "id": "9eb229dd-6b33-4d7c-82f6-2d8cfacda9be",
         "code": "WST-SEED-OP-AIRTEST",
         "sequence": 30
       }
@@ -25,22 +25,22 @@
   },
   "failure": {
     "key": "KIOSK-DEMO-PHASE07-FAILURE-V1",
-    "woID": "c5051bdb-2348-46f9-ac33-b59bbd32b70b",
-    "woCode": "WO-20260808-0020",
+    "woID": "db7457c1-f5a9-424b-8c82-a9b639ae5453",
+    "woCode": "WO-20260808-0026",
     "quantity": 3,
     "operations": [
       {
-        "id": "82f61bcf-e93d-4323-817b-91f181cc5479",
+        "id": "a31966b5-0845-4ded-833e-a03021c863a5",
         "code": "WST-SEED-OP-BINDING",
         "sequence": 10
       },
       {
-        "id": "049dfb85-a9a5-4e47-b48c-50c9667eea80",
+        "id": "e0fd6a3c-384a-4ac6-aefd-17f7329e3f71",
         "code": "WST-SEED-OP-TEST5IN1",
         "sequence": 20
       },
       {
-        "id": "8ae6df73-3289-4c4f-a9a0-8806683f8e65",
+        "id": "5145864c-d7c4-4c28-9f93-464081c2d942",
         "code": "WST-SEED-OP-AIRTEST",
         "sequence": 30
       }

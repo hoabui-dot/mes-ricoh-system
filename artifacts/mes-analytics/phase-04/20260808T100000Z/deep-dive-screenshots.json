@@ -1,0 +1,6 @@
+{
+  "phase": "04",
+  "status": "PASS_BUILD_PENDING_AUTH_SCREENSHOT",
+  "routes": ["/analytics/work-orders", "/analytics/resources", "/analytics/operations", "/analytics/materials", "/analytics/print", "/analytics/readiness"],
+  "empty_state": "implemented"
+}

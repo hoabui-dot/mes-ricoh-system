@@ -10,6 +10,10 @@ import pg from 'pg';
 const { Client } = pg;
 
 const mode = process.argv[2] || '--verify';
+const includePrint = process.argv.includes('--with-print') && !process.argv.includes('--without-print');
+if (process.argv.includes('--with-print') && process.argv.includes('--without-print')) {
+  throw new Error('SEED_PRINT_MODE_CONFLICT: choose only --with-print or --without-print');
+}
 const envName = String(process.env.MES_ENV || '').trim().toLowerCase();
 const dateStamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
 const artifactPath = path.resolve(process.env.MES_SEED_VERIFICATION_ARTIFACT || `artifacts/mes-seed-verification-${dateStamp}.json`);
@@ -156,6 +160,12 @@ async function cleanupOwnedSeed() {
   await execution.query('BEGIN');
   try {
     const execStmts = [
+      ['analytics_history_operation_confirmations', `DELETE FROM operation_confirmation c USING wo_operation o, wo_header h WHERE c.wo_operation_id=o.wo_operation_id AND o.wo_id=h.wo_id AND h.wo_code LIKE 'ANL-SEED-%'`],
+      ['analytics_history_sessions', `DELETE FROM execution_session s USING wo_operation o, wo_header h WHERE s.wo_operation_id=o.wo_operation_id AND o.wo_id=h.wo_id AND h.wo_code LIKE 'ANL-SEED-%'`],
+      ['analytics_history_operations', `DELETE FROM wo_operation o USING wo_header h WHERE o.wo_id=h.wo_id AND h.wo_code LIKE 'ANL-SEED-%'`],
+      ['analytics_history_approval_logs', `DELETE FROM wo_approval_log l USING wo_header h WHERE l.wo_id=h.wo_id AND h.wo_code LIKE 'ANL-SEED-%'`],
+      ['analytics_history_line_audit', `DELETE FROM wo_line_selection_audit l USING wo_header h WHERE l.wo_id=h.wo_id AND h.wo_code LIKE 'ANL-SEED-%'`],
+      ['analytics_history_work_orders', `DELETE FROM wo_header WHERE wo_code LIKE 'ANL-SEED-%'`],
       ['line_eligibility', `DELETE FROM rm_production_version_line_eligibility WHERE production_version_id IN (SELECT master_id FROM rm_production_version WHERE code LIKE '${namespace}-%' OR code LIKE 'WST-UAT-%') OR production_line_id IN (SELECT master_id FROM rm_production_line WHERE code LIKE '${namespace}-%')`],
       ['line_work_centers', `DELETE FROM rm_production_line_work_center WHERE production_line_id IN (SELECT master_id FROM rm_production_line WHERE code LIKE '${namespace}-%') OR work_center_id IN (SELECT master_id FROM rm_work_center WHERE code LIKE '${namespace}-%')`],
       ['resource_calendars', `DELETE FROM rm_resource_calendar WHERE work_center_id IN (SELECT master_id FROM rm_work_center WHERE code LIKE '${namespace}-%')`],
@@ -220,13 +230,14 @@ async function seedTwoLineWonSealTech(targetDate = defaultPlanningDate()) {
     line1BindingAltUnit: cryptoRandom(),
     line1BindingAltAssignment: cryptoRandom(),
   };
-  const existingOperationRows = (await q(master, `SELECT master_id, code FROM md_operation WHERE code IN ('${namespace}-OP-BINDING','${namespace}-OP-TEST5IN1','${namespace}-OP-AIRTEST','${namespace}-OP-PACKING')`)).rows;
+  const operationCodes = [`${namespace}-OP-BINDING`, `${namespace}-OP-TEST5IN1`, `${namespace}-OP-AIRTEST`, ...(includePrint ? [`${namespace}-OP-PACKING`] : [])];
+  const existingOperationRows = (await q(master, `SELECT master_id, code FROM md_operation WHERE code IN (${operationCodes.map((code) => `'${code}'`).join(',')})`)).rows;
   const existingOperationIds = new Map(existingOperationRows.map((row) => [row.code, row.master_id]));
   const operations = [
     { key: 'BINDING', name: 'Binding', cycle: 90, seq: 10 },
     { key: 'TEST5IN1', name: 'Test 5 in 1', cycle: 120, seq: 20 },
     { key: 'AIRTEST', name: 'Air Test', cycle: 80, seq: 30 },
-    { key: 'PACKING', name: 'Packing', cycle: 60, seq: 40 },
+    ...(includePrint ? [{ key: 'PACKING', name: 'Packing', cycle: 60, seq: 40 }] : []),
   ].map((op) => ({ ...op, operationId: existingOperationIds.get(`${namespace}-OP-${op.key}`) || cryptoRandom(), routingOperationId: cryptoRandom(), line1Wc: cryptoRandom(), line2Wc: cryptoRandom(), line1Ws: cryptoRandom(), line2Ws: cryptoRandom(), line1Eq: cryptoRandom(), line2Eq: cryptoRandom(), line1Unit: cryptoRandom(), line2Unit: cryptoRandom(), line1Assignment: cryptoRandom(), line2Assignment: cryptoRandom() }));
 
   await master.query('BEGIN');
@@ -348,7 +359,8 @@ async function seedTwoLineWonSealTech(targetDate = defaultPlanningDate()) {
   await rebuildExecutionProjection({ ids, operations, site, area, shift, uom, targetDate });
   const scenarios = await seedUatProductionVersionScenarios({ ids, operations, site, targetDate });
   const labor = await seedTwoLineLabor({ ids, operations, site, shift, targetDate, scenarioRoutingIds: scenarios.routing_ids });
-  return { production_version_id: scenarios.primary_ready.production_version_id, production_version_code: scenarios.primary_ready.code, item_revision_id: ids.revision, site_id: site.master_id, shift_id: shift.master_id, target_date: targetDate, line_1_id: ids.line1, line_2_id: ids.line2, operation_count: operations.length, scenarios, labor };
+  const analyticsHistory = await seedAnalyticsHistory();
+  return { production_version_id: scenarios.primary_ready.production_version_id, production_version_code: scenarios.primary_ready.code, item_revision_id: ids.revision, site_id: site.master_id, shift_id: shift.master_id, target_date: targetDate, line_1_id: ids.line1, line_2_id: ids.line2, operation_count: operations.length, print_mode: includePrint ? 'with-print' : 'without-print', scenarios, labor, analyticsHistory };
 }
 
 async function rebuildExecutionProjection(seed) {
@@ -404,18 +416,93 @@ async function rebuildExecutionProjection(seed) {
   }
 }
 
+async function seedAnalyticsHistory() {
+  const context = (await q(execution, `
+    SELECT pv.master_id AS production_version_id, pv.code AS production_version_code,
+      pv.item_revision_id, pv.site_id, ir.code AS item_revision_code,
+      ir.base_uom_id AS uom_id, ro.master_id AS routing_operation_id, ro.operation_id,
+      ro.operation_code, ro.work_center_id, ro.seq, ro.resolved_cycle_time_sec,
+      ro.resolved_required_workers, ro.requires_output_label
+    FROM rm_production_version pv
+    JOIN rm_item_revision ir ON ir.master_id=pv.item_revision_id
+    JOIN rm_routing_operation ro ON ro.routing_header_id=pv.routing_header_id
+    WHERE pv.code='PV-FG-WS-CM01-R1'
+    ORDER BY ro.seq LIMIT 1
+  `)).rows[0];
+  const lines = (await q(execution, `SELECT master_id, code, name FROM rm_production_line WHERE code IN ('LINE-BASE-1','WST-SEED-LINE-1','WST-SEED-LINE-2') AND lifecycle_status='Released' ORDER BY code`)).rows;
+  if (!context || lines.length < 2) throw new Error('ANALYTICS_HISTORY_BASE_CONTEXT_MISSING');
+  await execution.query('BEGIN');
+  let inserted = 0;
+  try {
+    // Preserve the historical event dates for the analytics fixture; the audit trigger stamps operational CRUD writes with NOW().
+    await execution.query("SET LOCAL session_replication_role='replica'");
+    const start = new Date('2026-04-01T00:00:00.000Z');
+    const end = new Date('2026-08-01T00:00:00.000Z');
+    for (let day = new Date(start); day < end; day.setUTCDate(day.getUTCDate() + 1)) {
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+        const line = lines[lineIndex];
+        const suffix = `${day.toISOString().slice(0, 10).replaceAll('-', '')}-${lineIndex + 1}`;
+        const woId = cryptoRandom(); const operationId = cryptoRandom(); const sessionId = cryptoRandom();
+        const quantity = 80 + ((day.getUTCDate() + lineIndex * 13) % 70);
+        const status = day.getUTCDate() % 17 === 0 ? 'ResourceHold' : day.getUTCDate() % 11 === 0 ? 'Paused' : day.getUTCDate() % 7 === 0 ? 'Released' : 'Completed';
+        const isBackup = line.code === 'WST-SEED-LINE-2';
+        const good = status === 'Completed' ? quantity - (day.getUTCDate() % 9) : 0;
+        const scrap = status === 'Completed' ? quantity - good : 0;
+        const startedAt = new Date(day); startedAt.setUTCHours(7 + lineIndex * 2, 0, 0, 0);
+        const endedAt = new Date(startedAt.getTime() + 45 * 60 * 1000);
+        await q(execution, `INSERT INTO wo_header (
+          wo_id, wo_code, production_version_id, item_revision_id, item_code, item_name, quantity, uom_id,
+          site_id, planned_start_at, planned_end_at, status, created_by, updated_by, created_at, updated_at,
+          production_version_code, item_revision_code, planning_snapshot, selected_production_line_id,
+          selected_production_line_code, selected_production_line_name_i18n, line_selection_mode,
+          line_selection_status, line_selection_reason, fallback_reason, resource_hold_reason, evaluated_line_results
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13,$10,$11,$14,$5,'{}'::jsonb,$15,$16,$17::jsonb,'AUTO',$18,$19,$20,$21::jsonb,'[]'::jsonb)`, [
+          woId, `ANL-SEED-${suffix}`, context.production_version_id, context.item_revision_id, context.item_revision_code,
+          'Analytics Seed Production', quantity, context.uom_id, context.site_id, startedAt, endedAt, status, userId,
+          context.production_version_code, line.master_id, line.code, line.name,
+          isBackup ? 'BACKUP' : status === 'ResourceHold' ? 'RESOURCE_HOLD' : 'PRIMARY',
+          isBackup ? 'PRIMARY_LINE_BLOCKED' : status === 'ResourceHold' ? 'RESOURCE_CAPACITY_CONFLICT' : 'PRIMARY_LINE_READY',
+          isBackup ? 'PRIMARY_LINE_BLOCKED' : '', status === 'ResourceHold' ? JSON.stringify({ code: 'RESOURCE_CAPACITY_CONFLICT', source: 'analytics-seed' }) : '{}',
+        ]);
+        await q(execution, `INSERT INTO wo_operation (
+          wo_operation_id, wo_id, sequence_no, operation_id, operation_code, work_center_id,
+          planned_start_at, planned_end_at, status, operation_name, routing_operation_id,
+          base_quantity, standard_yield, required_workers, standard_cycle_time_sec,
+          planning_snapshot, production_line_id, production_line_code, production_line_name_i18n,
+          expected_good_quantity, requires_output_label
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,1,1,$12,$13,'{}'::jsonb,$14,$15,$16::jsonb,$17,$18)`, [
+          operationId, woId, context.seq, context.operation_id, context.operation_code, context.work_center_id,
+          startedAt, endedAt, status === 'Completed' ? 'Completed' : status === 'ResourceHold' ? 'Pending' : 'Ready',
+          JSON.stringify({ vi: context.operation_code, en: context.operation_code, ja: context.operation_code, ko: context.operation_code }), context.routing_operation_id,
+          context.resolved_required_workers || 1, context.resolved_cycle_time_sec || 60, line.master_id, line.code, line.name, good, context.requires_output_label || false,
+        ]);
+        if (status === 'Completed') {
+          await q(execution, `INSERT INTO execution_session (session_id, wo_operation_id, terminal_ref, operator_user_id, started_at, ended_at, status) VALUES ($1,$2,$3,$4,$5,$6,'COMPLETED')`, [sessionId, operationId, `ANL-KIOSK-${lineIndex + 1}`, userId, startedAt, endedAt]);
+          await q(execution, `INSERT INTO operation_confirmation (confirmation_id, wo_operation_id, session_id, qty_good, qty_scrap, confirmed_at) VALUES ($1,$2,$3,$4,$5,$6)`, [cryptoRandom(), operationId, sessionId, good, scrap, endedAt]);
+        }
+        inserted += 1;
+      }
+    }
+    await execution.query('COMMIT');
+  } catch (error) {
+    await execution.query('ROLLBACK');
+    throw error;
+  }
+  return { from: '2026-04-01', to: '2026-07-31', work_orders: inserted, lines: lines.map((line) => line.code), source: 'execution-owned analytics history seed' };
+}
+
 async function seedUatProductionVersionScenarios({ ids, operations, site, targetDate }) {
   let stage = 'master scenario data';
   const scenarioIds = {
     pv1: cryptoRandom(), pv2: cryptoRandom(), pv3: cryptoRandom(),
     routing2: cryptoRandom(), routing3: cryptoRandom(),
-    backupOperation: cryptoRandom(), holdOperation: cryptoRandom(),
+    ...(includePrint ? { backupOperation: cryptoRandom(), holdOperation: cryptoRandom() } : {}),
   };
   const route2Operations = operations.slice(0, 3).map((op) => ({ ...op, scenarioRoutingOperationId: cryptoRandom() }));
   const route3Operations = operations.slice(0, 3).map((op) => ({ ...op, scenarioRoutingOperationId: cryptoRandom() }));
-  const backupFinalRoutingOperation = cryptoRandom();
-  const holdFinalRoutingOperation = cryptoRandom();
-  const packing = operations[3];
+  const backupFinalRoutingOperation = includePrint ? cryptoRandom() : null;
+  const holdFinalRoutingOperation = includePrint ? cryptoRandom() : null;
+  const packing = includePrint ? operations[3] : null;
   const versions = [
     { id: scenarioIds.pv1, code: 'WST-UAT-PV-01-PRIMARY-READY', name: '[UAT-PRIMARY-READY] Primary line ready', routing: ids.routing },
     { id: scenarioIds.pv2, code: 'WST-UAT-PV-02-BACKUP-FALLBACK', name: '[UAT-BACKUP-FALLBACK] Primary blocked, Backup ready', routing: scenarioIds.routing2 },
@@ -425,12 +512,14 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
   await master.query('BEGIN');
   try {
     await master.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
-    for (const [operationId, code, name] of [
-      [scenarioIds.backupOperation, `${namespace}-UAT-OP-BACKUP-PACKING`, 'Backup-only final packing'],
-      [scenarioIds.holdOperation, `${namespace}-UAT-OP-HOLD-PACKING`, 'Hold final packing'],
-    ]) {
-      await q(master, `INSERT INTO md_operation (master_id, code, name, description, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_type, confirmation_mode, quantity_reporting, requires_material_scan, requires_output_label, is_schedulable, default_cycle_time_sec, default_setup_time_min, default_base_quantity, default_required_persons, default_efficiency_factor, default_yield)
-        VALUES ($1,$2,$3::jsonb,$3::jsonb,1,'Released',NOW(),$4,$4,'Packing','QuantityOnly','GoodOnly',FALSE,TRUE,TRUE,60,5,1,1,1,1)`, [operationId, code, i18n(name), userId]);
+    if (includePrint) {
+      for (const [operationId, code, name] of [
+        [scenarioIds.backupOperation, `${namespace}-UAT-OP-BACKUP-PACKING`, 'Backup-only final packing'],
+        [scenarioIds.holdOperation, `${namespace}-UAT-OP-HOLD-PACKING`, 'Hold final packing'],
+      ]) {
+        await q(master, `INSERT INTO md_operation (master_id, code, name, description, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_type, confirmation_mode, quantity_reporting, requires_material_scan, requires_output_label, is_schedulable, default_cycle_time_sec, default_setup_time_min, default_base_quantity, default_required_persons, default_efficiency_factor, default_yield)
+          VALUES ($1,$2,$3::jsonb,$3::jsonb,1,'Released',NOW(),$4,$4,'Packing','QuantityOnly','GoodOnly',FALSE,TRUE,TRUE,60,5,1,1,1,1)`, [operationId, code, i18n(name), userId]);
+      }
     }
     for (const [routingId, code, name] of [
       [scenarioIds.routing2, `${namespace}-UAT-ROUTING-BACKUP-FALLBACK`, 'UAT backup fallback routing'],
@@ -439,28 +528,34 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
       await q(master, `INSERT INTO md_routing_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, business_version, routing_type)
         VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,'1','Standard')`, [routingId, code, i18n(name), userId]);
     }
-    for (const [routingId, routeOperations, finalOperationId, finalRoutingOperationId, suffix] of [
-      [scenarioIds.routing2, route2Operations, scenarioIds.backupOperation, backupFinalRoutingOperation, 'BACKUP'],
-      [scenarioIds.routing3, route3Operations, scenarioIds.holdOperation, holdFinalRoutingOperation, 'HOLD'],
+    for (const [routingId, routeOperations, suffix] of [
+      [scenarioIds.routing2, route2Operations, 'BACKUP'],
+      [scenarioIds.routing3, route3Operations, 'HOLD'],
     ]) {
       for (const op of routeOperations) {
         const routingLine = suffix === 'BACKUP' ? 'line2' : 'line1';
         await q(master, `INSERT INTO md_routing_operation (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, routing_header_id, operation_id, work_center_id, workstation_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, planning_mode)
           VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,$9,$10,'Finite',2,1,'ROUTING_OVERRIDE')`, [op.scenarioRoutingOperationId, `${namespace}-UAT-RO-${suffix}-${op.key}`, i18n(`UAT ${suffix} ${op.name}`), userId, routingId, op.operationId, op[`${routingLine}Wc`], op[`${routingLine}Ws`], op.seq, op.seq === 10 ? null : op.seq - 10]);
       }
-      const finalLine = suffix === 'BACKUP' ? 'line2' : 'line1';
-      await q(master, `INSERT INTO md_routing_operation (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, routing_header_id, operation_id, work_center_id, workstation_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, planning_mode)
-        VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,40,30,'Finite',2,1,'ROUTING_OVERRIDE')`, [finalRoutingOperationId, `${namespace}-UAT-RO-${suffix}-PACKING`, i18n(`UAT ${suffix} final packing`), userId, routingId, finalOperationId, packing[`${finalLine}Wc`], packing[`${finalLine}Ws`]]);
+      if (includePrint) {
+        const finalLine = suffix === 'BACKUP' ? 'line2' : 'line1';
+        const finalOperationId = suffix === 'BACKUP' ? scenarioIds.backupOperation : scenarioIds.holdOperation;
+        const finalRoutingOperationId = suffix === 'BACKUP' ? backupFinalRoutingOperation : holdFinalRoutingOperation;
+        await q(master, `INSERT INTO md_routing_operation (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, routing_header_id, operation_id, work_center_id, workstation_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, planning_mode)
+          VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,40,30,'Finite',2,1,'ROUTING_OVERRIDE')`, [finalRoutingOperationId, `${namespace}-UAT-RO-${suffix}-PACKING`, i18n(`UAT ${suffix} final packing`), userId, routingId, finalOperationId, packing[`${finalLine}Wc`], packing[`${finalLine}Ws`]]);
+      }
     }
-    await q(master, `INSERT INTO md_resource_capability (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_id, work_center_id, equipment_id, capability_type, active_flag, cycle_time_sec, site_id, product_revision_id, eligibility, priority_no, speed_factor)
-      VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,'Eligible',TRUE,60,$8,$9,TRUE,1,1)`, [cryptoRandom(), `${namespace}-UAT-CAP-L2-BACKUP-PACKING`, i18n('BKP CAP'), userId, scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq, site.master_id, ids.revision]);
-    for (const [operationId, lineKey, suffix] of [
-      [scenarioIds.backupOperation, 'line1', 'L1-BACKUP-BLOCKED'],
-      [scenarioIds.holdOperation, 'line1', 'L1-HOLD-BLOCKED'],
-      [scenarioIds.holdOperation, 'line2', 'L2-HOLD-BLOCKED'],
-    ]) {
+    if (includePrint) {
       await q(master, `INSERT INTO md_resource_capability (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_id, work_center_id, equipment_id, capability_type, active_flag, cycle_time_sec, site_id, product_revision_id, eligibility, priority_no, speed_factor)
-        VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,'Eligible',TRUE,60,$8,$9,TRUE,1,1)`, [cryptoRandom(), `${namespace}-UAT-CAP-${suffix}`, i18n(suffix), userId, operationId, packing[`${lineKey}Wc`], packing[`${lineKey}Eq`], site.master_id, ids.revision]);
+        VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,'Eligible',TRUE,60,$8,$9,TRUE,1,1)`, [cryptoRandom(), `${namespace}-UAT-CAP-L2-BACKUP-PACKING`, i18n('BKP CAP'), userId, scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq, site.master_id, ids.revision]);
+      for (const [operationId, lineKey, suffix] of [
+        [scenarioIds.backupOperation, 'line1', 'L1-BACKUP-BLOCKED'],
+        [scenarioIds.holdOperation, 'line1', 'L1-HOLD-BLOCKED'],
+        [scenarioIds.holdOperation, 'line2', 'L2-HOLD-BLOCKED'],
+      ]) {
+        await q(master, `INSERT INTO md_resource_capability (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_id, work_center_id, equipment_id, capability_type, active_flag, cycle_time_sec, site_id, product_revision_id, eligibility, priority_no, speed_factor)
+          VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,'Eligible',TRUE,60,$8,$9,TRUE,1,1)`, [cryptoRandom(), `${namespace}-UAT-CAP-${suffix}`, i18n(suffix), userId, operationId, packing[`${lineKey}Wc`], packing[`${lineKey}Eq`], site.master_id, ids.revision]);
+      }
     }
     for (const op of route2Operations) {
       for (const [lineKey, role] of [['line1', 'L1'], ['line2', 'L2']]) {
@@ -468,8 +563,10 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
           VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,1,5,$9,1,$10,$11,1,1,'Seed',CURRENT_DATE)`, [cryptoRandom(), `${namespace}-UAT-STD-${role}-${op.key}`, i18n(`UAT ${role} ${op.key}`), userId, ids.revision, op.operationId, op[`${lineKey}Wc`], op[`${lineKey}Eq`], op.cycle, site.master_id, op.scenarioRoutingOperationId]);
       }
     }
-    await q(master, `INSERT INTO md_production_standard (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id, operation_id, work_center_id, equipment_id, labor_count, setup_time_min, cycle_time_sec, efficiency_factor, site_id, routing_operation_id, base_quantity, standard_yield, source_method, valid_from)
-      VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,1,5,60,1,$9,$10,1,1,'Seed',CURRENT_DATE)`, [cryptoRandom(), `${namespace}-UAT-STD-L2-BACKUP-PACKING`, i18n('BKP STD'), userId, ids.revision, scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq, site.master_id, backupFinalRoutingOperation]);
+    if (includePrint) {
+      await q(master, `INSERT INTO md_production_standard (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id, operation_id, work_center_id, equipment_id, labor_count, setup_time_min, cycle_time_sec, efficiency_factor, site_id, routing_operation_id, base_quantity, standard_yield, source_method, valid_from)
+        VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,1,5,60,1,$9,$10,1,1,'Seed',CURRENT_DATE)`, [cryptoRandom(), `${namespace}-UAT-STD-L2-BACKUP-PACKING`, i18n('BKP STD'), userId, ids.revision, scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq, site.master_id, backupFinalRoutingOperation]);
+    }
     for (const version of versions) {
       await q(master, `INSERT INTO md_production_version (master_id, code, name, name_i18n, version_no, lifecycle_status, effective_from, created_by, updated_by, mbom_header_id, routing_header_id, site_id, min_lot_size, max_lot_size, is_default)
         VALUES ($1,$2,$3,$4::jsonb,1,'Released',NOW(),$5,$5,$6,$7,$8,1,1000,FALSE)`, [version.id, version.code, version.name, i18n(version.name), userId, ids.mbom, version.routing, site.master_id]);
@@ -488,29 +585,38 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
     for (const [routingId, code] of [[scenarioIds.routing2, `${namespace}-UAT-ROUTING-BACKUP-FALLBACK`], [scenarioIds.routing3, `${namespace}-UAT-ROUTING-BOTH-HOLD`]]) {
       await q(execution, `INSERT INTO rm_routing_header (master_id, code, item_revision_id, site_id, lifecycle_status, updated_at) VALUES ($1,$2,NULL,$3,'Released',NOW())`, [routingId, code, site.master_id]);
     }
-    for (const [routingId, routeOperations, finalOperationId, finalRoutingOperationId, finalCode] of [
-      [scenarioIds.routing2, route2Operations, scenarioIds.backupOperation, backupFinalRoutingOperation, `${namespace}-UAT-OP-BACKUP-PACKING`],
-      [scenarioIds.routing3, route3Operations, scenarioIds.holdOperation, holdFinalRoutingOperation, `${namespace}-UAT-OP-HOLD-PACKING`],
+    for (const [routingId, routeOperations] of [
+      [scenarioIds.routing2, route2Operations],
+      [scenarioIds.routing3, route3Operations],
     ]) {
       for (const op of routeOperations) {
         const routingLine = routingId === scenarioIds.routing2 ? 'line2' : 'line1';
         await q(execution, `INSERT INTO rm_routing_operation (master_id, routing_header_id, operation_id, operation_code, work_center_id, seq, predecessor_seq, planning_mode, resolved_source, resolved_base_quantity, resolved_setup_time_min, resolved_cycle_time_sec, resolved_required_workers, resolved_efficiency_factor, resolved_standard_yield, requires_output_label, workstation_id, queue_time_min, move_time_min)
           VALUES ($1,$2,$3,$4,$5,$6,$7,'ROUTING_OVERRIDE','Seed',1,5,$8,1,1,1,FALSE,$9,2,1)`, [op.scenarioRoutingOperationId, routingId, op.operationId, `${namespace}-OP-${op.key}`, op[`${routingLine}Wc`], op.seq, op.seq === 10 ? null : op.seq - 10, op.cycle, op[`${routingLine}Ws`]]);
       }
-      const finalLine = routingId === scenarioIds.routing2 ? 'line2' : 'line1';
-      await q(execution, `INSERT INTO rm_routing_operation (master_id, routing_header_id, operation_id, operation_code, work_center_id, seq, predecessor_seq, planning_mode, resolved_source, resolved_base_quantity, resolved_setup_time_min, resolved_cycle_time_sec, resolved_required_workers, resolved_efficiency_factor, resolved_standard_yield, requires_output_label, workstation_id, queue_time_min, move_time_min)
-        VALUES ($1,$2,$3,$4,$5,40,30,'ROUTING_OVERRIDE','Seed',1,5,60,1,1,1,TRUE,$6,2,1)`, [finalRoutingOperationId, routingId, finalOperationId, finalCode, packing[`${finalLine}Wc`], packing[`${finalLine}Ws`]]);
     }
-    await q(execution, `INSERT INTO rm_resource_capability (master_id, operation_id, work_center_id, equipment_id, capability_type, active_flag, lifecycle_status) VALUES ($1,$2,$3,$4,'Eligible',TRUE,'Released')`, [cryptoRandom(), scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq]);
-    for (const [operationId, lineKey] of [[scenarioIds.backupOperation, 'line1'], [scenarioIds.holdOperation, 'line1'], [scenarioIds.holdOperation, 'line2']]) {
-      await q(execution, `INSERT INTO rm_resource_capability (master_id, operation_id, work_center_id, equipment_id, capability_type, active_flag, lifecycle_status) VALUES ($1,$2,$3,$4,'Eligible',TRUE,'Released')`, [cryptoRandom(), operationId, packing[`${lineKey}Wc`], packing[`${lineKey}Eq`]]);
+    if (includePrint) {
+      for (const [routingId, finalOperationId, finalRoutingOperationId, finalCode] of [
+        [scenarioIds.routing2, scenarioIds.backupOperation, backupFinalRoutingOperation, `${namespace}-UAT-OP-BACKUP-PACKING`],
+        [scenarioIds.routing3, scenarioIds.holdOperation, holdFinalRoutingOperation, `${namespace}-UAT-OP-HOLD-PACKING`],
+      ]) {
+        const finalLine = routingId === scenarioIds.routing2 ? 'line2' : 'line1';
+        await q(execution, `INSERT INTO rm_routing_operation (master_id, routing_header_id, operation_id, operation_code, work_center_id, seq, predecessor_seq, planning_mode, resolved_source, resolved_base_quantity, resolved_setup_time_min, resolved_cycle_time_sec, resolved_required_workers, resolved_efficiency_factor, resolved_standard_yield, requires_output_label, workstation_id, queue_time_min, move_time_min)
+          VALUES ($1,$2,$3,$4,$5,40,30,'ROUTING_OVERRIDE','Seed',1,5,60,1,1,1,TRUE,$6,2,1)`, [finalRoutingOperationId, routingId, finalOperationId, finalCode, packing[`${finalLine}Wc`], packing[`${finalLine}Ws`]]);
+      }
+      await q(execution, `INSERT INTO rm_resource_capability (master_id, operation_id, work_center_id, equipment_id, capability_type, active_flag, lifecycle_status) VALUES ($1,$2,$3,$4,'Eligible',TRUE,'Released')`, [cryptoRandom(), scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq]);
+      for (const [operationId, lineKey] of [[scenarioIds.backupOperation, 'line1'], [scenarioIds.holdOperation, 'line1'], [scenarioIds.holdOperation, 'line2']]) {
+        await q(execution, `INSERT INTO rm_resource_capability (master_id, operation_id, work_center_id, equipment_id, capability_type, active_flag, lifecycle_status) VALUES ($1,$2,$3,$4,'Eligible',TRUE,'Released')`, [cryptoRandom(), operationId, packing[`${lineKey}Wc`], packing[`${lineKey}Eq`]]);
+      }
     }
     for (const op of route2Operations) {
       for (const lineKey of ['line1', 'line2']) {
         await q(execution, `INSERT INTO rm_production_standard (master_id, item_revision_id, routing_operation_id, operation_id, work_center_id, equipment_id, setup_time_min, cycle_time_sec, efficiency_factor, lifecycle_status) VALUES ($1,$2,$3,$4,$5,$6,5,$7,1,'Released')`, [cryptoRandom(), ids.revision, op.scenarioRoutingOperationId, op.operationId, op[`${lineKey}Wc`], op[`${lineKey}Eq`], op.cycle]);
       }
     }
-    await q(execution, `INSERT INTO rm_production_standard (master_id, item_revision_id, routing_operation_id, operation_id, work_center_id, equipment_id, setup_time_min, cycle_time_sec, efficiency_factor, lifecycle_status) VALUES ($1,$2,$3,$4,$5,$6,5,60,1,'Released')`, [cryptoRandom(), ids.revision, backupFinalRoutingOperation, scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq]);
+      if (includePrint) {
+        await q(execution, `INSERT INTO rm_production_standard (master_id, item_revision_id, routing_operation_id, operation_id, work_center_id, equipment_id, setup_time_min, cycle_time_sec, efficiency_factor, lifecycle_status) VALUES ($1,$2,$3,$4,$5,$6,5,60,1,'Released')`, [cryptoRandom(), ids.revision, backupFinalRoutingOperation, scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq]);
+      }
     for (const version of versions) {
       await q(execution, `INSERT INTO rm_production_version (master_id, code, name_i18n, item_revision_id, mbom_header_id, routing_header_id, site_id, lifecycle_status, is_default, min_lot_size, max_lot_size, updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,'Released',FALSE,1,1000,NOW())`, [version.id, version.code, i18n(version.name), ids.revision, ids.mbom, version.routing, site.master_id]);
       await q(execution, `INSERT INTO rm_production_version_line_eligibility (master_id, production_version_id, production_line_id, selection_role, priority, effective_from, active_flag, lifecycle_status, updated_at) VALUES ($1,$2,$3,'PRIMARY',1,$5::date,TRUE,'Released',NOW()), ($4,$2,$6,'BACKUP',2,$5::date,TRUE,'Released',NOW())`, [cryptoRandom(), version.id, ids.line1, cryptoRandom(), targetDate, ids.line2]);
@@ -746,12 +852,12 @@ async function verifyCounts() {
       (SELECT COUNT(*)::int FROM md_production_version_line_eligibility e LEFT JOIN md_production_version pv ON pv.master_id=e.production_version_id LEFT JOIN md_production_line pl ON pl.master_id=e.production_line_id WHERE (pv.code LIKE '${namespace}-%' OR pl.code LIKE '${namespace}-%') AND (pv.master_id IS NULL OR pl.master_id IS NULL)) AS eligibility_orphans
   `)).rows[0];
   const passed = Number(masterCounts.production_lines) === 2
-    && Number(masterCounts.work_centers) === 8
-    && Number(masterCounts.operations) === 6
+      && Number(masterCounts.work_centers) === (includePrint ? 8 : 6)
+      && Number(masterCounts.operations) === (includePrint ? 6 : 3)
     && Number(masterCounts.labor_skills) === 1
-    && Number(masterCounts.labor_employees) === 8
-    && Number(masterCounts.labor_schedules) === 8
-    && Number(masterCounts.labor_requirements) === 12
+    && Number(masterCounts.labor_employees) === (includePrint ? 8 : 6)
+    && Number(masterCounts.labor_schedules) === (includePrint ? 8 : 6)
+    && Number(masterCounts.labor_requirements) === (includePrint ? 12 : 9)
     && Number(masterCounts.production_versions) === 4
     && Number(masterCounts.line_eligibilities) === 8
     && Object.values(orphanCounts).every((count) => Number(count) === 0);
@@ -797,7 +903,7 @@ async function main() {
         WHERE pv.code='${namespace}-PV-SEAL-ASM-01' LIMIT 1`)).rows[0];
       if (!existing) throw new Error('PHASE10_SEED_NOT_FOUND: run npm run reset:seed:mes first');
       const shift = (await q(master, `SELECT master_id FROM md_shift WHERE site_id=$1 AND lifecycle_status='Released' ORDER BY CASE WHEN code='SHIFT-A' THEN 0 ELSE 1 END, code LIMIT 1`, [existing.site_id])).rows[0];
-      report.seed = { ...existing, production_version_code: `${namespace}-PV-SEAL-ASM-01`, shift_id: shift.master_id, target_date: process.env.E2E_WO_TARGET_DATE || defaultPlanningDate(), operation_count: 4 };
+      report.seed = { ...existing, production_version_code: `${namespace}-PV-SEAL-ASM-01`, shift_id: shift.master_id, target_date: process.env.E2E_WO_TARGET_DATE || defaultPlanningDate(), operation_count: includePrint ? 4 : 3, print_mode: includePrint ? 'with-print' : 'without-print' };
     }
     const counts = await verifyCounts();
     report.counts = counts;

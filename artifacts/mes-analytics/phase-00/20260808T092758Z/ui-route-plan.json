@@ -1,0 +1,15 @@
+{
+  "run_id": "20260808T092758Z",
+  "routes": [
+    {"path":"/analytics","tab":"Overview","owner_apis":["execution overview","master readiness"],"drilldown":"/analytics/production"},
+    {"path":"/analytics/production","tab":"Production & Work Orders","owner_apis":["execution work-orders"],"drilldown":"/work-orders/:id"},
+    {"path":"/analytics/lines-resources","tab":"Lines & Resources","owner_apis":["execution lines/resources","master readiness"],"drilldown":"line selection/allocation"},
+    {"path":"/analytics/execution-quality","tab":"Execution & Quality","owner_apis":["execution operations"],"drilldown":"operation/WO detail"},
+    {"path":"/analytics/materials-traceability","tab":"Materials & Traceability","owner_apis":["execution materials","traceability labels/genealogy"],"drilldown":"label genealogy"},
+    {"path":"/analytics/print-system","tab":"Print & System","owner_apis":["execution print","master print runtime"],"drilldown":"print job/station"}
+  ],
+  "shared_components": ["AnalyticsFilterBar","AnalyticsKpiCard","AnalyticsChartCard","AnalyticsEmptyState","AnalyticsErrorState","AnalyticsDrilldownDrawer","AnalyticsReportTable"],
+  "default_locale":"vi",
+  "locales":["vi","en","ja","ko"],
+  "chart_library":{"approved":"Apache ECharts","current_dependency":false,"phase_03_add":"echarts + approved React wrapper"}
+}

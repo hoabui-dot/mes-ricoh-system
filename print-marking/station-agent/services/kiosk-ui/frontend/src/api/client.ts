@@ -75,7 +75,7 @@ export const commandsApi = {
 
   dispatchOrder: (data: {
     orderNo: string
-    dispatchTarget: 'production-printer'
+    dispatchTarget: 'simulation' | 'production-printer'
     notes?: string
   }) =>
     client.post<{ success: boolean; orderNo: string; dispatchTarget: string; dispatched: number; total: number }>(
@@ -125,7 +125,8 @@ export const templateApi = {
     labelWidth: number; labelHeight: number; templateJson: string
     templateCode?: string; category?: string; orientation?: string; revision?: string
     supportedBarcodeTypes?: string; supportedPrinterModels?: string; compatibleStationTypes?: string
-    layoutType?: string; sheetColumns?: number; sheetRows?: number; gapMm?: number
+    // N-Up: only gapMm is adjustable after creation
+    gapMm?: number
   }) =>
     client.put<any>(`/label-templates/${id}`, data),
   delete: (id: string) => client.delete(`/label-templates/${id}`),
@@ -138,8 +139,6 @@ export const templateApi = {
   getVersions: (id: string) => client.get<any[]>(`/label-templates/${id}/versions`),
   render: (templateJson: string, data: Record<string, string>) =>
     client.post<{ zpl: string; rendererType: string }>('/label-templates/render', { templateJson, data }),
-  renderStored: (id: string, data: Record<string, string>) =>
-    client.post<{ templateId: string; templateVersion: number; zpl: string; rendererType: string }>(`/label-templates/${id}/render-with-data`, { data }),
   printTest: (id: string, data: { printerCode?: string; data?: Record<string, string>; correlationId?: string }) =>
     client.post<any>(`/label-templates/${id}/print-test`, data),
   // Printer assignments
@@ -153,12 +152,15 @@ export const templateApi = {
     client.get<any[]>('/print-history', { params: { page, pageSize } }),
   getPrintHistoryDetail: (id: string) => client.get<any>(`/print-history/${id}`),
   // Printer management (proxied through projection-service → printer-adapter)
-  getPrintersReady: () => client.get<any[]>('/printers/ready'),
-  getPrintersActive: () => client.get<any[]>('/printers/active'),
+  getPrintersReady: (includeSimulation = false) =>
+    client.get<any[]>('/projection/printers/ready', { params: includeSimulation ? { includeSimulation: true } : undefined }),
+  getPrintersSimulation: () =>
+    client.get<any[]>('/projection/printers/ready', { params: { includeSimulation: true } }),
+  getPrintersActive: () => client.get<any[]>('/projection/printers/active'),
   activatePrinter: (printerCode: string, templateId: string, activatedBy?: string) =>
-    client.post(`/printers/${printerCode}/activate`, { templateId, activatedBy }),
+    client.post(`/projection/printers/${printerCode}/activate`, { templateId, activatedBy }),
   deactivatePrinter: (printerCode: string) =>
-    client.post(`/printers/${printerCode}/deactivate`),
+    client.post(`/projection/printers/${printerCode}/deactivate`),
   getPrinterMaintenance: (printerCode: string) =>
     client.get<any>(`/projection/printers/${printerCode}/maintenance`),
 }

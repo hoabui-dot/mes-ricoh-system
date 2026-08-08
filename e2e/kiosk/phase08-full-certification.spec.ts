@@ -166,9 +166,7 @@ test('Phase 08 certifies canonical success, failure/retry, abort, recovery, sync
   await openKioskWO(page, success);
   const successConsole = await openConsole(browser, success);
   await expect(page.locator('section[aria-labelledby="job-card-heading"] article')).toHaveCount(3);
-  const printBand = page.locator('section[aria-labelledby="print-heading"]');
-  await expect(printBand).toContainText('WST-SEED-OP-PACKING');
-  await expect(printBand.getByRole('button')).toHaveCount(0);
+  await expect(page.locator('section[aria-labelledby="print-heading"]')).toHaveCount(0);
 
   for (const [index, operation] of success.operations.entries()) {
     await selectOperation(page, operation);
@@ -182,8 +180,7 @@ test('Phase 08 certifies canonical success, failure/retry, abort, recovery, sync
     await expect(page.getByRole('button', { name: new RegExp(operation.code) })).toContainText('Đã hoàn tất');
     await expectConsoleOperation(successConsole.page, operation.id, /Finished|Hoàn tất/i);
   }
-  await expect(printBand).toContainText('WST-SEED-OP-PACKING');
-  await expect(printBand.getByRole('button')).toHaveCount(0);
+  await expect(page.locator('section[aria-labelledby="print-heading"]')).toHaveCount(0);
   await page.screenshot({ path: path.join(artifactDir, 'canonical-success.png'), fullPage: true });
   const successState = {
     operation_states: executionScalar(`SELECT operation_code || ':' || status::text FROM wo_operation WHERE wo_id='${success.woID}' ORDER BY sequence_no;`).split('\n'),
@@ -252,8 +249,7 @@ test('Phase 08 certifies canonical success, failure/retry, abort, recovery, sync
   await selectOperation(page, third);
   await page.getByRole('button', { name: 'Bắt đầu' }).click();
   await completeSelected(page, failure.quantity);
-  await expect(printBand).toContainText('WST-SEED-OP-PACKING');
-  await expect(printBand.getByRole('button')).toHaveCount(0);
+  await expect(page.locator('section[aria-labelledby="print-heading"]')).toHaveCount(0);
 
   const language = page.getByRole('combobox').first();
   for (const [locale, heading] of [['en', 'Manual Job Cards'], ['ja', '手動ジョブカード'], ['ko', '수동 Job Card'], ['vi', 'Job Card thủ công']] as const) {

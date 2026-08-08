@@ -32,7 +32,7 @@ public sealed class StartupAlarmScanService : IHostedService
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;
         _logger = logger;
-        _stationId = configuration["STATION_ID"] ?? string.Empty;
+        _stationId = configuration["STATION_ID"] ?? "STATION-01";
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

@@ -144,26 +144,26 @@ public sealed class CupsPrinterDriver : IPrinterDriver
                 {
                     if (attempt < MaxRetries - 1)
                     {
-                        _logger.LogWarning("[CUPS-PROBE] queue={Queue} state=unreachable retry={A}/{Max} delayMs={D}",
+                        _logger.LogDebug("[CUPS] {Queue} GetStatusAsync: unreachable, retrying ({A}/{Max}) in {D}ms",
                             _queueName, attempt + 1, MaxRetries, RetryDelayMs);
                         await Task.Delay(RetryDelayMs, ct);
                         continue;
                     }
                 }
 
-                _logger.LogInformation("[CUPS-PROBE] queue={Queue} state={State} reason={Reason} jobs={Jobs} attempt={Attempt}",
-                    _queueName, status, state.StateReason ?? "none", state.QueueLength, attempt + 1);
+                _logger.LogDebug("[CUPS] {Queue} GetStatusAsync → {State} (reason={Reason}, jobs={Jobs})",
+                    _queueName, status, state.StateReason ?? "none", state.QueueLength);
                 return status;
             }
             catch (Exception ex) when (attempt < MaxRetries - 1)
             {
-                _logger.LogWarning(ex, "[CUPS-PROBE] queue={Queue} attempt={A}/{Max} failed retryDelayMs={D}",
+                _logger.LogDebug(ex, "[CUPS] {Queue} GetStatusAsync attempt {A}/{Max} failed — retrying in {D}ms",
                     _queueName, attempt + 1, MaxRetries, RetryDelayMs);
                 await Task.Delay(RetryDelayMs, ct);
             }
         }
 
-        _logger.LogError("[CUPS-PROBE] queue={Queue} allAttemptsFailed={Max} result=OFFLINE", _queueName, MaxRetries);
+        _logger.LogWarning("[CUPS] {Queue} GetStatusAsync: all {Max} attempts failed → Offline", _queueName, MaxRetries);
         return PrinterDriverStatus.Offline;
     }
 

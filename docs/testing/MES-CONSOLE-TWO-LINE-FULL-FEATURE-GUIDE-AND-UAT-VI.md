@@ -227,8 +227,8 @@ Latest artifacts: seed `artifacts/mes-canonical-reset/2026-08-02T09-59-14-659Z/s
 | Line | Work Centers |
 |---|---|
 | `LINE-BASE-1` | `WC-MIXING`, `WC-VULCAN-MOLD`, `WC-CUTTING`, `WC-QC` |
-| `WST-SEED-LINE-1` | `WST-SEED-WC-L1-BINDING`, `WST-SEED-WC-L1-TEST5IN1`, `WST-SEED-WC-L1-AIRTEST`, `WST-SEED-WC-L1-PACKING` |
-| `WST-SEED-LINE-2` | `WST-SEED-WC-L2-BINDING`, `WST-SEED-WC-L2-TEST5IN1`, `WST-SEED-WC-L2-AIRTEST`, `WST-SEED-WC-L2-PACKING` |
+| `WST-SEED-LINE-1` | `WST-SEED-WC-L1-BINDING`, `WST-SEED-WC-L1-TEST5IN1`, `WST-SEED-WC-L1-AIRTEST` |
+| `WST-SEED-LINE-2` | `WST-SEED-WC-L2-BINDING`, `WST-SEED-WC-L2-TEST5IN1`, `WST-SEED-WC-L2-AIRTEST` |
 
 | Routing | Sequence | Operation | Work Center | Output label |
 |---|---:|---|---|---|
@@ -241,7 +241,7 @@ Latest artifacts: seed `artifacts/mes-canonical-reset/2026-08-02T09-59-14-659Z/s
 | `WST-SEED-ROUTING-SEAL-ASM-01` | 10 | `WST-SEED-OP-BINDING` | `WST-SEED-WC-L1-BINDING` | false |
 | `WST-SEED-ROUTING-SEAL-ASM-01` | 20 | `WST-SEED-OP-TEST5IN1` | `WST-SEED-WC-L1-TEST5IN1` | false |
 | `WST-SEED-ROUTING-SEAL-ASM-01` | 30 | `WST-SEED-OP-AIRTEST` | `WST-SEED-WC-L1-AIRTEST` | false |
-| `WST-SEED-ROUTING-SEAL-ASM-01` | 40 | `WST-SEED-OP-PACKING` | `WST-SEED-WC-L1-PACKING` | true |
+| `WST-SEED-ROUTING-SEAL-ASM-01` | - | Print operation omitted in default `no-print` seed | - | - |
 
 | Worker | Work Center | Skill | Level | Schedule |
 |---|---|---|---|---|
@@ -465,6 +465,15 @@ Lưu ý kiến trúc: UI gửi Workstation scope; backend derive các `md_resour
 | TC-29 cleanup/rerun | reset/seed/verify scripts | FULLY_AUTOMATED | None |
 
 ## 17. Troubleshooting
+
+### Seed theo trạng thái Print Station
+
+Mỗi lệnh dưới đây đều reset và seed lại dữ liệu MES test:
+
+- `npm run reset:seed:mes:wo-line-scenarios:no-print`: mặc định cho UAT WO, routing có 3 công đoạn và không tạo Print Station operation.
+- `npm run reset:seed:mes:wo-line-scenarios:with-print`: kiểm thử riêng integration print, routing có thêm công đoạn Packing.
+
+Hai chế độ không dùng chung dữ liệu runtime; hãy chạy lại đúng chế độ trước mỗi bộ test.
 
 Production Version không visible: kiểm tra lifecycle Released, effectivity, MBOM/Routing/line eligibility, API `/production-ready-versions`, seed verification. Line Eligibility không visible: mở PV edit, gọi `/production-versions/:id/line-eligibility`, kiểm tra one-primary. No line selected: kiểm tra `line_selection_status`, blockers `NO_RELEASED_EFFECTIVE_LINE_ELIGIBILITY`, `NO_COMPLETE_FEASIBLE_LINE`. No Ready candidate: kiểm tra Workstation, Machine Requirement, Assignment, Capability, Calendar, Standard, Shift. Machine Unit unavailable: mở Machines, kiểm tra execution_status, active, physical_identity_status, planning flag. Calendar unavailable: kiểm tra Resource Calendar cho target date/shift. Stale candidate: refresh WO, mở lại candidate. Capacity conflict: kiểm tra reservations và concurrent WO. Approval rejected: chạy Revalidate và đọc `WO_RESOURCE_ALLOCATION_INVALID`. Execution rejected: kiểm tra Released status, allocation coverage, selected line consistency, print dispatch limitation. Untranslated error/raw UUID: ghi TC-27 bug với screenshot và response.
 

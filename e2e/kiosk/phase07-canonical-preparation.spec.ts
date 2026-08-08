@@ -24,10 +24,7 @@ test('Phase 07 renders exactly two grouped WOs with complete manual Job Cards', 
     for (const operationCode of expectedManualOperations) {
       await expect(page.getByRole('button', { name: new RegExp(operationCode) })).toHaveCount(1);
     }
-    const printStation = page.getByRole('region', { name: 'Trạng thái Print Station' });
-    await expect(printStation).toBeVisible();
-    await expect(printStation.getByText('WST-SEED-OP-PACKING', { exact: false })).toBeVisible();
-    await expect(printStation.getByText('Chỉ đọc', { exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Trạng thái Print Station' })).toHaveCount(0);
 
     if (artifactDir) {
       await page.screenshot({ path: `${artifactDir}/kiosk-phase07-work-order-${index + 1}.png`, fullPage: true });

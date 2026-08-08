@@ -1,0 +1,8 @@
+{
+  "phase": "02",
+  "status": "PASS",
+  "owner_boundaries": {"master_data": "mes-master-data-db", "traceability": "mes-traceability-db"},
+  "supported": ["master readiness counts", "label lifecycle counts", "lot and serial counts", "genealogy relation counts", "genealogy grouping", "label pagination"],
+  "proxy_metrics": ["missing_worker_skills"],
+  "excluded": ["WMS inventory", "QMS metrics", "OEE without source data"]
+}

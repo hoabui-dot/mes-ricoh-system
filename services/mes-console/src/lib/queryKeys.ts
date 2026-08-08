@@ -21,6 +21,11 @@ const domain = (name: string) => ({
 });
 
 export const mesQueryKeys = {
+  analytics: {
+    all: ['analytics'] as const,
+    overview: (filters?: FilterInput) => ['analytics', 'overview', normalizeFilters(filters)] as const,
+    tab: (tab: string, filters?: FilterInput) => ['analytics', tab, normalizeFilters(filters)] as const,
+  },
   items: domain('items'),
   itemRevisions: {
     ...domain('item-revisions'),

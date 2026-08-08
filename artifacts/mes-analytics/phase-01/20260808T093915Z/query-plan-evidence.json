@@ -1,0 +1,8 @@
+{
+  "phase": "01",
+  "status": "PASS",
+  "method": "bounded parameterized aggregate queries executed through the service",
+  "range_policy": "all analytics queries require a bounded created/allocated date window",
+  "injection_controls": ["pgx bind arguments", "sort allow-list", "page_size cap"],
+  "note": "Phase 01 does not add an index because the current seeded dataset is empty and index choice requires production-scale EXPLAIN evidence. Revisit with representative volume in Phase 05."
+}

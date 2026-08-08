@@ -12,7 +12,7 @@ using ND.UnifiedContracts.Events;
 namespace ND.JobEngine.Infrastructure.Messaging;
 
 /// <summary>
-/// Background service that consumes <c>MqttMessageReceived</c> events from Kafka
+/// Background service that consumes <c>MqttMessageReceived</c> events from RabbitMQ
 /// and creates + triggers processing of corresponding Jobs.
 ///
 /// Replaces the previous HTTP endpoint (<c>POST /api/jobs</c> + <c>POST /api/jobs/{id}/process</c>)
@@ -26,7 +26,7 @@ namespace ND.JobEngine.Infrastructure.Messaging;
 public sealed class MqttMessageReceivedConsumer : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IEventConsumer _consumer;
+    private readonly IRabbitMqConsumer _consumer;
     private readonly ILogger<MqttMessageReceivedConsumer> _logger;
 
     private const string Exchange = "station.events";
@@ -35,7 +35,7 @@ public sealed class MqttMessageReceivedConsumer : BackgroundService
 
     public MqttMessageReceivedConsumer(
         IServiceScopeFactory scopeFactory,
-        IEventConsumer consumer,
+        IRabbitMqConsumer consumer,
         ILogger<MqttMessageReceivedConsumer> logger)
     {
         _scopeFactory = scopeFactory;
@@ -46,7 +46,7 @@ public sealed class MqttMessageReceivedConsumer : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "Job Engine Kafka consumer starting. exchange={Exchange} queue={Queue} pattern={Pattern}",
+            "Job Engine RabbitMQ consumer starting. exchange={Exchange} queue={Queue} pattern={Pattern}",
             Exchange, Queue, Pattern);
 
         await _consumer.StartConsumingAsync(
@@ -79,13 +79,13 @@ public sealed class MqttMessageReceivedConsumer : BackgroundService
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to deserialise UnifiedEvent payload from Kafka message");
+            _logger.LogError(ex, "Failed to deserialise UnifiedEvent payload from RabbitMQ message");
             throw; // Nack — invalid JSON should not be requeued
         }
 
         if (unifiedEvent is null)
         {
-            _logger.LogWarning("Received null UnifiedEvent from Kafka — skipping");
+            _logger.LogWarning("Received null UnifiedEvent from RabbitMQ — skipping");
             return;
         }
 

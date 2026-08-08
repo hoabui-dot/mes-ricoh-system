@@ -21,4 +21,4 @@ export const CREATABLE_ROLES: Array<{ value: string; label: string }> = [
 ]
 
 /** Username of the protected super admin account that cannot be deleted */
-export const PROTECTED_ADMIN_USERNAME = 'admin'
+export const PROTECTED_ADMIN_USERNAME = 'admin123'

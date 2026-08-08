@@ -1,672 +1,225 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import axios from 'axios'
-import { AlertTriangle, CheckCircle, RefreshCw, Search, X, ChevronLeft, ChevronRight, Wifi, Cpu, Activity, Filter } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { AlertTriangle, BellRing, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
+  Filter, Loader2, RefreshCw, ShieldAlert, UserCheck, WifiOff, Wrench } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import {
-  Card, CardContent, CardHeader, CardTitle, CardDescription,
-} from '@/components/ui/card'
-import {
-  Table as TableEl, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from '@/components/ui/dialog'
-import { type Alarm, type PagedAlarmResult } from '@/hooks/useDashboard'
-import client from '@/api/client'
-import {
-  getRetentionLimitStr,
-  getTodayStr,
-  normalizeStartOfDay,
-  normalizeEndOfDay,
-  clampToRetentionWindow,
-  buildLast7DaysRange,
-  buildTodayRange,
-  buildYesterdayRange,
-  buildLast3DaysRange,
-  formatRangeDisplay
-} from '@/lib/dateUtils'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { useAuth } from '@/context/AuthContext'
+import { alarmGuidance, translateAlarmCategory, translateAlarmResolution,
+  translateAlarmSeverity, translateAlarmState, translateAlarmTitle } from '@/lib/utils'
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
-type AlarmCategory = 'DeviceConnection' | 'ProductionError'
-
-interface AlarmFilters {
-  status: string      // '' | 'Active' | 'Acknowledged' | 'Resolved'
-  severity: string    // '' | 'Critical' | 'Error' | 'Warning'
-  deviceId: string
-  search: string
-  dateFrom: string
-  dateTo: string
+export interface AlarmView {
+  alarmId: string; alarmCode: string; dedupeKey: string; severity: string; category: string; state: string
+  stationId: string; sourceService: string; sourceType: string; sourceId: string; deviceId?: string
+  jobId?: string; workOrderNo?: string; productCode?: string; productSerial?: string
+  titleKey: string; messageKey: string; messageParams: Record<string, string | null>
+  technicalMessage?: string; productionImpact?: string; firstSeenAt: string; lastSeenAt: string
+  occurrenceCount: number; acknowledgedBy?: string; acknowledgedAt?: string; assignedTo?: string
+  assignedAt?: string; resolvedBy?: string; resolvedAt?: string; resolutionCode?: string
+  resolutionComment?: string; suppressedUntil?: string; suppressionReason?: string
+  escalationLevel: number; escalatedAt?: string; updatedAt: string; rowVersion: number
 }
 
-const defaultFilters = (): AlarmFilters => {
-  const range = buildLast7DaysRange()
-  return {
-    status: '',
-    severity: '',
-    deviceId: '',
-    search: '',
-    dateFrom: range.dateFrom,
-    dateTo: range.dateTo,
-  }
+interface AlarmTimeline {
+  id: string; actionType: string; previousState?: string; newState: string; actorUsername: string
+  actorRole: string; comment?: string; occurredAt: string
 }
 
+interface AlarmSummary {
+  activeCount: number; unacknowledgedCount: number; criticalCount: number
+  inProgressCount: number; clearedTodayCount: number
+}
+
+type AlarmTab = 'ACTIVE' | 'RAISED' | 'IN_PROGRESS' | 'HISTORY' | 'SUPPRESSED'
+interface Filters {
+  severity: string; category: string; deviceId: string; workOrderNo: string
+  assignedTo: string; from: string; to: string; productionImpactOnly: boolean
+}
+
+const EMPTY_FILTERS: Filters = { severity: '', category: '', deviceId: '', workOrderNo: '',
+  assignedTo: '', from: '', to: '', productionImpactOnly: false }
+const EMPTY_SUMMARY: AlarmSummary = { activeCount: 0, unacknowledgedCount: 0, criticalCount: 0,
+  inProgressCount: 0, clearedTodayCount: 0 }
 const PAGE_SIZE = 20
 
-// ─── Severity badge ─────────────────────────────────────────────────────────────
-
-function SeverityBadge({ severity }: { severity: string }) {
-  const cls =
-    severity === 'Critical' ? 'bg-red-500/15 text-red-400 border border-red-500/30' :
-    severity === 'Error'    ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' :
-                              'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${severity === 'Critical' ? 'bg-red-400 animate-pulse' : severity === 'Error' ? 'bg-orange-400' : 'bg-amber-400'}`} />
-      {severity}
-    </span>
-  )
+const severityClass: Record<string, string> = {
+  CRITICAL: 'border-red-500/50 bg-red-500/15 text-red-300', HIGH: 'border-orange-500/40 bg-orange-500/10 text-orange-300',
+  MEDIUM: 'border-amber-500/40 bg-amber-500/10 text-amber-300', LOW: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
+  INFO: 'border-slate-500/40 bg-slate-500/10 text-slate-300',
 }
 
-// ─── State badge ────────────────────────────────────────────────────────────────
-
-function StateBadge({ state }: { state: string }) {
-  if (state === 'Acknowledged')
-    return (
-      <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-bold">
-        <CheckCircle className="h-3.5 w-3.5" /> Đã xác nhận
-      </span>
-    )
-  if (state === 'Resolved')
-    return (
-      <span className="inline-flex items-center gap-1 text-blue-400 text-xs font-bold">
-        <CheckCircle className="h-3.5 w-3.5" /> Đã giải quyết
-      </span>
-    )
-  return (
-    <span className="inline-flex items-center gap-1 text-orange-400 text-xs font-bold animate-pulse">
-      <AlertTriangle className="h-3.5 w-3.5" /> Chưa xác nhận
-    </span>
-  )
+export function AlarmSeverityBadge({ severity, animate = false }: { severity: string; animate?: boolean }) {
+  return <span className={`inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-bold ${severityClass[severity] ?? severityClass.INFO} ${animate ? 'motion-safe:animate-pulse' : ''}`}>
+    <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />{translateAlarmSeverity(severity)}
+  </span>
 }
 
-// ─── Alarm Detail Modal ─────────────────────────────────────────────────────────
+export function AlarmStateBadge({ state }: { state: string }) {
+  return <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 text-xs font-semibold">
+    {state === 'RAISED' ? <AlertTriangle className="h-3.5 w-3.5 text-orange-400" /> : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+    {translateAlarmState(state)}
+  </span>
+}
 
-function AlarmDetailModal({
-  alarm,
-  onClose,
-  onAcknowledge,
-}: {
-  alarm: Alarm | null
-  onClose: () => void
-  onAcknowledge: (id: string) => Promise<void>
+function formatTime(value?: string) { return value ? new Date(value).toLocaleString('vi-VN') : '—' }
+function duration(from: string) {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(from).getTime()) / 60000))
+  return minutes < 60 ? `${minutes} phút` : `${Math.floor(minutes / 60)} giờ ${minutes % 60} phút`
+}
+
+function SummaryCards({ value, onSelect }: { value: AlarmSummary; onSelect: (tab: AlarmTab) => void }) {
+  const cards: Array<[string, number, AlarmTab, string]> = [
+    ['Đang hoạt động', value.activeCount, 'ACTIVE', 'text-orange-300'],
+    ['Chưa xác nhận', value.unacknowledgedCount, 'RAISED', 'text-red-300'],
+    ['Nghiêm trọng', value.criticalCount, 'ACTIVE', 'text-red-400'],
+    ['Đang xử lý', value.inProgressCount, 'IN_PROGRESS', 'text-blue-300'],
+    ['Đã khôi phục hôm nay', value.clearedTodayCount, 'HISTORY', 'text-emerald-300'],
+  ]
+  return <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    {cards.map(([label, count, tab, color]) => <button key={label} onClick={() => onSelect(tab)}
+      className="min-h-20 rounded-xl border border-border bg-card p-3 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-brand hover:bg-surface-2">
+      <div className={`text-2xl font-black ${color}`}>{count}</div><div className="text-xs text-muted-fg">{label}</div>
+    </button>)}
+  </div>
+}
+
+function AlarmDetail({ alarm, timeline, can, onAction, onClose }: {
+  alarm: AlarmView | null; timeline: AlarmTimeline[]; can: (permission: string) => boolean
+  onAction: (action: string, alarm: AlarmView) => void; onClose: () => void
 }) {
-  const [acking, setAcking] = useState(false)
-
   if (!alarm) return null
-
-  const handleAck = async () => {
-    setAcking(true)
-    await onAcknowledge(alarm.id)
-    setAcking(false)
-  }
-
-  const fmt = (ts?: string | null) =>
-    ts ? new Date(ts).toLocaleString('vi-VN') : '—'
-
-  // Build a simple timeline from the alarm's fields
-  const timeline: { time: string; label: string; highlight?: boolean }[] = []
-  if (alarm.firstOccurredAt)
-    timeline.push({ time: fmt(alarm.firstOccurredAt), label: 'Cảnh báo được tạo', highlight: true })
-  if (alarm.repeatCount > 0)
-    timeline.push({ time: fmt(alarm.lastOccurredAt), label: `Sự kiện lặp lại (×${alarm.repeatCount})` })
-  if (alarm.isAcknowledged && alarm.acknowledgedAt)
-    timeline.push({ time: fmt(alarm.acknowledgedAt), label: `Đã xác nhận bởi ${alarm.acknowledgedBy ?? '—'}`, highlight: true })
-  if (alarm.resolvedAt)
-    timeline.push({ time: fmt(alarm.resolvedAt), label: 'Đã giải quyết', highlight: true })
-
-  return (
-    <Dialog open={!!alarm} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-card border-border">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-base font-bold">
-            <AlertTriangle className="h-5 w-5 text-orange-400" />
-            Chi tiết cảnh báo
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-fg">
-            ID: <code className="font-mono bg-surface-2 px-1 rounded">{alarm.id}</code>
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-          {/* Info panel */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase text-muted-fg tracking-wider">Thông tin cảnh báo</h4>
-            <div className="space-y-2 text-sm">
-              {[
-                ['Mức độ', <SeverityBadge key="sv" severity={alarm.severity} />],
-                ['Loại',   <span key="typ" className="font-semibold text-foreground">{alarm.alarmType === 'DeviceConnection' ? 'Kết nối thiết bị' : 'Lỗi sản xuất'}</span>],
-                ['Nguồn',  alarm.source],
-                ['Thiết bị', alarm.deviceName ? `${alarm.deviceName} (${alarm.deviceId ?? '—'})` : (alarm.deviceId ?? '—')],
-                ['Lệnh SX', alarm.productionOrderId ?? '—'],
-                ['Trạng thái', <StateBadge key="st" state={alarm.currentState} />],
-                ['Xác nhận bởi', alarm.acknowledgedBy ?? '—'],
-                ['Thời gian xác nhận', fmt(alarm.acknowledgedAt)],
-                ['Tạo lúc', fmt(alarm.createdAt)],
-                ['Lần cuối', fmt(alarm.lastOccurredAt)],
-                ['Số lần lặp', alarm.repeatCount],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="flex justify-between items-center border-b border-border pb-1.5 last:border-0">
-                  <span className="text-muted-fg text-xs">{label}</span>
-                  <span className="text-xs font-semibold text-right">{value as any}</span>
-                </div>
-              ))}
-            </div>
+  const criticalWorkflow = alarm.severity === 'CRITICAL' && alarm.state === 'RAISED'
+  return <Dialog open onOpenChange={open => { if (!open && !criticalWorkflow) onClose() }}>
+    <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto bg-card" aria-describedby="alarm-detail-description">
+      <DialogHeader><DialogTitle className="flex items-center gap-2"><BellRing className="h-5 w-5 text-orange-400" />{translateAlarmTitle(alarm.alarmCode)}</DialogTitle>
+        <DialogDescription id="alarm-detail-description">Mã cảnh báo: <code>{alarm.alarmCode}</code></DialogDescription></DialogHeader>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="space-y-4">
+          <div className="flex flex-wrap gap-2"><AlarmSeverityBadge severity={alarm.severity} animate={criticalWorkflow} /><AlarmStateBadge state={alarm.state} /><Badge>{translateAlarmCategory(alarm.category)}</Badge></div>
+          <Info title="Tóm tắt" rows={[
+            ['Lần đầu', formatTime(alarm.firstSeenAt)], ['Lần cuối', formatTime(alarm.lastSeenAt)],
+            ['Thời lượng', duration(alarm.firstSeenAt)], ['Số lần xuất hiện', String(alarm.occurrenceCount)],
+            ['Người xử lý', alarm.assignedTo ?? 'Chưa phân công'], ['Kết quả', translateAlarmResolution(alarm.resolutionCode)],
+            ['Tạm ẩn bởi', alarm.suppressionReason ?? '—'], ['Hết hạn tạm ẩn', formatTime(alarm.suppressedUntil)],
+            ['Mức chuyển cấp', alarm.escalationLevel > 0 ? `Cấp ${alarm.escalationLevel}` : 'Chưa chuyển cấp'],
+          ]} />
+          <Info title="Ảnh hưởng sản xuất" rows={[
+            ['Mức ảnh hưởng', alarm.productionImpact ?? 'Chưa xác định'], ['Công việc', alarm.jobId ?? '—'],
+            ['Lệnh sản xuất', alarm.workOrderNo ?? '—'], ['SKU', alarm.productCode ?? '—'], ['Serial', alarm.productSerial ?? '—'],
+          ]} />
+          <Info title="Nguồn cảnh báo" rows={[
+            ['Dịch vụ', alarm.sourceService], ['Loại thiết bị', alarm.sourceType], ['Thiết bị', alarm.deviceId ?? alarm.sourceId],
+            ['Thông tin kỹ thuật', alarm.technicalMessage ?? '—'],
+          ]} />
+        </section>
+        <section className="space-y-4">
+          <div className="rounded-xl border border-border p-4"><h3 className="mb-3 text-sm font-bold">Hướng dẫn cho người vận hành</h3>
+            <ol className="space-y-2">{alarmGuidance(alarm.alarmCode).map((item, index) => <li key={item} className="flex gap-2 text-sm"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/15 text-xs font-bold text-brand-light">{index + 1}</span>{item}</li>)}</ol>
           </div>
-
-          {/* Message + Timeline */}
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-xs font-bold uppercase text-muted-fg tracking-wider mb-2">Nội dung thông báo</h4>
-              <p className="text-sm text-foreground bg-surface-2 rounded-lg px-4 py-3 border border-border">
-                {alarm.message}
-              </p>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold uppercase text-muted-fg tracking-wider mb-2">Dòng thời gian</h4>
-              <ol className="relative border-l border-brand/30 space-y-3 pl-4">
-                {timeline.map((t, i) => (
-                  <li key={i} className="relative">
-                    <span className={`absolute -left-[17px] top-0.5 h-3 w-3 rounded-full border-2 ${t.highlight ? 'bg-brand border-brand' : 'bg-surface-2 border-border'}`} />
-                    <p className={`text-xs font-semibold ${t.highlight ? 'text-foreground' : 'text-muted-fg'}`}>{t.label}</p>
-                    <time className="text-[10px] text-muted-fg font-mono">{t.time}</time>
-                  </li>
-                ))}
-              </ol>
-            </div>
+          <div className="rounded-xl border border-border p-4"><h3 className="mb-3 text-sm font-bold">Dòng thời gian</h3>
+            {timeline.length === 0 ? <p className="text-sm text-muted-fg">Chưa có sự kiện lịch sử.</p> : <ol className="space-y-3 border-l border-brand/30 pl-4">{timeline.map(item => <li key={item.id} className="relative text-sm"><span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-brand" /><div className="font-semibold">{translateAlarmState(item.newState)}</div><div className="text-xs text-muted-fg">{item.actorUsername} · {formatTime(item.occurredAt)}</div>{item.comment && <div className="text-xs">{item.comment}</div>}</li>)}</ol>}
           </div>
-        </div>
-
-        {/* Actions */}
-        {!alarm.isAcknowledged && (
-          <div className="flex justify-end pt-4 border-t border-border mt-2">
-            <Button onClick={handleAck} disabled={acking} className="gap-2">
-              <CheckCircle className="h-4 w-4" />
-              {acking ? 'Đang xác nhận...' : 'Xác nhận cảnh báo'}
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
+        </section>
+      </div>
+      <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-border bg-card/95 py-3 backdrop-blur">
+        {alarm.state === 'RAISED' && can('ALARM_ACKNOWLEDGE') && <Button className="min-h-11" onClick={() => onAction('acknowledge', alarm)}>Xác nhận đã thấy</Button>}
+        {['RAISED','ACKNOWLEDGED'].includes(alarm.state) && can('ALARM_START_WORK') && <Button className="min-h-11" variant="outline" onClick={() => onAction('start-work', alarm)}><Wrench className="mr-2 h-4 w-4" />Bắt đầu xử lý</Button>}
+        {!['CLEARED','CLOSED'].includes(alarm.state) && alarm.severity !== 'CRITICAL' && can('ALARM_SUPPRESS') && <Button className="min-h-11" variant="outline" onClick={() => onAction('suppress', alarm)}>Tạm ẩn</Button>}
+        {!['CLEARED','CLOSED'].includes(alarm.state) && can('ALARM_CLEAR') && <Button className="min-h-11" variant="outline" onClick={() => onAction('clear', alarm)}>Đánh dấu đã khôi phục</Button>}
+        {alarm.state === 'CLEARED' && can('ALARM_CLOSE') && <Button className="min-h-11" onClick={() => onAction('close', alarm)}>Đóng cảnh báo</Button>}
+      </div>
+      {criticalWorkflow && <Button variant="ghost" onClick={onClose} className="min-h-11">Quay lại danh sách</Button>}
+    </DialogContent>
+  </Dialog>
 }
 
-// ─── Filter Toolbar ─────────────────────────────────────────────────────────────
-
-function FilterToolbar({
-  filters,
-  onChange,
-  onReset,
-}: {
-  filters: AlarmFilters
-  onChange: (f: Partial<AlarmFilters>) => void
-  onReset: () => void
-}) {
-  const rangeDisplay = formatRangeDisplay(filters.dateFrom, filters.dateTo)
-
-  return (
-    <div className="flex flex-wrap gap-2 items-end pb-4 border-b border-border">
-      {/* Search */}
-      <div className="relative min-w-[200px] flex-1">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-fg" />
-        <Input
-          placeholder="Tìm kiếm thiết bị, thông báo..."
-          value={filters.search}
-          onChange={e => onChange({ search: e.target.value })}
-          className="pl-8 h-8 text-xs"
-        />
-      </div>
-
-      {/* Status */}
-      <Select value={filters.status || '__all__'} onValueChange={v => onChange({ status: v === '__all__' ? '' : v })}>
-        <SelectTrigger className="h-8 text-xs w-36">
-          <SelectValue placeholder="Trạng thái" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">Tất cả trạng thái</SelectItem>
-          <SelectItem value="Active">Chưa xác nhận</SelectItem>
-          <SelectItem value="Acknowledged">Đã xác nhận</SelectItem>
-          <SelectItem value="Resolved">Đã giải quyết</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {/* Severity */}
-      <Select value={filters.severity || '__all__'} onValueChange={v => onChange({ severity: v === '__all__' ? '' : v })}>
-        <SelectTrigger className="h-8 text-xs w-32">
-          <SelectValue placeholder="Mức độ" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">Tất cả mức độ</SelectItem>
-          <SelectItem value="Critical">Critical</SelectItem>
-          <SelectItem value="Error">Error</SelectItem>
-          <SelectItem value="Warning">Warning</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {/* Date range quick picks */}
-      <Select
-        value=""
-        onValueChange={v => {
-          if (v === 'today') onChange(buildTodayRange())
-          else if (v === 'yesterday') onChange(buildYesterdayRange())
-          else if (v === '3d') onChange(buildLast3DaysRange())
-          else if (v === '7d') onChange(buildLast7DaysRange())
-        }}
-      >
-        <SelectTrigger className="h-8 text-xs w-36">
-          <SelectValue placeholder="Khoảng thời gian" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="today">Hôm nay</SelectItem>
-          <SelectItem value="yesterday">Hôm qua</SelectItem>
-          <SelectItem value="3d">3 ngày qua</SelectItem>
-          <SelectItem value="7d">7 ngày qua</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {/* Date from / to */}
-      <div className="flex items-center gap-1.5">
-        <input
-          type="date"
-          min={getRetentionLimitStr()}
-          max={getTodayStr()}
-          value={filters.dateFrom ? filters.dateFrom.split('T')[0] : ''}
-          onChange={e => {
-            const val = e.target.value
-            if (val) {
-              const clamped = clampToRetentionWindow(val, getRetentionLimitStr())
-              onChange({ dateFrom: normalizeStartOfDay(clamped) })
-            }
-          }}
-          className="h-8 text-xs bg-background border border-border rounded-md px-2 text-foreground"
-        />
-        <span className="text-muted-fg text-xs self-center">→</span>
-        <input
-          type="date"
-          min={getRetentionLimitStr()}
-          max={getTodayStr()}
-          value={filters.dateTo ? filters.dateTo.split('T')[0] : ''}
-          onChange={e => {
-            const val = e.target.value
-            if (val) {
-              const clamped = clampToRetentionWindow(val, getTodayStr())
-              onChange({ dateTo: normalizeEndOfDay(clamped) })
-            }
-          }}
-          className="h-8 text-xs bg-background border border-border rounded-md px-2 text-foreground"
-        />
-      </div>
-
-      {rangeDisplay && (
-        <div className="text-[11px] text-brand-light font-bold self-center px-2.5 py-1 rounded bg-brand/5 border border-brand/10">
-          📅 {rangeDisplay}
-        </div>
-      )}
-
-      {/* Reset */}
-      <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={onReset}>
-        <X className="h-3.5 w-3.5" /> Xóa bộ lọc
-      </Button>
-    </div>
-  )
+function Info({ title, rows }: { title: string; rows: Array<[string, string]> }) {
+  return <div className="rounded-xl border border-border p-4"><h3 className="mb-3 text-sm font-bold">{title}</h3><dl className="space-y-2">{rows.map(([key, value]) => <div key={key} className="flex justify-between gap-4 border-b border-border/60 pb-2 text-xs last:border-0"><dt className="text-muted-fg">{key}</dt><dd className="text-right font-semibold break-all">{value}</dd></div>)}</dl></div>
 }
-
-// ─── Pagination Footer ──────────────────────────────────────────────────────────
-
-function PaginationFooter({
-  page,
-  totalPages,
-  totalCount,
-  pageSize,
-  onPage,
-}: {
-  page: number
-  totalPages: number
-  totalCount: number
-  pageSize: number
-  onPage: (p: number) => void
-}) {
-  const from = (page - 1) * pageSize + 1
-  const to   = Math.min(page * pageSize, totalCount)
-  return (
-    <div className="flex items-center justify-between pt-4 border-t border-border mt-2">
-      <span className="text-xs text-muted-fg">
-        Hiển thị <strong>{from}–{to}</strong> / <strong>{totalCount}</strong> cảnh báo
-      </span>
-      <div className="flex gap-1">
-        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onPage(page - 1)} disabled={page <= 1}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-          const p = Math.max(1, page - 2) + i
-          if (p > totalPages) return null
-          return (
-            <Button key={p} size="sm" variant={p === page ? 'default' : 'ghost'} className="h-7 w-7 p-0 text-xs" onClick={() => onPage(p)}>
-              {p}
-            </Button>
-          )
-        })}
-        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onPage(page + 1)} disabled={page >= totalPages}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Alarm Table ────────────────────────────────────────────────────────────────
-
-function AlarmTable({
-  alarms,
-  onRowClick,
-  onAcknowledge,
-}: {
-  alarms: Alarm[]
-  onRowClick: (a: Alarm) => void
-  onAcknowledge: (id: string) => Promise<void>
-}) {
-  const [ackingId, setAckingId] = useState<string | null>(null)
-
-  const handleAck = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    setAckingId(id)
-    await onAcknowledge(id)
-    setAckingId(null)
-  }
-
-  if (alarms.length === 0)
-    return (
-      <div className="text-center py-16 text-muted-fg text-sm">
-        <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-20" />
-        Không có cảnh báo nào phù hợp với bộ lọc.
-      </div>
-    )
-
-  return (
-    <div className="overflow-x-auto border border-border rounded-xl bg-card">
-      <TableEl>
-        <TableHeader className="bg-muted/40">
-          <TableRow>
-            <TableHead className="pl-4 font-bold text-xs uppercase tracking-wider">Mức độ</TableHead>
-            <TableHead className="font-bold text-xs uppercase tracking-wider">Nguồn / Thiết bị</TableHead>
-            <TableHead className="font-bold text-xs uppercase tracking-wider">Nội dung</TableHead>
-            <TableHead className="font-bold text-xs uppercase tracking-wider">Lần đầu</TableHead>
-            <TableHead className="font-bold text-xs uppercase tracking-wider">Lần cuối</TableHead>
-            <TableHead className="font-bold text-xs uppercase tracking-wider text-center">Lặp</TableHead>
-            <TableHead className="font-bold text-xs uppercase tracking-wider">Trạng thái</TableHead>
-            <TableHead className="pr-4 text-right font-bold text-xs uppercase tracking-wider">Hành động</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {alarms.map(alarm => (
-            <TableRow
-              key={alarm.id}
-              onClick={() => onRowClick(alarm)}
-              className={`cursor-pointer transition-colors ${alarm.currentState !== 'Active' ? 'opacity-60 bg-muted/10' : 'hover:bg-surface-1'}`}
-            >
-              <TableCell className="pl-4">
-                <SeverityBadge severity={alarm.severity} />
-              </TableCell>
-              <TableCell className="text-xs">
-                <div className="font-semibold text-foreground">{alarm.source}</div>
-                {alarm.deviceName && (
-                  <div className="text-muted-fg font-mono text-[11px]">{alarm.deviceId}</div>
-                )}
-              </TableCell>
-              <TableCell className="text-xs text-foreground max-w-xs truncate">{alarm.message}</TableCell>
-              <TableCell className="text-muted-fg text-xs whitespace-nowrap">
-                {new Date(alarm.firstOccurredAt || alarm.createdAt).toLocaleString('vi-VN')}
-              </TableCell>
-              <TableCell className="text-muted-fg text-xs whitespace-nowrap">
-                {alarm.repeatCount > 0
-                  ? new Date(alarm.lastOccurredAt).toLocaleString('vi-VN')
-                  : '—'}
-              </TableCell>
-              <TableCell className="text-center">
-                {alarm.repeatCount > 0 ? (
-                  <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0">
-                    +{alarm.repeatCount}
-                  </Badge>
-                ) : '—'}
-              </TableCell>
-              <TableCell>
-                <StateBadge state={alarm.currentState} />
-              </TableCell>
-              <TableCell className="pr-4 text-right">
-                {alarm.currentState === 'Active' && (
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs"
-                    disabled={ackingId === alarm.id}
-                    onClick={e => handleAck(e, alarm.id)}
-                  >
-                    {ackingId === alarm.id ? '...' : 'Xác nhận'}
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </TableEl>
-    </div>
-  )
-}
-
-// ─── Main AlarmCenterTab ────────────────────────────────────────────────────────
 
 interface AlarmCenterTabProps {
-  stationId: string
-  /** Called from useDashboard SignalR OnAlarmRaised — triggers a list refresh */
-  signalRAlarm?: Alarm | null
+  stationId: string; signalRAlarm?: unknown; isConnected?: boolean; isStale?: boolean; lastUpdatedAt?: string | null
 }
 
-export function AlarmCenterTab({ stationId: _stationId, signalRAlarm }: AlarmCenterTabProps) {
-  const [category, setCategory] = useState<AlarmCategory>('DeviceConnection')
-  const [filters, setFilters] = useState<AlarmFilters>(defaultFilters())
+export function AlarmCenterTab({ stationId, signalRAlarm, isConnected = true, isStale = false, lastUpdatedAt }: AlarmCenterTabProps) {
+  const { user } = useAuth()
+  const [tab, setTab] = useState<AlarmTab>('ACTIVE')
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [page, setPage] = useState(1)
-  const [result, setResult] = useState<PagedAlarmResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [selectedAlarm, setSelectedAlarm] = useState<Alarm | null>(null)
+  const [items, setItems] = useState<AlarmView[]>([])
+  const [totalPages, setTotalPages] = useState(1)
+  const [summary, setSummary] = useState<AlarmSummary>(EMPTY_SUMMARY)
+  const [selected, setSelected] = useState<AlarmView | null>(null)
+  const [timeline, setTimeline] = useState<AlarmTimeline[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [pendingAction, setPendingAction] = useState<{ action: string; alarm: AlarmView } | null>(null)
+  const signalRef = useRef<unknown>(null)
+  const baseUrl = import.meta.env.VITE_PROJECTION_URL || `${window.location.protocol}//${window.location.host}`
+  const can = useCallback((permission: string) => !!user &&
+    (user.roles.includes('SUPER_ADMIN') || user.permissions.includes('SYSTEM_ADMIN') || user.permissions.includes(permission)), [user])
 
-  const baseUrl = import.meta.env.VITE_PROJECTION_URL ||
-    `${window.location.protocol}//${window.location.host}`
-
-  // ── Fetch ─────────────────────────────────────────────────────────────────
-  const fetchAlarms = useCallback(async () => {
-    setLoading(true)
+  const queryState = tab === 'ACTIVE' ? 'ACTIVE' : tab === 'HISTORY' ? 'HISTORY' : tab
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
     try {
-      const params = new URLSearchParams()
-      params.set('page', String(page))
-      params.set('pageSize', String(PAGE_SIZE))
-      params.set('alarmType', category)
-      if (filters.status)   params.set('status',   filters.status)
-      if (filters.severity) params.set('severity', filters.severity)
-      if (filters.deviceId) params.set('deviceId', filters.deviceId)
-      if (filters.search)   params.set('search',   filters.search)
-      if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
-      if (filters.dateTo)   params.set('dateTo',   filters.dateTo)
+      const params: Record<string, string | number | boolean> = { stationId, page, pageSize: PAGE_SIZE, state: queryState }
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` }
+      Object.entries(filters).forEach(([key, value]) => { if (value) params[key] = value })
+      const [list, summaryResult] = await Promise.all([
+        axios.get<{ items: AlarmView[]; totalPages: number }>(`${baseUrl}/api/alarms`, { params, headers }),
+        axios.get<AlarmSummary>(`${baseUrl}/api/alarms/summary`, { params: { stationId }, headers }),
+      ])
+      setItems(list.data.items); setTotalPages(Math.max(1, list.data.totalPages)); setSummary(summaryResult.data)
+      setSelected(current => current ? list.data.items.find(x => x.alarmId === current.alarmId) ?? current : null)
+    } catch { setError('Không thể tải dữ liệu cảnh báo. Dữ liệu gần nhất vẫn được giữ lại.') }
+    finally { setLoading(false) }
+  }, [baseUrl, filters, page, queryState, stationId])
 
-      const res = await axios.get<PagedAlarmResult>(
-        `${baseUrl}/api/projection/alarms?${params.toString()}`
-      )
-      setResult(res.data)
-    } catch (err) {
-      console.error('[AlarmCenterTab] fetch error', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [baseUrl, page, category, filters])
+  useEffect(() => { void load() }, [load])
+  useEffect(() => { if (signalRAlarm && signalRAlarm !== signalRef.current) { signalRef.current = signalRAlarm; void load() } }, [signalRAlarm, load])
+  const selectedAlarmId = selected?.alarmId
+  useEffect(() => { if (!selectedAlarmId) return; axios.get<AlarmTimeline[]>(`${baseUrl}/api/alarms/${selectedAlarmId}/timeline`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` } }).then(r => setTimeline(r.data)).catch(() => setTimeline([])) }, [baseUrl, selectedAlarmId])
 
-  useEffect(() => { fetchAlarms() }, [fetchAlarms])
-
-  // React to SignalR real-time alarm — re-fetch to keep list fresh
-  const prevSignalRAlarm = useRef<Alarm | null>(null)
-  useEffect(() => {
-    if (signalRAlarm && signalRAlarm !== prevSignalRAlarm.current) {
-      prevSignalRAlarm.current = signalRAlarm
-      if (signalRAlarm.alarmType === category) {
-        fetchAlarms()
-      }
-    }
-  }, [signalRAlarm, category, fetchAlarms])
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleAcknowledge = async (id: string) => {
-    await client.post(`/projection/alarms/${id}/acknowledge`)
-    // Optimistic: update selected alarm + list
-    setSelectedAlarm(prev => prev?.id === id ? { ...prev, isAcknowledged: true, currentState: 'Acknowledged', acknowledgedBy: 'Operator', acknowledgedAt: new Date().toISOString() } : prev)
-    setResult(prev => prev ? {
-      ...prev,
-      activeCount: Math.max(0, prev.activeCount - 1),
-      items: prev.items.map(a => a.id === id ? { ...a, isAcknowledged: true, currentState: 'Acknowledged', acknowledgedBy: 'Operator', acknowledgedAt: new Date().toISOString() } : a)
-    } : null)
+  const updateFilter = (next: Partial<Filters>) => { setFilters(value => ({ ...value, ...next })); setPage(1) }
+  const chooseTab = (next: AlarmTab) => { setTab(next); setPage(1) }
+  const executeAction = async () => {
+    if (!pendingAction) return
+    const { action, alarm } = pendingAction; setPendingAction(null)
+    const payload = action === 'clear' ? { resolutionCode: 'MANUAL_RESET', comment: 'Người vận hành xác nhận thiết bị đã khôi phục.' }
+      : action === 'suppress' ? { reason: 'Tạm ẩn để kiểm tra bảo trì', until: new Date(Date.now() + 60 * 60 * 1000).toISOString() } : {}
+    try { await axios.post(`${baseUrl}/api/alarms/${alarm.alarmId}/${action}`, payload, { headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}`, 'Idempotency-Key': crypto.randomUUID() } }); await load(); setSelected(null) }
+    catch { setError('Không thể thực hiện hành động. Vui lòng kiểm tra quyền hoặc trạng thái cảnh báo.') }
   }
 
-  const handleCategoryChange = (c: AlarmCategory) => {
-    setCategory(c)
-    setPage(1)
-  }
-
-  const handleFilterChange = (f: Partial<AlarmFilters>) => {
-    setFilters(prev => ({ ...prev, ...f }))
-    setPage(1)
-  }
-
-  const handleResetFilters = () => {
-    setFilters(defaultFilters())
-    setPage(1)
-  }
-
-  // ── Banner counts ─────────────────────────────────────────────────────────
-  const totalActive = result?.activeCount ?? 0
-
-  // ── Render ────────────────────────────────────────────────────────────────
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200">
-      {/* Header + Banner */}
-      <Card className="border border-border bg-card">
-        <CardHeader className="py-4 px-6 border-b border-border bg-brand/5">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <CardTitle className="text-base font-bold tracking-wider text-brand uppercase flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Trung tâm quản lý cảnh báo
-              </CardTitle>
-              <CardDescription className="text-sm mt-1">
-                Giám sát cảnh báo phần cứng và lỗi quy trình gia công theo thời gian thực
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-3">
-              {totalActive > 0 && (
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold animate-pulse">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  {totalActive} cảnh báo chưa xác nhận
-                </span>
-              )}
-              {totalActive === 0 && result !== null && (
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  Không có cảnh báo hoạt động
-                </span>
-              )}
-              <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={fetchAlarms} disabled={loading}>
-                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-                Làm mới
-              </Button>
-            </div>
-          </div>
-
-          {/* Category tabs */}
-          <div className="flex gap-1 mt-4">
-            <button
-              onClick={() => handleCategoryChange('DeviceConnection')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${category === 'DeviceConnection'
-                ? 'bg-brand text-white shadow-sm'
-                : 'text-muted-fg hover:text-foreground hover:bg-surface-2'
-              }`}
-            >
-              <Wifi className="h-3.5 w-3.5" />
-              Kết nối thiết bị
-            </button>
-            <button
-              onClick={() => handleCategoryChange('ProductionError')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${category === 'ProductionError'
-                ? 'bg-brand text-white shadow-sm'
-                : 'text-muted-fg hover:text-foreground hover:bg-surface-2'
-              }`}
-            >
-              <Activity className="h-3.5 w-3.5" />
-              Lỗi sản xuất
-            </button>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-6 space-y-4">
-          {/* Category description */}
-          <div className={`flex items-start gap-3 p-3 rounded-lg border text-xs ${category === 'DeviceConnection' ? 'border-blue-500/20 bg-blue-500/5 text-blue-300' : 'border-orange-500/20 bg-orange-500/5 text-orange-300'}`}>
-            {category === 'DeviceConnection'
-              ? <><Cpu className="h-4 w-4 shrink-0 mt-0.5" /> Hiển thị cảnh báo mất kết nối thiết bị (Printer, Laser, PLC, Camera, Gateway). Chỉ tạo cảnh báo khi đang chạy lệnh sản xuất.</>
-              : <><Activity className="h-4 w-4 shrink-0 mt-0.5" /> Hiển thị các lỗi quy trình gia công (Job Failed, Dispatch Failed, Workflow Exception, Retry Exhausted).</>
-            }
-          </div>
-
-          {/* Filter toolbar */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="h-3.5 w-3.5 text-muted-fg" />
-              <span className="text-xs font-bold text-muted-fg uppercase tracking-wider">Bộ lọc</span>
-            </div>
-            <FilterToolbar filters={filters} onChange={handleFilterChange} onReset={handleResetFilters} />
-          </div>
-
-          {/* Table */}
-          {loading ? (
-            <div className="text-center py-12 text-muted-fg text-sm">
-              <RefreshCw className="h-6 w-6 mx-auto mb-3 animate-spin opacity-40" />
-              Đang tải danh sách cảnh báo...
-            </div>
-          ) : (
-            <AlarmTable
-              alarms={result?.items ?? []}
-              onRowClick={setSelectedAlarm}
-              onAcknowledge={handleAcknowledge}
-            />
-          )}
-
-          {/* Pagination */}
-          {result && result.totalPages > 1 && (
-            <PaginationFooter
-              page={page}
-              totalPages={result.totalPages}
-              totalCount={result.totalCount}
-              pageSize={PAGE_SIZE}
-              onPage={setPage}
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Alarm Detail Modal */}
-      <AlarmDetailModal
-        alarm={selectedAlarm}
-        onClose={() => setSelectedAlarm(null)}
-        onAcknowledge={handleAcknowledge}
-      />
-    </div>
-  )
+  const tabs: Array<[AlarmTab, string]> = [['ACTIVE','Đang hoạt động'],['RAISED','Chưa xác nhận'],['IN_PROGRESS','Đang xử lý'],['HISTORY','Lịch sử'],['SUPPRESSED','Đã tạm ẩn']]
+  return <div className="mx-auto max-w-7xl space-y-4 overflow-x-hidden">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-black">Trung tâm cảnh báo</h1><p className="text-sm text-muted-fg">Theo dõi và xử lý sự cố tại trạm theo thời gian thực</p></div><Button variant="outline" className="min-h-11" onClick={() => void load()}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Làm mới</Button></div>
+    {(!isConnected || isStale) && <div role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200"><div className="flex items-center gap-2 font-bold"><WifiOff className="h-4 w-4" />Mất kết nối dữ liệu thời gian thực</div><div>Dữ liệu có thể đã cũ · Cập nhật lần cuối: {lastUpdatedAt ? formatTime(lastUpdatedAt) : 'chưa xác định'}</div></div>}
+    <SummaryCards value={summary} onSelect={chooseTab} />
+    <Card><CardHeader className="pb-3"><CardTitle className="text-sm">Danh sách cảnh báo</CardTitle><div className="flex flex-wrap gap-2" role="tablist">{tabs.map(([key,label]) => <button role="tab" aria-selected={tab === key} key={key} onClick={() => chooseTab(key)} className={`min-h-11 rounded-lg px-4 text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-brand ${tab === key ? 'bg-brand text-white' : 'bg-surface-2 text-muted-fg'}`}>{label}</button>)}</div></CardHeader>
+      <CardContent className="space-y-4"><div className="rounded-xl border border-border p-3"><div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-muted-fg"><Filter className="h-4 w-4" />Bộ lọc</div><div className="grid gap-2 md:grid-cols-3 lg:grid-cols-4">
+        <Select value={filters.severity || 'ALL'} onValueChange={v => updateFilter({ severity: v === 'ALL' ? '' : v })}><SelectTrigger className="min-h-11"><SelectValue placeholder="Mức độ" /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả mức độ</SelectItem>{['CRITICAL','HIGH','MEDIUM','LOW','INFO'].map(x => <SelectItem key={x} value={x}>{translateAlarmSeverity(x)}</SelectItem>)}</SelectContent></Select>
+        <Select value={filters.category || 'ALL'} onValueChange={v => updateFilter({ category: v === 'ALL' ? '' : v })}><SelectTrigger className="min-h-11"><SelectValue placeholder="Nhóm cảnh báo" /></SelectTrigger><SelectContent><SelectItem value="ALL">Tất cả nhóm</SelectItem>{['DEVICE','JOB','QUALITY','NETWORK','SYSTEM','SECURITY','MAINTENANCE'].map(x => <SelectItem key={x} value={x}>{translateAlarmCategory(x)}</SelectItem>)}</SelectContent></Select>
+        <Input className="min-h-11" aria-label="Mã thiết bị" placeholder="Mã thiết bị" value={filters.deviceId} onChange={e => updateFilter({ deviceId: e.target.value })} />
+        <Input className="min-h-11" aria-label="Lệnh sản xuất" placeholder="Lệnh sản xuất" value={filters.workOrderNo} onChange={e => updateFilter({ workOrderNo: e.target.value })} />
+        <Input className="min-h-11" aria-label="Người xử lý" placeholder="Người xử lý" value={filters.assignedTo} onChange={e => updateFilter({ assignedTo: e.target.value })} />
+        <Input className="min-h-11" aria-label="Từ ngày" type="date" value={filters.from} onChange={e => updateFilter({ from: e.target.value })} />
+        <Input className="min-h-11" aria-label="Đến ngày" type="date" value={filters.to} onChange={e => updateFilter({ to: e.target.value })} />
+        <label className="flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm"><Checkbox checked={filters.productionImpactOnly} onCheckedChange={v => updateFilter({ productionImpactOnly: v === true })} />Chỉ cảnh báo ảnh hưởng sản xuất</label>
+      </div><div className="mt-3 flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => void load()}>Áp dụng</Button><Button variant="ghost" className="min-h-11" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1) }}>Xóa bộ lọc</Button><Button variant="outline" className="min-h-11" onClick={() => updateFilter({ severity: 'CRITICAL' })}>Chỉ xem nghiêm trọng</Button></div></div>
+      {error && <div role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+      {loading && items.length === 0 ? <div className="flex min-h-40 items-center justify-center text-sm text-muted-fg"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Đang tải cảnh báo...</div> : items.length === 0 ? <div className="min-h-40 py-12 text-center text-sm text-muted-fg"><CheckCircle2 className="mx-auto mb-2 h-9 w-9 text-emerald-400" />Không có cảnh báo phù hợp.</div> : <div className="space-y-2">{items.map(alarm => <button key={alarm.alarmId} onClick={() => setSelected(alarm)} className="grid min-h-20 w-full grid-cols-1 items-center gap-2 rounded-xl border border-border bg-card p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand md:grid-cols-[150px_1fr_150px_140px]">
+        <AlarmSeverityBadge severity={alarm.severity} animate={alarm.severity === 'CRITICAL' && alarm.state === 'RAISED'} /><div><div className="font-bold">{translateAlarmTitle(alarm.alarmCode)}</div><div className="text-xs text-muted-fg">{alarm.deviceId ?? alarm.sourceId} · {alarm.workOrderNo ?? 'Không có lệnh SX'} · {duration(alarm.firstSeenAt)}</div><div className="mt-1 text-xs">Ảnh hưởng: {alarm.productionImpact ?? 'Chưa xác định'} · Xuất hiện {alarm.occurrenceCount} lần</div></div><AlarmStateBadge state={alarm.state} /><div className="text-xs text-muted-fg"><UserCheck className="mr-1 inline h-3.5 w-3.5" />{alarm.assignedTo ?? 'Chưa phân công'}<br/><Clock3 className="mr-1 inline h-3.5 w-3.5" />{formatTime(alarm.firstSeenAt)}</div></button>)}</div>}
+      <div className="flex items-center justify-between border-t border-border pt-3 text-sm"><span>Trang {page}/{totalPages}</span><div className="flex gap-2"><Button aria-label="Trang trước" variant="outline" className="min-h-11 min-w-11" disabled={page <= 1} onClick={() => setPage(x => x - 1)}><ChevronLeft /></Button><Button aria-label="Trang sau" variant="outline" className="min-h-11 min-w-11" disabled={page >= totalPages} onClick={() => setPage(x => x + 1)}><ChevronRight /></Button></div></div>
+      </CardContent></Card>
+    <AlarmDetail alarm={selected} timeline={timeline} can={can} onAction={(action, alarm) => setPendingAction({ action, alarm })} onClose={() => setSelected(null)} />
+    <ConfirmDialog open={pendingAction !== null} title="Xác nhận hành động cảnh báo" description={`Bạn sắp thực hiện “${pendingAction?.action ?? ''}” cho cảnh báo ${pendingAction?.alarm.alarmCode ?? ''}. Hành động sẽ được ghi vào nhật ký kiểm toán.`} confirmText="Tiếp tục" confirmVariant={pendingAction?.action === 'close' ? 'destructive' : 'primary'} onConfirm={() => void executeAction()} onCancel={() => setPendingAction(null)} />
+  </div>
 }

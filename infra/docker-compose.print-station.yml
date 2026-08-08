@@ -75,6 +75,8 @@ services:
       SQLITE_KIOSK_PATH: /data/kiosk.db
       REDIS_CONNECTION_STRING: print-station-redis:6379,password=print_station_redis_dev
       PROJECTION_SERVICE_URL: http://station-projection-service:5009
+      PRINTER_ADAPTER_URL: http://100.108.194.102:5003
+      PRINTER_ADAPTER_HTTP_TIMEOUT_SECONDS: "10"
       Kafka__BootstrapServers: kafka:29092
       Kafka__ClientId: PRINT-STATION-01-kiosk
       Kafka__GroupId: kiosk-ui

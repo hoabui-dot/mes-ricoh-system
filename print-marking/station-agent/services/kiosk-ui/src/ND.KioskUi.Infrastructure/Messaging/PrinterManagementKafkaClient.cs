@@ -1,92 +1,41 @@
-using System.Collections.Concurrent;
-using System.Text.Json;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using ND.Infrastructure.Messaging;
+using Microsoft.Extensions.Configuration;
 
 namespace ND.KioskUi.Infrastructure.Messaging;
 
 public sealed record PrinterManagementResponse(int StatusCode, string ContentType, string Body, bool IsBase64 = false, string? FileName = null);
 
 /// <summary>
-/// Kafka request/reply boundary for Printer Adapter management operations.
-/// The Kiosk never reaches the remote adapter over HTTP. Each request is
-/// correlated by request_id and the adapter replies on the printer event topic.
+/// HTTP client for the remotely deployed Printer Adapter. Management requests
+/// must not rely on Kafka request/reply routing between separate servers.
 /// </summary>
-public sealed class PrinterManagementKafkaClient : BackgroundService
+public sealed class PrinterManagementKafkaClient
 {
-    private const string Exchange = "station.events";
-    private const string RequestKey = "command.printer.management";
-    private const string ResponsePattern = "printer.management.response";
-    private const string ConsumerQueue = "kiosk-ui.printer-management-responses";
-    private readonly IEventPublisher _publisher;
-    private readonly IEventConsumer _consumer;
-    private readonly ILogger<PrinterManagementKafkaClient> _logger;
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<PrinterManagementResponse>> _pending = new();
+    private readonly HttpClient _httpClient;
+    private readonly string _baseUrl;
 
-    public PrinterManagementKafkaClient(IEventPublisher publisher, IEventConsumer consumer, ILogger<PrinterManagementKafkaClient> logger)
+    public PrinterManagementKafkaClient(HttpClient httpClient, IConfiguration configuration)
     {
-        _publisher = publisher;
-        _consumer = consumer;
-        _logger = logger;
+        _httpClient = httpClient;
+        _baseUrl = (Environment.GetEnvironmentVariable("PRINTER_ADAPTER_URL")
+            ?? configuration["PRINTER_ADAPTER_URL"]
+            ?? "http://printer-adapter:5003").TrimEnd('/');
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task<PrinterManagementResponse> RequestAsync(
+        string method, string path, string? query, string body, string requestedBy, CancellationToken ct)
     {
-        await _consumer.StartConsumingAsync(Exchange, ConsumerQueue, ResponsePattern, HandleResponseAsync, stoppingToken);
-        await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
-    }
+        var normalizedPath = path.StartsWith('/') ? path : $"/{path}";
+        var querySuffix = string.IsNullOrWhiteSpace(query)
+            ? string.Empty
+            : query.StartsWith('?') ? query : $"?{query}";
+        using var request = new HttpRequestMessage(new HttpMethod(method), $"{_baseUrl}{normalizedPath}{querySuffix}");
+        if (!string.IsNullOrWhiteSpace(body) && method is "POST" or "PUT" or "PATCH")
+            request.Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
 
-    public async Task<PrinterManagementResponse> RequestAsync(string method, string path, string? query, string body, string requestedBy, CancellationToken ct)
-    {
-        var requestId = Guid.NewGuid().ToString("D");
-        var completion = new TaskCompletionSource<PrinterManagementResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pending[requestId] = completion;
-        try
-        {
-            var payload = JsonSerializer.Serialize(new
-            {
-                event_id = requestId,
-                request_id = requestId,
-                method,
-                path,
-                query,
-                body,
-                requested_by = requestedBy,
-                station_id = Environment.GetEnvironmentVariable("STATION_ID") ?? "PRINT-STATION-01",
-                timestamp = DateTimeOffset.UtcNow.ToString("o")
-            });
-            await _publisher.PublishAsync(Exchange, RequestKey, payload, ct);
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(30));
-            using (timeout.Token.Register(() => completion.TrySetException(new TimeoutException("Printer Adapter Kafka management request timed out."))))
-            {
-                return await completion.Task;
-            }
-        }
-        finally { _pending.TryRemove(requestId, out _); }
+        using var response = await _httpClient.SendAsync(request, ct);
+        return new PrinterManagementResponse(
+            (int)response.StatusCode,
+            response.Content.Headers.ContentType?.ToString() ?? "application/json",
+            await response.Content.ReadAsStringAsync(ct));
     }
-
-    private Task HandleResponseAsync(string _, string payload)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(payload);
-            var root = document.RootElement;
-            var requestId = ReadString(root, "request_id", "requestId");
-            if (string.IsNullOrWhiteSpace(requestId) || !_pending.TryGetValue(requestId, out var completion)) return Task.CompletedTask;
-            var body = ReadString(root, "body") ?? "{}";
-            completion.TrySetResult(new PrinterManagementResponse(
-                root.TryGetProperty("status_code", out var status) ? status.GetInt32() : 502,
-                ReadString(root, "content_type") ?? "application/json",
-                body,
-                root.TryGetProperty("is_base64", out var encoded) && encoded.GetBoolean(),
-                ReadString(root, "file_name")));
-        }
-        catch (Exception ex) { _logger.LogWarning(ex, "Invalid Printer Adapter management response received from Kafka"); }
-        return Task.CompletedTask;
-    }
-
-    private static string? ReadString(JsonElement root, params string[] names)
-        => names.Select(name => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 }

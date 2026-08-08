@@ -1,0 +1,8 @@
+{
+  "phase": "05",
+  "status": "PASS",
+  "bounded_predicates": ["wo_header.created_at", "wo_print_job.created_at", "wo_resource_allocation.allocated_at", "label_instance.created_at", "genealogy_event.occurred_at"],
+  "execution_indexes": ["ix_wo_header_analytics_window", "ix_wo_print_job_analytics_window", "ix_wo_resource_allocation_analytics_window", "ix_wo_material_requirement_analytics_wo"],
+  "empty_dataset_plan": "PostgreSQL may choose Seq Scan for the empty small table; indexes are present for representative production volume.",
+  "n_plus_one": "none in analytics handlers"
+}

@@ -1,0 +1,12 @@
+{
+  "phase": "01",
+  "status": "PASS",
+  "dataset_state": "empty_after_canonical_cleanup",
+  "smoke_test": {
+    "endpoint_count": 7,
+    "http_200_count": 7,
+    "invalid_range_http_status": 400,
+    "invalid_range_error": "ANALYTICS_INVALID_DATE_RANGE"
+  },
+  "metrics": ["work_order_status", "planned_quantity", "good_quantity", "scrap_quantity", "fallback_line", "resource_hold", "operation_status", "resource_allocation", "material_readiness", "print_status"]
+}
