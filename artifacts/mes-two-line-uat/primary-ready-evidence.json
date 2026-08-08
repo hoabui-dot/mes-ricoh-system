@@ -1,6 +1,6 @@
 {
   "header": {
-    "created_at": "2026-08-04T05:07:28.215831Z",
+    "created_at": "2026-08-07T09:47:04.345341Z",
     "created_by": "00000000-0000-0000-0000-000000000001",
     "demo_print_on_approval": true,
     "dispatch_mode": "WORK_CENTER",
@@ -17,7 +17,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_ELIGIBILITY_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "eligibility",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -29,7 +29,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "work_centers",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -41,7 +41,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_CAPABILITY_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "capability",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -53,7 +53,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "production_standard",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -65,7 +65,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_CALENDAR_SHIFT_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "calendar_shift",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
@@ -77,7 +77,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_COARSE_CAPACITY_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "capacity",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_COARSE_CAPACITY_READY"
@@ -149,7 +149,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "MANDATORY_LINE_SELECTION_DIMENSIONS_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "final_result",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
@@ -161,47 +161,107 @@
             "details": [],
             "blocking": false,
             "reason_code": "PRIMARY_LINE_READY",
-            "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+            "evaluated_at": "2026-08-07T09:47:04.458588437Z",
             "dimension_code": "selection_reason",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.PRIMARY_LINE_READY"
           }
         ],
-        "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+        "operations": [
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "candidate_ids": [
+              "371c7306-3fa6-490a-8c84-86867585a7cc",
+              "f02a8ece-810e-484a-9199-3ab7f5a2d97a"
+            ],
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_name": "WST-SEED-OP-BINDING",
+            "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+            "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+            "total_candidate_count": 2,
+            "feasible_candidate_count": 2
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+            "candidate_ids": [
+              "b7f0cdea-77fd-40b7-9f54-a2eebb3fdcc2"
+            ],
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_name": "WST-SEED-OP-TEST5IN1",
+            "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+            "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+            "candidate_ids": [
+              "f34cae7d-b222-422d-b97d-b0dc3d71cb65"
+            ],
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_name": "WST-SEED-OP-AIRTEST",
+            "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+            "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+            "candidate_ids": [
+              "41bdbe01-e5c3-48e3-9608-6abe4c4a4a38"
+            ],
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_name": "WST-SEED-OP-PACKING",
+            "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+            "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          }
+        ],
+        "evaluated_at": "2026-08-07T09:47:04.458588437Z",
         "policy_version": "MES_LINE_SELECTION_V2",
         "selection_role": "PRIMARY",
         "selection_reason": "PRIMARY_LINE_READY",
-        "production_line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-        "production_line_code": "WST-SEED-LINE-1"
+        "production_line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+        "production_line_code": "WST-SEED-LINE-1",
+        "complete_line_feasibility_status": "READY"
       }
     ],
     "fallback_reason": "",
     "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
     "item_name": "Won Seal Tech Seal Assembly A",
     "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
-    "item_revision_id": "fefa8e4c-b8b3-4143-8409-e0e28851f0b7",
+    "item_revision_id": "be7247c0-8246-42aa-b38b-e1025aa638b4",
     "item_revision_name_i18n": {
       "en": "Won Seal Tech Seal Assembly A",
       "ja": "Won Seal Tech Seal Assembly A",
       "ko": "Won Seal Tech Seal Assembly A",
       "vi": "Won Seal Tech Seal Assembly A"
     },
-    "line_locked_at": "2026-08-04T05:07:28.215831Z",
+    "line_locked_at": "2026-08-07T09:47:04.345341Z",
     "line_selection_mode": "PRIMARY",
     "line_selection_reason": "PRIMARY_LINE_READY",
     "line_selection_status": "READY",
     "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
-    "planned_end_at": "2026-08-04T12:00:00Z",
-    "planned_start_at": "2026-08-04T08:00:00Z",
+    "planned_end_at": "2026-08-07T12:00:00Z",
+    "planned_start_at": "2026-08-07T08:00:00Z",
     "planning_snapshot": {
-      "mbom_id": "64728761-81cf-4608-9b15-9d6310777c67",
-      "shift_id": "f9abaf59-d249-42d9-9560-fcb39cf929e5",
-      "routing_id": "ac4d1565-dfda-4eda-8f7f-c1eaf2188777",
-      "production_version_id": "e27ce86f-27b4-4aa4-a645-5adca711ad19",
+      "mbom_id": "d07d608b-4bcc-46b3-9511-8b0d6d6ff18e",
+      "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+      "routing_id": "75122b5a-cd51-4098-be0b-ca544506dfaa",
+      "production_version_id": "4ea749d5-1b02-4f44-bff0-f37f5128bfa6",
       "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
     },
     "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
-    "production_version_id": "e27ce86f-27b4-4aa4-a645-5adca711ad19",
+    "production_version_id": "4ea749d5-1b02-4f44-bff0-f37f5128bfa6",
     "production_version_name_i18n": {
       "en": "Won Seal Tech two-line seal production version",
       "ja": "Won Seal Tech two-line seal production version",
@@ -213,19 +273,19 @@
     "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
     "row_version": 2,
     "selected_production_line_code": "WST-SEED-LINE-1",
-    "selected_production_line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
+    "selected_production_line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
     "selected_production_line_name_i18n": {
       "en": "Won Seal Tech Line 1",
       "ja": "Won Seal Tech Line 1",
       "ko": "Won Seal Tech Line 1",
       "vi": "Won Seal Tech Line 1"
     },
-    "shift_id": "f9abaf59-d249-42d9-9560-fcb39cf929e5",
-    "site_id": "009d3fb2-52f3-4efc-8e8d-08460d264554",
+    "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+    "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
     "status": "Draft",
-    "uom_id": "0777956a-0a7d-403d-8bfc-26de4693a746",
-    "wo_code": "WO-20260804-0003",
-    "wo_id": "cab09e06-eb3b-4e10-b778-b5a3c08f3027"
+    "uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a",
+    "wo_code": "WO-20260807-0182",
+    "wo_id": "c8214dca-cbdc-4080-98ac-7d9ab7f1505a"
   },
   "evaluated_line_results": [
     {
@@ -240,7 +300,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_ELIGIBILITY_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "eligibility",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -252,7 +312,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "work_centers",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -264,7 +324,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_CAPABILITY_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "capability",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -276,7 +336,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "production_standard",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -288,7 +348,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_CALENDAR_SHIFT_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "calendar_shift",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
@@ -300,7 +360,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_COARSE_CAPACITY_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "capacity",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_COARSE_CAPACITY_READY"
@@ -372,7 +432,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "MANDATORY_LINE_SELECTION_DIMENSIONS_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "final_result",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
@@ -384,24 +444,84 @@
           "details": [],
           "blocking": false,
           "reason_code": "PRIMARY_LINE_READY",
-          "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+          "evaluated_at": "2026-08-07T09:47:04.458588437Z",
           "dimension_code": "selection_reason",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.PRIMARY_LINE_READY"
         }
       ],
-      "evaluated_at": "2026-08-04T05:07:28.232984983Z",
+      "operations": [
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "candidate_ids": [
+            "371c7306-3fa6-490a-8c84-86867585a7cc",
+            "f02a8ece-810e-484a-9199-3ab7f5a2d97a"
+          ],
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_name": "WST-SEED-OP-BINDING",
+          "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+          "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+          "total_candidate_count": 2,
+          "feasible_candidate_count": 2
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+          "candidate_ids": [
+            "b7f0cdea-77fd-40b7-9f54-a2eebb3fdcc2"
+          ],
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_name": "WST-SEED-OP-TEST5IN1",
+          "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+          "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+          "candidate_ids": [
+            "f34cae7d-b222-422d-b97d-b0dc3d71cb65"
+          ],
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_name": "WST-SEED-OP-AIRTEST",
+          "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+          "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+          "candidate_ids": [
+            "41bdbe01-e5c3-48e3-9608-6abe4c4a4a38"
+          ],
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_name": "WST-SEED-OP-PACKING",
+          "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+          "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        }
+      ],
+      "evaluated_at": "2026-08-07T09:47:04.458588437Z",
       "policy_version": "MES_LINE_SELECTION_V2",
       "selection_role": "PRIMARY",
       "selection_reason": "PRIMARY_LINE_READY",
-      "production_line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-      "production_line_code": "WST-SEED-LINE-1"
+      "production_line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+      "production_line_code": "WST-SEED-LINE-1",
+      "complete_line_feasibility_status": "READY"
     }
   ],
   "operation_line_ids": [
-    "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-    "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-    "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-    "9eb6da29-5e13-450d-8302-5a7f2eb10579"
+    "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+    "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+    "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+    "f9a56e45-5783-4806-9e1d-f8c5d6abbf13"
   ]
 }

@@ -20,7 +20,6 @@ import { RoutingCreateScreen } from './routes/master-data/RoutingCreateScreen';
 import { RoutingOperationsScreen } from './routes/master-data/RoutingOperationsScreen';
 import { ProductionVersionScreen } from './routes/master-data/ProductionVersionScreen';
 import { ProductionVersionCrudScreen } from './routes/master-data/ProductionVersionCrudScreen';
-import { EbomScreen } from './routes/master-data/EbomScreen';
 import { Tier2AdminScreen } from './routes/master-data/Tier2AdminScreen';
 import { WorkCentersScreen } from './routes/master-data/WorkCentersScreen';
 import { I18nReviewScreen } from './routes/master-data/I18nReviewScreen';
@@ -73,8 +72,6 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/production-versions" element={<ProductionVersionScreen />} />
         <Route path="/master-data/production-versions/new" element={<ProductionVersionCrudScreen />} />
         <Route path="/master-data/production-versions/:id/edit" element={<ProductionVersionCrudScreen />} />
-        <Route path="/master-data/eboms" element={<EbomScreen />} />
-        <Route path="/master-data/eboms/:id" element={<EbomScreen />} />
         <Route path="/master-data/operations" element={<OperationCatalogScreen />} />
         <Route path="/master-data/operations/new" element={<OperationCatalogScreen />} />
         <Route path="/master-data/operations/:id" element={<OperationCatalogScreen />} />
@@ -117,20 +114,12 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/workstations/:id" element={<ResourceFoundationScreen entity="workstations" />} />
         <Route path="/master-data/workstations/:id/edit" element={<ResourceFoundationScreen entity="workstations" />} />
         <Route path="/master-data/print-stations" element={<PrintStationsScreen />} />
-        <Route path="/master-data/resource-assignments" element={<ResourceFoundationScreen entity="resource-assignments" />} />
-        <Route path="/master-data/resource-assignments/new" element={<ResourceFoundationScreen entity="resource-assignments" />} />
-        <Route path="/master-data/resource-capabilities" element={<PlanningConstraintsScreen entity="resource-capabilities" />} />
-        <Route path="/master-data/resource-capabilities/new" element={<PlanningConstraintsScreen entity="resource-capabilities" />} />
-        <Route path="/master-data/resource-capabilities/:id" element={<PlanningConstraintsScreen entity="resource-capabilities" />} />
-        <Route path="/master-data/resource-capabilities/:id/edit" element={<PlanningConstraintsScreen entity="resource-capabilities" />} />
+        <Route path="/master-data/resource-assignments/*" element={<LegacyRedirect from="/master-data/resource-assignments" to="/master-data/workstations" />} />
+        <Route path="/master-data/resource-capabilities/*" element={<LegacyRedirect from="/master-data/resource-capabilities" to="/master-data/routings" />} />
         <Route path="/master-data/resource-calendars" element={<PlanningConstraintsScreen entity="resource-calendars" />} />
         <Route path="/master-data/resource-calendars/new" element={<PlanningConstraintsScreen entity="resource-calendars" />} />
         <Route path="/master-data/resource-calendars/:id" element={<PlanningConstraintsScreen entity="resource-calendars" />} />
         <Route path="/master-data/resource-calendars/:id/edit" element={<PlanningConstraintsScreen entity="resource-calendars" />} />
-        <Route path="/master-data/operation-skill-requirements" element={<PlanningConstraintsScreen entity="operation-skill-requirements" />} />
-        <Route path="/master-data/operation-skill-requirements/new" element={<PlanningConstraintsScreen entity="operation-skill-requirements" />} />
-        <Route path="/master-data/operation-skill-requirements/:id" element={<PlanningConstraintsScreen entity="operation-skill-requirements" />} />
-        <Route path="/master-data/operation-skill-requirements/:id/edit" element={<PlanningConstraintsScreen entity="operation-skill-requirements" />} />
         <Route path="/console/mes/work-centers/*" element={<LegacyRedirect from="/console/mes/work-centers" to="/master-data/work-centers" />} />
         <Route path="/console/mes/i18n-review" element={<I18nReviewScreen />} />
         <Route path="/master-data/equipment/*" element={<LegacyRedirect from="/master-data/equipment" to="/master-data/machines" />} />
@@ -139,17 +128,8 @@ const AppRoutes: React.FC = () => {
         <Route path="/master-data/machines/:id" element={<ResourceFoundationScreen entity="machines" />} />
         <Route path="/master-data/machines/:id/edit" element={<ResourceFoundationScreen entity="machines" />} />
         <Route path="/console/mes/equipment/*" element={<LegacyRedirect from="/console/mes/equipment" to="/master-data/machines" />} />
-        <Route
-          path="/master-data/production-standards"
-          element={<PlanningConstraintsScreen entity="production-standards" />}
-        />
-        <Route path="/master-data/production-standards/new" element={<PlanningConstraintsScreen entity="production-standards" />} />
-        <Route path="/master-data/production-standards/:id" element={<PlanningConstraintsScreen entity="production-standards" />} />
-        <Route path="/master-data/production-standards/:id/edit" element={<PlanningConstraintsScreen entity="production-standards" />} />
-        <Route
-          path="/console/mes/production-standards"
-          element={<PlanningConstraintsScreen entity="production-standards" />}
-        />
+        <Route path="/master-data/production-standards/*" element={<LegacyRedirect from="/master-data/production-standards" to="/master-data/routings" />} />
+        <Route path="/console/mes/production-standards/*" element={<LegacyRedirect from="/console/mes/production-standards" to="/master-data/routings" />} />
         <Route
           path="/master-data/reason-codes"
           element={
@@ -188,14 +168,16 @@ const AppRoutes: React.FC = () => {
 };
 
 export default function App() {
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   return (
     <AuthProvider>
       <I18nProvider i18n={mesConsoleI18n}>
         <BrowserRouter>
           <div className="h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground flex flex-col font-sans">
-            <Navbar />
+            <Navbar onMenuToggle={() => setMobileNavOpen((open) => !open)} />
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-              <Sidebar />
+              <Sidebar className="hidden md:block" />
+              {mobileNavOpen ? <div className="fixed inset-0 z-50 flex md:hidden"><button type="button" className="absolute inset-0 bg-black/65" onClick={() => setMobileNavOpen(false)} aria-label={mesConsoleI18n.t('common.close')} /><Sidebar className="relative z-10 w-[min(20rem,85vw)] shadow-2xl" onNavigate={() => setMobileNavOpen(false)} /></div> : null}
               <main className="mes-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
                 <div className="mb-4 space-y-3">
                   <RouteHeader />

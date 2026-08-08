@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mom-platform/mes-execution-service/internal/application/usecase"
+	"github.com/mom-platform/mes-execution-service/internal/infrastructure/client"
 )
 
 const (
@@ -39,6 +40,7 @@ type creationWorkflowRequest struct {
 
 type creationWorkflowManager struct {
 	pool    *pgxpool.Pool
+	planner *client.ResourcePlanningClient
 	mu      sync.RWMutex
 	clients map[string]map[*creationWorkflowClient]struct{}
 }
@@ -66,8 +68,8 @@ var creationWorkflowUpgrader = websocket.Upgrader{
 	},
 }
 
-func newCreationWorkflowManager(pool *pgxpool.Pool) *creationWorkflowManager {
-	return &creationWorkflowManager{pool: pool, clients: make(map[string]map[*creationWorkflowClient]struct{})}
+func newCreationWorkflowManager(pool *pgxpool.Pool, planner *client.ResourcePlanningClient) *creationWorkflowManager {
+	return &creationWorkflowManager{pool: pool, planner: planner, clients: make(map[string]map[*creationWorkflowClient]struct{})}
 }
 
 func (m *creationWorkflowManager) start(ctx context.Context, request creationWorkflowRequest) (string, string, error) {
@@ -138,7 +140,7 @@ func (m *creationWorkflowManager) run(request creationWorkflowRequest, workflowI
 	_ = m.publish(ctx, workflowID, correlationID, "step.succeeded", stepPayload("master_data_readiness", 2, "succeeded", "workOrders.creation.steps.readiness.success", nil, map[string]interface{}{"productionVersionId": readiness.ProductionVersionID, "mbomId": readiness.MBOMHeaderID, "routingId": readiness.RoutingHeaderID}), workflowStatusRunning, "master_data_readiness", nil)
 
 	_ = m.publish(ctx, workflowID, correlationID, "step.started", stepPayload("create_transaction", 3, "running", "workOrders.creation.steps.transaction.running", nil, nil), workflowStatusRunning, "create_transaction", nil)
-	created, err := usecase.CreateWorkOrder(ctx, m.pool, request.Input)
+	created, err := usecase.CreateWorkOrder(ctx, m.pool, m.planner, request.Input)
 	if err != nil {
 		m.fail(ctx, workflowID, correlationID, "create_transaction", "ERR-WO-CREATE-001", err.Error(), true)
 		return
@@ -149,7 +151,7 @@ func (m *creationWorkflowManager) run(request creationWorkflowRequest, workflowI
 	var operationCount, materialCount int
 	_ = m.pool.QueryRow(ctx, `SELECT COUNT(*) FROM wo_operation WHERE wo_id=$1`, workOrderID).Scan(&operationCount)
 	_ = m.pool.QueryRow(ctx, `SELECT COUNT(*) FROM wo_material_requirement WHERE wo_id=$1`, workOrderID).Scan(&materialCount)
-	result := map[string]interface{}{"workOrderId": workOrderID, "workOrderCode": workOrderCode, "status": createdStatus, "operationCount": operationCount, "materialCount": materialCount, "lineSelectionStatus": created["line_selection_status"], "selectedProductionLineId": created["selected_production_line_id"], "selectedProductionLineCode": created["selected_production_line_code"], "fallbackReason": created["fallback_reason"]}
+	result := map[string]interface{}{"workOrderId": workOrderID, "workOrderCode": workOrderCode, "status": createdStatus, "shiftId": created["shift_id"], "operationCount": operationCount, "materialCount": materialCount, "lineSelectionStatus": created["line_selection_status"], "selectedProductionLineId": created["selected_production_line_id"], "selectedProductionLineCode": created["selected_production_line_code"], "fallbackReason": created["fallback_reason"]}
 	_ = m.publish(ctx, workflowID, correlationID, "step.succeeded", stepPayload("create_transaction", 3, "succeeded", "workOrders.creation.steps.transaction.success", nil, result), workflowStatusRunning, "create_transaction", result)
 
 	// CreateWorkOrder commits the outbox write before returning. This is the only event guarantee exposed here.
@@ -160,9 +162,6 @@ func (m *creationWorkflowManager) run(request creationWorkflowRequest, workflowI
 func validateCreationRequest(input usecase.CreateWOInput) error {
 	if input.ProductionVersionID == "" {
 		return fmt.Errorf("production_version_id is required")
-	}
-	if input.ShiftID == "" {
-		return fmt.Errorf("SHIFT_REQUIRED")
 	}
 	if input.Quantity <= 0 {
 		return fmt.Errorf("quantity must be greater than zero")
@@ -422,10 +421,6 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 		}
 	}
 	uomID, _ := body["uom_id"].(string)
-	shiftID, _ := body["shift_id"].(string)
-	if shiftID == "" {
-		return creationWorkflowRequest{}, fmt.Errorf("SHIFT_REQUIRED")
-	}
 	dispatchMode, _ := body["dispatch_mode"].(string)
 	dispatchMode = strings.ToUpper(strings.TrimSpace(dispatchMode))
 	if dispatchMode == "" {
@@ -434,9 +429,9 @@ func parseCreationWorkflowRequest(ctx context.Context, pool *pgxpool.Pool, r *ht
 	if dispatchMode != "WORK_CENTER" && dispatchMode != "DEMO_SHARED_KIOSK" {
 		return creationWorkflowRequest{}, fmt.Errorf("WORK_ORDER_DISPATCH_MODE_INVALID")
 	}
-	payload := map[string]interface{}{"item_code": itemCode, "item_revision_id": itemRevisionID, "item_name": itemName, "quantity": quantity, "uom_id": uomID, "site_id": siteID, "shift_id": shiftID, "planned_start_at": start.Format(time.RFC3339), "planned_end_at": end.Format(time.RFC3339), "dispatch_mode": dispatchMode}
+	payload := map[string]interface{}{"item_code": itemCode, "item_revision_id": itemRevisionID, "item_name": itemName, "quantity": quantity, "uom_id": uomID, "site_id": siteID, "planned_start_at": start.Format(time.RFC3339), "planned_end_at": end.Format(time.RFC3339), "dispatch_mode": dispatchMode}
 	payload["production_version_id"] = productionVersionID
-	return creationWorkflowRequest{Input: usecase.CreateWOInput{ProductionVersionID: productionVersionID, ItemRevisionID: itemRevisionID, ItemCode: itemCode, ItemName: itemName, Quantity: quantity, UOMID: uomID, SiteID: siteID, ShiftID: shiftID, PlannedStartAt: start.Format(time.RFC3339), PlannedEndAt: end.Format(time.RFC3339), UserID: userID, TraceID: getHeader(r, "X-Trace-ID", uuid.NewString()), DispatchMode: dispatchMode}, Payload: payload, UserID: userID, Idempotency: idempotency, RequestHash: requestHash(payload)}, nil
+	return creationWorkflowRequest{Input: usecase.CreateWOInput{ProductionVersionID: productionVersionID, ItemRevisionID: itemRevisionID, ItemCode: itemCode, ItemName: itemName, Quantity: quantity, UOMID: uomID, SiteID: siteID, PlannedStartAt: start.Format(time.RFC3339), PlannedEndAt: end.Format(time.RFC3339), UserID: userID, TraceID: getHeader(r, "X-Trace-ID", uuid.NewString()), DispatchMode: dispatchMode}, Payload: payload, UserID: userID, Idempotency: idempotency, RequestHash: requestHash(payload)}, nil
 }
 
 func (m *creationWorkflowManager) handleStart(w http.ResponseWriter, r *http.Request) {

@@ -29,8 +29,8 @@ async function createWorkOrderThroughConsole(page: Page) {
   await expect(page.getByTestId('work-order-create-screen')).toBeVisible();
   await page.locator('input[type="date"]').fill(defaultPlanningDate());
   await page.locator('input[inputmode="decimal"]').first().fill('2');
-  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-|Won Seal Tech/i);
-  await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
+  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /WST-SEED-PV-SEAL-ASM-01/);
+  await expect(page.getByRole('textbox', { name: /Shift|Ca làm việc/i })).toHaveCount(0);
   await page.getByTestId('work-order-create-submit').click();
   await expect(page.getByRole('dialog', { name: /Tạo lệnh sản xuất|Create Work Order/i })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/Thành công|Succeeded|succeeded/i)).toBeVisible({ timeout: 35_000 });
@@ -53,7 +53,7 @@ async function createWorkOrderApi(ctx: APIRequestContext, base: string, headers:
   const workflow = await apiJson(ctx, base, '/api/mes/execution/work-order-creation-workflows', {
     method: 'POST',
     headers: { ...headers, 'Idempotency-Key': `PHASE3-${Date.now()}-${suffix}` },
-    data: { production_version_id: version.production_version_id, quantity: 2, target_date: defaultPlanningDate(), shift_id: shift.master_id },
+    data: { production_version_id: version.production_version_id, quantity: 2, target_date: defaultPlanningDate() },
   });
   for (let attempt = 0; attempt < 70; attempt += 1) {
     const snapshot = await apiJson(ctx, base, `/api/mes/execution/work-order-creation-workflows/${workflow.body.workflow_id}`, { headers });

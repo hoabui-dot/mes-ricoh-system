@@ -198,7 +198,7 @@ Preview/candidate reads do not publish events.
 
 Status: NOT_IMPLEMENTED.
 
-- Work Order creation remains Production-Version-authoritative and must not expose independent MBOM/Routing/EBOM selection.
+- Work Order creation remains Production-Version-authoritative and must not expose independent MBOM/Routing selection.
 - Production Version detail shows line eligibility with primary/backup priority.
 - Work Order detail shows selected line, readiness, fallback reason, blockers, and line lock state.
 - Candidate/resource panels must render backend statuses and blockers only; they must not calculate readiness in the browser.

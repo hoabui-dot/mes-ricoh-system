@@ -1,0 +1,14 @@
+{
+  "number": 7,
+  "name": "Capacity exhaustion rejects a conflicting reservation",
+  "status": "passed",
+  "started_at": "2026-08-07T10:38:45.151Z",
+  "finished_at": "2026-08-07T10:38:46.030Z",
+  "evidence": {
+    "policy": "WorkCenter time-window reservation",
+    "response": {
+      "error": "RESOURCE_CAPACITY_CONFLICT",
+      "message": "RESOURCE_CAPACITY_CONFLICT"
+    }
+  }
+}

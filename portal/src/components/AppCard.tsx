@@ -1,5 +1,5 @@
 import type { AppDefinition } from '../config/apps.ts';
-import { Boxes, Factory, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { Boxes, Factory, ShieldCheck, ArrowUpRight, Monitor } from 'lucide-react';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 
 interface AppCardProps {
@@ -11,7 +11,7 @@ interface AppCardProps {
 export default function AppCard({ app, index, onClick }: AppCardProps) {
   const { t } = useI18n();
   const isComingSoon = app.status === 'coming-soon';
-  const Icon = app.id === 'mes' ? Factory : app.id === 'wms' ? Boxes : ShieldCheck;
+  const Icon = app.id === 'mes' ? Factory : app.id === 'wms' ? Boxes : app.id === 'kiosk' ? Monitor : ShieldCheck;
 
   return (
     <button

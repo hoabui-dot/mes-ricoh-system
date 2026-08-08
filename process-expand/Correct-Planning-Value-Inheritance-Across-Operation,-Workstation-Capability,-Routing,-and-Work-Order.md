@@ -684,6 +684,17 @@ Then verify:
 
 # Documentation
 
+## Console authoring decision (2026-08-07)
+
+The console now presents Operation, Work Center, planning source, and the
+Routing-specific Production Standard fields in the Routing Operation form.
+`Resource Capability` and the standalone `Production Standard` pages are no
+longer authoring surfaces because they duplicate the Routing assignment. The
+backend tables remain compatibility and resource-constraint surfaces. An
+active Routing Operation + Work Center relationship is the default eligibility
+link; explicit Capability rows still provide product/equipment restrictions,
+priority, speed, lot limits, and denial rules.
+
 Update:
 
 ```text

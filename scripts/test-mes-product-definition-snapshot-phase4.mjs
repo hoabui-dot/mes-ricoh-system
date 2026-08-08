@@ -126,14 +126,12 @@ async function readyContext() {
   const shift = shifts.find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
   if (!shift) throw new Error('READY_SHIFT_NOT_FOUND');
   const masterContext = await masterDb.query(`
-    SELECT pv.master_id AS production_version_id, pv.code AS production_version_code, pv.item_revision_id, pv.mbom_header_id, pv.routing_header_id, pv.ebom_header_id, pv.site_id,
+    SELECT pv.master_id AS production_version_id, pv.code AS production_version_code, pv.item_revision_id, pv.mbom_header_id, pv.routing_header_id, pv.site_id,
            mb.code AS mbom_code, mb.item_revision_id AS mbom_item_revision_id, mb.business_version AS mbom_business_version,
-           rh.code AS routing_code, rh.item_revision_id AS routing_item_revision_id,
-           eb.item_revision_id AS ebom_item_revision_id
+           rh.code AS routing_code
     FROM md_production_version pv
     JOIN md_mbom_header mb ON mb.master_id=pv.mbom_header_id
     JOIN md_routing_header rh ON rh.master_id=pv.routing_header_id
-    LEFT JOIN md_ebom_header eb ON eb.master_id=pv.ebom_header_id
     WHERE pv.master_id=$1`, [version.production_version_id]);
   if (masterContext.rowCount !== 1) throw new Error('MASTER_CONTEXT_NOT_FOUND');
   return { version, shift, master: masterContext.rows[0] };
@@ -178,9 +176,9 @@ async function createDisposableProductionVersion(context) {
   const code = `PV-PHASE4-${Date.now()}`;
   const name = { vi: `PV Phase 4 ${runId}`, en: `PV Phase 4 ${runId}` };
   await masterDb.query(`
-    INSERT INTO md_production_version (master_id, code, name, name_i18n, item_revision_id, mbom_header_id, routing_header_id, site_id, lifecycle_status, effective_from, is_default, min_lot_size, max_lot_size)
-    VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, 'Released', NOW() - INTERVAL '1 day', false, 1, 100)`,
-    [pvId, code, name.vi, JSON.stringify(name), context.master.item_revision_id, context.master.mbom_header_id, context.master.routing_header_id, context.master.site_id]);
+    INSERT INTO md_production_version (master_id, code, name, name_i18n, mbom_header_id, routing_header_id, site_id, lifecycle_status, effective_from, is_default, min_lot_size, max_lot_size)
+    VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, 'Released', NOW() - INTERVAL '1 day', false, 1, 100)`,
+    [pvId, code, name.vi, JSON.stringify(name), context.master.mbom_header_id, context.master.routing_header_id, context.master.site_id]);
   await executionDb.query(`
     INSERT INTO rm_production_version (master_id, code, name_i18n, item_revision_id, mbom_header_id, routing_header_id, site_id, lifecycle_status, is_default, min_lot_size, max_lot_size, updated_at)
     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, 'Released', false, 1, 100, NOW())`,
@@ -198,6 +196,7 @@ async function main() {
   assertSafety();
   await fs.mkdir(artifactRoot, { recursive: true });
   await Promise.all([masterDb.connect(), executionDb.connect()]);
+  const baselineWorkOrderCount = Number((await executionDb.query(`SELECT count(*)::int AS count FROM wo_header`)).rows[0].count);
   let finalStatus = 'failed';
   try {
     const context = await record('baseline ready production version and validation', async () => {
@@ -223,11 +222,10 @@ async function main() {
       return { work_order_id: wo.work_order_id, operation_count: detail.operations.length, material_count: detail.material_requirements.length, planning_snapshot: planning };
     });
 
-    await record('ebom does not drive work order material requirements', async () => {
+    await record('mbom drives work order material requirements', async () => {
       const source = await executionDb.query(`SELECT count(*)::int AS count FROM wo_material_requirement WHERE wo_id=$1 AND mbom_line_id IS NOT NULL AND mbom_header_id=$2`, [baselineWO.work_order_id, fullContext.master.mbom_header_id]);
-      const ebomLine = await masterDb.query(`SELECT count(*)::int AS count FROM md_ebom_line WHERE ebom_header_id=$1 AND lifecycle_status='Released'`, [fullContext.master.ebom_header_id]);
       if (source.rows[0].count < 1) throw new Error('WO_MATERIAL_REQUIREMENTS_NOT_TRACED_TO_MBOM');
-      return { wo_material_rows_from_mbom: source.rows[0].count, released_ebom_lines: ebomLine.rows[0]?.count || 0, ebom_used_for_material_requirements: false };
+      return { wo_material_rows_from_mbom: source.rows[0].count, material_source: 'MBOM' };
     });
 
     await record('snapshot immutability after master data changes', async () => {
@@ -274,8 +272,8 @@ async function main() {
       const cleanup = await cleanupWorkOrders();
       await restoreFixtures();
       const remaining = await executionDb.query(`SELECT count(*)::int AS count FROM wo_header`);
-      if (remaining.rows[0].count !== 0) throw new Error(`WO_ORPHANS_REMAIN: ${remaining.rows[0].count}`);
-      return { ...cleanup, wo_header_count: remaining.rows[0].count };
+      if (Number(remaining.rows[0].count) !== baselineWorkOrderCount) throw new Error(`WO_COUNT_NOT_RESTORED: expected ${baselineWorkOrderCount}, got ${remaining.rows[0].count}`);
+      return { ...cleanup, baseline_wo_header_count: baselineWorkOrderCount, wo_header_count: remaining.rows[0].count };
     });
 
     finalStatus = 'passed';

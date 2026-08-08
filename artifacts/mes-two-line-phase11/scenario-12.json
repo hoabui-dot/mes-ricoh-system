@@ -1,0 +1,59 @@
+{
+  "number": 12,
+  "name": "Failure after execution start uses controlled pause and retry",
+  "status": "passed",
+  "started_at": "2026-08-07T10:38:48.128Z",
+  "finished_at": "2026-08-07T10:38:48.932Z",
+  "evidence": {
+    "work_order_code": "WO-20260807-0248",
+    "selected_line": "WST-SEED-LINE-1",
+    "failed": {
+      "history_id": "cb7a7f00-67cd-423f-be6e-93801039fba4",
+      "wo_id": "de0d55c2-a93d-4064-8d31-5b29ba7cdc85",
+      "wo_code": "WO-20260807-0248",
+      "wo_operation_id": "bcc30b0b-146a-4855-a158-632eb4dcd0d2",
+      "operation_code": "WST-SEED-OP-BINDING",
+      "session_id": "806e5020-c644-40d0-a285-8776b190fa4f",
+      "action": "FAILED",
+      "reason_code": "KIOSK-DEMO-EXECUTION-FAIL",
+      "reason_name_i18n": {
+        "vi": "Demo execution failure"
+      },
+      "reason_text": "Phase 11 controlled machine failure",
+      "from_operation_status": "InProgress",
+      "to_operation_status": "ExecutionError",
+      "from_wo_status": "InProgress",
+      "to_wo_status": "Paused",
+      "terminal_ref": "PHASE11-KIOSK-01",
+      "operator_user_id": "00000000-0000-0000-0000-000000000001",
+      "occurred_at": "2026-08-07T10:38:48.910017866Z"
+    },
+    "retried": {
+      "history_id": "114615e3-c1c2-4ee1-872c-84e7a73dde73",
+      "wo_id": "de0d55c2-a93d-4064-8d31-5b29ba7cdc85",
+      "wo_code": "WO-20260807-0248",
+      "wo_operation_id": "bcc30b0b-146a-4855-a158-632eb4dcd0d2",
+      "operation_code": "WST-SEED-OP-BINDING",
+      "session_id": "806e5020-c644-40d0-a285-8776b190fa4f",
+      "action": "RETRY_REQUESTED",
+      "reason_code": "KIOSK-DEMO-EXECUTION-FAIL",
+      "reason_name_i18n": {
+        "vi": "Demo execution failure"
+      },
+      "reason_text": "Phase 11 controlled machine failure",
+      "from_operation_status": "ExecutionError",
+      "to_operation_status": "Ready",
+      "from_wo_status": "Paused",
+      "to_wo_status": "InProgress",
+      "terminal_ref": "PHASE11-KIOSK-01",
+      "operator_user_id": "00000000-0000-0000-0000-000000000001",
+      "occurred_at": "2026-08-07T10:38:48.923932702Z"
+    },
+    "events": [
+      "MES.Execution.OperationFailed.v1",
+      "MES.Execution.WOStatusChanged.v1",
+      "MES.Execution.OperationRetryRequested.v1",
+      "MES.Execution.WOStatusChanged.v1"
+    ]
+  }
+}

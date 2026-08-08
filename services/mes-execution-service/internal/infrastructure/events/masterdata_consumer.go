@@ -177,10 +177,10 @@ func (c *MasterDataConsumer) processMessage(ctx context.Context, topic string, v
 		baseQty, _ := p["base_quantity"].(float64)
 		baseUOM, _ := p["base_uom_id"].(string)
 		_, _ = c.pool.Exec(ctx, `
-			INSERT INTO rm_mbom_header (master_id, code, name, site_id, base_quantity, base_uom_id, lifecycle_status, business_version, structure_version, updated_at)
-			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, COALESCE($9, 1), NOW())
+			INSERT INTO rm_mbom_header (master_id, code, name, base_quantity, base_uom_id, lifecycle_status, business_version, structure_version, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, COALESCE($8, 1), NOW())
 			ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code, name=EXCLUDED.name, base_quantity=EXCLUDED.base_quantity, base_uom_id=EXCLUDED.base_uom_id, lifecycle_status=EXCLUDED.lifecycle_status, business_version=EXCLUDED.business_version, structure_version=EXCLUDED.structure_version, updated_at=NOW()
-		`, masterID, code, string(nameJSON), siteID, baseQty, baseUOM, status, p["business_version"], p["structure_version"])
+		`, masterID, code, string(nameJSON), baseQty, baseUOM, status, p["business_version"], p["structure_version"])
 		if lines, ok := p["lines"].([]interface{}); ok {
 			_, _ = c.pool.Exec(ctx, `DELETE FROM rm_mbom_line WHERE mbom_header_id = $1`, masterID)
 			for _, raw := range lines {

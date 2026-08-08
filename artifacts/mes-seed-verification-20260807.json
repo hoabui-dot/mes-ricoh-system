@@ -1,0 +1,210 @@
+{
+  "status": "PASS",
+  "generated_at": "2026-08-07T09:32:32.166Z",
+  "mode": "--reset-seed",
+  "safety": {
+    "passed": true,
+    "mode": "--reset-seed",
+    "environment": "development",
+    "reasons": [],
+    "host": "staging-master",
+    "databases": {
+      "master": {
+        "host": "localhost",
+        "port": "15434",
+        "database": "mes_master_data_db",
+        "user": "mes_master_data_user",
+        "password": "[REDACTED]"
+      },
+      "execution": {
+        "host": "localhost",
+        "port": "15435",
+        "database": "mes_execution_db",
+        "user": "mes_execution_user",
+        "password": "[REDACTED]"
+      },
+      "traceability": {
+        "host": "localhost",
+        "port": "15436",
+        "database": "mes_traceability_db",
+        "user": "traceability_user",
+        "password": "[REDACTED]"
+      }
+    }
+  },
+  "artifact_path": "/home/neurosus/recoh-system/mes-system/artifacts/mes-seed-verification-20260807.json",
+  "command_results": [
+    {
+      "label": "MES execution Work Order cleanup",
+      "command": "/usr/bin/node scripts/reset-mes-wo-test-data.mjs --reset",
+      "exit_code": 0,
+      "started_at": "2026-08-07T09:32:32.220Z",
+      "ended_at": "2026-08-07T09:32:32.529Z",
+      "stdout": "{\n  \"success\": true,\n  \"mode\": \"reset\",\n  \"artifactDir\": \"/home/neurosus/recoh-system/mes-system/artifacts/mes-reset-seed-verify/phase10-20260807\",\n  \"deleted\": {\n    \"operation_confirmations\": 0,\n    \"execution_sessions\": 0,\n    \"material_consumption\": 0,\n    \"print_events\": 0,\n    \"print_attempts\": 0,\n    \"capacity_reservations\": 0,\n    \"resource_allocation_audit\": 0,\n    \"allocation_idempotency\": 0,\n    \"print_jobs\": 0,\n    \"resource_allocations\": 0,\n    \"operation_labor_assignments\": 0,\n    \"materials\": 0,\n    \"operations\": 0,\n    \"approval_logs\": 0,\n    \"workflow_events\": 0,\n    \"workflows\": 0,\n    \"outbox_events\": 0,\n    \"work_orders\": 0,\n    \"orphan_confirmations\": 0,\n    \"orphan_execution_sessions\": 0,\n    \"orphan_material_consumption\": 0,\n    \"orphan_print_attempts\": 0,\n    \"orphan_print_events\": 0,\n    \"orphan_print_jobs\": 0,\n    \"orphan_allocations\": 0,\n    \"orphan_reservations\": 0,\n    \"orphan_workflow_events\": 0,\n    \"orphan_workflows\": 0,\n    \"kiosk_outbound_messages\": 0\n  },\n  \"orphansAfter\": {\n    \"operation_without_header\": 0,\n    \"material_without_header\": 0,\n    \"session_without_operation\": 0,\n    \"confirmation_without_operation\": 0,\n    \"print_job_without_header\": 0,\n    \"print_attempt_without_job\": 0,\n    \"print_event_without_job\": 0,\n    \"allocation_without_operation\": 0,\n    \"reservation_without_allocation\": 0,\n    \"workflow_without_work_order\": 0\n  },\n  \"remainingWorkOrders\": 0\n}\n",
+      "stderr": ""
+    },
+    {
+      "label": "Won Seal Tech machine reset",
+      "command": "/usr/bin/node scripts/reset-won-seal-tech-machines.mjs --reset",
+      "exit_code": 0,
+      "started_at": "2026-08-07T09:32:32.529Z",
+      "ended_at": "2026-08-07T09:32:32.974Z",
+      "stdout": "[CLEANUP] Won Seal Tech WST namespace removed safely\n[SEED] Won Seal Tech Machine dataset created\n{\n  \"machines\": {\n    \"count\": 19,\n    \"released\": 17\n  },\n  \"units\": {\n    \"count\": 40,\n    \"planning\": 37\n  },\n  \"groups\": {\n    \"count\": 17\n  },\n  \"assignments\": {\n    \"count\": 37\n  },\n  \"calendars\": {\n    \"count\": 17\n  },\n  \"invalid\": {\n    \"count\": 0\n  },\n  \"result\": \"PASSED\"\n}\n",
+      "stderr": ""
+    }
+  ],
+  "cleanup": {
+    "master_line_eligibility": 0,
+    "master_line_resource_scope": 0,
+    "master_line_work_centers": 0,
+    "master_operation_skill_requirements": 0,
+    "master_resource_capabilities": 0,
+    "master_resource_calendars": 0,
+    "master_production_standards": 0,
+    "master_resource_assignments": 0,
+    "master_production_versions_before_resources": 0,
+    "master_routing_operations_before_resources": 0,
+    "master_machine_units": 0,
+    "master_equipment": 0,
+    "master_workstation_print_station_bindings": 0,
+    "master_workstations": 0,
+    "master_production_versions": 0,
+    "master_mbom_lines": 0,
+    "master_routing_operations": 0,
+    "master_routing_headers": 0,
+    "master_mbom_headers": 0,
+    "master_item_revisions": 0,
+    "master_items": 0,
+    "master_operations": 0,
+    "master_work_centers": 0,
+    "master_production_lines": 0,
+    "master_outbox_events": 0,
+    "execution_line_eligibility": 0,
+    "execution_line_work_centers": 0,
+    "execution_resource_calendars": 0,
+    "execution_production_standards": 0,
+    "execution_resource_capabilities": 0,
+    "execution_routing_operations": 0,
+    "execution_routing_headers": 0,
+    "execution_mbom_lines": 0,
+    "execution_mbom_headers": 0,
+    "execution_production_versions": 0,
+    "execution_production_lines": 0,
+    "execution_work_centers": 0,
+    "execution_item_revisions": 0,
+    "traceability_policies": 0,
+    "traceability_templates": 0,
+    "traceability_numbering": 0,
+    "traceability_qr_split": 0
+  },
+  "legacy_e2e_seed": {
+    "skipped": true,
+    "reason": "Phase 10 default seed is MES-owned only; legacy E2E seed delegates to WMS and requires a separate WMS seed contract."
+  },
+  "seed": {
+    "production_version_id": "851f51e5-9d78-4c6f-ab1c-e734103834f4",
+    "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
+    "item_revision_id": "85eac27a-a28c-4084-b567-0a4cea07c367",
+    "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+    "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+    "target_date": "2026-08-07",
+    "line_1_id": "28a6ca8a-7e09-451c-99bb-038c288aac7f",
+    "line_2_id": "8cd4d90f-c2c4-47ff-9136-e0d96a3acb42",
+    "operation_count": 4,
+    "scenarios": {
+      "primary_ready": {
+        "production_version_id": "851f51e5-9d78-4c6f-ab1c-e734103834f4",
+        "code": "WST-UAT-PV-01-PRIMARY-READY",
+        "expected_line": "WST-SEED-LINE-1",
+        "expected_status": "READY"
+      },
+      "backup_fallback": {
+        "production_version_id": "536ebf64-209c-41a6-bcba-259c3d1a7134",
+        "code": "WST-UAT-PV-02-BACKUP-FALLBACK",
+        "expected_line": "WST-SEED-LINE-2",
+        "expected_status": "READY"
+      },
+      "both_lines_hold": {
+        "production_version_id": "3ab6651a-8459-49ce-a0ae-77ea9d0cccb4",
+        "code": "WST-UAT-PV-03-BOTH-LINES-HOLD",
+        "expected_line": null,
+        "expected_status": "RESOURCE_HOLD"
+      }
+    }
+  },
+  "counts": {
+    "masterCounts": {
+      "production_lines": 2,
+      "work_centers": 8,
+      "workstations": 9,
+      "equipment": 9,
+      "machine_units": 9,
+      "assignments": 9,
+      "capabilities": 13,
+      "calendars": 9,
+      "operations": 6,
+      "production_versions": 4,
+      "line_eligibilities": 8
+    },
+    "orphanCounts": {
+      "line_work_center_orphans": 0,
+      "assignment_orphans": 0,
+      "eligibility_orphans": 0
+    }
+  },
+  "flow": {
+    "workflow_id": "695cae7c-ab90-4f48-b4a3-9d2b1f2bf731",
+    "work_order_id": "b57a1686-795c-453b-b31f-7858a8680077",
+    "work_order_code": "WO-20260807-0094",
+    "selected_production_line_id": "28a6ca8a-7e09-451c-99bb-038c288aac7f",
+    "selected_production_line_code": "WST-SEED-LINE-1",
+    "operation_count": 4,
+    "committed_count": 4,
+    "revalidation": {
+      "operations": [
+        {
+          "valid": true,
+          "wo_operation_id": "7164348a-90b7-4086-bfb1-04a32e0c45ef"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "f84ace25-3f55-4236-a6a6-36576e5d3fb3"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "370390f0-42b5-464f-8b5f-7c4210a9a76a"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "37425fa4-0743-4341-870c-da35c415bd3c"
+        }
+      ],
+      "valid": true,
+      "wo_id": "b57a1686-795c-453b-b31f-7858a8680077"
+    },
+    "approval_status": "Released"
+  },
+  "flow_cleanup": {
+    "operation_confirmations": 0,
+    "execution_sessions": 0,
+    "material_consumption": 0,
+    "print_events": 0,
+    "print_attempts": 0,
+    "capacity_reservations": 12,
+    "resource_allocation_audit": 4,
+    "allocation_idempotency": 4,
+    "print_jobs": 0,
+    "resource_allocations": 4,
+    "operation_labor_assignments": 0,
+    "materials": 1,
+    "operations": 4,
+    "approval_logs": 1,
+    "line_audit": 1,
+    "outbox_events": 8,
+    "work_orders": 1,
+    "workflow_events": 8,
+    "workflows": 1,
+    "remaining_work_orders": 0
+  },
+  "completed_at": "2026-08-07T09:32:34.209Z"
+}

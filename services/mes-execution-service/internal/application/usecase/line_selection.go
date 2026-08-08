@@ -68,11 +68,12 @@ var mandatoryLineSelectionDimensions = map[string]bool{
 }
 
 var lineBlockerDimension = map[string]string{
-	"LINE_MISSING_WORK_CENTER":          "work_centers",
-	"LINE_OPERATION_CAPABILITY_MISSING": "capability",
-	"LINE_PRODUCTION_STANDARD_MISSING":  "production_standard",
-	"LINE_RESOURCE_CALENDAR_MISSING":    "calendar_shift",
-	"LINE_RESOURCE_CAPACITY_CONFLICT":   "capacity",
+	"LINE_MISSING_WORK_CENTER":                  "work_centers",
+	"LINE_OPERATION_CAPABILITY_MISSING":         "capability",
+	"LINE_PRODUCTION_STANDARD_MISSING":          "production_standard",
+	"LINE_RESOURCE_CALENDAR_MISSING":            "calendar_shift",
+	"LINE_RESOURCE_CAPACITY_CONFLICT":           "capacity",
+	"LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING": "capacity",
 }
 
 var lineSelectionDimensionOrder = []string{"eligibility", "work_centers", "capability", "production_standard", "calendar_shift", "capacity"}
@@ -173,7 +174,7 @@ func buildLineEvaluation(line lineEligibility, blockers []map[string]interface{}
 func evaluateProductionLineSelection(ctx context.Context, tx interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...any) pgx.Row
-}, productionVersionID, siteID string, plannedStart, plannedEnd time.Time, ops []lineSelectionRoutingOperation) (lineSelectionResult, error) {
+}, planner LineResourceReadinessClient, productionVersionID, productRevisionID, siteID, shiftID string, quantity float64, userID, traceID string, plannedStart, plannedEnd time.Time, ops []lineSelectionRoutingOperation) (lineSelectionResult, error) {
 	rows, err := tx.Query(ctx, `
 		SELECT l.master_id::text, l.code, l.name::text, e.selection_role, e.priority
 		FROM rm_production_version_line_eligibility e
@@ -211,9 +212,14 @@ func evaluateProductionLineSelection(ctx context.Context, tx interface {
 	if len(eligible) == 0 {
 		return resourceHoldResult("NO_RELEASED_EFFECTIVE_LINE_ELIGIBILITY", evaluated), nil
 	}
+	if planner == nil {
+		return lineSelectionResult{}, fmt.Errorf("LINE_FEASIBILITY_READINESS_CLIENT_REQUIRED")
+	}
+	feasibilityEvaluator := newLineFeasibilityEvaluator(planner, newPostgresLineCapacityInspector(tx))
 	for _, line := range eligible {
 		blockers := []map[string]interface{}{}
 		selected := make(map[string]lineWorkCenterSelection)
+		feasibilityOperations := make([]lineFeasibilityOperation, 0, len(ops))
 		for _, op := range ops {
 			wcID, code, name, blocker, err := selectLineWorkCenter(ctx, tx, line.LineID, op, siteID, plannedStart, plannedEnd)
 			if err != nil {
@@ -224,8 +230,22 @@ func evaluateProductionLineSelection(ctx context.Context, tx interface {
 				continue
 			}
 			selected[op.MasterID] = lineWorkCenterSelection{LineID: line.LineID, LineCode: line.Code, LineNameJSON: line.NameJSON, WorkCenterID: wcID, SourceWorkCenterID: op.WorkCenterID}
+			feasibilityOperations = append(feasibilityOperations, lineFeasibilityOperation{RoutingOperationID: op.MasterID, OperationID: op.OperationID, OperationCode: op.OperationCode, OperationName: op.OperationCode, WorkCenterID: wcID, Mandatory: true})
 			_ = code
 			_ = name
+		}
+		var feasibility productionLineReadinessContract
+		if len(blockers) == 0 {
+			feasibility, err = feasibilityEvaluator.Evaluate(ctx, lineFeasibilityInput{Line: line, ProductRevisionID: productRevisionID, SiteID: siteID, ShiftID: shiftID, Quantity: quantity, PlannedStart: plannedStart, Operations: feasibilityOperations, UserID: userID, TraceID: traceID})
+			if err != nil {
+				return lineSelectionResult{}, err
+			}
+			for _, operation := range feasibility.Operations {
+				if operation.Status != lineReadinessBlocked {
+					continue
+				}
+				blockers = append(blockers, map[string]interface{}{"code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING", "line_id": line.LineID, "operation_id": operation.OperationID, "routing_operation_id": operation.RoutingOperationID, "operation_code": operation.OperationCode, "work_center_id": operation.WorkCenterID, "total_candidate_count": operation.TotalCandidates, "feasible_candidate_count": operation.FeasibleCandidates, "excluded_candidate_reasons": operation.ExcludedReasons, "blocker_codes": operation.BlockerCodes})
+			}
 		}
 		status := "Blocked"
 		selectionReason := ""
@@ -237,6 +257,10 @@ func evaluateProductionLineSelection(ctx context.Context, tx interface {
 			}
 		}
 		evaluation := buildLineEvaluation(line, blockers, selectionReason, time.Now().UTC())
+		if len(feasibility.Operations) > 0 {
+			evaluation["operations"] = feasibility.Operations
+			evaluation["complete_line_feasibility_status"] = feasibility.Status
+		}
 		status, _ = evaluation["status"].(string)
 		evaluated = append(evaluated, evaluation)
 		if status == "Ready" {
@@ -282,22 +306,6 @@ func selectLineWorkCenter(ctx context.Context, tx interface {
 		    WHERE ps.work_center_id = lwc.work_center_id
 		      AND (ps.routing_operation_id = $6 OR ps.operation_id = $5)
 		      AND ps.lifecycle_status = 'Released'
-		  )
-		  AND EXISTS (
-		    SELECT 1 FROM rm_resource_calendar cal
-		    WHERE cal.work_center_id = lwc.work_center_id
-		      AND cal.available_from <= $3
-		      AND cal.available_to >= $4
-		      AND cal.lifecycle_status = 'Released'
-		      AND cal.capacity_percent > 0
-		  )
-		  AND NOT EXISTS (
-		    SELECT 1 FROM wo_capacity_reservation r
-		    WHERE r.resource_type = 'WorkCenter'
-		      AND r.resource_id = lwc.work_center_id
-		      AND r.status IN ('Tentative','Committed')
-		      AND r.start_at < $4
-		      AND r.end_at > $3
 		  )
 		ORDER BY (lwc.work_center_id = $7::uuid) DESC, wc.code ASC, wc.master_id ASC
 		LIMIT 1
@@ -425,7 +433,7 @@ func CurrentLineReadiness(ctx context.Context, pool *pgxpool.Pool, woID string) 
 	return map[string]interface{}{"wo_id": woID, "selected_production_line_id": lineID, "selected_production_line_code": lineCode, "selected_production_line_name_i18n": json.RawMessage(lineName), "line_selection_mode": mode, "line_selection_status": status, "line_selection_reason": reason, "fallback_reason": fallback, "resource_hold_reason": json.RawMessage(hold), "evaluated_line_results": json.RawMessage(evaluated)}, nil
 }
 
-func ReplanWorkOrderLine(ctx context.Context, pool *pgxpool.Pool, input ReplanLineInput) (map[string]interface{}, error) {
+func ReplanWorkOrderLine(ctx context.Context, pool *pgxpool.Pool, planner LineResourceReadinessClient, input ReplanLineInput) (map[string]interface{}, error) {
 	if input.Reason == "" {
 		return nil, fmt.Errorf("CHANGE_REASON_REQUIRED")
 	}
@@ -436,15 +444,16 @@ func ReplanWorkOrderLine(ctx context.Context, pool *pgxpool.Pool, input ReplanLi
 	defer tx.Rollback(ctx)
 	_, _ = tx.Exec(ctx, `SELECT set_config('app.current_user_id', $1, true)`, input.UserID)
 
-	var status, pvID, siteID string
+	var status, pvID, productRevisionID, siteID, shiftID string
+	var quantity float64
 	var plannedStart, plannedEnd time.Time
 	var previousLineID string
 	var currentRowVersion int
 	if err := tx.QueryRow(ctx, `
-		SELECT status::text, production_version_id::text, site_id::text, planned_start_at, planned_end_at,
+		SELECT status::text, production_version_id::text, item_revision_id::text, site_id::text, COALESCE(shift_id::text, ''), quantity, planned_start_at, planned_end_at,
 		       COALESCE(selected_production_line_id::text, ''), row_version
 		FROM wo_header WHERE wo_id=$1 FOR UPDATE
-	`, input.WOID).Scan(&status, &pvID, &siteID, &plannedStart, &plannedEnd, &previousLineID, &currentRowVersion); err != nil {
+	`, input.WOID).Scan(&status, &pvID, &productRevisionID, &siteID, &shiftID, &quantity, &plannedStart, &plannedEnd, &previousLineID, &currentRowVersion); err != nil {
 		if input.RowVersion > 0 {
 			return nil, fmt.Errorf("WO_LINE_REPLAN_VERSION_CONFLICT")
 		}
@@ -488,7 +497,7 @@ func ReplanWorkOrderLine(ctx context.Context, pool *pgxpool.Pool, input ReplanLi
 	for _, op := range ops {
 		lineOps = append(lineOps, op.lineSelectionRoutingOperation)
 	}
-	selection, err := evaluateProductionLineSelection(ctx, tx, pvID, siteID, plannedStart, plannedEnd, lineOps)
+	selection, err := evaluateProductionLineSelection(ctx, tx, planner, pvID, productRevisionID, siteID, shiftID, quantity, input.UserID, input.TraceID, plannedStart, plannedEnd, lineOps)
 	if err != nil {
 		return nil, err
 	}

@@ -55,8 +55,6 @@ export const TABLES: TableDefinition[] = [
     tableName: 'md_production_version_line_eligibility',
     eventType: 'MES.MasterData.ProductionVersionLineEligibilityReleased.v1',
   },
-  { resource: 'ebom-headers', tableName: 'md_ebom_header', protectedAfterRelease: true },
-  { resource: 'ebom-lines', tableName: 'md_ebom_line', protectedAfterRelease: true },
   { resource: 'operations', tableName: 'md_operation' },
   {
     resource: 'routing-headers',

@@ -30,11 +30,11 @@ function workOrderDetail(kind: 'backup' | 'hold' | 'started') {
       line_locked_at: hold ? null : '2026-08-01T12:00:00Z',
       resource_hold_reason: hold ? { code: 'NO_COMPLETE_FEASIBLE_LINE' } : {},
       evaluated_line_results: hold ? [
-        { production_line_code: 'P8-LINE-P', selection_role: 'PRIMARY', status: 'Blocked', blockers: [{ code: 'LINE_OPERATION_CAPABILITY_MISSING', operation_code: 'OP-P8-20' }] },
-        { production_line_code: 'P8-LINE-B', selection_role: 'BACKUP', status: 'Blocked', blockers: [{ code: 'LINE_MISSING_WORK_CENTER', operation_code: 'OP-P8-30' }] },
+        { production_line_code: 'P8-LINE-P', selection_role: 'PRIMARY', status: 'Blocked', complete_line_feasibility_status: 'BLOCKED', blockers: [{ code: 'LINE_OPERATION_CAPABILITY_MISSING', operation_code: 'OP-P8-20' }], operations: [{ operation_code: 'OP-P8-10', status: 'READY', total_candidate_count: 2, feasible_candidate_count: 1 }, { operation_code: 'OP-P8-20', status: 'BLOCKED', total_candidate_count: 1, feasible_candidate_count: 0, blocker_codes: ['LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING'] }] },
+        { production_line_code: 'P8-LINE-B', selection_role: 'BACKUP', status: 'Blocked', complete_line_feasibility_status: 'BLOCKED', blockers: [{ code: 'LINE_MISSING_WORK_CENTER', operation_code: 'OP-P8-30' }], operations: [{ operation_code: 'OP-P8-10', status: 'READY', total_candidate_count: 1, feasible_candidate_count: 1 }, { operation_code: 'OP-P8-20', status: 'BLOCKED', total_candidate_count: 0, feasible_candidate_count: 0, blocker_codes: ['LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING'] }] },
       ] : [
-        { production_line_code: 'P8-LINE-P', selection_role: 'PRIMARY', status: 'Blocked', blockers: [{ code: 'LINE_RESOURCE_CAPACITY_CONFLICT', operation_code: 'OP-P8-10' }] },
-        { production_line_code: 'P8-LINE-B', selection_role: 'BACKUP', status: 'Ready', blockers: [] },
+        { production_line_id: 'line-primary-hidden-id', production_line_code: 'P8-LINE-P', selection_role: 'PRIMARY', status: 'Blocked', complete_line_feasibility_status: 'BLOCKED', blockers: [{ code: 'LINE_RESOURCE_CAPACITY_CONFLICT', operation_code: 'OP-P8-10' }], operations: [{ operation_code: 'OP-P8-10', status: 'BLOCKED', total_candidate_count: 1, feasible_candidate_count: 0, blocker_codes: ['RESOURCE_CAPACITY_CONFLICT'] }] },
+        { production_line_id: 'line-backup-hidden-id', production_line_code: 'P8-LINE-B', selection_role: 'BACKUP', status: 'Ready', complete_line_feasibility_status: 'READY', blockers: [], operations: [{ operation_code: 'OP-P8-10', status: 'READY', total_candidate_count: 1, feasible_candidate_count: 1 }] },
       ],
       demo_print_on_approval: false,
     },
@@ -62,6 +62,9 @@ test('[@phase8] Work Order detail shows backend line fallback, blockers, replan,
   await expect(page.getByText('P8-LINE-B').first()).toBeVisible();
   await expect(page.getByTestId('work-order-line-selection-panel')).toContainText(/Dây chuyền chính bị chặn|Primary Line blocked|Primary Line/i);
   await expect(page.getByTestId('line-result-primary')).toContainText(/Capacity|capacity|trùng|予約|충돌/i);
+  await expect(page.getByTestId('line-operation-feasibility-matrix')).toBeVisible();
+  await expect(page.getByTestId('line-operation-primary-OP-P8-10')).toContainText(/0 \/ 1/);
+  await expect(page.getByTestId('line-operation-backup-OP-P8-10')).toContainText(/1 \/ 1/);
   await expect(page.getByTestId('line-replan-button')).toBeVisible();
 
   await page.reload({ waitUntil: 'domcontentloaded' });

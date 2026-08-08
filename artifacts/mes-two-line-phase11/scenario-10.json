@@ -1,0 +1,34 @@
+{
+  "number": 10,
+  "name": "Resource degradation before approval blocks approval",
+  "status": "passed",
+  "started_at": "2026-08-07T10:38:46.760Z",
+  "finished_at": "2026-08-07T10:38:47.485Z",
+  "evidence": {
+    "details": {
+      "operations": [
+        {
+          "error_code": "RESOURCE_CANDIDATE_STALE",
+          "valid": false,
+          "wo_operation_id": "938533fd-23f1-4962-9cdd-e44c123aa79e"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "bab53f1f-b8c2-48a2-8bb4-1c9a35e6106e"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "a54241a5-fdde-4a47-8653-cfe5d3e90d50"
+        },
+        {
+          "valid": true,
+          "wo_operation_id": "41211fba-7202-435e-90af-de26819017b0"
+        }
+      ],
+      "valid": false,
+      "wo_id": "52219f88-e3ed-4f03-8455-15f3930599d1"
+    },
+    "error": "WO_RESOURCE_ALLOCATION_INVALID",
+    "message": "Every Work Order operation needs a current valid committed resource allocation before approval or execution start."
+  }
+}

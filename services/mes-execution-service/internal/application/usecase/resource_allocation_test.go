@@ -15,3 +15,14 @@ func TestAsStringPointerUsesValue(t *testing.T) {
 		t.Fatalf("expected %q, got %q", value, got)
 	}
 }
+
+func TestProposalCandidateReadyRejectsCapacityConflict(t *testing.T) {
+	candidate := map[string]interface{}{
+		"readiness":          "Ready",
+		"blocking_errors":    []interface{}{},
+		"capacity_conflicts": []interface{}{map[string]interface{}{"code": "RESOURCE_CAPACITY_CONFLICT"}},
+	}
+	if proposalCandidateReady(candidate) {
+		t.Fatal("candidate with an active capacity conflict must not be proposal-ready")
+	}
+}

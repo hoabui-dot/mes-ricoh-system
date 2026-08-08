@@ -62,6 +62,11 @@ func TestVerifierEnforcesKioskTokenTrustBoundary(t *testing.T) {
 	if err != nil || claims["sub"] != "operator-phase06" {
 		t.Fatalf("valid operator token rejected: claims=%v err=%v", claims, err)
 	}
+	executive := clone()
+	executive["realm_access"] = map[string]interface{}{"roles": []interface{}{"EXECUTIVE"}}
+	if _, err := verifier.VerifyOperator(sign(executive, privateKey)); err != nil {
+		t.Fatalf("executive kiosk token rejected: %v", err)
+	}
 	tests := []struct {
 		name   string
 		mutate func(jwt.MapClaims)

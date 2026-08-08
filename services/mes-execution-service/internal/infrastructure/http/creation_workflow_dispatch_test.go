@@ -25,6 +25,24 @@ func TestParseCreationWorkflowRequestPreservesDemoDispatchMode(t *testing.T) {
 	}
 }
 
+func TestParseCreationWorkflowRequestDoesNotRequireOrTrustShift(t *testing.T) {
+	request := httptest.NewRequest(http.MethodPost, "/api/mes/execution/work-order-creation-workflows", strings.NewReader(`{
+		"production_version_id":"pv-phase07",
+		"quantity":2,
+		"target_date":"2026-08-03"
+	}`))
+	parsed, err := parseCreationWorkflowRequest(context.Background(), nil, request, "user-phase07", "phase07-derived-shift")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Input.ShiftID != "" {
+		t.Fatalf("create request must not own shift: %q", parsed.Input.ShiftID)
+	}
+	if _, exists := parsed.Payload["shift_id"]; exists {
+		t.Fatalf("shift_id must not participate in the authoritative request payload: %v", parsed.Payload)
+	}
+}
+
 func TestParseCreationWorkflowRequestRejectsUnknownDispatchMode(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/mes/execution/work-order-creation-workflows", strings.NewReader(`{
 		"production_version_id":"pv-phase07",

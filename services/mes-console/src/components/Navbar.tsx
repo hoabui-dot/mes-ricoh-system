@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User, Shield, Moon, Sun } from 'lucide-react';
+import { LogOut, Menu, User, Shield, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 import { Button } from './ui';
@@ -12,7 +12,7 @@ const localeLabels: Record<SupportedLocale, string> = {
   ko: 'KO',
 };
 
-export const Navbar: React.FC = () => {
+export const Navbar: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
   const { locale, setLocale, t } = useI18n();
   const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('mes-console-theme') as 'dark' | 'light') || 'dark');
@@ -23,20 +23,21 @@ export const Navbar: React.FC = () => {
   }, [theme]);
 
   return (
-    <header className="h-16 bg-primary border-b border-border px-6 flex items-center justify-between sticky top-0 z-40 shadow-[0_12px_32px_rgba(2,6,23,0.28)]">
-      <div className="flex items-center space-x-3">
+    <header className="flex min-h-16 items-center justify-between gap-2 border-b border-border bg-primary px-3 py-2 shadow-[0_12px_32px_rgba(2,6,23,0.28)] sm:px-4 md:px-6">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <Button onClick={onMenuToggle} variant="ghost" size="icon" className="shrink-0 md:hidden" title={t('common.menu')} aria-label={t('common.menu')}><Menu className="h-5 w-5" /></Button>
         <div className="w-9 h-9 bg-action rounded-md flex items-center justify-center font-black text-action-foreground shadow-lg shadow-orange-600/25">
           W
         </div>
-        <div>
-          <h1 className="text-base font-bold text-primary-foreground">S-Factory — MES Console</h1>
-          <p className="text-xs text-primary-foreground/75">{t('navbar.subtitle')}</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-sm font-bold text-primary-foreground sm:text-base"><span className="sm:hidden">MES</span><span className="hidden sm:inline">S-Factory — MES Console</span></h1>
+          <p className="hidden text-xs text-primary-foreground/75 sm:block">{t('navbar.subtitle')}</p>
         </div>
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
         <div className="flex items-center gap-2 text-xs text-primary-foreground/80">
-          <span>{t('navbar.language')}</span>
+          <span className="hidden lg:inline">{t('navbar.language')}</span>
           <div className="inline-flex rounded-md border border-primary-foreground/25 bg-primary/40 p-1" role="group" aria-label={t('navbar.language')}>
             {SUPPORTED_LOCALES.map((item) => (
               <Button
@@ -46,17 +47,17 @@ export const Navbar: React.FC = () => {
                 onClick={() => setLocale(item)}
                 title={languageNames[item]}
                 aria-pressed={locale === item}
-                className="min-w-9 px-2 text-[11px]"
+                className="min-w-8 px-1 text-[10px] sm:min-w-9 sm:px-2 sm:text-[11px]"
               >
                 {localeLabels[item]}
               </Button>
             ))}
           </div>
         </div>
-        <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="ghost" size="icon" title={theme === 'dark' ? t('navbar.lightMode') : t('navbar.darkMode')} aria-label={theme === 'dark' ? t('navbar.lightMode') : t('navbar.darkMode')}>
+        <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="ghost" size="icon" className="hidden sm:inline-flex" title={theme === 'dark' ? t('navbar.lightMode') : t('navbar.darkMode')} aria-label={theme === 'dark' ? t('navbar.lightMode') : t('navbar.darkMode')}>
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
-        <div className="flex items-center space-x-3 rounded-md border border-primary-foreground/20 bg-primary/35 px-3 py-1.5">
+        <div className="hidden items-center space-x-3 rounded-md border border-primary-foreground/20 bg-primary/35 px-3 py-1.5 lg:flex">
           <div className="flex h-8 w-8 items-center justify-center rounded-md border border-primary-foreground/20 bg-primary text-action">
             <User className="w-4 h-4" />
           </div>

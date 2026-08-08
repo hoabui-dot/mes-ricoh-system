@@ -1,5 +1,7 @@
 # MES MBOM Architecture and Workflow Redesign
 
+> Architecture correction, 2026-08-06: MBOM has no Site and no create-version workflow. `structure_version` is only a concurrency token. Site-validation and MBOM-version statements below are historical and superseded.
+
 Date: 2026-07-29
 Scope: `mes-master-data-service`, MES Console, MBOM schema, Production Version compatibility
 
@@ -80,4 +82,3 @@ The current product model intentionally does not add an output Item Revision pic
 - Technical group compatibility and UOM conversion lookup for substitutes are not yet enforced because the current Item Group/UOM conversion policy has no authoritative exception/approval aggregate. The backend enforces identity, lifecycle, numeric and approval-state rules now.
 - Routing is also independent of Item Revision in the running schema. Production Version validates the released Routing, Work Center Site and selected Item Revision, but cannot compare to a Routing-owned product revision column that migrations removed.
 - Schema Registry retains the pre-existing ItemRevision compatibility warning; it does not prevent master-data startup or MBOM API operation.
-

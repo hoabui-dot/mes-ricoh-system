@@ -28,7 +28,6 @@ export const mesQueryKeys = {
     selector: (filters?: FilterInput) => ['item-revisions', 'selector', normalizeFilters(filters)] as const,
     released: (filters?: FilterInput) => ['item-revisions', 'released', normalizeFilters(filters)] as const,
   },
-  eboms: domain('eboms'),
   mboms: {
     ...domain('mboms'),
     lines: (id: string) => ['mboms', 'lines', id] as const,

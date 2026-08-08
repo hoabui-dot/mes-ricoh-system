@@ -120,24 +120,22 @@ func (c *MasterDataConsumer) syncMBOMHeader(ctx context.Context, payload map[str
 		nameJSON = []byte(`{"vi":""}`)
 	}
 	itemRevID, _ := payload["item_revision_id"].(string)
-	siteID, _ := payload["site_id"].(string)
 	baseQty, _ := payload["base_quantity"].(float64)
 	baseUomID, _ := payload["base_uom_id"].(string)
 	status, _ := payload["lifecycle_status"].(string)
 
 	query := `
-		INSERT INTO rm_mbom_header (master_id, code, name, item_revision_id, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
-		VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, now())
+		INSERT INTO rm_mbom_header (master_id, code, name, item_revision_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
+		VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, now())
 		ON CONFLICT (master_id) DO UPDATE SET
 			code = EXCLUDED.code,
 			name = EXCLUDED.name,
 			item_revision_id = EXCLUDED.item_revision_id,
-			site_id = EXCLUDED.site_id,
 			base_quantity = EXCLUDED.base_quantity,
 			base_uom_id = EXCLUDED.base_uom_id,
 			lifecycle_status = EXCLUDED.lifecycle_status,
 			updated_at = now()
 	`
-	_, err := c.pool.Exec(ctx, query, masterID, code, string(nameJSON), itemRevID, siteID, baseQty, baseUomID, status)
+	_, err := c.pool.Exec(ctx, query, masterID, code, string(nameJSON), itemRevID, baseQty, baseUomID, status)
 	return err
 }

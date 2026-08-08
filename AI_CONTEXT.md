@@ -167,23 +167,21 @@ Forms that consume product configuration must filter to Released and currently e
 there is one valid revision, the UI may auto-select it and display it read-only; with multiple valid revisions,
 the UI must offer a filtered selector. Backend ownership and lifecycle validation still applies.
 
-### EBOM
+### SAP EBOM boundary
 
-EBOM is an engineering aggregate owned by one output Item Revision. In the current UI it is a flat component
-list: component Item, component Revision, derived read-only UOM, quantity, sequence, and remove/add actions.
-There is no manufacturing parent/substitute/issue-operation concept in EBOM authoring. The current schema may
-retain historical parent-line fields, but they must not be presented as manufacturing behavior.
-
-EBOM does not participate in material explosion, capacity planning, material staging, backflush, operation
-execution, substitutes, scrap, phantom, production standards, or WO readiness. A Production Version may retain
-an optional EBOM reference as an engineering baseline when policy requires it. A Work Order may snapshot the
-EBOM identity/version for audit, but must never copy EBOM lines into WO material requirements.
+SAP owns EBOM. MES currently has no EBOM tables, CRUD/API routes, Console screen, seed records, Production Version
+reference, or Work Order dependency. A future SAP integration may import an immutable comparison snapshot only
+after identity, version mapping, retention, reconciliation, and event contracts are approved.
 
 ### MBOM
 
 MBOM is the manufacturing material definition owned by the output Item Revision. It contains manufacturing
 component lines, quantities, derived UOM, optional issue-operation mapping, and manufacturing attributes such
 as scrap, backflush, phantom, optional, and substitutes where configured.
+
+MBOM output is restricted to `FG` or `SFG`. Input Item Types use one canonical matrix for both components and
+substitutes: `FG -> SFG | RM`, and `SFG -> RM`. Console selectors filter by this matrix, while every backend
+create, replace, update, validate, and release path enforces it transactionally.
 
 One MBOM line may have many substitute rows. Substitute changes in the draft editor are client-side until the
 structure is submitted; a successful save replaces the desired draft structure transactionally. Draft MBOMs can
@@ -196,7 +194,7 @@ display.
 
 ### Routing and Production Version
 
-`md_routing_header` is owned by the same output Item Revision as the MBOM. `md_routing_operation` defines
+`md_routing_header` is an independent, reusable operation flow and does not belong to an output Item Revision. `md_routing_operation` defines
 sequence, Operation, logical Work Center, optional nullable legacy workstation compatibility data, predecessors, scheduling, overlap/transfer,
 queue/move times, milestone, confirmation, material scan, and output-label requirements.
 
@@ -204,15 +202,13 @@ Routing operations must use an active/effective Work Center in the Routing Site.
 and validated by Resource Planning; they must belong to that Work Center and Site. Released Routing structures are
 immutable when referenced by released production configuration, Work Orders, or other dependent records.
 
-Production Version is the authoritative production configuration selected by a Work Order. It combines a
-matching Item Revision with a Released/effective MBOM and Routing, and may include an optional compatible EBOM
-baseline. Ownership must satisfy:
+Production Version is the authoritative production configuration selected by a Work Order. The user selects a
+Released/effective MBOM and Routing. The backend derives the output Item Revision from MBOM and the Site from
+the unique Site of Routing Work Centers. The persisted Revision is a derived configuration snapshot:
 
 ```text
 ProductionVersion.item_revision_id
   = MBOM.item_revision_id
-  = Routing.item_revision_id
-  = EBOM.item_revision_id (when EBOM is selected)
 ```
 
 The Production Version, not an Item ID, MBOM code, or Routing code supplied independently by the browser, is the
@@ -341,7 +337,7 @@ host.
 - Cleanup scripts may remove disposable development fixtures only after an explicit environment guard, pre-cleanup
   audit, dependency-ordered transaction, post-cleanup orphan checks, and clear refusal for production-like data.
 - Seed data must use current APIs/schema and must be rerunnable. It must not weaken readiness validation or
-  create ownerless EBOM/MBOM/Routing/Production Version records.
+  create ownerless MBOM/Routing/Production Version records.
 
 ## 9. Frontend and API conventions
 
@@ -395,7 +391,7 @@ npm run machines:verify
 ```
 
 The complete MES WO seed command owns the current cleanup/seed workflow. It audits disposable Work Orders and
-orphans, cleans dependent execution rows in FK order, seeds a coherent Item/Revision/EBOM/MBOM/Routing/Production
+orphans, cleans dependent execution rows in FK order, seeds a coherent Item/Revision/MBOM/Routing/Production
 Version plus resource/calendar/standard data, creates a Draft WO, and writes verification artifacts. It must
 refuse unsafe environments. If the remote Print Station is offline, strict seed verification stops; setting
 `ALLOW_PRINT_STATION_OFFLINE=true` is only for database/UI fixture verification and is not proof of physical

@@ -14,7 +14,8 @@ import (
 func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (domain.ComputeResult, error) {
 	var quantity float64
 	var plannedStartAt time.Time
-	err := pool.QueryRow(ctx, `SELECT quantity, planned_start_at FROM wo_header WHERE wo_id = $1`, woID).Scan(&quantity, &plannedStartAt)
+	var shiftID string
+	err := pool.QueryRow(ctx, `SELECT quantity, planned_start_at, shift_id FROM wo_header WHERE wo_id = $1`, woID).Scan(&quantity, &plannedStartAt, &shiftID)
 	if err != nil {
 		return domain.ComputeResult{}, fmt.Errorf("work order not found: %w", err)
 	}
@@ -153,8 +154,13 @@ func ComputeAndCheck(ctx context.Context, pool *pgxpool.Pool, woID string) (doma
 			candidateRows, candidateErr := pool.Query(ctx, `SELECT e.master_id, e.code, e.name, es.level
 				FROM rm_employee e JOIN rm_employee_skill es ON es.employee_id = e.master_id
 				JOIN rm_employee_shift_schedule sh ON sh.employee_id = e.master_id
-				WHERE es.skill_id = $1 AND e.employee_status = 'Active' AND sh.schedule_date = $2 AND sh.schedule_status = 'Scheduled'
-				ORDER BY (e.default_work_center_id = $3) DESC, es.level ASC, e.code ASC LIMIT $4`, skillID, plannedStartAt.UTC().Format("2006-01-02"), o.wcID, required)
+				WHERE es.skill_id = $1 AND e.employee_status = 'Active'
+				  AND e.lifecycle_status = 'Released' AND e.default_work_center_id = $3
+				  AND sh.work_center_id = $3 AND sh.shift_id = $4
+				  AND sh.schedule_date = $2 AND sh.schedule_status = 'Scheduled'
+				  AND COALESCE(NULLIF(regexp_replace(es.level, '[^0-9]', '', 'g'), '')::int, 0)
+				      >= COALESCE(NULLIF(regexp_replace($5, '[^0-9]', '', 'g'), '')::int, 1)
+				ORDER BY COALESCE(NULLIF(regexp_replace(es.level, '[^0-9]', '', 'g'), '')::int, 0) DESC, e.code ASC LIMIT $6`, skillID, plannedStartAt.UTC().Format("2006-01-02"), o.wcID, shiftID, minLevel, required)
 			if candidateErr != nil {
 				return domain.ComputeResult{}, fmt.Errorf("WO_WORKER_READINESS_QUERY_FAILED: operation %s skill %s: %w", o.code, skillCode, candidateErr)
 			}

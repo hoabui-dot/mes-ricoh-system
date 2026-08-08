@@ -10,6 +10,7 @@ export const LOCALIZED_COLUMNS_BY_TABLE = new Map<string, string[]>([
   ['md_production_area', ['name', 'description']],
   ['md_workstation', ['name', 'description']],
   ['md_resource_assignment', ['name']],
+  ['md_resource_calendar', ['name']],
   ['md_equipment', ['name']],
   ['md_skill', ['name']],
   ['md_reason_code', ['name']],
@@ -136,6 +137,11 @@ export const SEED_LOCALIZED_TEXT: Record<string, Record<string, Record<string, L
   md_resource_assignment: {
     'ASSIGN-MOLD-KIOSK01': {
       name: localized('Gán kiosk máy ép', 'Molding kiosk assignment', '成形キオスク割当', '성형 키오스크 할당'),
+    },
+  },
+  md_resource_calendar: {
+    'CAL-EQ-MIX-BANBURY01-2026': {
+      name: localized('Lịch khả dụng máy trộn Banbury 2026', 'Banbury mixing equipment availability 2026', 'バンバリー混練設備の可用性 2026', '밴버리 혼련 설비 가용성 2026'),
     },
   },
   md_equipment: {

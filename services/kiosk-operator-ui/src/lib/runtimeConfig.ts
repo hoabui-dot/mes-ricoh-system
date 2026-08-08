@@ -7,6 +7,7 @@ declare global {
 export interface KioskRuntimeConfig {
   gatewayUrl: string;
   websocketUrl: string;
+  keycloakUrl: string;
   demoCredentialsEnabled: boolean;
   demoUsername: string;
   demoPassword: string;
@@ -19,6 +20,7 @@ export function getKioskRuntimeConfig(): KioskRuntimeConfig {
   return {
     gatewayUrl: trimTrailingSlash(config.gatewayUrl || ''),
     websocketUrl: config.websocketUrl || '',
+    keycloakUrl: trimTrailingSlash(config.keycloakUrl || ''),
     demoCredentialsEnabled: config.demoCredentialsEnabled === true,
     demoUsername: config.demoCredentialsEnabled === true ? config.demoUsername || '' : '',
     demoPassword: config.demoCredentialsEnabled === true ? config.demoPassword || '' : '',

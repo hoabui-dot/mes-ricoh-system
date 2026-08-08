@@ -122,33 +122,68 @@ func (s *AuthService) LoginTerminal(ctx context.Context, terminalID string, inpu
 	tokenResp.UserID, _ = claims["sub"].(string)
 	tokenResp.Username, _ = claims["preferred_username"].(string)
 
+	sessionID, err := s.createTerminalSession(ctx, terminalID, tokenResp.UserID)
+	if err != nil {
+		return nil, err
+	}
+	tokenResp.TerminalSessionID = sessionID
+
+	return &tokenResp, nil
+}
+
+// LoginTerminalSSO reuses the already authenticated Keycloak browser session.
+// The bearer token remains the authority used by subsequent kiosk commands.
+func (s *AuthService) LoginTerminalSSO(ctx context.Context, terminalID, accessToken string) (*domain.TokenResponse, error) {
+	claims, err := s.ValidateOperatorToken(accessToken)
+	if err != nil {
+		return nil, err
+	}
+	userID, _ := claims["sub"].(string)
+	username, _ := claims["preferred_username"].(string)
+	sessionID, err := s.createTerminalSession(ctx, terminalID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.TokenResponse{
+		AccessToken:       accessToken,
+		TokenType:         "Bearer",
+		UserID:            userID,
+		Username:          username,
+		TerminalSessionID: sessionID,
+	}, nil
+}
+
+func (s *AuthService) createTerminalSession(ctx context.Context, terminalID, userID string) (string, error) {
+	var realTerminalID string
+	if err := s.pool.QueryRow(ctx, `SELECT terminal_id::text FROM terminal WHERE terminal_id::text = $1 OR terminal_code = $1`, terminalID).Scan(&realTerminalID); err != nil {
+		return "", fmt.Errorf("terminal %s not found", terminalID)
+	}
 	sessionID := uuid.New().String()
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("begin terminal session: %w", err)
+		return "", fmt.Errorf("begin terminal session: %w", err)
 	}
 	defer tx.Rollback(ctx)
 	if err := tx.QueryRow(ctx, `SELECT terminal_id::text FROM terminal WHERE terminal_id=$1 FOR UPDATE`, realTerminalID).Scan(&realTerminalID); err != nil {
-		return nil, fmt.Errorf("lock terminal session: %w", err)
+		return "", fmt.Errorf("lock terminal session: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE terminal_session SET status='CLOSED', logged_out_at=COALESCE(logged_out_at,NOW())
 		WHERE terminal_id=$1 AND status='ACTIVE'
 	`, realTerminalID); err != nil {
-		return nil, fmt.Errorf("close previous terminal session: %w", err)
+		return "", fmt.Errorf("close previous terminal session: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO terminal_session (session_id, terminal_id, operator_user_id, logged_in_at, status)
 		VALUES ($1, $2, $3, NOW(), 'ACTIVE')
-	`, sessionID, realTerminalID, tokenResp.UserID); err != nil {
-		return nil, fmt.Errorf("create terminal session: %w", err)
+	`, sessionID, realTerminalID, userID); err != nil {
+		return "", fmt.Errorf("create terminal session: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit terminal session: %w", err)
+		return "", fmt.Errorf("commit terminal session: %w", err)
 	}
-	tokenResp.TerminalSessionID = sessionID
-
-	return &tokenResp, nil
+	return sessionID, nil
 }
 
 func requestKeycloakToken(req *http.Request) (*http.Response, error) {
@@ -235,11 +270,11 @@ func (s *AuthService) ValidateOperatorToken(tokenStr string) (jwt.MapClaims, err
 	realmAccess, _ := claims["realm_access"].(map[string]interface{})
 	roles, _ := realmAccess["roles"].([]interface{})
 	for _, role := range roles {
-		if value, _ := role.(string); value == "OPERATOR" {
+		if value, _ := role.(string); value == "OPERATOR" || value == "EXECUTIVE" {
 			return claims, nil
 		}
 	}
-	return nil, fmt.Errorf("operator role is required")
+	return nil, fmt.Errorf("operator or executive role is required")
 }
 
 func (s *AuthService) HasActiveTerminalSession(ctx context.Context, terminalID, userID string) bool {

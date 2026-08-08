@@ -8,13 +8,13 @@ The current flow is strict manual planning. A released Production Version is the
 Create a Draft Work Order from a released, effective Production Version.
 
 ### Preconditions
-Released Item Revision, MBOM, Routing, Production Version, site, and active shift.
+Released Item Revision, MBOM, Routing, Production Version, site, and an effective Work Center resource calendar for the target date. Shift is resolved by MES during workflow execution.
 
 ### Test Data
 `E2E-WO-FG-01`, `PV-*`, `SITE-KZ3`, an active shift.
 
 ### User Steps
-Open Work Orders, choose the released Production Version and shift, enter a valid quantity and target date, submit, then open the created Work Order.
+Open Work Orders, choose the released Production Version, enter a valid quantity and target date with an effective resource calendar, submit, then open the created Work Order.
 
 ### API Steps
 Use `POST /api/mes/execution/work-order-creation-workflows` and poll the workflow snapshot.

@@ -2,6 +2,14 @@
 
 Tài liệu đặc tả danh mục Master Data quản lý nhóm năng lực logic (`Work Center`), điểm thực thi trạm (`Workstation`), máy móc thiết bị vật lý (`Equipment`), gán tài nguyên (`Resource Assignment`), khả năng đáp ứng (`Resource Capability`), lịch khả dụng (`Resource Calendar`), danh mục kỹ năng (`Skill`) và yêu cầu kỹ năng theo công đoạn (`Operation Skill Requirement`) cho hệ thống MES MVP.
 
+## Ranh giới với Routing (2026-08-07)
+
+`MD_RESOURCE_CAPABILITY` không còn là nơi user-facing để assign Operation vào
+Work Center. Quan hệ này được khai báo tại `MD_ROUTING_OPERATION`, nơi Work
+Center đã được chọn. Capability vẫn dùng cho eligibility theo sản phẩm/thiết
+bị, priority, speed factor, giới hạn lot và explicit deny. Dữ liệu cũ không
+bị xóa để bảo toàn readiness và lịch sử backend.
+
 ---
 
 ## D1. MD_WORK_CENTER — Work Center

@@ -52,7 +52,6 @@ export const mdShopfloor = pgTable('md_shopfloor', {
   name: jsonb('name').$type<Record<string, string>>().notNull(),
   description: jsonb('description').$type<Record<string, string>>(),
   versionNo: integer('version_no').notNull().default(1),
-  siteId: uuid('site_id').notNull(),
   lifecycleStatus: masterLifecycleStatus('lifecycle_status').notNull().default('Draft'),
   effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull().defaultNow(),
   effectiveTo: timestamp('effective_to', { withTimezone: true }),
@@ -115,6 +114,25 @@ export const mdShift = pgTable('md_shift', {
   crossesMidnight: boolean('crosses_midnight').notNull().default(false),
 });
 
+export const mdWorkCenterShiftSet = pgTable('md_work_center_shift_set', {
+  ...commonMasterColumns(),
+  workCenterId: uuid('work_center_id').notNull(),
+});
+
+export const mdWorkCenterShift = pgTable('md_work_center_shift', {
+  assignmentId: uuid('assignment_id').primaryKey().defaultRandom(),
+  workCenterId: uuid('work_center_id').notNull(),
+  shiftId: uuid('shift_id').notNull(),
+  shiftSetId: uuid('shift_set_id').notNull(),
+  activeFlag: boolean('active_flag').notNull().default(true),
+  effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull().defaultNow(),
+  effectiveTo: timestamp('effective_to', { withTimezone: true }),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const mdReasonCode = pgTable('md_reason_code', {
   ...commonMasterColumns(),
   reasonType: varchar('reason_type', { length: 50 }).notNull(),
@@ -153,7 +171,6 @@ export const mdMbomHeader = pgTable('md_mbom_header', {
   ...commonMasterColumns(),
   name: jsonb('name').$type<Record<string, string>>().notNull(),
   description: jsonb('description').$type<Record<string, string>>(),
-  siteId: uuid('site_id').notNull(),
   businessVersion: varchar('business_version', { length: 30 }).notNull().default('1'),
   purpose: varchar('purpose', { length: 30 }).notNull().default('Standard'),
   baseQuantity: numeric('base_quantity', { precision: 18, scale: 6 }).notNull(),
@@ -199,9 +216,6 @@ export const mdProductionVersion = pgTable('md_production_version', {
   itemRevisionId: uuid('item_revision_id').notNull(),
   mbomHeaderId: uuid('mbom_header_id').notNull(),
   routingHeaderId: uuid('routing_header_id').notNull(),
-  // Optional engineering baseline for traceability. It is never exploded into
-  // execution/material requirements; MBOM and Routing remain authoritative.
-  ebomHeaderId: uuid('ebom_header_id'),
   siteId: uuid('site_id').notNull(),
   minLotSize: numeric('min_lot_size', { precision: 18, scale: 6 }),
   maxLotSize: numeric('max_lot_size', { precision: 18, scale: 6 }),
@@ -259,7 +273,6 @@ export const mdRoutingHeader = pgTable('md_routing_header', {
   changeReason: jsonb('change_reason').$type<Record<string, string>>(),
   engineeringNote: jsonb('engineering_note').$type<Record<string, string>>(),
   referenceDocument: varchar('reference_document', { length: 500 }),
-  itemRevisionId: uuid('item_revision_id'),
 });
 
 export const mdRoutingOperation = pgTable('md_routing_operation', {
@@ -475,6 +488,7 @@ export const mdResourceCapability = pgTable('md_resource_capability', {
 
 export const mdResourceCalendar = pgTable('md_resource_calendar', {
   ...commonMasterColumns(),
+  name: jsonb('name').$type<Record<string, string>>().notNull(),
   workCenterId: uuid('work_center_id').notNull(),
   equipmentId: uuid('equipment_id'),
   availableFrom: timestamp('available_from', { withTimezone: true }).notNull(),
@@ -490,6 +504,7 @@ export const mdResourceCalendar = pgTable('md_resource_calendar', {
   availableMinutes: integer('available_minutes').notNull().default(0),
   capacityFactor: numeric('capacity_factor', { precision: 7, scale: 4 }).notNull().default('1'),
   reasonId: uuid('reason_id'),
+  reasonText: text('reason_text'),
   note: jsonb('note').$type<Record<string, string>>(),
 });
 
@@ -514,7 +529,7 @@ export const mdWorkCenterComposition = pgTable('md_work_center_composition', {
 export const mdEmployee = pgTable('md_employee', {
   ...commonMasterColumns(),
   siteId: uuid('site_id').notNull(),
-  defaultWorkCenterId: uuid('default_work_center_id'),
+  defaultWorkCenterId: uuid('default_work_center_id').notNull(),
   employeeStatus: varchar('employee_status', { length: 20 }).notNull().default('Active'),
   hiredDate: date('hired_date'),
 });
@@ -543,7 +558,7 @@ export const mdEmployeeShiftSchedule = pgTable('md_employee_shift_schedule', {
   scheduleId: uuid('schedule_id').primaryKey().defaultRandom(),
   employeeId: uuid('employee_id').notNull(),
   shiftId: uuid('shift_id').notNull(),
-  workCenterId: uuid('work_center_id'),
+  workCenterId: uuid('work_center_id').notNull(),
   scheduleDate: date('schedule_date').notNull(),
   scheduleStatus: varchar('schedule_status', { length: 20 }).notNull().default('Scheduled'),
   createdBy: uuid('created_by').notNull(),

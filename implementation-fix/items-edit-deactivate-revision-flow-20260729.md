@@ -26,7 +26,7 @@ Specification edits on an Item whose latest revision is Released return:
 
 The console shows **Create New Revision**. The successor form requires localized name, Released UOM, future/equal `Effective From`, and non-empty `Change Reason`. The backend rejects a successor when the current revision is not Released, rejects backdating, and links `previous_revision_id`.
 
-Releasing the successor closes the previous revision's `effective_to`, removes its default flag, and makes the successor the effective default in the same transaction.
+Creating the successor closes the chronological predecessor's `effective_to` at the exact successor start and records both boundary changes in the same transaction. Releasing the successor removes the previous default flag and makes the successor the single Released default for the same Item and Site.
 
 ### Deactivation
 
@@ -38,7 +38,7 @@ Deactivation is lifecycle-only: `md_item.lifecycle_status = 'Inactive'`. It does
 - Item Revision `base_uom_id` must reference a Released `md_uom` on create/successor paths.
 - Released Item Revisions are immutable; changes require a new revision.
 - Successor revisions do not auto-create or carry forward MBOM, Routing, or Production Version bindings.
-- Releasing a successor closes only the previous revision's effective window; no historical row is deleted.
+- Creating a successor closes only the chronological predecessor's effective window; no historical row is deleted. Release changes lifecycle/default ownership without recalculating the already reconciled interval.
 - Item deactivation is not a cascading delete and does not rewrite existing Work Order snapshots.
 
 ## Runtime verification

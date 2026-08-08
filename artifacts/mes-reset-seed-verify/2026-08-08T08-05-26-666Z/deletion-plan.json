@@ -1,0 +1,11 @@
+{
+  "mode": "reset",
+  "workOrders": 1,
+  "invalidWorkOrders": 0,
+  "workOrderIds": [
+    "85375a43-08c4-4d51-9485-c53f9f2c7cc3"
+  ],
+  "childFirst": true,
+  "preservesMasterData": true,
+  "statementsScope": "WO IDs, known test codes, and orphan predicates only"
+}

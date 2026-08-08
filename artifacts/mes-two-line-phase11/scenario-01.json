@@ -1,0 +1,12 @@
+{
+  "number": 1,
+  "name": "Primary selected and candidate APIs remain on Primary",
+  "status": "passed",
+  "started_at": "2026-08-07T10:38:42.971Z",
+  "finished_at": "2026-08-07T10:38:43.452Z",
+  "evidence": {
+    "work_order_code": "WO-20260807-0236",
+    "selected_line": "WST-SEED-LINE-1",
+    "operations": 4
+  }
+}

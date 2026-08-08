@@ -24,15 +24,14 @@ Dữ liệu được coi là sẵn sàng khi `npm run reset:seed:verify:mes:cano
 | 1 | Operations | Work Orders | `/work-orders` | `wo_header` | Danh sách WO, lọc trạng thái, mở detail | Bắt đầu/quan sát flow WO | Keycloak user, header role qua gateway | IMPLEMENTED_AND_VERIFIED |
 | 2 | Operations | Create Work Order | `/work-orders/new` | `wo_creation_workflow`, `wo_header` | Tạo WO từ Production Version Ready | Tạo snapshot, chọn line, tạo operation/material | PLANT_MANAGER/PROD_MANAGER style role | IMPLEMENTED_AND_VERIFIED |
 | 3 | Operations | Work Order Detail | `/work-orders/:id` | `wo_header`, `wo_operation`, allocation, reservation | Compute, candidate, allocation, revalidate, approve, reject, start, replan | Trung tâm UAT | Role có quyền mutate WO | IMPLEMENTED_AND_VERIFIED, print start PARTIALLY_IMPLEMENTED |
-| 4 | Product | Items / Item Revisions | `/master-data/items` | `md_item`, `md_item_revision` | Định danh sản phẩm và revision hiệu lực | Prerequisite cho MBOM/Routing/PV | Master Data role | IMPLEMENTED_AND_VERIFIED |
+| 4 | Product | Items / Item Revisions | `/master-data/items` | `md_item`, `md_item_revision` | Định danh sản phẩm và revision hiệu lực | Prerequisite cho MBOM; PV suy ra từ MBOM | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 5 | Product | UOM | `/master-data/uoms` | `md_uom` | Đơn vị tính, decimal/fraction validation | Dùng cho item, MBOM, quantity WO | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 6 | Product | Material Groups | `/master-data/material-groups` | `md_material_group` | Nhóm vật tư/sản phẩm | Phân loại item | Master Data role | IMPLEMENTED_AND_VERIFIED |
-| 7 | Product | EBOM | `/master-data/eboms` | `md_ebom_header`, `md_ebom_line` | Engineering baseline | Tham chiếu kỹ thuật, không tạo material WO | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 8 | Product | MBOM | `/master-data/mboms` | `md_mbom_header`, `md_mbom_line` | Manufacturing BOM | Authority cho material snapshot | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 9 | Product | Routing | `/master-data/routings` | `md_routing_header` | Quy trình công nghệ | Authority cho operation snapshot | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 10 | Product | Routing Operations | `/master-data/routings/:id/operations` | `md_routing_operation` | Sequence, Work Center, timing, label flags | Ràng buộc operation cho line evaluation | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 11 | Product | Operation Catalog | `/master-data/operations` | `md_operation` | Danh mục operation | Operation master dùng trong Routing | Master Data role | IMPLEMENTED_AND_VERIFIED |
-| 12 | Product | Production Version | `/master-data/production-versions` | `md_production_version` | Kết hợp Item Revision + MBOM + Routing | Input duy nhất để tạo WO | Master Data role | IMPLEMENTED_AND_VERIFIED |
+| 12 | Product | Production Version | `/master-data/production-versions` | `md_production_version` | Chọn MBOM + Routing; suy ra Revision/Site | Input duy nhất để tạo WO | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 13 | Product | Production Version CRUD | `/master-data/production-versions/new`, `/:id/edit` | `md_production_version_line_eligibility` | Sửa PV và line eligibility | Xác định Primary/Backup | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 14 | Factory | Factories/Sites | `/master-data/factories` | `md_site` | Site factory | Root của hierarchy | Master Data role | IMPLEMENTED_AND_VERIFIED |
 | 15 | Factory | Shopfloors | `/master-data/shopfloors` | `md_shopfloor` | Shopfloor thuộc Site | Grouping cho area/line/resource | Master Data role | IMPLEMENTED_AND_VERIFIED |
@@ -67,7 +66,6 @@ flowchart TD
   E --> H[Resource Assignment]
   D --> I[Resource Capability / Calendar / Standard]
   J[Item] --> K[Item Revision]
-  K --> L[EBOM]
   K --> M[MBOM]
   K --> N[Routing]
   N --> O[Routing Operation]
@@ -85,7 +83,7 @@ flowchart TD
   X --> Y[Start Execution]
 ```
 
-Site bắt buộc trước Area/Line/Work Center vì mọi resource phải cùng site. Production Line bắt buộc trước line eligibility vì backend chỉ chọn line Released, active, effective. Work Center bắt buộc trước Routing Operation, Resource Capability, Calendar và Standard; thiếu Work Center hoặc Work Center không thuộc line gây `LINE_MISSING_WORK_CENTER`. Workstation và Machine Requirement tạo execution point và điều kiện máy; thiếu assignment hoặc machine unit gây candidate Blocked. Item Revision là version sản phẩm; EBOM chỉ là engineering baseline; MBOM tạo material requirements; Routing tạo operation snapshot; Production Version kết hợp revision, MBOM, routing và line eligibility để tạo WO. Work Order create không cho browser tự chọn MBOM/Routing riêng lẻ.
+Site bắt buộc trước Area/Line/Work Center vì mọi resource phải cùng site. Production Line bắt buộc trước line eligibility vì backend chỉ chọn line Released, active, effective. Work Center bắt buộc trước Routing Operation, Resource Capability, Calendar và Standard; thiếu Work Center hoặc Work Center không thuộc line gây `LINE_MISSING_WORK_CENTER`. Workstation và Machine Requirement tạo execution point và điều kiện máy; thiếu assignment hoặc machine unit gây candidate Blocked. Item Revision là version sản phẩm; MBOM tạo material requirements; Routing tạo operation snapshot; Production Version kết hợp revision, MBOM, routing và line eligibility để tạo WO. Work Order create không cho browser tự chọn MBOM/Routing riêng lẻ. EBOM thuộc SAP và không có màn hình, API hoặc dữ liệu trong MES hiện tại.
 
 ## 4. Khái niệm quan trọng
 
@@ -93,7 +91,6 @@ Site bắt buộc trước Area/Line/Work Center vì mọi resource phải cùng
 |---|---|---|---|---|---|
 | Item | Định danh sản phẩm ổn định | Master Data | Items | Parent của revision | Dùng Item thay cho Revision khi tạo WO |
 | Item Revision | Version/effectivity/UOM của Item | Master Data | Items | PV tham chiếu revision Released | Tạo WO bằng revision chưa Released |
-| EBOM | BOM kỹ thuật | Master Data | EBOM | Tham khảo, có thể convert | Nghĩ EBOM tạo material WO |
 | MBOM | BOM sản xuất | Master Data | MBOM | Tạo material snapshot | Sửa MBOM sau WO rồi kỳ vọng WO cũ đổi |
 | Routing | Quy trình công nghệ | Master Data | Routing | Snapshot operation | Tạo routing riêng chỉ vì line khác |
 | Routing Operation | Operation theo sequence và Work Center | Master Data | Routing Operations | Line readiness map từng operation | Gán WC không thuộc line |
@@ -133,7 +130,7 @@ Mục đích: xem danh sách WO, lọc trạng thái `Draft`, `Approved`, `InPro
 
 ### WO-02 - Work Order Create
 
-Mục đích: tạo WO bằng Production Version Ready. Object: `wo_creation_workflow`, `wo_header`, `wo_operation`, `wo_material_requirement`, line selection snapshot. API: `GET /production-ready-versions`, `GET /shifts`, `GET /work-order-code-preview`, `POST /work-order-creation-workflows`, WebSocket `GET /ws/work-order-creation`, snapshot `GET /work-order-creation-workflows/:id`. Field bắt buộc: Production Version, Quantity, Target Date, Shift. Field read-only/backend sinh: WO preview code, workflow id, created WO code. Field phụ thuộc: đổi target date reload Production Version readiness; chọn Production Version reload shifts theo site. Expected: workflow đi qua request validation, master data readiness, create transaction, outbox queued; khi succeeded mở WO detail. Error thường gặp: Production Version không visible, Shift missing, quantity ngoài min/max, workflow timeout.
+Mục đích: tạo WO bằng Production Version Ready. Object: `wo_creation_workflow`, `wo_header`, `wo_operation`, `wo_material_requirement`, line selection snapshot. API: `GET /production-ready-versions`, `POST /resource-planning/shift-candidates` (backend tự resolve), `GET /work-order-code-preview`, `POST /work-order-creation-workflows`, WebSocket `GET /ws/work-order-creation`, snapshot `GET /work-order-creation-workflows/:id`. Field bắt buộc: Production Version, Quantity, Target Date. Field read-only/backend sinh: WO preview code, workflow id, created WO code, Shift. Field phụ thuộc: đổi Target Date reload Production Version readiness; backend resolve Shift theo Production Version, Production Line, Work Center calendar và ngày mục tiêu. Expected: workflow đi qua request validation, master data readiness, create transaction, outbox queued; khi succeeded mở WO detail. Error thường gặp: Production Version không visible, `WORK_ORDER_SHIFT_NOT_RESOLVED` khi ngày mục tiêu không có shift/resource calendar hiệu lực, quantity ngoài min/max, workflow timeout.
 
 ### WO-03 - Work Order Detail
 
@@ -141,11 +138,11 @@ Mục đích: kiểm tra snapshot, line selection, Compute & Check, resource can
 
 ### MD-01 - Product Definition group
 
-Bao gồm Items, UOM, Material Groups, EBOM, MBOM, Routing, Routing Operations, Operation Catalog, Production Versions. Owner: MES Master Data. Các màn hình dùng CRUD generic hoặc màn hình riêng (`ItemsScreen`, `MbomScreen`, `RoutingOperationsScreen`, `ProductionVersionScreen`). API chính: `GET/POST/PUT/DELETE /api/mes/master-data/<resource>`, release endpoints, MBOM validate/replace lines/substitutes, EBOM design tree, Production Version line eligibility. Vai trò: tạo cấu hình Released để `production-ready-versions` trả về dữ liệu Ready. Evidence: screenshot từng object Released, code, revision/effectivity, MBOM lines, Routing operations, PV eligibility.
+Bao gồm Items, UOM, Material Groups, MBOM, Routing, Routing Operations, Operation Catalog, Production Versions. Owner: MES Master Data. Các màn hình dùng CRUD generic hoặc màn hình riêng (`ItemsScreen`, `MbomScreen`, `RoutingOperationsScreen`, `ProductionVersionScreen`). API chính: `GET/POST/PUT/DELETE /api/mes/master-data/<resource>`, release endpoints, MBOM validate/replace lines/substitutes và Production Version line eligibility. Vai trò: tạo cấu hình Released để `production-ready-versions` trả về dữ liệu Ready. Evidence: screenshot từng object Released, code, revision/effectivity, MBOM lines, Routing operations, PV eligibility.
 
 ### MD-02 - Factory and Resource group
 
-Bao gồm Factories, Shopfloors, Production Areas, Production Lines, Work Centers, Workstations, Machines/Equipment, Resource Assignments. Owner: MES Master Data. API chính: CRUD resource foundation, `GET /production-lines/:id`, `PUT /production-lines/:id/work-centers`, `GET /work-centers/:id/headcount`, machine/unit detail, assignment history. Vai trò: xác định line scope và resource thực tế. Với two-line UAT, mỗi line phải có đủ 4 Work Centers, 4 Workstations, 4 Equipment, 4 Machine Units, 4 Assignments. Evidence: detail của từng line hiển thị Work Centers; Workstation detail hiển thị machine readiness, requirements, assigned resources.
+Bao gồm Factories, Shopfloors, Production Areas, Production Lines, Work Centers, Workstations, Machines/Equipment, Resource Assignments. Owner: MES Master Data. API chính: CRUD resource foundation, `POST /production-lines/aggregate`, `GET /production-lines/:id`, `PUT /production-lines/:id/work-centers`, `PUT /production-lines/:id/resource-scopes`, `GET /work-centers/:id/headcount`, machine/unit detail, assignment history. Khi tạo Production Line mới, user thực hiện trên một form: chọn hierarchy, thêm Work Center, rồi thêm Workstation thuộc các Work Center đã chọn. Backend tạo Draft line, memberships và derived resource scopes trong cùng một transaction; lỗi bất kỳ phải rollback toàn bộ. `md_resource_assignment` vẫn là nguồn dữ liệu kỹ thuật để sinh scope, không phải một bước UI riêng. Vai trò: xác định line scope và resource thực tế. Với two-line UAT, mỗi line phải có đủ 4 Work Centers, 4 Workstations, 4 Equipment, 4 Machine Units, 4 Assignments. Evidence: detail của từng line hiển thị Work Centers; Workstation detail hiển thị machine readiness, requirements, assigned resources.
 
 ### MD-03 - Planning Constraints group
 
@@ -153,7 +150,7 @@ Bao gồm Resource Capability, Resource Calendar, Production Standard, Operation
 
 ### MD-04 - Labor and Skills
 
-Bao gồm Employees, Shifts, Work Calendar, Skills/Worker Skills. Seed hiện có `SK-WC-MIX-MASTER`, `SK-WC-VULCAN-OPERATOR`, `SK-WC-INSPECTION`, nhân sự `EMP-MIX-001`, `EMP-VULCAN-001`, `EMP-VULCAN-002`, `EMP-QC-001`, lịch `2026-08-03`, Shift `SHIFT-A`. Owner: MES Master Data; projection trong Execution là `rm_employee`, `rm_employee_skill`, `rm_employee_shift_schedule`, `rm_skill`. Vai trò: Compute & Check tạo 4 labor assignments và 0 shortages. Nếu UI hiển thị shortage cho seed này, UAT FAIL.
+Bao gồm Employees, Skills/Worker Skills, shift set riêng theo Work Center, Shifts và Work Calendar. Lệnh `npm run reset:seed:mes:wo-line-scenarios` tạo `WST-SEED-SK-PRODUCTION-OPERATOR`, 8 worker `WST-SEED-EMP-L1-01..04` và `WST-SEED-EMP-L2-01..04`, 8 shift set/assignment cho 8 WST Work Center và schedule `SHIFT-A` vào ngày target. Projection trong Execution là `rm_employee`, `rm_employee_skill`, `rm_employee_shift_schedule`, `rm_skill`; seed cũng tạo 12 operation skill requirements cho ba routing scenario. Vai trò: Compute & Check và line readiness phải nhận diện worker đúng Work Center, skill Active và schedule đúng ngày. Nếu UI hiển thị worker shortage khi target date là ngày seed, UAT FAIL.
 
 ### MD-05 - Print Stations
 
@@ -181,12 +178,12 @@ Mục đích: quản lý print station master và binding Workstation. API: `/pr
 | Parent field | Dependent field | Expected reset/filter behavior | Relevant screen |
 |---|---|---|---|
 | Target Date | Production Version list | Reload readiness by `planned_date`; PV không Ready biến mất | WO Create |
-| Production Version | Shift | Reload shifts by selected product site | WO Create |
+| Production Version | Target Date | Backend resolve Shift từ line eligibility và Work Center resource calendar | WO Create |
 | Site | Area/Shopfloor/Line/WC | Options phải cùng site | Resource Foundation |
 | Production Area | Production Line/Work Center | Line/WC phải cùng area khi field có trong form | Resource Foundation |
 | Production Line | Work Centers | Detail line chỉ hiển thị effective active WCs | Production Lines |
 | Routing Header | Routing Operations | Operations thuộc routing, ordered by sequence | Routing Operations |
-| Item Revision | EBOM/MBOM/Routing/PV | Chỉ Released/effective revision dùng cho PV Ready | Product screens |
+| Item Revision | MBOM/PV | MBOM sở hữu Released/effective revision; PV suy ra revision từ MBOM | Product screens |
 | Workstation | Machine Requirement/Assignment | Candidate chỉ Ready khi requirement và assignment khớp | Workstations, WO Detail |
 | Operation | Capability/Standard/Skill Requirement | Missing record block readiness | Planning Constraints |
 
@@ -284,9 +281,9 @@ Mỗi test case phải ghi Environment, Git commit, seed run ID, user role, scre
 
 Mục tiêu: chứng minh `WST-SEED-LINE-1` và `WST-SEED-LINE-2` đều Released, active, có đủ 4 Work Centers, 4 Workstations, 4 Equipment/Machine Units, 4 Assignments, 4 Capabilities, 4 Calendars, 4 Standards. Screens: Production Lines, Work Centers, Workstations, Machines, Resource Assignments, Capabilities, Calendars, Standards. Expected: Line 1 primary, Line 2 backup; mọi row Released/Available/Identified. PASS khi UI và verification artifact khớp; FAIL nếu thiếu bất kỳ resource hoặc line có inactive row.
 
-### TC-02 - Xác minh Item, Revision, EBOM, MBOM, Routing và Production Version
+### TC-02 - Xác minh Item, Revision, MBOM, Routing và Production Version
 
-Mục tiêu: chứng minh product definition đủ tạo WO. Dữ liệu: `WST-SEED-FG-SEAL-ASM-01-A`, `WST-SEED-EBOM-SEAL-ASM-01`, `WST-SEED-MBOM-SEAL-ASM-01`, `WST-SEED-ROUTING-SEAL-ASM-01`, `WST-SEED-PV-SEAL-ASM-01`. Expected: EBOM tồn tại nhưng không phải authority material WO; MBOM có line `WST-SEED-MBOM-L01`; Routing có 4 operations; PV Released. Evidence: screenshot từng màn hình và API `/production-ready-versions`.
+Mục tiêu: chứng minh product definition đủ tạo WO. Dữ liệu: `WST-SEED-FG-SEAL-ASM-01-A`, `WST-SEED-MBOM-SEAL-ASM-01`, `WST-SEED-ROUTING-SEAL-ASM-01`, `WST-SEED-PV-SEAL-ASM-01`. Expected: MBOM có line `WST-SEED-MBOM-L01`; Routing có 4 operations; PV Released. Evidence: screenshot từng màn hình và API `/production-ready-versions`.
 
 ### TC-03 - Xác minh Production Version Line Eligibility
 
@@ -396,6 +393,26 @@ Trong WO Create, submit rồi ngắt/reload khi workflow đang chạy. Expected 
 
 Chạy cleanup/reset canonical bằng `npm run reset:seed:verify:mes:canonical`. Expected artifacts pass, `wo_header=0`, seed verification 40/40. Không cleanup bằng prefix lỏng hoặc chỉnh DB thủ công.
 
+### TC-30 - Production Line aggregate and WO regression rerun (2026-08-08)
+
+Đã chạy lại sau khi hợp nhất form tạo Production Line và cập nhật contract scope theo Workstation:
+
+```bash
+npm run test:e2e:resource-planning:phase6
+```
+
+Kết quả: `6 passed`, `0 failed`. Bộ test bao phủ form tạo, ràng buộc Site/Shopfloor/Area, loại dây chuyền, tạo aggregate Work Center + Workstation atomic, rollback Workstation không hợp lệ, accordion navigation, readiness/resource scope của line Released và selector Resource Calendar.
+
+Sau đó reset/seed/verify canonical dataset bằng `npm run reset:seed:verify:mes:canonical`, rồi chạy flow tạo WO:
+
+```bash
+MES_TWO_LINE_UAT_DIR=/tmp/mes-phase7-final-20260808 npm run test:mes:two-line-resource-planning:phase7
+```
+
+Kết quả Phase 7: `PASS`, 4/4 scenario gồm primary-ready, primary-alternative-ready, backup-fallback và resource-hold. Cleanup xác nhận `0` Work Order, `0` reservation và `0` allocation còn lại.
+
+Lưu ý kiến trúc: UI gửi Workstation scope; backend derive các `md_resource_assignment` đang hiệu lực trong cùng transaction. Không yêu cầu người dùng tạo resource assignment riêng trong flow Production Line.
+
 ## 13. Page-to-flow traceability
 
 | Feature | Business purpose | Required before WO? | Used planning? | Used execution? | Test cases | Failure impact |
@@ -440,7 +457,7 @@ Chạy cleanup/reset canonical bằng `npm run reset:seed:verify:mes:canonical`.
 | Manual UAT | Existing Playwright spec | Coverage | Missing automation |
 |---|---|---|---|
 | TC-01/TC-03 two-line master data | `e2e/resource-planning/phase6-production-lines.spec.ts`, `phase8-two-line-console.spec.ts` | PARTIALLY_AUTOMATED | Full screenshot evidence |
-| TC-02 product definition | `phase4-product-definition.spec.ts` | PARTIALLY_AUTOMATED | EBOM/MBOM UI deep evidence |
+| TC-02 product definition | `phase4-product-definition.spec.ts` | PARTIALLY_AUTOMATED | MBOM/Routing/PV UI deep evidence |
 | TC-04-TC-07 WO flow | `resource-planning-flow.spec.ts`, `phase3-resource-planning.spec.ts` | PARTIALLY_AUTOMATED | Physical print station |
 | TC-08-TC-12 fallback/blocked/mixed-line | `phase8-two-line-console.spec.ts` | PARTIALLY_AUTOMATED | Manual UI fixture toggles |
 | TC-21-TC-22 idempotency/concurrency | `work-order/numbering.spec.ts`, `concurrency/resource-planning-concurrency.spec.ts` | PARTIALLY_AUTOMATED | Multi-browser role matrix |
@@ -458,3 +475,11 @@ DevTools: mở Network, lọc `/api/mes`, click request, ghi method/path/status,
 PASS tổng thể chỉ khi mọi Critical scenario pass, không có mandatory skipped scenario trừ phần đã phân loại rõ là third-party/physical print skipped, UI/backend thống nhất, không có mixed-line allocation, fallback deterministic, both-line blocked an toàn, refresh/login persistence pass, authorization pass trong môi trường có user fixture, cleanup pass, canonical seed vẫn valid 40/40, regression hiện có green.
 
 FAIL hoặc BLOCKED nếu tester không xác định được cách dùng màn hình bắt buộc, required controls thiếu tài liệu, UI báo Ready nhưng backend Blocked, mixed-line allocation persist, fallback chọn line không complete, stale resource vẫn approve/start, authorization fail, hoặc không có fixture môi trường cho scenario bắt buộc.
+
+## 19. Transport của pipeline tạo WO
+
+MES Console đọc trạng thái pipeline bằng HTTP snapshot `GET /work-order-creation-workflows/:id` theo chu kỳ ngắn và backoff khi gateway tạm thời không đọc được. UI không phụ thuộc vào WebSocket/WSS cho workflow tạo WO, vì pipeline này là tiến trình ngắn, trạng thái đã được lưu bền vững trong execution database và HTTP đi qua Kong/Cloudflare ổn định hơn.
+
+Endpoint WebSocket backend vẫn được giữ để tương thích với các client khác, nhưng không phải transport chính của MES Console. Nếu pipeline thất bại, snapshot HTTP vẫn là nguồn sự thật và UI hiển thị step lỗi, mã lỗi, chi tiết kỹ thuật và mã tham chiếu.
+
+Lộ trình tạo dữ liệu từ database trống đến WO nằm tại `docs/testing/MES-CONSOLE-FROM-EMPTY-DATABASE-TO-WO-UAT-VI.md`.

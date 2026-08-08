@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -132,6 +133,13 @@ func (c *ExecutionConsumer) processEvent(ctx context.Context, envelope sharedker
 			err = fmt.Errorf("production event has no work_center_id")
 		} else {
 			err = c.hub.BroadcastToWorkCenters(ctx, workCenterIDs, envelope.EventID, envelope.EventType, eventData)
+			if err == nil && receivesAllWorkstations() {
+				terminalCode := os.Getenv("DEMO_KIOSK_TERMINAL_CODE")
+				if terminalCode == "" {
+					terminalCode = "KIOSK-DEMO-01"
+				}
+				err = c.hub.BroadcastToTerminalCode(ctx, terminalCode, envelope.EventID, envelope.EventType, eventData)
+			}
 		}
 	}
 	if err != nil {
@@ -139,6 +147,11 @@ func (c *ExecutionConsumer) processEvent(ctx context.Context, envelope sharedker
 		return err
 	}
 	return c.markProcessed(ctx, envelope.EventID)
+}
+
+func receivesAllWorkstations() bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv("DEMO_KIOSK_RECEIVE_ALL_WORKSTATIONS")))
+	return value == "1" || value == "true" || value == "yes"
 }
 
 func (c *ExecutionConsumer) claimEvent(ctx context.Context, eventID, eventType string) (bool, error) {

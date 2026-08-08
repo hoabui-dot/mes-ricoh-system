@@ -5,6 +5,10 @@ Hệ thống: MES Console và các service MES execution/master-data
 Mã chứng nhận: WO-CERT-001  
 Run ID: WO-CERT-001-20260802194145
 
+> Hiệu chỉnh ownership (2026-08-07): SAP sở hữu EBOM. Route, API, schema, seed data và tham chiếu EBOM trên
+> Production Version trong chứng nhận lịch sử này đã bị xóa khỏi MES bằng migration
+> `0070_remove_mes_owned_ebom_domain`. Evidence EBOM bên dưới đã hết hiệu lực và không thuộc phạm vi UAT MES hiện tại.
+
 ## 1. Kết quả cuối cùng
 
 Track B, gồm canonical seed và full flow Work Order sẵn sàng chạy, đã pass end
@@ -123,7 +127,10 @@ M: Chưa hoàn tất; page family đóng góp vào 120 documented use-case slot.
 
 Route: /work-orders/new  
 Phạm vi A-M. Workflow tạo được hỗ trợ chọn Production Version đã release,
-quantity, target date và shift, đồng thời dùng idempotency key. Backend
+quantity và target date, đồng thời dùng idempotency key. Người dùng không chọn
+ca. MES tự suy ra ca phù hợp từ resource calendar đã release của các Production
+Line đủ điều kiện, kiểm tra complete-line feasibility và snapshot ca đã chọn để
+resource allocation sử dụng. Backend
 validation và workflow polling được certification bao phủ. Evidence UI riêng
 cho tổ hợp invalid, duplicate submit, retry, mọi locale và keyboard/modal còn
 thiếu.  
@@ -168,13 +175,6 @@ M: Chưa hoàn tất.
 Route: /master-data/material-groups  
 Phạm vi A-M. Material-group data nằm trong master-data contract. Evidence CRUD
 page, duplicate, lifecycle, error, locale và accessibility còn thiếu.  
-M: Chưa hoàn tất.
-
-### 6.8 EBOMs
-
-Route: /master-data/eboms  
-Phạm vi A-M. EBOM structure được dùng trong product-definition flow. Evidence
-versioning, component validation, duplicate, save/retry và UI state còn thiếu.  
 M: Chưa hoàn tất.
 
 ### 6.9 MBOMs
@@ -311,7 +311,8 @@ M: Chưa hoàn tất.
 ### 6.27 Shifts
 
 Route: /shifts  
-Phạm vi A-M. SHIFT-A active, site-scoped và được WO-CERT-001 chọn. Evidence
+Phạm vi A-M. SHIFT-A active, site-scoped và được MES suy ra cho WO-CERT-001 từ
+resource calendar của target date; ca không được chọn trên form tạo WO. Evidence
 overlap, inactive shift, timezone và UI cấp page còn thiếu.  
 M: Chưa hoàn tất.
 
@@ -352,7 +353,7 @@ Canonical dataset phải có:
 - Bốn WST operation với quan hệ routing và MBOM.
 - Ba worker skill và bốn employee.
 - Traceability policy và schedule.
-- Item, revision, EBOM/MBOM, routing và Production Version đã release.
+- Item, revision, MBOM, routing và Production Version đã release.
 - Production Version WST-SEED-PV-SEAL-ASM-01.
 - MES-side Print Station canonical PS-CANONICAL-01.
 - Sau cleanup không còn Work Order.
@@ -443,7 +444,7 @@ Thực hiện theo thứ tự sau khi chạy lại certification:
 8. Xác minh calendar, shift và schedule.
 9. Xác minh employee và worker skill.
 10. Xác minh Item, UOM và Material Group.
-11. Xác minh EBOM và MBOM.
+11. Xác minh MBOM.
 12. Xác minh Operation và Routing.
 13. Xác minh Production Version readiness.
 14. Xác minh Standard và skill requirement.

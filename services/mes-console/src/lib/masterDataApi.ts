@@ -1,7 +1,7 @@
 export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000001';
 import { mesQueryClient } from './queryClient';
 import { mesQueryKeys, normalizedQuery, type FilterInput } from './queryKeys';
-import type { ApiErrorSummary, MesEnvelope, MesListResponse, MesUserContext, ProductionVersionLineEligibility, ProductionVersionReadinessPreview } from './apiTypes';
+import type { ApiErrorSummary, MesEnvelope, MesListResponse, MesUserContext, ProductionLineEligibilityCandidatePreview, ProductionVersionLineEligibility, ProductionVersionReadinessPreview } from './apiTypes';
 
 export function gatewayBaseUrl() {
   const configured = import.meta.env.VITE_API_BASE_URL;
@@ -24,18 +24,20 @@ export class MasterDataApiError extends Error {
   resource: string;
   status: number;
   code?: string;
+  details?: unknown;
 
-  constructor(resource: string, status: number, message: string, code?: string) {
+  constructor(resource: string, status: number, message: string, code?: string, details?: unknown) {
     super(message);
     this.name = 'MasterDataApiError';
     this.resource = resource;
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
 export function normalizeApiError(error: unknown, fallback = 'Request failed'): ApiErrorSummary {
-  if (error instanceof MasterDataApiError) return { status: error.status, code: error.code, message: error.message };
+  if (error instanceof MasterDataApiError) return { status: error.status, code: error.code, message: error.message, details: error.details };
   if (error instanceof Error) {
     const typed = error as Error & { status?: number; code?: string; details?: unknown };
     return { status: typed.status, code: typed.code, message: typed.message || fallback, details: typed.details };
@@ -113,12 +115,48 @@ export async function fetchProductionVersionReadinessPreview(id: string, user?: 
   return payload.data;
 }
 
+export async function fetchProductionLineEligibilityCandidates(routingHeaderId: string, user?: MesUserContext | null, effectiveAt?: string): Promise<ProductionLineEligibilityCandidatePreview> {
+  const payload = await fetchJson<MesEnvelope<ProductionLineEligibilityCandidatePreview>>('/production-versions/line-eligibility-candidates', user, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ routing_header_id: routingHeaderId, ...(effectiveAt ? { effective_at: effectiveAt } : {}) }),
+  }, 'production-version-line-eligibility-candidates');
+  return payload.data;
+}
+
 export async function validateProductionVersion(id: string, user?: MesUserContext | null) {
   return fetchJson<Record<string, unknown>>(`/production-versions/${id}/validate`, user, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: '{}',
   }, 'production-version-validation');
+}
+
+export async function fetchProductionLineResourceScopes(id: string, user?: MesUserContext | null): Promise<Record<string, any>[]> {
+  const payload = await fetchJson<MesListResponse<Record<string, any>>>(`/production-lines/${id}/resource-scopes`, user, {}, 'production-line-resource-scopes');
+  return payload.data || [];
+}
+
+export async function createProductionLineAggregate(payload: Record<string, unknown>, user?: MesUserContext | null) {
+  return fetchJson<Record<string, any>>('/production-lines/aggregate', user, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }, 'production-line-create');
+}
+
+export async function saveProductionLineWorkCenters(id: string, workCenters: Record<string, unknown>[], user?: MesUserContext | null) {
+  const payload = await fetchJson<MesListResponse<Record<string, any>>>(`/production-lines/${id}/work-centers`, user, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ work_centers: workCenters }),
+  }, 'production-line-work-centers');
+  await Promise.all([invalidateMesQueries('production-lines'), invalidateMesQueries('work-centers')]);
+  return payload.data || [];
+}
+
+export async function saveProductionLineResourceScopes(id: string, resourceScopes: Record<string, unknown>[], user?: MesUserContext | null) {
+  const payload = await fetchJson<MesListResponse<Record<string, any>>>(`/production-lines/${id}/resource-scopes`, user, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resource_scopes: resourceScopes }),
+  }, 'production-line-resource-scopes');
+  await Promise.all([invalidateMesQueries('production-lines'), invalidateMesQueries('resource-assignments')]);
+  return payload.data || [];
 }
 
 const invalidationMap: Record<string, string[]> = {
@@ -226,6 +264,20 @@ export async function fetchMbomDetail(id: string, user?: { userId?: string; role
   return payload.data;
 }
 
+export async function createMbomAggregate(payload: Record<string, unknown>, user?: MesUserContext | null) {
+  const resp = await fetch(`${masterDataBaseUrl()}/mbom-headers/aggregate`, {
+    method: 'POST',
+    headers: { ...authHeaders(user), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const result = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new MasterDataApiError('mbom-headers', resp.status, result.message || result.error || 'Cannot create MBOM', result.error, result.details);
+  }
+  await invalidateMesQueries('mbom-headers');
+  return result;
+}
+
 export async function validateMbom(id: string, user?: { userId?: string; roles?: string[] } | null) {
   const resp = await fetch(`${masterDataBaseUrl()}/mbom-headers/${id}/validate`, {
     method: 'POST',
@@ -235,16 +287,6 @@ export async function validateMbom(id: string, user?: { userId?: string; roles?:
   const payload = await resp.json().catch(() => ({}));
   if (!resp.ok) throw Object.assign(new Error(payload.error || 'MBOM validation failed'), { validationErrors: payload.errors || [] });
   return payload;
-}
-
-export async function createMbomNewVersion(id: string, payload: Record<string, unknown>, user?: { userId?: string; roles?: string[] } | null) {
-  const resp = await fetch(`${masterDataBaseUrl()}/mbom-headers/${id}/create-new-version`, {
-    method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-  });
-  const result = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw Object.assign(new Error(result.message || result.error || 'Cannot create MBOM version'), { code: result.error });
-  await invalidateMesQueries('mbom-headers');
-  return result.data;
 }
 
 export async function replaceMbomLines(id: string, expectedStructureVersion: number, lines: Array<Record<string, unknown>>, user?: { userId?: string; roles?: string[] } | null) {

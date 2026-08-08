@@ -59,3 +59,7 @@ The first runtime attempt to create a Revision exposed `bind message supplies 7 
 ## Remaining Risk
 
 Production Version and Work Order snapshots already use the full timestamp predicate in the current Master Data validation path, but a broader repository-wide audit of every non-MES service and browser timeline rendering should remain a follow-up. No direct effective-date edit workflow was added for Released or referenced revisions; corrections must use a new revision.
+
+## Follow-up Fix: Successor Revision INSERT Alignment (2026-08-06)
+
+The successor endpoint declared `previous_revision_id` as the final target column and supplied its value as the nineteenth query parameter, but the SQL `VALUES` list stopped at `$18`. PostgreSQL therefore rejected every successor creation with `INSERT has more target columns than expressions`. The query now includes `$19`. The same audit found that the route no longer applied the documented interval reconciliation, so successor creation once again assigns the next boundary to the new row, closes the chronological predecessor at the exact new start, and records both temporal audit rows in the same transaction. An HTTP-level regression test verifies the 19-value INSERT, predecessor update, two audit records, and commit. The running schema already contains all required columns, so no migration is required.

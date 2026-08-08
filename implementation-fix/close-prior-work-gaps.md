@@ -24,7 +24,7 @@ Status: Core implementation complete; live read-model projection verified; Compu
 
 - `POST /api/mes/master-data/items` now atomically creates the identity Item and first Draft revision `ITEMCODE-R1`; creator identity comes from the server context.
 - `POST /api/mes/master-data/items/:id/revisions` creates a Draft successor with atomic numbering, `previous_revision_id`, required `change_reason`, and server-clock future/equal effective-date validation.
-- Releasing a successor closes the previous revision's `effective_to`, clears its default flag, and marks exactly one same-item/site revision as default in the release transaction.
+- Creating a successor closes the chronological predecessor's `effective_to` at the exact new start in the create transaction. Releasing it clears the previous default flag and marks exactly one same-item/site Released revision as default.
 - Direct specification updates to an Item with a Released revision are rejected server-side.
 - Production-ready revision queries use revision-owned UOM/name/effective data and filter to the effective Released revision/configuration.
 

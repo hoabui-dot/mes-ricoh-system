@@ -30,6 +30,21 @@ export type ProductionLineReference = {
   selection_role?: 'PRIMARY' | 'BACKUP' | string;
 };
 
+export type LineOperationEvaluation = {
+  operation_id?: string;
+  routing_operation_id?: string;
+  operation_code: string;
+  operation_name?: LocalizedText;
+  work_center_id?: string;
+  mandatory?: boolean;
+  status: string;
+  total_candidate_count?: number;
+  feasible_candidate_count?: number;
+  candidate_ids?: string[];
+  blocker_codes?: string[];
+  excluded_candidate_reasons?: Record<string, number>;
+};
+
 export type LineEvaluationResult = ProductionLineReference & {
   production_line_id?: string;
   production_line_code?: string;
@@ -37,6 +52,8 @@ export type LineEvaluationResult = ProductionLineReference & {
   status: string;
   blockers: WorkOrderBlocker[];
   dimensions?: ReadinessDimension[];
+  operations?: LineOperationEvaluation[];
+  complete_line_feasibility_status?: string;
   selection_reason?: string;
   evaluated_at?: string;
   policy_version?: string;

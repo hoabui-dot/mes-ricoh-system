@@ -59,6 +59,19 @@ export const APPS: AppDefinition[] = [
     allowedRoles: ['EXECUTIVE', 'PLANT_MANAGER', 'QC_TECHNICIAN'],
     status: 'live',
   },
+  {
+    id: 'kiosk',
+    name: 'MES Operator Kiosk',
+    acronym: 'KIOSK',
+    description: 'Shop-floor operator execution with shared SSO authentication',
+    url: getAppUrl(import.meta.env.VITE_KIOSK_URL, 13051),
+    color: '#f97316',
+    colorTo: '#ea580c',
+    icon: 'K',
+    // Executives may open the kiosk for supervision and UAT.
+    allowedRoles: ['OPERATOR', 'EXECUTIVE'],
+    status: 'live',
+  },
 ];
 
 // Role hierarchy for display

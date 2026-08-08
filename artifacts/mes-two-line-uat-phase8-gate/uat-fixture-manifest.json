@@ -1,0 +1,90 @@
+{
+  "success": true,
+  "generated_at": "2026-08-08T04:24:37.079Z",
+  "api_base": "http://localhost:13030/api/mes/execution",
+  "target_date": "2026-08-10",
+  "model": {
+    "production_version": {
+      "master_id": "d7674b2b-fd30-4047-9074-ed59e8b6b0bc",
+      "code": "WST-SEED-PV-SEAL-ASM-01",
+      "item_revision_id": "5dd539fa-a034-4d16-b305-b6749944cabf",
+      "site_id": "39f850e6-a807-4f7f-8ed4-a777c6058951",
+      "base_uom_id": "cf01eb8f-ae11-4fec-991b-b9e8d4b5a63a"
+    },
+    "primary_line": {
+      "production_line_id": "ceaa1a9d-6667-455a-9015-f4a010fbc51b",
+      "code": "WST-SEED-LINE-1",
+      "selection_role": "PRIMARY",
+      "priority": 1
+    },
+    "backup_line": {
+      "production_line_id": "cfbd8f7e-67d7-4ad4-812c-92d8dab4af68",
+      "code": "WST-SEED-LINE-2",
+      "selection_role": "BACKUP",
+      "priority": 2
+    },
+    "shift": {
+      "master_id": "08bfce82-3679-459c-8f44-524c7e67d5e0",
+      "code": "SHIFT-A",
+      "name": "Day Shift",
+      "version_no": 1,
+      "lifecycle_status": "Released",
+      "effective_from": "2026-07-21T00:00:00.000Z",
+      "effective_to": null,
+      "created_by": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-08-08T04:24:01.474Z",
+      "updated_by": "00000000-0000-0000-0000-000000000001",
+      "updated_at": "2026-08-08T04:24:01.474Z",
+      "approved_by": "00000000-0000-0000-0000-000000000001",
+      "approved_at": "2026-07-21T00:00:00.000Z",
+      "row_version": 1,
+      "attributes": {},
+      "site_id": "39f850e6-a807-4f7f-8ed4-a777c6058951",
+      "start_time": "08:00",
+      "end_time": "17:00",
+      "crosses_midnight": false,
+      "assignment_id": "407a9f76-325b-4105-90e6-66f7c0acd204",
+      "work_center_id": "8b620c3f-ce47-4d94-80a8-fc55dc0f9117",
+      "work_center_code": "WC-CUTTING",
+      "work_center_name": {
+        "en": "Rubber Cutting Work Center",
+        "ja": "ゴム切断ワークセンター",
+        "ko": "고무 절단 워크센터",
+        "vi": "Trạm cắt cao su"
+      }
+    },
+    "operation_count": 4
+  },
+  "fixtures": [
+    {
+      "scenario": "primary-ready",
+      "workflow_id": "ee16e45c-10d3-4703-871d-937a071586a9",
+      "work_order_id": "9861c666-e956-47f5-880f-bbc2cce5872c",
+      "work_order_code": "WO-20260808-0009"
+    },
+    {
+      "scenario": "primary-alternative-ready",
+      "degraded_workstation_code": "WST-SEED-WS-L1-BINDING",
+      "workflow_id": "9f5cc639-5efe-45c0-970c-4abb761443d8",
+      "work_order_id": "c81c4d2f-0f13-472c-bf96-5876e0f1c891",
+      "work_order_code": "WO-20260808-0010"
+    },
+    {
+      "scenario": "backup-fallback",
+      "workflow_id": "bda7d79e-d599-4883-a29a-521f42d56f5e",
+      "work_order_id": "f85f7b17-9e6d-4bd5-8e67-e3086c439c6d",
+      "work_order_code": "WO-20260808-0011"
+    },
+    {
+      "scenario": "resource-hold",
+      "workflow_id": "0f89b283-36a2-4674-86ce-ed1c28fc60fd",
+      "work_order_id": "ea4255bb-fc01-494f-b99a-a5cd4098a376",
+      "work_order_code": "WO-20260808-0012"
+    }
+  ],
+  "artifacts": {
+    "before_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat-phase8-gate/resource-before-state.json",
+    "mutated_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat-phase8-gate/resource-mutated-state.json",
+    "restored_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat-phase8-gate/resource-restored-state.json"
+  }
+}

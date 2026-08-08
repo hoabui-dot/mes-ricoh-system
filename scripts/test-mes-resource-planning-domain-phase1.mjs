@@ -425,7 +425,7 @@ async function main() {
   const versions = (await master(`/production-ready-versions?planned_date=${encodeURIComponent(targetDate)}&limit=500`)).body;
   const version = versions
     .filter((row) => row.readiness_status === 'Ready' && (row.production_version_code?.startsWith('PV-') || row.production_version_code?.startsWith('WST-SEED-PV-')))
-    .sort((a, b) => Number(a.production_version_code?.startsWith('WST-SEED-PV-')) - Number(b.production_version_code?.startsWith('WST-SEED-PV-')))[0];
+    .sort((a, b) => Number(b.production_version_code?.startsWith('WST-SEED-PV-')) - Number(a.production_version_code?.startsWith('WST-SEED-PV-')))[0];
   if (!version) throw new Error('No released Ready Production Version was returned.');
   const shifts = (await master(`/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`)).body;
   const shift = shifts.find((row) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');

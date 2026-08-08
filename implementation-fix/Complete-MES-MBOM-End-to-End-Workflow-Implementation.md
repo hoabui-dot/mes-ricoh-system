@@ -1,5 +1,7 @@
 # Complete MES MBOM End-to-End Workflow Implementation
 
+> Architecture correction, 2026-08-06: MBOM has one business identity and no create-version workflow. Any create-new-version statement below is historical and superseded.
+
 Date: 2026-07-29
 Status: PARTIALLY_IMPLEMENTED
 

@@ -1,6 +1,6 @@
 {
   "header": {
-    "created_at": "2026-08-04T05:07:28.529894Z",
+    "created_at": "2026-08-07T09:47:05.288193Z",
     "created_by": "00000000-0000-0000-0000-000000000001",
     "demo_print_on_approval": true,
     "dispatch_mode": "WORK_CENTER",
@@ -9,32 +9,80 @@
         "status": "Blocked",
         "blockers": [
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-            "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-BINDING",
-            "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+            "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+            "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+            "total_candidate_count": 2,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 2,
+              "RESOURCE_PLANNED_DOWN": 2
+            }
           },
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-            "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+            "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-TEST5IN1",
-            "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+            "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+            "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
           },
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-            "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+            "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-AIRTEST",
-            "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+            "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+            "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
           },
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-            "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+            "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-PACKING",
-            "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+            "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+            "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
           }
         ],
         "priority": 1,
@@ -46,7 +94,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_ELIGIBILITY_READY",
-            "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+            "evaluated_at": "2026-08-07T09:47:05.372690694Z",
             "dimension_code": "eligibility",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -58,7 +106,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-            "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+            "evaluated_at": "2026-08-07T09:47:05.372690694Z",
             "dimension_code": "work_centers",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -70,7 +118,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_CAPABILITY_READY",
-            "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+            "evaluated_at": "2026-08-07T09:47:05.372690694Z",
             "dimension_code": "capability",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -82,7 +130,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-            "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+            "evaluated_at": "2026-08-07T09:47:05.372690694Z",
             "dimension_code": "production_standard",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -90,55 +138,103 @@
           {
             "key": "calendar_shift",
             "source": "MES_EXECUTION_LINE_SELECTOR",
-            "status": "BLOCKED",
-            "details": [
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
-                "operation_code": "WST-SEED-OP-BINDING",
-                "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
-              },
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
-                "operation_code": "WST-SEED-OP-TEST5IN1",
-                "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
-              },
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
-                "operation_code": "WST-SEED-OP-AIRTEST",
-                "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
-              },
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
-                "operation_code": "WST-SEED-OP-PACKING",
-                "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
-              }
-            ],
-            "blocking": true,
-            "reason_code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CALENDAR_SHIFT_READY",
+            "evaluated_at": "2026-08-07T09:47:05.372690694Z",
             "dimension_code": "calendar_shift",
             "evaluation_stage": "LINE_SELECTION",
-            "localized_message_key": "woDetail.dimensionReason.LINE_RESOURCE_CALENDAR_MISSING"
+            "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
           },
           {
             "key": "capacity",
             "source": "MES_EXECUTION_LINE_SELECTOR",
-            "status": "NOT_EVALUATED",
-            "details": [],
+            "status": "BLOCKED",
+            "details": [
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-BINDING",
+                "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+                "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                "total_candidate_count": 2,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 2,
+                  "RESOURCE_PLANNED_DOWN": 2
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-TEST5IN1",
+                "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+                "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-AIRTEST",
+                "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+                "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-PACKING",
+                "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+                "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              }
+            ],
             "blocking": true,
-            "reason_code": "PREREQUISITE_DIMENSION_BLOCKED",
-            "evaluated_at": null,
+            "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "evaluated_at": "2026-08-07T09:47:05.372690694Z",
             "dimension_code": "capacity",
             "evaluation_stage": "LINE_SELECTION",
-            "localized_message_key": "woDetail.dimensionReason.PREREQUISITE_DIMENSION_BLOCKED"
+            "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
           },
           {
             "key": "workstations",
@@ -206,37 +302,85 @@
             "status": "BLOCKED",
             "details": [
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-BINDING",
-                "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+                "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+                "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                "total_candidate_count": 2,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 2,
+                  "RESOURCE_PLANNED_DOWN": 2
+                }
               },
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-TEST5IN1",
-                "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+                "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+                "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
               },
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-AIRTEST",
-                "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+                "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+                "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
               },
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-PACKING",
-                "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+                "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+                "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
               }
             ],
             "blocking": true,
             "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
-            "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+            "evaluated_at": "2026-08-07T09:47:05.372690694Z",
             "dimension_code": "final_result",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
@@ -254,43 +398,174 @@
             "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
           }
         ],
-        "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+        "operations": [
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_name": "WST-SEED-OP-BINDING",
+            "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+            "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+            "total_candidate_count": 2,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 2,
+              "RESOURCE_PLANNED_DOWN": 2
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_name": "WST-SEED-OP-TEST5IN1",
+            "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+            "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_name": "WST-SEED-OP-AIRTEST",
+            "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+            "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_name": "WST-SEED-OP-PACKING",
+            "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+            "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          }
+        ],
+        "evaluated_at": "2026-08-07T09:47:05.372690694Z",
         "policy_version": "MES_LINE_SELECTION_V2",
         "selection_role": "PRIMARY",
         "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
-        "production_line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-        "production_line_code": "WST-SEED-LINE-1"
+        "production_line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+        "production_line_code": "WST-SEED-LINE-1",
+        "complete_line_feasibility_status": "BLOCKED"
       },
       {
         "status": "Blocked",
         "blockers": [
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-            "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-BINDING",
-            "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+            "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+            "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
           },
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-            "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+            "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-TEST5IN1",
-            "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+            "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+            "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
           },
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-            "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+            "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-AIRTEST",
-            "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+            "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+            "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
           },
           {
-            "code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-            "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+            "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
             "operation_code": "WST-SEED-OP-PACKING",
-            "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+            "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+            "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
           }
         ],
         "priority": 2,
@@ -302,7 +577,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_ELIGIBILITY_READY",
-            "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+            "evaluated_at": "2026-08-07T09:47:05.447290402Z",
             "dimension_code": "eligibility",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -314,7 +589,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-            "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+            "evaluated_at": "2026-08-07T09:47:05.447290402Z",
             "dimension_code": "work_centers",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -326,7 +601,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_CAPABILITY_READY",
-            "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+            "evaluated_at": "2026-08-07T09:47:05.447290402Z",
             "dimension_code": "capability",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -338,7 +613,7 @@
             "details": [],
             "blocking": false,
             "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-            "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+            "evaluated_at": "2026-08-07T09:47:05.447290402Z",
             "dimension_code": "production_standard",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -346,55 +621,103 @@
           {
             "key": "calendar_shift",
             "source": "MES_EXECUTION_LINE_SELECTOR",
-            "status": "BLOCKED",
-            "details": [
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
-                "operation_code": "WST-SEED-OP-BINDING",
-                "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
-              },
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
-                "operation_code": "WST-SEED-OP-TEST5IN1",
-                "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
-              },
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
-                "operation_code": "WST-SEED-OP-AIRTEST",
-                "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
-              },
-              {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
-                "operation_code": "WST-SEED-OP-PACKING",
-                "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
-              }
-            ],
-            "blocking": true,
-            "reason_code": "LINE_RESOURCE_CALENDAR_MISSING",
-            "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CALENDAR_SHIFT_READY",
+            "evaluated_at": "2026-08-07T09:47:05.447290402Z",
             "dimension_code": "calendar_shift",
             "evaluation_stage": "LINE_SELECTION",
-            "localized_message_key": "woDetail.dimensionReason.LINE_RESOURCE_CALENDAR_MISSING"
+            "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
           },
           {
             "key": "capacity",
             "source": "MES_EXECUTION_LINE_SELECTOR",
-            "status": "NOT_EVALUATED",
-            "details": [],
+            "status": "BLOCKED",
+            "details": [
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-BINDING",
+                "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+                "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-TEST5IN1",
+                "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+                "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-AIRTEST",
+                "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+                "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-PACKING",
+                "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+                "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              }
+            ],
             "blocking": true,
-            "reason_code": "PREREQUISITE_DIMENSION_BLOCKED",
-            "evaluated_at": null,
+            "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "evaluated_at": "2026-08-07T09:47:05.447290402Z",
             "dimension_code": "capacity",
             "evaluation_stage": "LINE_SELECTION",
-            "localized_message_key": "woDetail.dimensionReason.PREREQUISITE_DIMENSION_BLOCKED"
+            "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
           },
           {
             "key": "workstations",
@@ -462,37 +785,85 @@
             "status": "BLOCKED",
             "details": [
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-BINDING",
-                "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+                "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+                "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
               },
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-TEST5IN1",
-                "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+                "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+                "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
               },
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-AIRTEST",
-                "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+                "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+                "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
               },
               {
-                "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
                 "operation_code": "WST-SEED-OP-PACKING",
-                "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+                "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+                "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
               }
             ],
             "blocking": true,
             "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
-            "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+            "evaluated_at": "2026-08-07T09:47:05.447290402Z",
             "dimension_code": "final_result",
             "evaluation_stage": "LINE_SELECTION",
             "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
@@ -510,19 +881,102 @@
             "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
           }
         ],
-        "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+        "operations": [
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_name": "WST-SEED-OP-BINDING",
+            "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+            "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_name": "WST-SEED-OP-TEST5IN1",
+            "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+            "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_name": "WST-SEED-OP-AIRTEST",
+            "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+            "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_name": "WST-SEED-OP-PACKING",
+            "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+            "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          }
+        ],
+        "evaluated_at": "2026-08-07T09:47:05.447290402Z",
         "policy_version": "MES_LINE_SELECTION_V2",
         "selection_role": "BACKUP",
         "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
-        "production_line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-        "production_line_code": "WST-SEED-LINE-2"
+        "production_line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+        "production_line_code": "WST-SEED-LINE-2",
+        "complete_line_feasibility_status": "BLOCKED"
       }
     ],
     "fallback_reason": "",
     "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
     "item_name": "Won Seal Tech Seal Assembly A",
     "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
-    "item_revision_id": "fefa8e4c-b8b3-4143-8409-e0e28851f0b7",
+    "item_revision_id": "be7247c0-8246-42aa-b38b-e1025aa638b4",
     "item_revision_name_i18n": {
       "en": "Won Seal Tech Seal Assembly A",
       "ja": "Won Seal Tech Seal Assembly A",
@@ -534,17 +988,17 @@
     "line_selection_reason": "NO_COMPLETE_FEASIBLE_LINE",
     "line_selection_status": "RESOURCE_HOLD",
     "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
-    "planned_end_at": "2026-08-04T12:00:00Z",
-    "planned_start_at": "2026-08-04T08:00:00Z",
+    "planned_end_at": "2026-08-07T12:00:00Z",
+    "planned_start_at": "2026-08-07T08:00:00Z",
     "planning_snapshot": {
-      "mbom_id": "64728761-81cf-4608-9b15-9d6310777c67",
-      "shift_id": "f9abaf59-d249-42d9-9560-fcb39cf929e5",
-      "routing_id": "ac4d1565-dfda-4eda-8f7f-c1eaf2188777",
-      "production_version_id": "e27ce86f-27b4-4aa4-a645-5adca711ad19",
+      "mbom_id": "d07d608b-4bcc-46b3-9511-8b0d6d6ff18e",
+      "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+      "routing_id": "75122b5a-cd51-4098-be0b-ca544506dfaa",
+      "production_version_id": "4ea749d5-1b02-4f44-bff0-f37f5128bfa6",
       "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
     },
     "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
-    "production_version_id": "e27ce86f-27b4-4aa4-a645-5adca711ad19",
+    "production_version_id": "4ea749d5-1b02-4f44-bff0-f37f5128bfa6",
     "production_version_name_i18n": {
       "en": "Won Seal Tech two-line seal production version",
       "ja": "Won Seal Tech two-line seal production version",
@@ -559,32 +1013,80 @@
           "status": "Blocked",
           "blockers": [
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-BINDING",
-              "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+              "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 2,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 2,
+                "RESOURCE_PLANNED_DOWN": 2
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-TEST5IN1",
-              "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+              "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-AIRTEST",
-              "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+              "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-PACKING",
-              "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+              "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             }
           ],
           "priority": 1,
@@ -596,7 +1098,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_ELIGIBILITY_READY",
-              "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+              "evaluated_at": "2026-08-07T09:47:05.372690694Z",
               "dimension_code": "eligibility",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -608,7 +1110,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-              "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+              "evaluated_at": "2026-08-07T09:47:05.372690694Z",
               "dimension_code": "work_centers",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -620,7 +1122,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_CAPABILITY_READY",
-              "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+              "evaluated_at": "2026-08-07T09:47:05.372690694Z",
               "dimension_code": "capability",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -632,7 +1134,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-              "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+              "evaluated_at": "2026-08-07T09:47:05.372690694Z",
               "dimension_code": "production_standard",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -640,55 +1142,103 @@
             {
               "key": "calendar_shift",
               "source": "MES_EXECUTION_LINE_SELECTOR",
-              "status": "BLOCKED",
-              "details": [
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
-                  "operation_code": "WST-SEED-OP-BINDING",
-                  "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
-                },
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
-                  "operation_code": "WST-SEED-OP-TEST5IN1",
-                  "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
-                },
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
-                  "operation_code": "WST-SEED-OP-AIRTEST",
-                  "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
-                },
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
-                  "operation_code": "WST-SEED-OP-PACKING",
-                  "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
-                }
-              ],
-              "blocking": true,
-              "reason_code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+              "status": "READY",
+              "details": [],
+              "blocking": false,
+              "reason_code": "LINE_CALENDAR_SHIFT_READY",
+              "evaluated_at": "2026-08-07T09:47:05.372690694Z",
               "dimension_code": "calendar_shift",
               "evaluation_stage": "LINE_SELECTION",
-              "localized_message_key": "woDetail.dimensionReason.LINE_RESOURCE_CALENDAR_MISSING"
+              "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
             },
             {
               "key": "capacity",
               "source": "MES_EXECUTION_LINE_SELECTOR",
-              "status": "NOT_EVALUATED",
-              "details": [],
+              "status": "BLOCKED",
+              "details": [
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-BINDING",
+                  "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+                  "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                  "total_candidate_count": 2,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 2,
+                    "RESOURCE_PLANNED_DOWN": 2
+                  }
+                },
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-TEST5IN1",
+                  "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+                  "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
+                },
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-AIRTEST",
+                  "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+                  "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
+                },
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-PACKING",
+                  "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+                  "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
+                }
+              ],
               "blocking": true,
-              "reason_code": "PREREQUISITE_DIMENSION_BLOCKED",
-              "evaluated_at": null,
+              "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "evaluated_at": "2026-08-07T09:47:05.372690694Z",
               "dimension_code": "capacity",
               "evaluation_stage": "LINE_SELECTION",
-              "localized_message_key": "woDetail.dimensionReason.PREREQUISITE_DIMENSION_BLOCKED"
+              "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
             },
             {
               "key": "workstations",
@@ -756,37 +1306,85 @@
               "status": "BLOCKED",
               "details": [
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-BINDING",
-                  "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+                  "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+                  "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                  "total_candidate_count": 2,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 2,
+                    "RESOURCE_PLANNED_DOWN": 2
+                  }
                 },
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-TEST5IN1",
-                  "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+                  "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+                  "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
                 },
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-AIRTEST",
-                  "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+                  "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+                  "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
                 },
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-                  "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+                  "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-PACKING",
-                  "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+                  "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+                  "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
                 }
               ],
               "blocking": true,
               "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
-              "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+              "evaluated_at": "2026-08-07T09:47:05.372690694Z",
               "dimension_code": "final_result",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
@@ -804,43 +1402,174 @@
               "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
             }
           ],
-          "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+          "operations": [
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-BINDING",
+              "operation_name": "WST-SEED-OP-BINDING",
+              "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 2,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 2,
+                "RESOURCE_PLANNED_DOWN": 2
+              }
+            },
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "operation_name": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "operation_name": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-PACKING",
+              "operation_name": "WST-SEED-OP-PACKING",
+              "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            }
+          ],
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "policy_version": "MES_LINE_SELECTION_V2",
           "selection_role": "PRIMARY",
           "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
-          "production_line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-          "production_line_code": "WST-SEED-LINE-1"
+          "production_line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+          "production_line_code": "WST-SEED-LINE-1",
+          "complete_line_feasibility_status": "BLOCKED"
         },
         {
           "status": "Blocked",
           "blockers": [
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-BINDING",
-              "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+              "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-TEST5IN1",
-              "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+              "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-AIRTEST",
-              "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+              "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-PACKING",
-              "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+              "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             }
           ],
           "priority": 2,
@@ -852,7 +1581,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_ELIGIBILITY_READY",
-              "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+              "evaluated_at": "2026-08-07T09:47:05.447290402Z",
               "dimension_code": "eligibility",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -864,7 +1593,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-              "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+              "evaluated_at": "2026-08-07T09:47:05.447290402Z",
               "dimension_code": "work_centers",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -876,7 +1605,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_CAPABILITY_READY",
-              "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+              "evaluated_at": "2026-08-07T09:47:05.447290402Z",
               "dimension_code": "capability",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -888,7 +1617,7 @@
               "details": [],
               "blocking": false,
               "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-              "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+              "evaluated_at": "2026-08-07T09:47:05.447290402Z",
               "dimension_code": "production_standard",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -896,55 +1625,103 @@
             {
               "key": "calendar_shift",
               "source": "MES_EXECUTION_LINE_SELECTOR",
-              "status": "BLOCKED",
-              "details": [
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
-                  "operation_code": "WST-SEED-OP-BINDING",
-                  "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
-                },
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
-                  "operation_code": "WST-SEED-OP-TEST5IN1",
-                  "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
-                },
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
-                  "operation_code": "WST-SEED-OP-AIRTEST",
-                  "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
-                },
-                {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
-                  "operation_code": "WST-SEED-OP-PACKING",
-                  "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
-                }
-              ],
-              "blocking": true,
-              "reason_code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+              "status": "READY",
+              "details": [],
+              "blocking": false,
+              "reason_code": "LINE_CALENDAR_SHIFT_READY",
+              "evaluated_at": "2026-08-07T09:47:05.447290402Z",
               "dimension_code": "calendar_shift",
               "evaluation_stage": "LINE_SELECTION",
-              "localized_message_key": "woDetail.dimensionReason.LINE_RESOURCE_CALENDAR_MISSING"
+              "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
             },
             {
               "key": "capacity",
               "source": "MES_EXECUTION_LINE_SELECTOR",
-              "status": "NOT_EVALUATED",
-              "details": [],
+              "status": "BLOCKED",
+              "details": [
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-BINDING",
+                  "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+                  "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
+                },
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-TEST5IN1",
+                  "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+                  "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
+                },
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-AIRTEST",
+                  "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+                  "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
+                },
+                {
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
+                  "operation_code": "WST-SEED-OP-PACKING",
+                  "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+                  "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
+                }
+              ],
               "blocking": true,
-              "reason_code": "PREREQUISITE_DIMENSION_BLOCKED",
-              "evaluated_at": null,
+              "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "evaluated_at": "2026-08-07T09:47:05.447290402Z",
               "dimension_code": "capacity",
               "evaluation_stage": "LINE_SELECTION",
-              "localized_message_key": "woDetail.dimensionReason.PREREQUISITE_DIMENSION_BLOCKED"
+              "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
             },
             {
               "key": "workstations",
@@ -1012,37 +1789,85 @@
               "status": "BLOCKED",
               "details": [
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-BINDING",
-                  "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+                  "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+                  "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
                 },
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-TEST5IN1",
-                  "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+                  "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+                  "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
                 },
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-AIRTEST",
-                  "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+                  "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+                  "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
                 },
                 {
-                  "code": "LINE_RESOURCE_CALENDAR_MISSING",
-                  "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-                  "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+                  "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                  "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+                  "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+                  "blocker_codes": [
+                    "INSUFFICIENT_CAPACITY",
+                    "RESOURCE_PLANNED_DOWN",
+                    "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                  ],
                   "operation_code": "WST-SEED-OP-PACKING",
-                  "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+                  "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+                  "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+                  "total_candidate_count": 1,
+                  "feasible_candidate_count": 0,
+                  "excluded_candidate_reasons": {
+                    "INSUFFICIENT_CAPACITY": 1,
+                    "RESOURCE_PLANNED_DOWN": 1
+                  }
                 }
               ],
               "blocking": true,
               "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
-              "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+              "evaluated_at": "2026-08-07T09:47:05.447290402Z",
               "dimension_code": "final_result",
               "evaluation_stage": "LINE_SELECTION",
               "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
@@ -1060,12 +1885,95 @@
               "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
             }
           ],
-          "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+          "operations": [
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-BINDING",
+              "operation_name": "WST-SEED-OP-BINDING",
+              "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "operation_name": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "operation_name": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "status": "BLOCKED",
+              "mandatory": true,
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-PACKING",
+              "operation_name": "WST-SEED-OP-PACKING",
+              "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            }
+          ],
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "policy_version": "MES_LINE_SELECTION_V2",
           "selection_role": "BACKUP",
           "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
-          "production_line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-          "production_line_code": "WST-SEED-LINE-2"
+          "production_line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+          "production_line_code": "WST-SEED-LINE-2",
+          "complete_line_feasibility_status": "BLOCKED"
         }
       ]
     },
@@ -1074,44 +1982,92 @@
     "selected_production_line_code": "",
     "selected_production_line_id": "",
     "selected_production_line_name_i18n": {},
-    "shift_id": "f9abaf59-d249-42d9-9560-fcb39cf929e5",
-    "site_id": "009d3fb2-52f3-4efc-8e8d-08460d264554",
+    "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+    "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
     "status": "ResourceHold",
-    "uom_id": "0777956a-0a7d-403d-8bfc-26de4693a746",
-    "wo_code": "WO-20260804-0005",
-    "wo_id": "1e2fe784-6766-4431-91b5-507bc39bb03a"
+    "uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a",
+    "wo_code": "WO-20260807-0185",
+    "wo_id": "51e68263-08bd-4a88-bfb9-e34e831fe31f"
   },
   "evaluated_line_results": [
     {
       "status": "Blocked",
       "blockers": [
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-          "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-BINDING",
-          "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+          "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+          "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+          "total_candidate_count": 2,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 2,
+            "RESOURCE_PLANNED_DOWN": 2
+          }
         },
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-          "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+          "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-TEST5IN1",
-          "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+          "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+          "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
         },
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-          "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+          "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-AIRTEST",
-          "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+          "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+          "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
         },
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-          "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+          "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-PACKING",
-          "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+          "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+          "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
         }
       ],
       "priority": 1,
@@ -1123,7 +2079,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_ELIGIBILITY_READY",
-          "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "dimension_code": "eligibility",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -1135,7 +2091,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-          "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "dimension_code": "work_centers",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -1147,7 +2103,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_CAPABILITY_READY",
-          "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "dimension_code": "capability",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -1159,7 +2115,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-          "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "dimension_code": "production_standard",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -1167,55 +2123,103 @@
         {
           "key": "calendar_shift",
           "source": "MES_EXECUTION_LINE_SELECTOR",
-          "status": "BLOCKED",
-          "details": [
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
-              "operation_code": "WST-SEED-OP-BINDING",
-              "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
-            },
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
-              "operation_code": "WST-SEED-OP-TEST5IN1",
-              "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
-            },
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
-              "operation_code": "WST-SEED-OP-AIRTEST",
-              "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
-            },
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
-              "operation_code": "WST-SEED-OP-PACKING",
-              "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
-            }
-          ],
-          "blocking": true,
-          "reason_code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CALENDAR_SHIFT_READY",
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "dimension_code": "calendar_shift",
           "evaluation_stage": "LINE_SELECTION",
-          "localized_message_key": "woDetail.dimensionReason.LINE_RESOURCE_CALENDAR_MISSING"
+          "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
         },
         {
           "key": "capacity",
           "source": "MES_EXECUTION_LINE_SELECTOR",
-          "status": "NOT_EVALUATED",
-          "details": [],
+          "status": "BLOCKED",
+          "details": [
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-BINDING",
+              "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 2,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 2,
+                "RESOURCE_PLANNED_DOWN": 2
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-PACKING",
+              "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            }
+          ],
           "blocking": true,
-          "reason_code": "PREREQUISITE_DIMENSION_BLOCKED",
-          "evaluated_at": null,
+          "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "dimension_code": "capacity",
           "evaluation_stage": "LINE_SELECTION",
-          "localized_message_key": "woDetail.dimensionReason.PREREQUISITE_DIMENSION_BLOCKED"
+          "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
         },
         {
           "key": "workstations",
@@ -1283,37 +2287,85 @@
           "status": "BLOCKED",
           "details": [
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-BINDING",
-              "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+              "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 2,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 2,
+                "RESOURCE_PLANNED_DOWN": 2
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-TEST5IN1",
-              "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+              "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-AIRTEST",
-              "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+              "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-              "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-PACKING",
-              "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+              "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             }
           ],
           "blocking": true,
           "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
-          "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+          "evaluated_at": "2026-08-07T09:47:05.372690694Z",
           "dimension_code": "final_result",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
@@ -1331,43 +2383,174 @@
           "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
         }
       ],
-      "evaluated_at": "2026-08-04T05:07:28.551708828Z",
+      "operations": [
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_name": "WST-SEED-OP-BINDING",
+          "work_center_id": "5aa88388-a515-4dd7-a007-c0a7a4a6172a",
+          "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+          "total_candidate_count": 2,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 2,
+            "RESOURCE_PLANNED_DOWN": 2
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_name": "WST-SEED-OP-TEST5IN1",
+          "work_center_id": "434d8e96-3c87-4a3e-b12f-3df6042883bc",
+          "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_name": "WST-SEED-OP-AIRTEST",
+          "work_center_id": "02b0b818-fc6f-431e-9642-955118943fe9",
+          "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_name": "WST-SEED-OP-PACKING",
+          "work_center_id": "9eac5ad1-2ff4-4f63-88a7-cb5a1fec27a1",
+          "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        }
+      ],
+      "evaluated_at": "2026-08-07T09:47:05.372690694Z",
       "policy_version": "MES_LINE_SELECTION_V2",
       "selection_role": "PRIMARY",
       "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
-      "production_line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
-      "production_line_code": "WST-SEED-LINE-1"
+      "production_line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+      "production_line_code": "WST-SEED-LINE-1",
+      "complete_line_feasibility_status": "BLOCKED"
     },
     {
       "status": "Blocked",
       "blockers": [
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-          "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-BINDING",
-          "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+          "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+          "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
         },
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-          "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+          "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-TEST5IN1",
-          "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+          "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+          "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
         },
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-          "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+          "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-AIRTEST",
-          "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+          "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+          "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
         },
         {
-          "code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-          "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+          "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
           "operation_code": "WST-SEED-OP-PACKING",
-          "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+          "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+          "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
         }
       ],
       "priority": 2,
@@ -1379,7 +2562,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_ELIGIBILITY_READY",
-          "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "dimension_code": "eligibility",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
@@ -1391,7 +2574,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
-          "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "dimension_code": "work_centers",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
@@ -1403,7 +2586,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_CAPABILITY_READY",
-          "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "dimension_code": "capability",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
@@ -1415,7 +2598,7 @@
           "details": [],
           "blocking": false,
           "reason_code": "LINE_PRODUCTION_STANDARD_READY",
-          "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "dimension_code": "production_standard",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
@@ -1423,55 +2606,103 @@
         {
           "key": "calendar_shift",
           "source": "MES_EXECUTION_LINE_SELECTOR",
-          "status": "BLOCKED",
-          "details": [
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
-              "operation_code": "WST-SEED-OP-BINDING",
-              "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
-            },
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
-              "operation_code": "WST-SEED-OP-TEST5IN1",
-              "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
-            },
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
-              "operation_code": "WST-SEED-OP-AIRTEST",
-              "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
-            },
-            {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
-              "operation_code": "WST-SEED-OP-PACKING",
-              "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
-            }
-          ],
-          "blocking": true,
-          "reason_code": "LINE_RESOURCE_CALENDAR_MISSING",
-          "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CALENDAR_SHIFT_READY",
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "dimension_code": "calendar_shift",
           "evaluation_stage": "LINE_SELECTION",
-          "localized_message_key": "woDetail.dimensionReason.LINE_RESOURCE_CALENDAR_MISSING"
+          "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
         },
         {
           "key": "capacity",
           "source": "MES_EXECUTION_LINE_SELECTOR",
-          "status": "NOT_EVALUATED",
-          "details": [],
+          "status": "BLOCKED",
+          "details": [
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-BINDING",
+              "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-PACKING",
+              "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            }
+          ],
           "blocking": true,
-          "reason_code": "PREREQUISITE_DIMENSION_BLOCKED",
-          "evaluated_at": null,
+          "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "dimension_code": "capacity",
           "evaluation_stage": "LINE_SELECTION",
-          "localized_message_key": "woDetail.dimensionReason.PREREQUISITE_DIMENSION_BLOCKED"
+          "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
         },
         {
           "key": "workstations",
@@ -1539,37 +2770,85 @@
           "status": "BLOCKED",
           "details": [
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "8bec441e-cb61-4b3c-91eb-18c80b0cf129",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-BINDING",
-              "routing_operation_id": "f58fab85-d921-46ab-b986-5717ede47cc2"
+              "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+              "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "25e85a13-43db-4a29-9694-fdf05ed36154",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-TEST5IN1",
-              "routing_operation_id": "12b60102-0dd7-47f2-af28-b21b82f4ac61"
+              "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+              "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "dc1b6916-d9de-4ad4-9f19-4e2438577079",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-AIRTEST",
-              "routing_operation_id": "7c40958a-d5aa-4df3-b850-efa47d31f487"
+              "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+              "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             },
             {
-              "code": "LINE_RESOURCE_CALENDAR_MISSING",
-              "line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-              "operation_id": "d0537709-7eab-4cca-968d-a0a900eb4cbb",
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+              "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
               "operation_code": "WST-SEED-OP-PACKING",
-              "routing_operation_id": "a030a4d3-eb3c-4980-b65e-63bd2ae73154"
+              "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+              "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
             }
           ],
           "blocking": true,
           "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
-          "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+          "evaluated_at": "2026-08-07T09:47:05.447290402Z",
           "dimension_code": "final_result",
           "evaluation_stage": "LINE_SELECTION",
           "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
@@ -1587,12 +2866,95 @@
           "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
         }
       ],
-      "evaluated_at": "2026-08-04T05:07:28.560748204Z",
+      "operations": [
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_name": "WST-SEED-OP-BINDING",
+          "work_center_id": "25f58062-c930-4d04-8c21-a201698511a1",
+          "routing_operation_id": "65570101-8b81-4796-8449-a949aa61629b",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "88cdef10-05e5-443f-8f06-7c3ed1b28b77",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_name": "WST-SEED-OP-TEST5IN1",
+          "work_center_id": "31945653-d7aa-4ee3-b9ab-cddeaf1985d4",
+          "routing_operation_id": "afc3d747-f346-427b-a3c2-4a04e724e1a5",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "82b204ff-ebd7-414a-99f7-dc9976d1bdde",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_name": "WST-SEED-OP-AIRTEST",
+          "work_center_id": "836d35ef-b332-4a96-9162-1c0bbd2d15c2",
+          "routing_operation_id": "15c76749-35e0-483e-a9c1-9545c5623a42",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "f274b3a5-9972-4bba-b935-cd28fa0487f1",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_name": "WST-SEED-OP-PACKING",
+          "work_center_id": "97308fd4-ee86-4139-9a03-6842af40b79b",
+          "routing_operation_id": "f0db120f-86bf-4a45-8cf9-76cf13fd95fc",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        }
+      ],
+      "evaluated_at": "2026-08-07T09:47:05.447290402Z",
       "policy_version": "MES_LINE_SELECTION_V2",
       "selection_role": "BACKUP",
       "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
-      "production_line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
-      "production_line_code": "WST-SEED-LINE-2"
+      "production_line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+      "production_line_code": "WST-SEED-LINE-2",
+      "complete_line_feasibility_status": "BLOCKED"
     }
   ],
   "operation_line_ids": [

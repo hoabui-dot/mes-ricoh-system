@@ -19,7 +19,7 @@
   },
   "test_cases": [
     {"id": "TC-01", "name": "Xác minh toàn bộ Master Data của hai line", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase6-production-lines.spec.ts", "e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
-    {"id": "TC-02", "name": "Xác minh Item, Revision, EBOM, MBOM, Routing và Production Version", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase4-product-definition.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
+    {"id": "TC-02", "name": "Xác minh Item, Revision, MBOM, Routing và Production Version", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase4-product-definition.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
     {"id": "TC-03", "name": "Xác minh Production Version Line Eligibility", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/phase8-two-line-console.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
     {"id": "TC-04", "name": "Tạo WO khi Primary Line sẵn sàng", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},
     {"id": "TC-05", "name": "Compute & Check trên Primary Line", "severity": "Critical", "ui_executable": true, "automation": "PARTIALLY_AUTOMATED", "existing_specs": ["e2e/resource-planning/resource-planning-flow.spec.ts"], "status": "IMPLEMENTED_AND_VERIFIED"},

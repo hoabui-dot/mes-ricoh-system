@@ -10,9 +10,10 @@ const artifactDir = path.resolve(process.env.ARTIFACT_DIR || `artifacts/mes-cano
 const json = (value) => JSON.stringify(value, null, 2);
 
 const required = [
-  ['npm', ['run', 'test:mes:resource-planning-domain:phase1'], 'One-line Resource Planning domain/negative matrix'],
-  ['npm', ['run', 'test:mes:resource-planning-full-flow:phase2'], 'One-line Resource Planning full API flow'],
-  ['npm', ['run', 'test:mes:two-line-resource-planning:phase7'], 'Two-line Resource Planning API flow'],
+  ['npm', ['run', 'test:mes:two-line-master-data:phase6'], 'Two-line Master Data lifecycle and readiness gate'],
+  ['npm', ['run', 'test:mes:two-line-resource-planning:phase7'], 'Canonical four-state line-selection flow'],
+  ['npm', ['run', 'test:mes:two-line-resource-lifecycle:phase8'], 'Selected-line allocation and lifecycle guards'],
+  ['npm', ['run', 'test:mes:two-line-full-flow:phase11'], 'Two-line full-flow and failure matrix'],
 ];
 
 const optionalE2E = [

@@ -98,6 +98,7 @@ async function selectOperation(page: Page, operation: Scenario['operations'][num
 }
 
 async function completeSelected(page: Page, quantity: number) {
+  await expect(page.getByRole('spinbutton', { name: 'Sản lượng đạt' })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('spinbutton', { name: 'Sản lượng đạt' }).fill(String(quantity));
   await page.getByRole('spinbutton', { name: 'Sản lượng phế' }).fill('0');
   await page.getByRole('button', { name: 'Xác nhận hoàn tất công đoạn' }).click();
@@ -270,11 +271,23 @@ test('Phase 08 certifies canonical success, failure/retry, abort, recovery, sync
     WHERE payload->'payload'->>'wo_id' IN ('${success.woID}','${failure.woID}')
     GROUP BY event_type ORDER BY event_type;
   `).split('\n').filter(Boolean);
+  const dispatchMatrix = executionScalar(`
+    SELECT payload->'payload'->>'operation_code' || ':' || COUNT(*)::text
+    FROM outbox_events
+    WHERE event_type='MES.Execution.OperationDispatchQueued.v1'
+      AND payload->'payload'->>'wo_id' IN ('${success.woID}','${failure.woID}')
+      AND payload->'payload'->>'execution_target_type' <> 'PRINT_STATION'
+    GROUP BY payload->'payload'->>'operation_code'
+    ORDER BY payload->'payload'->>'operation_code';
+  `).split('\n').filter(Boolean);
+  for (const operation of [...success.operations, ...failure.operations]) {
+    expect(dispatchMatrix, operation.code).toContain(`${operation.code}:2`);
+  }
   for (const event of ['MES.Execution.OperationStarted.v1', 'MES.Execution.OperationFinished.v1', 'MES.Execution.OperationFailed.v1', 'MES.Execution.OperationRetryRequested.v1', 'MES.Execution.OperationAborted.v1']) {
     expect(eventMatrix.some((row) => row.startsWith(`${event}:`)), event).toBe(true);
   }
   writeEvidence('final-sync-evidence.json', {
-    events: eventMatrix,
+    events: eventMatrix, operation_dispatches: dispatchMatrix,
     gateway_consumed_events: Number(scalar('mes-kiosk-gateway-db', 'mes_kiosk_user', 'mes_kiosk_gateway_db', 'SELECT COUNT(*) FROM consumed_execution_event;')),
     reconnect_queue_drain: true, active_session_recovered: true, mes_console_converged: true, passed: true,
   });

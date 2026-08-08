@@ -95,7 +95,19 @@ http_endpoints:
     description: Close the current assignment and create its effective-dated replacement
   - method: POST
     path: /api/mes/master-data/resource-planning/readiness
-    description: Evaluate effective assignments, capabilities, calendars, standards, and skill requirements without allocating a resource
+    description: Evaluate line-scoped effective assignments, capabilities, calendars, standards, and skill requirements without allocating a resource; production_line_id is required
+  - method: GET
+    path: /api/mes/master-data/production-lines/:id/resource-scopes
+    description: List effective and historical Resource Assignment scopes for a Production Line
+  - method: PUT
+    path: /api/mes/master-data/production-lines/:id/resource-scopes
+    description: Replace the effective Resource Assignment scope for a Production Line with validated snapshots and audit history
+  - method: GET
+    path: /api/mes/master-data/production-lines/:id/readiness
+    description: Return structural release readiness with categorized blocking diagnostics and non-blocking warnings
+  - method: POST
+    path: /api/mes/master-data/production-lines/:id/release
+    description: Release a Production Line transactionally only when structural readiness has no blockers
 
 notes:
   - "Traceability config tables (policy/numbering/split-rule/label-template) are owned by mes-traceability-service, not here."

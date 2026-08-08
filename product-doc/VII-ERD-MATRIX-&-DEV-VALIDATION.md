@@ -9,9 +9,9 @@ Tài liệu đặc tả các quan hệ bắt buộc giữa các bảng Master Da
 | Thực thể nguồn | Thực thể đích | Tỷ lệ quan hệ (Cardinality) | Quy tắc nghiệp vụ & Ràng buộc toàn vẹn |
 | :--- | :--- | :---: | :--- |
 | `MD_ITEM` | `MD_ITEM_REVISION` | `1 : N` | Lệnh sản xuất (WO) bắt buộc phải tham chiếu trực tiếp đến `ItemRevisionID` cụ thể, không chỉ dùng `ItemID` chung. |
-| `MD_ITEM_REVISION` | `MD_MBOM_HEADER` | `Không có quan hệ trực tiếp` | MBOM là master data độc lập. Production Version là nơi liên kết Item Revision, MBOM và Routing. |
+| `MD_ITEM_REVISION` | `MD_MBOM_HEADER` | `1 : N` | MBOM bắt buộc sở hữu một Item Revision đầu ra FG/SFG qua `item_revision_id`. |
 | `MD_MBOM_HEADER` | `MD_MBOM_LINE` | `1 : N` (Cây) | Sử dụng trường `ParentLineID` để thiết lập cây định mức đa cấp. Hệ thống bắt buộc phải kiểm tra chống vòng lặp (Cycle Check). |
-| `[ItemRevision + MBOM + Routing]` | `MD_PRODUCTION_VERSION` | `N : 1` | `Production Version` là bộ khóa cấu hình chính thức duy nhất được phép sử dụng để phát hành Lệnh sản xuất (WO); ba thực thể được chọn độc lập và phải thỏa các điều kiện hiệu lực/Site được nêu rõ. |
+| `[MBOM + Routing]` | `MD_PRODUCTION_VERSION` | `N : 1` | Người dùng chọn MBOM và Routing. Backend suy ra `item_revision_id` từ MBOM và `site_id` từ Site duy nhất của Routing Work Center; client không được quyết định hai giá trị này. |
 | `MD_ROUTING_HEADER` | `MD_ROUTING_OPERATION` | `1 : N` | Thứ tự thực hiện công đoạn được xác định bởi `SequenceNo` và danh sách phụ thuộc `PredecessorSeq`. |
 | `MD_ROUTING_OPERATION` | `MD_WORK_CENTER` | `N : 1` | `Work Center` đóng vai trò là cụm tài nguyên năng lực logic mặc định để gán cho từng bước công đoạn. |
 | `Work Center` $\leftrightarrow$ `Workstation` $\leftrightarrow$ `Equipment` | `MD_RESOURCE_ASSIGNMENT` | `N : N` | Mối quan hệ gán giữa cụm máy logic, trạm thực thi và máy vật lý được quản lý qua bảng gán có hiệu lực thời gian (`EffectiveFrom`/`To`). |
@@ -59,6 +59,6 @@ Dưới đây là trình tự backend service đọc dữ liệu Master Data qua
 
 ## D4. Current MBOM/WO validation rules (2026-07-29)
 
-`MD_MBOM_HEADER.structure_version` prevents lost structure updates. `MD_MBOM_LINE` is effective-dated and hierarchical; active sibling sequences are unique within a parent. Released MBOMs cannot be edited and create-new-version copies current lines only. Work Order material requirements retain `MBOMHeaderID`, `MBOMVersion`, `MBOMLineID`, `SourceParentLineID`, `QuantityPer`, `ScaledQuantity`, `ScrapRate` and `OptionalFlag`.
+`MD_MBOM_HEADER.structure_version` prevents lost structure updates and is not a business version. `MD_MBOM_LINE` is effective-dated and hierarchical; active sibling sequences are unique within a parent. Released MBOMs cannot be edited and there is no create-version endpoint; a different definition uses a new MBOM code. Work Order material requirements retain `MBOMHeaderID`, the MBOM identity snapshot, `MBOMLineID`, `SourceParentLineID`, `QuantityPer`, `ScaledQuantity`, `ScrapRate` and `OptionalFlag`.
 
 The WMS material-request model is still a legacy flat aggregate and is not yet documented as the final parent/line requisition model; it remains an open implementation gap.

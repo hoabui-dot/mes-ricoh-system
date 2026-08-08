@@ -1,6 +1,6 @@
 # Production Version MBOM Selection and Derived Site
 
-> Historical report. Superseded by `implementation-fix/decouple-mbom-from-item-revision.md` on 2026-07-27.
+> Historical report. Superseded by the 2026-08-06 architecture correction: MBOM has no Site; Production Version Site is derived from the Routing Work Centers.
 
 ## Root cause
 

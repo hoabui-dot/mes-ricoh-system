@@ -1,0 +1,3345 @@
+{
+  "success": true,
+  "status": "PASS_FOR_PHASE_2_WITH_PRINT_STATION_SKIPPED",
+  "run_id": "PHASE2-RP-1786031795378-X7D8B",
+  "target_date": "2026-08-06",
+  "production_version": "WST-UAT-PV-01-PRIMARY-READY",
+  "work_order": {
+    "id": "25424c21-b6c7-4dcf-ab9f-bfb9ac71c399",
+    "code": "WO-20260806-0012"
+  },
+  "skipped_reason": "Print-station/third-party integration checks skipped by request.",
+  "skipped_print_operations": 1,
+  "start_execution": {
+    "skipped": true,
+    "reason": "Skipped because execution start depends on print-station dispatch readiness."
+  },
+  "persistence": {
+    "skipped": true,
+    "reason": "Skipped because print dispatch/outbox persistence is third-party dependent."
+  },
+  "phase1": {
+    "success": true,
+    "run_id": "PHASE1-RP-1786031797595-G3N20",
+    "declared": 20,
+    "executed": 20,
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0,
+    "scenarios": [
+      {
+        "name": "missing Primary Machine Requirement blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "insufficient physical Machine Units blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "expired Resource Assignment blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Workstation in another Work Center is not a candidate",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit in another Site blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit under maintenance blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit out of service blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "Machine Unit not planning eligible blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "unavailable Resource Calendar blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "invalid Shift blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "missing Production Standard blocks readiness",
+        "status": "passed"
+      },
+      {
+        "name": "stale candidate is rejected at commit",
+        "status": "passed"
+      },
+      {
+        "name": "simultaneous allocation conflict rejects second commit",
+        "status": "passed"
+      },
+      {
+        "name": "idempotent replay returns the same allocation response",
+        "status": "passed"
+      },
+      {
+        "name": "reused idempotency key with different request fails",
+        "status": "passed"
+      },
+      {
+        "name": "reallocation supersedes history and cancels old reservations",
+        "status": "passed"
+      },
+      {
+        "name": "allocation cancellation removes active reservations without deleting audit history",
+        "status": "passed"
+      },
+      {
+        "name": "approval after resource state changed fails revalidation",
+        "status": "passed"
+      },
+      {
+        "name": "execution start without valid allocation is rejected",
+        "status": "passed"
+      },
+      {
+        "name": "unauthorized role cannot commit allocation",
+        "status": "passed"
+      }
+    ]
+  },
+  "cleanup": {
+    "deleted_work_orders": 1,
+    "remaining_target_rows": 0
+  },
+  "steps": [
+    {
+      "name": "authenticate through supported trusted-gateway identity path",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:35.411Z",
+      "finished_at": "2026-08-06T15:56:35.469Z",
+      "data": {
+        "mode": "trusted-gateway-headers",
+        "user_id_header": "00000000-0000-0000-0000-000000000001",
+        "role_code_header": "PLANT_MANAGER",
+        "status": 200
+      }
+    },
+    {
+      "name": "reuse deterministic released master-data chain",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:35.470Z",
+      "finished_at": "2026-08-06T15:56:35.878Z",
+      "data": {
+        "version": {
+          "production_version_name": {
+            "en": "[UAT-PRIMARY-READY] Primary line ready",
+            "ja": "[UAT-PRIMARY-READY] Primary line ready",
+            "ko": "[UAT-PRIMARY-READY] Primary line ready",
+            "vi": "[UAT-PRIMARY-READY] Primary line ready"
+          },
+          "min_lot_size": "1.000000",
+          "max_lot_size": "1000.000000",
+          "item_id": "89ad46a6-bb45-4d06-a7f7-7623ad051675",
+          "item_code": "WST-SEED-FG-SEAL-ASM-01",
+          "item_name": {
+            "en": "Won Seal Tech Seal Assembly A",
+            "ja": "Won Seal Tech Seal Assembly A",
+            "ko": "Won Seal Tech Seal Assembly A",
+            "vi": "Won Seal Tech Seal Assembly A"
+          },
+          "item_revision_id": "a47deceb-13b5-4015-b755-fa19b66c582b",
+          "revision_code": "A",
+          "revision_status": "Released",
+          "revision_effective_from": "2026-08-06T15:56:17.038Z",
+          "revision_effective_to": null,
+          "base_uom_code": "PCS",
+          "base_uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a",
+          "base_uom_decimal_precision": 0,
+          "base_uom_allow_fraction": false,
+          "production_version_id": "1bd2cc0c-836e-4a67-828a-d8c7d5105c7c",
+          "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
+          "mbom_header_id": "78bdae80-0f82-4d30-91a7-7da2766bdd8e",
+          "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+          "mbom_name": {
+            "en": "Won Seal Tech Seal Assembly MBOM",
+            "ja": "Won Seal Tech Seal Assembly MBOM",
+            "ko": "Won Seal Tech Seal Assembly MBOM",
+            "vi": "Won Seal Tech Seal Assembly MBOM"
+          },
+          "routing_header_id": "1c4c8c9f-d2e3-417d-b3be-51b211886ce9",
+          "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+          "routing_name": {
+            "en": "Won Seal Tech two-line seal routing",
+            "ja": "Won Seal Tech two-line seal routing",
+            "ko": "Won Seal Tech two-line seal routing",
+            "vi": "Won Seal Tech two-line seal routing"
+          },
+          "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+          "site_code": "SITE-KZ3",
+          "item_revision": {
+            "id": "a47deceb-13b5-4015-b755-fa19b66c582b",
+            "code": "A",
+            "name": {
+              "en": "Won Seal Tech Seal Assembly A",
+              "ja": "Won Seal Tech Seal Assembly A",
+              "ko": "Won Seal Tech Seal Assembly A",
+              "vi": "Won Seal Tech Seal Assembly A"
+            }
+          },
+          "mbom": {
+            "id": "78bdae80-0f82-4d30-91a7-7da2766bdd8e",
+            "code": "WST-SEED-MBOM-SEAL-ASM-01",
+            "name": {
+              "en": "Won Seal Tech Seal Assembly MBOM",
+              "ja": "Won Seal Tech Seal Assembly MBOM",
+              "ko": "Won Seal Tech Seal Assembly MBOM",
+              "vi": "Won Seal Tech Seal Assembly MBOM"
+            }
+          },
+          "routing": {
+            "id": "1c4c8c9f-d2e3-417d-b3be-51b211886ce9",
+            "code": "WST-SEED-ROUTING-SEAL-ASM-01",
+            "name": {
+              "en": "Won Seal Tech two-line seal routing",
+              "ja": "Won Seal Tech two-line seal routing",
+              "ko": "Won Seal Tech two-line seal routing",
+              "vi": "Won Seal Tech two-line seal routing"
+            }
+          },
+          "site": {
+            "id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+            "code": "SITE-KZ3"
+          },
+          "base_uom": {
+            "id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a",
+            "code": "PCS",
+            "decimal_precision": 0,
+            "allow_fraction": false,
+            "lifecycle_status": "Released"
+          },
+          "valid_from": "2026-08-06T15:56:17.038Z",
+          "valid_to": null,
+          "ready": true,
+          "warnings": [],
+          "display_code": "WST-SEED-FG-SEAL-ASM-01-A",
+          "readiness_status": "Ready"
+        },
+        "shift": {
+          "master_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+          "code": "SHIFT-A",
+          "name": "Day Shift",
+          "version_no": 1,
+          "lifecycle_status": "Released",
+          "effective_from": "2026-07-21T00:00:00.000Z",
+          "effective_to": null,
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "created_at": "2026-08-06T15:54:47.347Z",
+          "updated_by": "00000000-0000-0000-0000-000000000001",
+          "updated_at": "2026-08-06T15:54:47.347Z",
+          "approved_by": "00000000-0000-0000-0000-000000000001",
+          "approved_at": "2026-07-21T00:00:00.000Z",
+          "row_version": 1,
+          "attributes": {},
+          "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+          "start_time": "08:00",
+          "end_time": "17:00",
+          "crosses_midnight": false
+        }
+      }
+    },
+    {
+      "name": "create Work Order from production_version_id and wait workflow",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:35.878Z",
+      "finished_at": "2026-08-06T15:56:36.111Z",
+      "data": {
+        "current_step": "outbox_queued",
+        "events": [
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "fce5f088-1f5a-4784-9ff7-8d2e5a49a8a9",
+            "event_type": "workflow.started",
+            "occurred_at": "2026-08-06T15:56:35.892620096Z",
+            "schema_version": 1,
+            "sequence": 1,
+            "source_service": "mes-execution-service",
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          },
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "bb9c7323-cece-4b99-b268-425fd72cc9ec",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-06T15:56:35.896049403Z",
+            "schema_version": 1,
+            "sequence": 2,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "request_validation",
+              "message_key": "workOrders.creation.steps.request.success",
+              "message_params": null,
+              "order": 1,
+              "result": {
+                "quantity": 2
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.request_validation.title"
+            },
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          },
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "af93e172-b645-4f00-88b2-4e500f46ab6c",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-06T15:56:35.898027743Z",
+            "schema_version": 1,
+            "sequence": 3,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.running",
+              "message_params": null,
+              "order": 2,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          },
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "ca06df56-562a-49e3-8da1-812fece7a49e",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-06T15:56:35.903156177Z",
+            "schema_version": 1,
+            "sequence": 4,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "master_data_readiness",
+              "message_key": "workOrders.creation.steps.readiness.success",
+              "message_params": null,
+              "order": 2,
+              "result": {
+                "mbomId": "78bdae80-0f82-4d30-91a7-7da2766bdd8e",
+                "productionVersionId": "1bd2cc0c-836e-4a67-828a-d8c7d5105c7c",
+                "routingId": "1c4c8c9f-d2e3-417d-b3be-51b211886ce9"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.master_data_readiness.title"
+            },
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          },
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "4f1afd87-674c-4375-b102-f6da991213d3",
+            "event_type": "step.started",
+            "occurred_at": "2026-08-06T15:56:35.906155665Z",
+            "schema_version": 1,
+            "sequence": 5,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.running",
+              "message_params": null,
+              "order": 3,
+              "result": null,
+              "status": "running",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          },
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "3d520fb0-66cd-4e3e-ad9c-901876dc83f3",
+            "event_type": "step.succeeded",
+            "occurred_at": "2026-08-06T15:56:35.926869892Z",
+            "schema_version": 1,
+            "sequence": 6,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "create_transaction",
+              "message_key": "workOrders.creation.steps.transaction.success",
+              "message_params": null,
+              "order": 3,
+              "result": {
+                "fallbackReason": "",
+                "lineSelectionStatus": "READY",
+                "materialCount": 1,
+                "operationCount": 4,
+                "selectedProductionLineCode": "WST-SEED-LINE-1",
+                "selectedProductionLineId": "7d783856-e202-4688-9359-c7feaae8816b",
+                "status": "Draft",
+                "workOrderCode": "WO-20260806-0012",
+                "workOrderId": "25424c21-b6c7-4dcf-ab9f-bfb9ac71c399"
+              },
+              "status": "succeeded",
+              "title_key": "workOrders.creation.steps.create_transaction.title"
+            },
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          },
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "13a8c852-1a3e-4227-88bd-ef249204b270",
+            "event_type": "step.event_queued",
+            "occurred_at": "2026-08-06T15:56:35.929913748Z",
+            "schema_version": 1,
+            "sequence": 7,
+            "source_service": "mes-execution-service",
+            "step": {
+              "id": "outbox_queued",
+              "message_key": "workOrders.creation.steps.outbox.success",
+              "message_params": null,
+              "order": 4,
+              "result": {
+                "eventType": "MES.Execution.WOCreated.v1"
+              },
+              "status": "event_queued",
+              "title_key": "workOrders.creation.steps.outbox_queued.title"
+            },
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          },
+          {
+            "correlation_id": "7954a3c8-273b-47f4-8814-44e898e2f53a",
+            "event_id": "47f297b5-8aa7-4b3b-8e95-f27b634cecd5",
+            "event_type": "workflow.succeeded",
+            "occurred_at": "2026-08-06T15:56:35.931985556Z",
+            "schema_version": 1,
+            "sequence": 8,
+            "source_service": "mes-execution-service",
+            "workflow": {
+              "status": "succeeded",
+              "work_order_code": "WO-20260806-0012",
+              "work_order_id": "25424c21-b6c7-4dcf-ab9f-bfb9ac71c399"
+            },
+            "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+          }
+        ],
+        "last_sequence": 8,
+        "status": "succeeded",
+        "work_order_code": "WO-20260806-0012",
+        "work_order_id": "25424c21-b6c7-4dcf-ab9f-bfb9ac71c399",
+        "workflow_id": "74631b0e-5b35-4a95-a331-7e233d0024ab"
+      }
+    },
+    {
+      "name": "load created Work Order routing snapshot",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:36.111Z",
+      "finished_at": "2026-08-06T15:56:36.128Z",
+      "data": {
+        "allocation_history": null,
+        "approval_logs": null,
+        "gate_summary": {
+          "active_allocation_count": 0,
+          "approval_eligible": false,
+          "approval_state": "Pending",
+          "blockers": [
+            "WO_OPERATION_ALLOCATION_MISSING"
+          ],
+          "capacity_state": "DEFERRED",
+          "execution_eligible": false,
+          "execution_state": "NotStarted",
+          "line_selection_status": "READY",
+          "operation_count": 4,
+          "resource_allocation_state": "NOT_STARTED",
+          "valid_allocation_count": 0
+        },
+        "header": {
+          "created_at": "2026-08-06T15:56:35.90787Z",
+          "created_by": "00000000-0000-0000-0000-000000000001",
+          "demo_print_on_approval": true,
+          "dispatch_mode": "WORK_CENTER",
+          "evaluated_line_results": [
+            {
+              "status": "Ready",
+              "blockers": [],
+              "priority": 1,
+              "dimensions": [
+                {
+                  "key": "eligibility",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "LINE_ELIGIBILITY_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "eligibility",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
+                },
+                {
+                  "key": "work_centers",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "work_centers",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
+                },
+                {
+                  "key": "capability",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "LINE_CAPABILITY_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "capability",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
+                },
+                {
+                  "key": "production_standard",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "LINE_PRODUCTION_STANDARD_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "production_standard",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
+                },
+                {
+                  "key": "calendar_shift",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "LINE_CALENDAR_SHIFT_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "calendar_shift",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
+                },
+                {
+                  "key": "capacity",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "LINE_COARSE_CAPACITY_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "capacity",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.LINE_COARSE_CAPACITY_READY"
+                },
+                {
+                  "key": "workstations",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "DEFERRED",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "WORKSTATION_REQUIRES_EXACT_RESOURCE",
+                  "evaluated_at": null,
+                  "dimension_code": "workstations",
+                  "evaluation_stage": "RESOURCE_ALLOCATION",
+                  "localized_message_key": "woDetail.dimensionReason.WORKSTATION_REQUIRES_EXACT_RESOURCE"
+                },
+                {
+                  "key": "machine_requirements",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "DEFERRED",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE",
+                  "evaluated_at": null,
+                  "dimension_code": "machine_requirements",
+                  "evaluation_stage": "RESOURCE_ALLOCATION",
+                  "localized_message_key": "woDetail.dimensionReason.MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"
+                },
+                {
+                  "key": "equipment_units",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "DEFERRED",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE",
+                  "evaluated_at": null,
+                  "dimension_code": "equipment_units",
+                  "evaluation_stage": "RESOURCE_ALLOCATION",
+                  "localized_message_key": "woDetail.dimensionReason.EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"
+                },
+                {
+                  "key": "assignments",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "DEFERRED",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "ASSIGNMENT_REQUIRES_EXACT_RESOURCE",
+                  "evaluated_at": null,
+                  "dimension_code": "assignments",
+                  "evaluation_stage": "RESOURCE_ALLOCATION",
+                  "localized_message_key": "woDetail.dimensionReason.ASSIGNMENT_REQUIRES_EXACT_RESOURCE"
+                },
+                {
+                  "key": "worker_skill_labor",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "DEFERRED",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "LABOR_REQUIRES_EXACT_RESOURCE",
+                  "evaluated_at": null,
+                  "dimension_code": "worker_skill_labor",
+                  "evaluation_stage": "RESOURCE_ALLOCATION",
+                  "localized_message_key": "woDetail.dimensionReason.LABOR_REQUIRES_EXACT_RESOURCE"
+                },
+                {
+                  "key": "final_result",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "MANDATORY_LINE_SELECTION_DIMENSIONS_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "final_result",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
+                },
+                {
+                  "key": "selection_reason",
+                  "source": "MES_EXECUTION_LINE_SELECTOR",
+                  "status": "READY",
+                  "details": [],
+                  "blocking": false,
+                  "reason_code": "PRIMARY_LINE_READY",
+                  "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+                  "dimension_code": "selection_reason",
+                  "evaluation_stage": "LINE_SELECTION",
+                  "localized_message_key": "woDetail.dimensionReason.PRIMARY_LINE_READY"
+                }
+              ],
+              "evaluated_at": "2026-08-06T15:56:35.919455077Z",
+              "policy_version": "MES_LINE_SELECTION_V2",
+              "selection_role": "PRIMARY",
+              "selection_reason": "PRIMARY_LINE_READY",
+              "production_line_id": "7d783856-e202-4688-9359-c7feaae8816b",
+              "production_line_code": "WST-SEED-LINE-1"
+            }
+          ],
+          "fallback_reason": "",
+          "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
+          "item_name": "Won Seal Tech Seal Assembly A",
+          "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+          "item_revision_id": "a47deceb-13b5-4015-b755-fa19b66c582b",
+          "item_revision_name_i18n": {
+            "en": "Won Seal Tech Seal Assembly A",
+            "ja": "Won Seal Tech Seal Assembly A",
+            "ko": "Won Seal Tech Seal Assembly A",
+            "vi": "Won Seal Tech Seal Assembly A"
+          },
+          "line_locked_at": "2026-08-06T15:56:35.90787Z",
+          "line_selection_mode": "PRIMARY",
+          "line_selection_reason": "PRIMARY_LINE_READY",
+          "line_selection_status": "READY",
+          "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+          "planned_end_at": "2026-08-07T08:00:00Z",
+          "planned_start_at": "2026-08-06T08:00:00Z",
+          "planning_snapshot": {
+            "mbom_id": "78bdae80-0f82-4d30-91a7-7da2766bdd8e",
+            "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+            "routing_id": "1c4c8c9f-d2e3-417d-b3be-51b211886ce9",
+            "production_version_id": "1bd2cc0c-836e-4a67-828a-d8c7d5105c7c",
+            "production_version_code": "WST-UAT-PV-01-PRIMARY-READY"
+          },
+          "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
+          "production_version_id": "1bd2cc0c-836e-4a67-828a-d8c7d5105c7c",
+          "production_version_name_i18n": {
+            "en": "[UAT-PRIMARY-READY] Primary line ready",
+            "ja": "[UAT-PRIMARY-READY] Primary line ready",
+            "ko": "[UAT-PRIMARY-READY] Primary line ready",
+            "vi": "[UAT-PRIMARY-READY] Primary line ready"
+          },
+          "quantity": 2,
+          "resource_hold_reason": {},
+          "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+          "row_version": 2,
+          "selected_production_line_code": "WST-SEED-LINE-1",
+          "selected_production_line_id": "7d783856-e202-4688-9359-c7feaae8816b",
+          "selected_production_line_name_i18n": {
+            "en": "Won Seal Tech Line 1",
+            "ja": "Won Seal Tech Line 1",
+            "ko": "Won Seal Tech Line 1",
+            "vi": "Won Seal Tech Line 1"
+          },
+          "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+          "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+          "status": "Draft",
+          "uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a",
+          "wo_code": "WO-20260806-0012",
+          "wo_id": "25424c21-b6c7-4dcf-ab9f-bfb9ac71c399"
+        },
+        "material_requirements": [
+          {
+            "backflush_flag": false,
+            "component_item_code": "WST-SEED-COMP-SEAL-RING-01-A",
+            "component_item_revision_id": "2696d3cf-9104-486f-81e3-daba9cc70aa4",
+            "item_name": {},
+            "phantom_flag": false,
+            "required_qty": 2,
+            "requirement_id": "fea94e7a-9333-4c89-bdfc-7fa7c3192544",
+            "stock_check_detail": null,
+            "stock_check_status": "NotChecked",
+            "uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a"
+          }
+        ],
+        "operations": [
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-OP-BINDING",
+              "ja": "WST-SEED-OP-BINDING",
+              "ko": "WST-SEED-OP-BINDING",
+              "vi": "WST-SEED-OP-BINDING"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "WST-SEED-LINE-1",
+            "production_line_id": "7d783856-e202-4688-9359-c7feaae8816b",
+            "production_line_name_i18n": {
+              "en": "Won Seal Tech Line 1",
+              "ja": "Won Seal Tech Line 1",
+              "ko": "Won Seal Tech Line 1",
+              "vi": "Won Seal Tech Line 1"
+            },
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 10,
+            "source_routing_work_center_id": "9b5d60aa-82f9-4f26-a895-6e9d6b721e37",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "aaae4da9-e2a0-4528-a481-f250a4b6ed75",
+            "work_center_code": "WST-SEED-WC-L1-BINDING",
+            "work_center_id": "9b5d60aa-82f9-4f26-a895-6e9d6b721e37",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-BINDING",
+              "ja": "Won Seal Tech L1-BINDING",
+              "ko": "Won Seal Tech L1-BINDING",
+              "vi": "Won Seal Tech L1-BINDING"
+            },
+            "workstation_id": "39f98c8a-e554-4062-9b2d-2f3b2f55426c"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-OP-TEST5IN1",
+              "ja": "WST-SEED-OP-TEST5IN1",
+              "ko": "WST-SEED-OP-TEST5IN1",
+              "vi": "WST-SEED-OP-TEST5IN1"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "WST-SEED-LINE-1",
+            "production_line_id": "7d783856-e202-4688-9359-c7feaae8816b",
+            "production_line_name_i18n": {
+              "en": "Won Seal Tech Line 1",
+              "ja": "Won Seal Tech Line 1",
+              "ko": "Won Seal Tech Line 1",
+              "vi": "Won Seal Tech Line 1"
+            },
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 20,
+            "source_routing_work_center_id": "a0f60f78-7390-4f86-935a-63893a560cb2",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "c82fb7f3-7068-4239-96e9-5bb7e32cde53",
+            "work_center_code": "WST-SEED-WC-L1-TEST5IN1",
+            "work_center_id": "a0f60f78-7390-4f86-935a-63893a560cb2",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-TEST5IN1",
+              "ja": "Won Seal Tech L1-TEST5IN1",
+              "ko": "Won Seal Tech L1-TEST5IN1",
+              "vi": "Won Seal Tech L1-TEST5IN1"
+            },
+            "workstation_id": "66ca675c-1744-47c6-b67e-e80963fa7336"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "KIOSK_DEMO",
+            "expected_good_quantity": 2,
+            "label_count": 0,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-OP-AIRTEST",
+              "ja": "WST-SEED-OP-AIRTEST",
+              "ko": "WST-SEED-OP-AIRTEST",
+              "vi": "WST-SEED-OP-AIRTEST"
+            },
+            "print_copies": 0,
+            "print_station_id": null,
+            "print_status": "NotRequired",
+            "production_line_code": "WST-SEED-LINE-1",
+            "production_line_id": "7d783856-e202-4688-9359-c7feaae8816b",
+            "production_line_name_i18n": {
+              "en": "Won Seal Tech Line 1",
+              "ja": "Won Seal Tech Line 1",
+              "ko": "Won Seal Tech Line 1",
+              "vi": "Won Seal Tech Line 1"
+            },
+            "requires_output_label": false,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 30,
+            "source_routing_work_center_id": "02dccb30-002c-4a0e-b846-dc8bfa27e327",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "76b6a250-d062-4ca4-a8cb-21c618c9641c",
+            "work_center_code": "WST-SEED-WC-L1-AIRTEST",
+            "work_center_id": "02dccb30-002c-4a0e-b846-dc8bfa27e327",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-AIRTEST",
+              "ja": "Won Seal Tech L1-AIRTEST",
+              "ko": "Won Seal Tech L1-AIRTEST",
+              "vi": "Won Seal Tech L1-AIRTEST"
+            },
+            "workstation_id": "859b3a12-4b5a-49a0-aaae-221df9b760ee"
+          },
+          {
+            "adapter_id": null,
+            "base_quantity": 1,
+            "copies_per_label": 1,
+            "dispatch_event_id": null,
+            "execution_target_type": "PRINT_STATION",
+            "expected_good_quantity": 2,
+            "label_count": 2,
+            "label_quantity_method": "CEIL_BY_UNITS_PER_LABEL",
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_cycle_count": 2,
+            "operation_name": {
+              "en": "WST-SEED-OP-PACKING",
+              "ja": "WST-SEED-OP-PACKING",
+              "ko": "WST-SEED-OP-PACKING",
+              "vi": "WST-SEED-OP-PACKING"
+            },
+            "print_copies": 2,
+            "print_station_id": null,
+            "print_status": "Pending",
+            "production_line_code": "WST-SEED-LINE-1",
+            "production_line_id": "7d783856-e202-4688-9359-c7feaae8816b",
+            "production_line_name_i18n": {
+              "en": "Won Seal Tech Line 1",
+              "ja": "Won Seal Tech Line 1",
+              "ko": "Won Seal Tech Line 1",
+              "vi": "Won Seal Tech Line 1"
+            },
+            "requires_output_label": true,
+            "resource_allocation": {
+              "allocation_id": null,
+              "planned_end_at": null,
+              "planned_equipment_id": null,
+              "planned_production_line_id": "",
+              "planned_shift_id": null,
+              "planned_start_at": null,
+              "planned_workstation_id": null,
+              "status": null,
+              "validation_status": null,
+              "warning_codes": null
+            },
+            "sequence_no": 40,
+            "source_routing_work_center_id": "046c6190-21a4-4e2c-bdd3-ee146ae4a903",
+            "status": "Pending",
+            "units_per_label": null,
+            "wo_operation_id": "1e2b59a4-4870-4b17-aff9-58c85f1e3b53",
+            "work_center_code": "WST-SEED-WC-L1-PACKING",
+            "work_center_id": "046c6190-21a4-4e2c-bdd3-ee146ae4a903",
+            "work_center_name": {
+              "en": "Won Seal Tech L1-PACKING",
+              "ja": "Won Seal Tech L1-PACKING",
+              "ko": "Won Seal Tech L1-PACKING",
+              "vi": "Won Seal Tech L1-PACKING"
+            },
+            "workstation_id": "de83e0ef-e92b-4ea0-8096-f5f044033dbe"
+          }
+        ],
+        "print_jobs": null,
+        "resource_evaluation_dimensions": [
+          {
+            "blocking": false,
+            "details": [
+              {
+                "active_allocation_count": 0,
+                "invalid_allocation_count": 0,
+                "operation_count": 4,
+                "valid_allocation_count": 0,
+                "warning_count": 0
+              }
+            ],
+            "dimension_code": "workstations",
+            "evaluated_at": null,
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "key": "workstations",
+            "localized_message_key": "woDetail.dimensionReason.RESOURCE_ALLOCATION_NOT_STARTED",
+            "reason_code": "RESOURCE_ALLOCATION_NOT_STARTED",
+            "source": "MES_EXECUTION_RESOURCE_ALLOCATION",
+            "status": "DEFERRED"
+          },
+          {
+            "blocking": false,
+            "details": [
+              {
+                "active_allocation_count": 0,
+                "invalid_allocation_count": 0,
+                "operation_count": 4,
+                "valid_allocation_count": 0,
+                "warning_count": 0
+              }
+            ],
+            "dimension_code": "machine_requirements",
+            "evaluated_at": null,
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "key": "machine_requirements",
+            "localized_message_key": "woDetail.dimensionReason.RESOURCE_ALLOCATION_NOT_STARTED",
+            "reason_code": "RESOURCE_ALLOCATION_NOT_STARTED",
+            "source": "MES_EXECUTION_RESOURCE_ALLOCATION",
+            "status": "DEFERRED"
+          },
+          {
+            "blocking": false,
+            "details": [
+              {
+                "active_allocation_count": 0,
+                "invalid_allocation_count": 0,
+                "operation_count": 4,
+                "valid_allocation_count": 0,
+                "warning_count": 0
+              }
+            ],
+            "dimension_code": "equipment_units",
+            "evaluated_at": null,
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "key": "equipment_units",
+            "localized_message_key": "woDetail.dimensionReason.RESOURCE_ALLOCATION_NOT_STARTED",
+            "reason_code": "RESOURCE_ALLOCATION_NOT_STARTED",
+            "source": "MES_EXECUTION_RESOURCE_ALLOCATION",
+            "status": "DEFERRED"
+          },
+          {
+            "blocking": false,
+            "details": [
+              {
+                "active_allocation_count": 0,
+                "invalid_allocation_count": 0,
+                "operation_count": 4,
+                "valid_allocation_count": 0,
+                "warning_count": 0
+              }
+            ],
+            "dimension_code": "assignments",
+            "evaluated_at": null,
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "key": "assignments",
+            "localized_message_key": "woDetail.dimensionReason.RESOURCE_ALLOCATION_NOT_STARTED",
+            "reason_code": "RESOURCE_ALLOCATION_NOT_STARTED",
+            "source": "MES_EXECUTION_RESOURCE_ALLOCATION",
+            "status": "DEFERRED"
+          },
+          {
+            "blocking": false,
+            "details": [
+              {
+                "active_allocation_count": 0,
+                "invalid_allocation_count": 0,
+                "operation_count": 4,
+                "valid_allocation_count": 0,
+                "warning_count": 0
+              }
+            ],
+            "dimension_code": "worker_skill_labor",
+            "evaluated_at": null,
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "key": "worker_skill_labor",
+            "localized_message_key": "woDetail.dimensionReason.RESOURCE_ALLOCATION_NOT_STARTED",
+            "reason_code": "RESOURCE_ALLOCATION_NOT_STARTED",
+            "source": "MES_EXECUTION_RESOURCE_ALLOCATION",
+            "status": "DEFERRED"
+          }
+        ]
+      }
+    },
+    {
+      "name": "run Compute and Check",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:36.128Z",
+      "finished_at": "2026-08-06T15:56:36.146Z",
+      "data": {
+        "status": 200,
+        "body": {
+          "wo_id": "25424c21-b6c7-4dcf-ab9f-bfb9ac71c399",
+          "total_duration_minutes": 44,
+          "planned_start_at": "2026-08-06T08:00:00Z",
+          "planned_end_at": "2026-08-06T08:44:00Z",
+          "operations": [
+            {
+              "sequence_no": 10,
+              "operation_code": "WST-SEED-OP-BINDING",
+              "work_center_id": "9b5d60aa-82f9-4f26-a895-6e9d6b721e37",
+              "duration_minutes": 11,
+              "planned_start_at": "2026-08-06T08:00:00Z",
+              "planned_end_at": "2026-08-06T08:11:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 90,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 3,
+              "calculated_total_minutes": 11,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 20,
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "a0f60f78-7390-4f86-935a-63893a560cb2",
+              "duration_minutes": 12,
+              "planned_start_at": "2026-08-06T08:11:00Z",
+              "planned_end_at": "2026-08-06T08:23:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 120,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 4,
+              "calculated_total_minutes": 12,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 30,
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "02dccb30-002c-4a0e-b846-dc8bfa27e327",
+              "duration_minutes": 11,
+              "planned_start_at": "2026-08-06T08:23:00Z",
+              "planned_end_at": "2026-08-06T08:34:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 80,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 2.6666666666666665,
+              "calculated_total_minutes": 10.666666666666666,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": false,
+              "print_status": "NotRequired"
+            },
+            {
+              "sequence_no": 40,
+              "operation_code": "WST-SEED-OP-PACKING",
+              "work_center_id": "046c6190-21a4-4e2c-bdd3-ee146ae4a903",
+              "duration_minutes": 10,
+              "planned_start_at": "2026-08-06T08:34:00Z",
+              "planned_end_at": "2026-08-06T08:44:00Z",
+              "setup_time_minutes": 5,
+              "cycle_time_seconds": 60,
+              "base_quantity": 1,
+              "work_order_quantity": 2,
+              "standard_yield": 1,
+              "efficiency_factor": 1,
+              "queue_time_minutes": 2,
+              "move_time_minutes": 1,
+              "calculated_run_minutes": 2,
+              "calculated_total_minutes": 10,
+              "operation_cycle_count": 2,
+              "expected_good_quantity": 2,
+              "requires_output_label": true,
+              "label_count": 2,
+              "print_copies": 2,
+              "print_status": "Pending"
+            }
+          ],
+          "capacity_warnings": [],
+          "labor_warnings": [],
+          "labor_shortages": [],
+          "labor_assignments": []
+        }
+      }
+    },
+    {
+      "name": "retrieve side-effect-free backend proposals for every operation",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:36.146Z",
+      "finished_at": "2026-08-06T15:56:36.295Z",
+      "data": {
+        "complete": true,
+        "generated_at": "2026-08-06T15:56:36.162621655Z",
+        "operations": [
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "f822b9c4-3fbe-4f0c-95ff-cbf11dfb5262",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 90,
+                  "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                  "move_time_min": 1,
+                  "queue_time_min": 2,
+                  "run_duration_min": 3,
+                  "setup_time_min": 5
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "f58861b2-f7e4-465d-8899-801d33ac04ce",
+                  "resource_id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                  "resource_type": "Equipment",
+                  "source_id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "WST-SEED-CAP-L1-BINDING",
+                  "id": "edd72f26-63f3-4756-8fa2-df8036063599",
+                  "priority_no": 1,
+                  "specificity": "Equipment",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-BINDING",
+                  "execution_status": "Available",
+                  "id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-BINDING",
+                    "ja": "Won Seal Tech equipment L1-BINDING",
+                    "ko": "Won Seal Tech equipment L1-BINDING",
+                    "vi": "Won Seal Tech equipment L1-BINDING"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "f822b9c4-3fbe-4f0c-95ff-cbf11dfb5262",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "id": "f58861b2-f7e4-465d-8899-801d33ac04ce",
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "id": "edd72f26-63f3-4756-8fa2-df8036063599",
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "WST-SEED-EQ-L1-BINDING",
+                    "execution_status": "Available",
+                    "id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                    "lifecycle_status": "Released",
+                    "name": {
+                      "en": "Won Seal Tech equipment L1-BINDING",
+                      "ja": "Won Seal Tech equipment L1-BINDING",
+                      "ko": "Won Seal Tech equipment L1-BINDING",
+                      "vi": "Won Seal Tech equipment L1-BINDING"
+                    }
+                  },
+                  "evaluated_at": "2026-08-06T15:56:36.191Z",
+                  "machine_unit": {
+                    "available": 1,
+                    "status": "Available",
+                    "total": 1
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 11,
+                "freshness_token": "2:39f98c8a-e554-4062-9b2d-2f3b2f55426c:745937e8-1be6-4234-bac6-541309e02f9e:2026-08-06T08:00:00Z",
+                "production_line": {
+                  "code": "WST-SEED-LINE-1",
+                  "id": "7d783856-e202-4688-9359-c7feaae8816b"
+                },
+                "production_standard": {
+                  "base_quantity": "1.000000",
+                  "code": "WST-SEED-STD-L1-BINDING",
+                  "cycle_time_sec": "90.000",
+                  "efficiency_factor": "1.0000",
+                  "id": "a874c287-bd8e-4b48-8ec0-2d3d29d3e1af",
+                  "labor_count": 1,
+                  "level": "Equipment",
+                  "setup_time_min": "5.000"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 529,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "skill_requirements": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [],
+                "workstation": {
+                  "code": "WST-SEED-WS-L1-BINDING",
+                  "id": "39f98c8a-e554-4062-9b2d-2f3b2f55426c",
+                  "name": {
+                    "en": "Won Seal Tech workstation L1-BINDING",
+                    "ja": "Won Seal Tech workstation L1-BINDING",
+                    "ko": "Won Seal Tech workstation L1-BINDING",
+                    "vi": "Won Seal Tech workstation L1-BINDING"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_id": "aaae4da9-e2a0-4528-a481-f250a4b6ed75",
+            "production_line": {
+              "code": "WST-SEED-LINE-1",
+              "id": "7d783856-e202-4688-9359-c7feaae8816b"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "f822b9c4-3fbe-4f0c-95ff-cbf11dfb5262",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 90,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 3,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "f58861b2-f7e4-465d-8899-801d33ac04ce",
+                "resource_id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                "resource_type": "Equipment",
+                "source_id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-BINDING",
+                "id": "edd72f26-63f3-4756-8fa2-df8036063599",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-BINDING",
+                "execution_status": "Available",
+                "id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-BINDING",
+                  "ja": "Won Seal Tech equipment L1-BINDING",
+                  "ko": "Won Seal Tech equipment L1-BINDING",
+                  "vi": "Won Seal Tech equipment L1-BINDING"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "f822b9c4-3fbe-4f0c-95ff-cbf11dfb5262",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "f58861b2-f7e4-465d-8899-801d33ac04ce",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "edd72f26-63f3-4756-8fa2-df8036063599",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-BINDING",
+                  "execution_status": "Available",
+                  "id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-BINDING",
+                    "ja": "Won Seal Tech equipment L1-BINDING",
+                    "ko": "Won Seal Tech equipment L1-BINDING",
+                    "vi": "Won Seal Tech equipment L1-BINDING"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.191Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 11,
+              "freshness_token": "2:39f98c8a-e554-4062-9b2d-2f3b2f55426c:745937e8-1be6-4234-bac6-541309e02f9e:2026-08-06T08:00:00Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-BINDING",
+                "cycle_time_sec": "90.000",
+                "efficiency_factor": "1.0000",
+                "id": "a874c287-bd8e-4b48-8ec0-2d3d29d3e1af",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 529,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-BINDING",
+                "id": "39f98c8a-e554-4062-9b2d-2f3b2f55426c",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-BINDING",
+                  "ja": "Won Seal Tech workstation L1-BINDING",
+                  "ko": "Won Seal Tech workstation L1-BINDING",
+                  "vi": "Won Seal Tech workstation L1-BINDING"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+              "start_at": "2026-08-06T08:00:00Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "f822b9c4-3fbe-4f0c-95ff-cbf11dfb5262",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 90,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 3,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "f58861b2-f7e4-465d-8899-801d33ac04ce",
+                "resource_id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                "resource_type": "Equipment",
+                "source_id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-BINDING",
+                "id": "edd72f26-63f3-4756-8fa2-df8036063599",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-BINDING",
+                "execution_status": "Available",
+                "id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-BINDING",
+                  "ja": "Won Seal Tech equipment L1-BINDING",
+                  "ko": "Won Seal Tech equipment L1-BINDING",
+                  "vi": "Won Seal Tech equipment L1-BINDING"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "f822b9c4-3fbe-4f0c-95ff-cbf11dfb5262",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "f58861b2-f7e4-465d-8899-801d33ac04ce",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "edd72f26-63f3-4756-8fa2-df8036063599",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-BINDING",
+                  "execution_status": "Available",
+                  "id": "745937e8-1be6-4234-bac6-541309e02f9e",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-BINDING",
+                    "ja": "Won Seal Tech equipment L1-BINDING",
+                    "ko": "Won Seal Tech equipment L1-BINDING",
+                    "vi": "Won Seal Tech equipment L1-BINDING"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.191Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 11,
+              "freshness_token": "2:39f98c8a-e554-4062-9b2d-2f3b2f55426c:745937e8-1be6-4234-bac6-541309e02f9e:2026-08-06T08:00:00Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-BINDING",
+                "cycle_time_sec": "90.000",
+                "efficiency_factor": "1.0000",
+                "id": "a874c287-bd8e-4b48-8ec0-2d3d29d3e1af",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 529,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-BINDING",
+                "id": "39f98c8a-e554-4062-9b2d-2f3b2f55426c",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-BINDING",
+                  "ja": "Won Seal Tech workstation L1-BINDING",
+                  "ko": "Won Seal Tech workstation L1-BINDING",
+                  "vi": "Won Seal Tech workstation L1-BINDING"
+                }
+              }
+            },
+            "sequence": 10,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "3c45ba5c-1cff-4a90-a194-e22f2d57b31d",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 120,
+                  "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                  "move_time_min": 1,
+                  "queue_time_min": 2,
+                  "run_duration_min": 4,
+                  "setup_time_min": 5
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "25487d38-8031-4e45-bebc-47380025a4b6",
+                  "resource_id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                  "resource_type": "Equipment",
+                  "source_id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "WST-SEED-CAP-L1-TEST5IN1",
+                  "id": "2fb39acb-9460-425a-8aed-3ff13634c4d5",
+                  "priority_no": 1,
+                  "specificity": "Equipment",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-TEST5IN1",
+                  "execution_status": "Available",
+                  "id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-TEST5IN1",
+                    "ja": "Won Seal Tech equipment L1-TEST5IN1",
+                    "ko": "Won Seal Tech equipment L1-TEST5IN1",
+                    "vi": "Won Seal Tech equipment L1-TEST5IN1"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "3c45ba5c-1cff-4a90-a194-e22f2d57b31d",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "id": "25487d38-8031-4e45-bebc-47380025a4b6",
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "id": "2fb39acb-9460-425a-8aed-3ff13634c4d5",
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "WST-SEED-EQ-L1-TEST5IN1",
+                    "execution_status": "Available",
+                    "id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                    "lifecycle_status": "Released",
+                    "name": {
+                      "en": "Won Seal Tech equipment L1-TEST5IN1",
+                      "ja": "Won Seal Tech equipment L1-TEST5IN1",
+                      "ko": "Won Seal Tech equipment L1-TEST5IN1",
+                      "vi": "Won Seal Tech equipment L1-TEST5IN1"
+                    }
+                  },
+                  "evaluated_at": "2026-08-06T15:56:36.221Z",
+                  "machine_unit": {
+                    "available": 1,
+                    "status": "Available",
+                    "total": 1
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 12,
+                "freshness_token": "2:66ca675c-1744-47c6-b67e-e80963fa7336:10178c95-7a91-4719-b48e-5fba58a9191d:2026-08-06T08:11:00Z",
+                "production_line": {
+                  "code": "WST-SEED-LINE-1",
+                  "id": "7d783856-e202-4688-9359-c7feaae8816b"
+                },
+                "production_standard": {
+                  "base_quantity": "1.000000",
+                  "code": "WST-SEED-STD-L1-TEST5IN1",
+                  "cycle_time_sec": "120.000",
+                  "efficiency_factor": "1.0000",
+                  "id": "0b99df78-1ee5-4a40-a482-b9a6ff461e82",
+                  "labor_count": 1,
+                  "level": "Equipment",
+                  "setup_time_min": "5.000"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 528,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "skill_requirements": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [],
+                "workstation": {
+                  "code": "WST-SEED-WS-L1-TEST5IN1",
+                  "id": "66ca675c-1744-47c6-b67e-e80963fa7336",
+                  "name": {
+                    "en": "Won Seal Tech workstation L1-TEST5IN1",
+                    "ja": "Won Seal Tech workstation L1-TEST5IN1",
+                    "ko": "Won Seal Tech workstation L1-TEST5IN1",
+                    "vi": "Won Seal Tech workstation L1-TEST5IN1"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_id": "c82fb7f3-7068-4239-96e9-5bb7e32cde53",
+            "production_line": {
+              "code": "WST-SEED-LINE-1",
+              "id": "7d783856-e202-4688-9359-c7feaae8816b"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "3c45ba5c-1cff-4a90-a194-e22f2d57b31d",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 120,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 4,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "25487d38-8031-4e45-bebc-47380025a4b6",
+                "resource_id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                "resource_type": "Equipment",
+                "source_id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-TEST5IN1",
+                "id": "2fb39acb-9460-425a-8aed-3ff13634c4d5",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-TEST5IN1",
+                "execution_status": "Available",
+                "id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-TEST5IN1",
+                  "ja": "Won Seal Tech equipment L1-TEST5IN1",
+                  "ko": "Won Seal Tech equipment L1-TEST5IN1",
+                  "vi": "Won Seal Tech equipment L1-TEST5IN1"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "3c45ba5c-1cff-4a90-a194-e22f2d57b31d",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "25487d38-8031-4e45-bebc-47380025a4b6",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "2fb39acb-9460-425a-8aed-3ff13634c4d5",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-TEST5IN1",
+                  "execution_status": "Available",
+                  "id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-TEST5IN1",
+                    "ja": "Won Seal Tech equipment L1-TEST5IN1",
+                    "ko": "Won Seal Tech equipment L1-TEST5IN1",
+                    "vi": "Won Seal Tech equipment L1-TEST5IN1"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.221Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 12,
+              "freshness_token": "2:66ca675c-1744-47c6-b67e-e80963fa7336:10178c95-7a91-4719-b48e-5fba58a9191d:2026-08-06T08:11:00Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-TEST5IN1",
+                "cycle_time_sec": "120.000",
+                "efficiency_factor": "1.0000",
+                "id": "0b99df78-1ee5-4a40-a482-b9a6ff461e82",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 528,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-TEST5IN1",
+                "id": "66ca675c-1744-47c6-b67e-e80963fa7336",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-TEST5IN1",
+                  "ja": "Won Seal Tech workstation L1-TEST5IN1",
+                  "ko": "Won Seal Tech workstation L1-TEST5IN1",
+                  "vi": "Won Seal Tech workstation L1-TEST5IN1"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+              "start_at": "2026-08-06T08:11:00Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "3c45ba5c-1cff-4a90-a194-e22f2d57b31d",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 120,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 4,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "25487d38-8031-4e45-bebc-47380025a4b6",
+                "resource_id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                "resource_type": "Equipment",
+                "source_id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-TEST5IN1",
+                "id": "2fb39acb-9460-425a-8aed-3ff13634c4d5",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-TEST5IN1",
+                "execution_status": "Available",
+                "id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-TEST5IN1",
+                  "ja": "Won Seal Tech equipment L1-TEST5IN1",
+                  "ko": "Won Seal Tech equipment L1-TEST5IN1",
+                  "vi": "Won Seal Tech equipment L1-TEST5IN1"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "3c45ba5c-1cff-4a90-a194-e22f2d57b31d",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "25487d38-8031-4e45-bebc-47380025a4b6",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "2fb39acb-9460-425a-8aed-3ff13634c4d5",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-TEST5IN1",
+                  "execution_status": "Available",
+                  "id": "10178c95-7a91-4719-b48e-5fba58a9191d",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-TEST5IN1",
+                    "ja": "Won Seal Tech equipment L1-TEST5IN1",
+                    "ko": "Won Seal Tech equipment L1-TEST5IN1",
+                    "vi": "Won Seal Tech equipment L1-TEST5IN1"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.221Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 12,
+              "freshness_token": "2:66ca675c-1744-47c6-b67e-e80963fa7336:10178c95-7a91-4719-b48e-5fba58a9191d:2026-08-06T08:11:00Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-TEST5IN1",
+                "cycle_time_sec": "120.000",
+                "efficiency_factor": "1.0000",
+                "id": "0b99df78-1ee5-4a40-a482-b9a6ff461e82",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 528,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-TEST5IN1",
+                "id": "66ca675c-1744-47c6-b67e-e80963fa7336",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-TEST5IN1",
+                  "ja": "Won Seal Tech workstation L1-TEST5IN1",
+                  "ko": "Won Seal Tech workstation L1-TEST5IN1",
+                  "vi": "Won Seal Tech workstation L1-TEST5IN1"
+                }
+              }
+            },
+            "sequence": 20,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "227b7014-820e-44c8-8cb3-d1b66a5cf255",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 80,
+                  "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                  "move_time_min": 1,
+                  "queue_time_min": 2,
+                  "run_duration_min": 2.6666666666666665,
+                  "setup_time_min": 5
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "855cd627-3bb8-4c7f-af27-36c18fb5eb54",
+                  "resource_id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                  "resource_type": "Equipment",
+                  "source_id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "WST-SEED-CAP-L1-AIRTEST",
+                  "id": "c9b87eff-c47e-4f00-89ca-faf177c496d1",
+                  "priority_no": 1,
+                  "specificity": "Equipment",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-AIRTEST",
+                  "execution_status": "Available",
+                  "id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-AIRTEST",
+                    "ja": "Won Seal Tech equipment L1-AIRTEST",
+                    "ko": "Won Seal Tech equipment L1-AIRTEST",
+                    "vi": "Won Seal Tech equipment L1-AIRTEST"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "227b7014-820e-44c8-8cb3-d1b66a5cf255",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "id": "855cd627-3bb8-4c7f-af27-36c18fb5eb54",
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "id": "c9b87eff-c47e-4f00-89ca-faf177c496d1",
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "WST-SEED-EQ-L1-AIRTEST",
+                    "execution_status": "Available",
+                    "id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                    "lifecycle_status": "Released",
+                    "name": {
+                      "en": "Won Seal Tech equipment L1-AIRTEST",
+                      "ja": "Won Seal Tech equipment L1-AIRTEST",
+                      "ko": "Won Seal Tech equipment L1-AIRTEST",
+                      "vi": "Won Seal Tech equipment L1-AIRTEST"
+                    }
+                  },
+                  "evaluated_at": "2026-08-06T15:56:36.250Z",
+                  "machine_unit": {
+                    "available": 1,
+                    "status": "Available",
+                    "total": 1
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 10.667,
+                "freshness_token": "2:859b3a12-4b5a-49a0-aaae-221df9b760ee:1c56e850-2252-46c5-8054-88ab7c4f65f0:2026-08-06T08:23:00Z",
+                "production_line": {
+                  "code": "WST-SEED-LINE-1",
+                  "id": "7d783856-e202-4688-9359-c7feaae8816b"
+                },
+                "production_standard": {
+                  "base_quantity": "1.000000",
+                  "code": "WST-SEED-STD-L1-AIRTEST",
+                  "cycle_time_sec": "80.000",
+                  "efficiency_factor": "1.0000",
+                  "id": "a2867272-040c-4985-bbc9-d86893b2cee3",
+                  "labor_count": 1,
+                  "level": "Equipment",
+                  "setup_time_min": "5.000"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 529.333,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "skill_requirements": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [],
+                "workstation": {
+                  "code": "WST-SEED-WS-L1-AIRTEST",
+                  "id": "859b3a12-4b5a-49a0-aaae-221df9b760ee",
+                  "name": {
+                    "en": "Won Seal Tech workstation L1-AIRTEST",
+                    "ja": "Won Seal Tech workstation L1-AIRTEST",
+                    "ko": "Won Seal Tech workstation L1-AIRTEST",
+                    "vi": "Won Seal Tech workstation L1-AIRTEST"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_id": "76b6a250-d062-4ca4-a8cb-21c618c9641c",
+            "production_line": {
+              "code": "WST-SEED-LINE-1",
+              "id": "7d783856-e202-4688-9359-c7feaae8816b"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "227b7014-820e-44c8-8cb3-d1b66a5cf255",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 80,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 2.6666666666666665,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "855cd627-3bb8-4c7f-af27-36c18fb5eb54",
+                "resource_id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                "resource_type": "Equipment",
+                "source_id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-AIRTEST",
+                "id": "c9b87eff-c47e-4f00-89ca-faf177c496d1",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-AIRTEST",
+                "execution_status": "Available",
+                "id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-AIRTEST",
+                  "ja": "Won Seal Tech equipment L1-AIRTEST",
+                  "ko": "Won Seal Tech equipment L1-AIRTEST",
+                  "vi": "Won Seal Tech equipment L1-AIRTEST"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "227b7014-820e-44c8-8cb3-d1b66a5cf255",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "855cd627-3bb8-4c7f-af27-36c18fb5eb54",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "c9b87eff-c47e-4f00-89ca-faf177c496d1",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-AIRTEST",
+                  "execution_status": "Available",
+                  "id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-AIRTEST",
+                    "ja": "Won Seal Tech equipment L1-AIRTEST",
+                    "ko": "Won Seal Tech equipment L1-AIRTEST",
+                    "vi": "Won Seal Tech equipment L1-AIRTEST"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.250Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 10.667,
+              "freshness_token": "2:859b3a12-4b5a-49a0-aaae-221df9b760ee:1c56e850-2252-46c5-8054-88ab7c4f65f0:2026-08-06T08:23:00Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-AIRTEST",
+                "cycle_time_sec": "80.000",
+                "efficiency_factor": "1.0000",
+                "id": "a2867272-040c-4985-bbc9-d86893b2cee3",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 529.333,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-AIRTEST",
+                "id": "859b3a12-4b5a-49a0-aaae-221df9b760ee",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-AIRTEST",
+                  "ja": "Won Seal Tech workstation L1-AIRTEST",
+                  "ko": "Won Seal Tech workstation L1-AIRTEST",
+                  "vi": "Won Seal Tech workstation L1-AIRTEST"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+              "start_at": "2026-08-06T08:23:00Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "227b7014-820e-44c8-8cb3-d1b66a5cf255",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 80,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 2.6666666666666665,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "855cd627-3bb8-4c7f-af27-36c18fb5eb54",
+                "resource_id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                "resource_type": "Equipment",
+                "source_id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-AIRTEST",
+                "id": "c9b87eff-c47e-4f00-89ca-faf177c496d1",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-AIRTEST",
+                "execution_status": "Available",
+                "id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-AIRTEST",
+                  "ja": "Won Seal Tech equipment L1-AIRTEST",
+                  "ko": "Won Seal Tech equipment L1-AIRTEST",
+                  "vi": "Won Seal Tech equipment L1-AIRTEST"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "227b7014-820e-44c8-8cb3-d1b66a5cf255",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "855cd627-3bb8-4c7f-af27-36c18fb5eb54",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "c9b87eff-c47e-4f00-89ca-faf177c496d1",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-AIRTEST",
+                  "execution_status": "Available",
+                  "id": "1c56e850-2252-46c5-8054-88ab7c4f65f0",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-AIRTEST",
+                    "ja": "Won Seal Tech equipment L1-AIRTEST",
+                    "ko": "Won Seal Tech equipment L1-AIRTEST",
+                    "vi": "Won Seal Tech equipment L1-AIRTEST"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.250Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 10.667,
+              "freshness_token": "2:859b3a12-4b5a-49a0-aaae-221df9b760ee:1c56e850-2252-46c5-8054-88ab7c4f65f0:2026-08-06T08:23:00Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-AIRTEST",
+                "cycle_time_sec": "80.000",
+                "efficiency_factor": "1.0000",
+                "id": "a2867272-040c-4985-bbc9-d86893b2cee3",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 529.333,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-AIRTEST",
+                "id": "859b3a12-4b5a-49a0-aaae-221df9b760ee",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-AIRTEST",
+                  "ja": "Won Seal Tech workstation L1-AIRTEST",
+                  "ko": "Won Seal Tech workstation L1-AIRTEST",
+                  "vi": "Won Seal Tech workstation L1-AIRTEST"
+                }
+              }
+            },
+            "sequence": 30,
+            "warnings": []
+          },
+          {
+            "alternatives": [
+              {
+                "assignment": {
+                  "id": "5d1fe643-0abf-455f-a2cd-344855465a23",
+                  "role": "Primary"
+                },
+                "blocking_errors": [],
+                "calculation": {
+                  "adjusted_cycle_time_sec": 60,
+                  "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                  "move_time_min": 1,
+                  "queue_time_min": 2,
+                  "run_duration_min": 2,
+                  "setup_time_min": 5
+                },
+                "calendar": {
+                  "availability_status": "Available",
+                  "available_minutes": 540,
+                  "capacity_factor": "1.0000",
+                  "id": "8616f364-fcf9-4b73-8478-26417d04f344",
+                  "resource_id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                  "resource_type": "Equipment",
+                  "source_id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                  "source_type": "Equipment"
+                },
+                "capability": {
+                  "code": "WST-SEED-CAP-L1-PACKING",
+                  "id": "1e0f13ac-5ff4-4d41-90b0-57ca4ff3da0f",
+                  "priority_no": 1,
+                  "specificity": "Equipment",
+                  "speed_factor": "1.0000"
+                },
+                "capacity_conflicts": [],
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-PACKING",
+                  "execution_status": "Available",
+                  "id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-PACKING",
+                    "ja": "Won Seal Tech equipment L1-PACKING",
+                    "ko": "Won Seal Tech equipment L1-PACKING",
+                    "vi": "Won Seal Tech equipment L1-PACKING"
+                  }
+                },
+                "equipment_readiness": {
+                  "assignment": {
+                    "id": "5d1fe643-0abf-455f-a2cd-344855465a23",
+                    "role": "Primary",
+                    "status": "Valid"
+                  },
+                  "blocking_errors": [],
+                  "calendar": {
+                    "id": "8616f364-fcf9-4b73-8478-26417d04f344",
+                    "status": "Available"
+                  },
+                  "calibration": {
+                    "status": "Unknown"
+                  },
+                  "capability": {
+                    "id": "1e0f13ac-5ff4-4d41-90b0-57ca4ff3da0f",
+                    "status": "Matched"
+                  },
+                  "capacity": {
+                    "status": "Available"
+                  },
+                  "equipment": {
+                    "code": "WST-SEED-EQ-L1-PACKING",
+                    "execution_status": "Available",
+                    "id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                    "lifecycle_status": "Released",
+                    "name": {
+                      "en": "Won Seal Tech equipment L1-PACKING",
+                      "ja": "Won Seal Tech equipment L1-PACKING",
+                      "ko": "Won Seal Tech equipment L1-PACKING",
+                      "vi": "Won Seal Tech equipment L1-PACKING"
+                    }
+                  },
+                  "evaluated_at": "2026-08-06T15:56:36.278Z",
+                  "machine_unit": {
+                    "available": 1,
+                    "status": "Available",
+                    "total": 1
+                  },
+                  "maintenance": {
+                    "status": "Unknown"
+                  },
+                  "operational_state": {
+                    "freshness": "Unknown",
+                    "state_source": "md_equipment",
+                    "status": "Available"
+                  },
+                  "status": "ReadyWithWarnings",
+                  "warnings": [
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    },
+                    {
+                      "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                    },
+                    {
+                      "code": "EQUIPMENT_STATE_STALE"
+                    }
+                  ]
+                },
+                "estimated_duration_min": 10,
+                "freshness_token": "2:de83e0ef-e92b-4ea0-8096-f5f044033dbe:17601914-4e4c-43b3-a62f-ef8f8c02289b:2026-08-06T08:33:40Z",
+                "production_line": {
+                  "code": "WST-SEED-LINE-1",
+                  "id": "7d783856-e202-4688-9359-c7feaae8816b"
+                },
+                "production_standard": {
+                  "base_quantity": "1.000000",
+                  "code": "WST-SEED-STD-L1-PACKING",
+                  "cycle_time_sec": "60.000",
+                  "efficiency_factor": "1.0000",
+                  "id": "db9b689a-574e-4260-b86f-d6d6b21d465d",
+                  "labor_count": 1,
+                  "level": "Equipment",
+                  "setup_time_min": "5.000"
+                },
+                "readiness": "ReadyWithWarnings",
+                "remaining_minutes_after_allocation": 530,
+                "selection_reasons": [
+                  "AUTHORITATIVE_CANDIDATE_ORDER",
+                  "READY",
+                  "SELECTED_LINE_ONLY",
+                  "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+                ],
+                "skill_requirements": [],
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ],
+                "worker_readiness": [],
+                "workstation": {
+                  "code": "WST-SEED-WS-L1-PACKING",
+                  "id": "de83e0ef-e92b-4ea0-8096-f5f044033dbe",
+                  "name": {
+                    "en": "Won Seal Tech workstation L1-PACKING",
+                    "ja": "Won Seal Tech workstation L1-PACKING",
+                    "ko": "Won Seal Tech workstation L1-PACKING",
+                    "vi": "Won Seal Tech workstation L1-PACKING"
+                  }
+                }
+              }
+            ],
+            "blocking_errors": [],
+            "current_allocation": null,
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_id": "1e2b59a4-4870-4b17-aff9-58c85f1e3b53",
+            "production_line": {
+              "code": "WST-SEED-LINE-1",
+              "id": "7d783856-e202-4688-9359-c7feaae8816b"
+            },
+            "recommended_candidate": {
+              "assignment": {
+                "id": "5d1fe643-0abf-455f-a2cd-344855465a23",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 60,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 2,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "8616f364-fcf9-4b73-8478-26417d04f344",
+                "resource_id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                "resource_type": "Equipment",
+                "source_id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-PACKING",
+                "id": "1e0f13ac-5ff4-4d41-90b0-57ca4ff3da0f",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-PACKING",
+                "execution_status": "Available",
+                "id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-PACKING",
+                  "ja": "Won Seal Tech equipment L1-PACKING",
+                  "ko": "Won Seal Tech equipment L1-PACKING",
+                  "vi": "Won Seal Tech equipment L1-PACKING"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "5d1fe643-0abf-455f-a2cd-344855465a23",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "8616f364-fcf9-4b73-8478-26417d04f344",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "1e0f13ac-5ff4-4d41-90b0-57ca4ff3da0f",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-PACKING",
+                  "execution_status": "Available",
+                  "id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-PACKING",
+                    "ja": "Won Seal Tech equipment L1-PACKING",
+                    "ko": "Won Seal Tech equipment L1-PACKING",
+                    "vi": "Won Seal Tech equipment L1-PACKING"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.278Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 10,
+              "freshness_token": "2:de83e0ef-e92b-4ea0-8096-f5f044033dbe:17601914-4e4c-43b3-a62f-ef8f8c02289b:2026-08-06T08:33:40Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-PACKING",
+                "cycle_time_sec": "60.000",
+                "efficiency_factor": "1.0000",
+                "id": "db9b689a-574e-4260-b86f-d6d6b21d465d",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 530,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-PACKING",
+                "id": "de83e0ef-e92b-4ea0-8096-f5f044033dbe",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-PACKING",
+                  "ja": "Won Seal Tech workstation L1-PACKING",
+                  "ko": "Won Seal Tech workstation L1-PACKING",
+                  "vi": "Won Seal Tech workstation L1-PACKING"
+                }
+              }
+            },
+            "requested_window": {
+              "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+              "start_at": "2026-08-06T08:33:40Z"
+            },
+            "selected_candidate": {
+              "assignment": {
+                "id": "5d1fe643-0abf-455f-a2cd-344855465a23",
+                "role": "Primary"
+              },
+              "blocking_errors": [],
+              "calculation": {
+                "adjusted_cycle_time_sec": 60,
+                "formula": "setup + ((quantity / baseQuantity) * cycleSec / capabilitySpeed / standardEfficiency / equipmentEfficiency / calendarCapacityFactor) / 60 + queue + move",
+                "move_time_min": 1,
+                "queue_time_min": 2,
+                "run_duration_min": 2,
+                "setup_time_min": 5
+              },
+              "calendar": {
+                "availability_status": "Available",
+                "available_minutes": 540,
+                "capacity_factor": "1.0000",
+                "id": "8616f364-fcf9-4b73-8478-26417d04f344",
+                "resource_id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                "resource_type": "Equipment",
+                "source_id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                "source_type": "Equipment"
+              },
+              "capability": {
+                "code": "WST-SEED-CAP-L1-PACKING",
+                "id": "1e0f13ac-5ff4-4d41-90b0-57ca4ff3da0f",
+                "priority_no": 1,
+                "specificity": "Equipment",
+                "speed_factor": "1.0000"
+              },
+              "capacity_conflicts": [],
+              "equipment": {
+                "code": "WST-SEED-EQ-L1-PACKING",
+                "execution_status": "Available",
+                "id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                "name": {
+                  "en": "Won Seal Tech equipment L1-PACKING",
+                  "ja": "Won Seal Tech equipment L1-PACKING",
+                  "ko": "Won Seal Tech equipment L1-PACKING",
+                  "vi": "Won Seal Tech equipment L1-PACKING"
+                }
+              },
+              "equipment_readiness": {
+                "assignment": {
+                  "id": "5d1fe643-0abf-455f-a2cd-344855465a23",
+                  "role": "Primary",
+                  "status": "Valid"
+                },
+                "blocking_errors": [],
+                "calendar": {
+                  "id": "8616f364-fcf9-4b73-8478-26417d04f344",
+                  "status": "Available"
+                },
+                "calibration": {
+                  "status": "Unknown"
+                },
+                "capability": {
+                  "id": "1e0f13ac-5ff4-4d41-90b0-57ca4ff3da0f",
+                  "status": "Matched"
+                },
+                "capacity": {
+                  "status": "Available"
+                },
+                "equipment": {
+                  "code": "WST-SEED-EQ-L1-PACKING",
+                  "execution_status": "Available",
+                  "id": "17601914-4e4c-43b3-a62f-ef8f8c02289b",
+                  "lifecycle_status": "Released",
+                  "name": {
+                    "en": "Won Seal Tech equipment L1-PACKING",
+                    "ja": "Won Seal Tech equipment L1-PACKING",
+                    "ko": "Won Seal Tech equipment L1-PACKING",
+                    "vi": "Won Seal Tech equipment L1-PACKING"
+                  }
+                },
+                "evaluated_at": "2026-08-06T15:56:36.278Z",
+                "machine_unit": {
+                  "available": 1,
+                  "status": "Available",
+                  "total": 1
+                },
+                "maintenance": {
+                  "status": "Unknown"
+                },
+                "operational_state": {
+                  "freshness": "Unknown",
+                  "state_source": "md_equipment",
+                  "status": "Available"
+                },
+                "status": "ReadyWithWarnings",
+                "warnings": [
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  },
+                  {
+                    "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                  },
+                  {
+                    "code": "EQUIPMENT_STATE_STALE"
+                  }
+                ]
+              },
+              "estimated_duration_min": 10,
+              "freshness_token": "2:de83e0ef-e92b-4ea0-8096-f5f044033dbe:17601914-4e4c-43b3-a62f-ef8f8c02289b:2026-08-06T08:33:40Z",
+              "production_line": {
+                "code": "WST-SEED-LINE-1",
+                "id": "7d783856-e202-4688-9359-c7feaae8816b"
+              },
+              "production_standard": {
+                "base_quantity": "1.000000",
+                "code": "WST-SEED-STD-L1-PACKING",
+                "cycle_time_sec": "60.000",
+                "efficiency_factor": "1.0000",
+                "id": "db9b689a-574e-4260-b86f-d6d6b21d465d",
+                "labor_count": 1,
+                "level": "Equipment",
+                "setup_time_min": "5.000"
+              },
+              "readiness": "ReadyWithWarnings",
+              "remaining_minutes_after_allocation": 530,
+              "selection_reasons": [
+                "AUTHORITATIVE_CANDIDATE_ORDER",
+                "READY",
+                "SELECTED_LINE_ONLY",
+                "NO_CAPACITY_OR_RESERVATION_CONFLICT"
+              ],
+              "skill_requirements": [],
+              "warnings": [
+                {
+                  "code": "EQUIPMENT_MAINTENANCE_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_CALIBRATION_STATE_UNKNOWN"
+                },
+                {
+                  "code": "EQUIPMENT_STATE_STALE"
+                }
+              ],
+              "worker_readiness": [],
+              "workstation": {
+                "code": "WST-SEED-WS-L1-PACKING",
+                "id": "de83e0ef-e92b-4ea0-8096-f5f044033dbe",
+                "name": {
+                  "en": "Won Seal Tech workstation L1-PACKING",
+                  "ja": "Won Seal Tech workstation L1-PACKING",
+                  "ko": "Won Seal Tech workstation L1-PACKING",
+                  "vi": "Won Seal Tech workstation L1-PACKING"
+                }
+              }
+            },
+            "sequence": 40,
+            "warnings": []
+          }
+        ],
+        "proposal_version": "ccb152c20d0e6080fc5c6170a69155375fda2067a4e07bb61cf8278850a2c0e7",
+        "selected_production_line": {
+          "code": "WST-SEED-LINE-1",
+          "id": "7d783856-e202-4688-9359-c7feaae8816b",
+          "name_i18n": {
+            "en": "Won Seal Tech Line 1",
+            "ja": "Won Seal Tech Line 1",
+            "ko": "Won Seal Tech Line 1",
+            "vi": "Won Seal Tech Line 1"
+          }
+        },
+        "work_order_id": "25424c21-b6c7-4dcf-ab9f-bfb9ac71c399",
+        "work_order_row_version": 2,
+        "side_effect_counts_before": {
+          "allocations": 0,
+          "reservations": 0
+        },
+        "side_effect_counts_after": {
+          "allocations": 0,
+          "reservations": 0
+        }
+      }
+    },
+    {
+      "name": "retrieve candidates and commit one Ready candidate for every operation",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:36.295Z",
+      "finished_at": "2026-08-06T15:56:36.481Z",
+      "data": [
+        {
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_id": "aaae4da9-e2a0-4528-a481-f250a4b6ed75",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "39f98c8a-e554-4062-9b2d-2f3b2f55426c",
+          "allocation_id": "a2cd07cc-b814-4fe7-b56c-d5ded3484446"
+        },
+        {
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_id": "c82fb7f3-7068-4239-96e9-5bb7e32cde53",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "66ca675c-1744-47c6-b67e-e80963fa7336",
+          "allocation_id": "55d4b133-8433-42d6-992f-065d8da6091b"
+        },
+        {
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_id": "76b6a250-d062-4ca4-a8cb-21c618c9641c",
+          "execution_target_type": "KIOSK_DEMO",
+          "workstation_id": "859b3a12-4b5a-49a0-aaae-221df9b760ee",
+          "allocation_id": "3153576a-1b1c-4d6a-8470-3fd6302e2fe3"
+        },
+        {
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_id": "1e2b59a4-4870-4b17-aff9-58c85f1e3b53",
+          "execution_target_type": "PRINT_STATION",
+          "workstation_id": "de83e0ef-e92b-4ea0-8096-f5f044033dbe",
+          "allocation_id": "afd3ffcc-7f0d-49e5-965d-328bb967aa8e"
+        }
+      ]
+    },
+    {
+      "name": "verify canonical print-station readiness for exact allocated print workstations",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:36.482Z",
+      "finished_at": "2026-08-06T15:56:36.482Z",
+      "data": {
+        "skipped": true,
+        "reason": "Print-station/third-party integration checks are skipped by request.",
+        "print_operations": 1
+      }
+    },
+    {
+      "name": "refresh committed snapshots and revalidate allocations",
+      "status": "skipped",
+      "started_at": "2026-08-06T15:56:36.482Z",
+      "finished_at": "2026-08-06T15:56:36.482Z",
+      "reason": "Skipped because committed flow includes print-station operations."
+    },
+    {
+      "name": "approve Work Order with strict resource-allocation policy",
+      "status": "skipped",
+      "started_at": "2026-08-06T15:56:36.482Z",
+      "finished_at": "2026-08-06T15:56:36.482Z",
+      "reason": "Skipped because strict approval revalidates print-station allocations."
+    },
+    {
+      "name": "start execution",
+      "status": "skipped",
+      "started_at": "2026-08-06T15:56:36.483Z",
+      "finished_at": "2026-08-06T15:56:36.483Z",
+      "reason": "Skipped because execution start depends on print-station dispatch readiness."
+    },
+    {
+      "name": "verify allocation reservation audit and outbox persistence",
+      "status": "skipped",
+      "started_at": "2026-08-06T15:56:36.483Z",
+      "finished_at": "2026-08-06T15:56:36.483Z",
+      "reason": "Skipped because print dispatch/outbox persistence is third-party dependent."
+    },
+    {
+      "name": "clean up exact generated Work Order IDs and disposable fixtures",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:36.483Z",
+      "finished_at": "2026-08-06T15:56:37.512Z",
+      "data": {
+        "deleted_work_orders": 1,
+        "remaining_target_rows": 0
+      }
+    },
+    {
+      "name": "run required negative scenario matrix",
+      "status": "passed",
+      "started_at": "2026-08-06T15:56:37.512Z",
+      "finished_at": "2026-08-06T15:56:47.176Z",
+      "data": {
+        "success": true,
+        "run_id": "PHASE1-RP-1786031797595-G3N20",
+        "declared": 20,
+        "executed": 20,
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0,
+        "scenarios": [
+          {
+            "name": "missing Primary Machine Requirement blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "insufficient physical Machine Units blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "expired Resource Assignment blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Workstation in another Work Center is not a candidate",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit in another Site blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit under maintenance blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit out of service blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "Machine Unit not planning eligible blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "unavailable Resource Calendar blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "invalid Shift blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "missing Production Standard blocks readiness",
+            "status": "passed"
+          },
+          {
+            "name": "stale candidate is rejected at commit",
+            "status": "passed"
+          },
+          {
+            "name": "simultaneous allocation conflict rejects second commit",
+            "status": "passed"
+          },
+          {
+            "name": "idempotent replay returns the same allocation response",
+            "status": "passed"
+          },
+          {
+            "name": "reused idempotency key with different request fails",
+            "status": "passed"
+          },
+          {
+            "name": "reallocation supersedes history and cancels old reservations",
+            "status": "passed"
+          },
+          {
+            "name": "allocation cancellation removes active reservations without deleting audit history",
+            "status": "passed"
+          },
+          {
+            "name": "approval after resource state changed fails revalidation",
+            "status": "passed"
+          },
+          {
+            "name": "execution start without valid allocation is rejected",
+            "status": "passed"
+          },
+          {
+            "name": "unauthorized role cannot commit allocation",
+            "status": "passed"
+          }
+        ]
+      }
+    }
+  ],
+  "artifacts": {
+    "json": "/home/neurosus/recoh-system/mes-system/artifacts/mes-resource-planning-full-flow/PHASE2-RP-1786031795378-X7D8B/phase2-full-flow.json",
+    "markdown": "/home/neurosus/recoh-system/mes-system/artifacts/mes-resource-planning-full-flow/PHASE2-RP-1786031795378-X7D8B/phase2-full-flow.md",
+    "phase1_json": "/home/neurosus/recoh-system/mes-system/artifacts/mes-resource-planning-full-flow/PHASE2-RP-1786031795378-X7D8B/phase1-negative-matrix.json"
+  }
+}

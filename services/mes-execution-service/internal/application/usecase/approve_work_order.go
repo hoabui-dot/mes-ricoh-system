@@ -172,16 +172,13 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	}
 	approvalMode, allocationBypassed, approvalPolicy, warnings, bypassReason := "STANDARD", false, "Strict", "[]", ""
 	if input.DemoPrintOnApproval {
-		approvalMode, allocationBypassed, approvalPolicy, warnings = "DEMO_PRINT_ON_APPROVAL", true, "Demo", `["DEMO_RESOURCE_ALLOCATION_BYPASSED","DEMO_MATERIAL_STAGING_BYPASSED"]`
-		bypassReason = "Demo approval bypasses strict resource validation and material staging; print is triggered on approval."
+		approvalMode, approvalPolicy, warnings = "DEMO_PRINT_ON_APPROVAL", "StrictResources", `["DEMO_MATERIAL_STAGING_BYPASSED"]`
+		bypassReason = "Demo approval preserves strict resource validation; only material staging is bypassed before the print trigger."
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO wo_approval_log (wo_id, action, actor_user_id, actor_role_code, comment, approval_mode, resource_allocation_bypassed, bypass_reason, resource_allocation_status, approval_policy, resource_allocation_warning_codes) VALUES ($1, 'Approved', $2, $3, $4, $5, $6, $7, 'Valid', $8, $9::jsonb)`, input.WOID, input.UserID, input.RoleCode, comment, approvalMode, allocationBypassed, bypassReason, approvalPolicy, warnings); err != nil {
 		return nil, fmt.Errorf("failed to write approval audit: %w", err)
 	}
 	if input.DemoPrintOnApproval {
-		if err := ensureDemoResourceAllocations(ctx, tx, input.WOID, input.UserID); err != nil {
-			return nil, err
-		}
 		if _, err := QueueDemoPrintOperationsTx(ctx, tx, input.WOID, input.UserID, input.TraceID); err != nil {
 			return nil, err
 		}
@@ -232,8 +229,8 @@ func ApproveWorkOrder(ctx context.Context, pool *pgxpool.Pool, input ApproveWOIn
 	}
 	type materialRequirement struct {
 		ID, ComponentRevisionID, ComponentCode, UOM, IssueOperationID string
-		RequiredQty float64
-		DemandVersion int
+		RequiredQty                                                   float64
+		DemandVersion                                                 int
 	}
 	requirements := make([]materialRequirement, 0)
 	for requirementRows.Next() {

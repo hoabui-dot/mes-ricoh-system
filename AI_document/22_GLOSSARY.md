@@ -40,7 +40,7 @@ Batch: production quantity processed as a group.
 
 CAPA: corrective and preventive action.
 
-EBOM: engineering bill of material; engineering structure baseline.
+EBOM: engineering bill of material owned by SAP; it is not currently stored or managed by MES.
 
 Equipment: machine definition aggregate in MES master data.
 
@@ -68,7 +68,7 @@ Phantom: MBOM component exploded into children without independent stocked outpu
 
 Production Standard: timing/capacity/labor standard for planning.
 
-Production Version: released configuration linking Item Revision, MBOM, Routing, and optional EBOM.
+Production Version: released MES configuration combining MBOM and an independent Routing. Its output Item Revision is derived from MBOM, and Site is derived from Routing Work Centers.
 
 Reservation: committed inventory or capacity.
 

@@ -53,6 +53,7 @@ func ListKioskWorkOrders(ctx context.Context, pool *pgxpool.Pool, terminalRef st
 	if err := validateDemoTerminal(terminalRef); err != nil {
 		return nil, err
 	}
+	receiveAllWorkstations := demoReceivesAllWorkstations()
 	page, pageSize = normalizePagination(page, pageSize)
 	tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
@@ -63,9 +64,9 @@ func ListKioskWorkOrders(ctx context.Context, pool *pgxpool.Pool, terminalRef st
 	var total int
 	if err := tx.QueryRow(ctx, `
 		SELECT COUNT(*)::int FROM wo_header h
-		WHERE h.dispatch_mode='DEMO_SHARED_KIOSK'
+		WHERE ($1 OR h.dispatch_mode='DEMO_SHARED_KIOSK')
 		  AND EXISTS (SELECT 1 FROM wo_operation o WHERE o.wo_id=h.wo_id AND o.execution_target_type <> 'PRINT_STATION')
-	`).Scan(&total); err != nil {
+	`, receiveAllWorkstations).Scan(&total); err != nil {
 		return nil, err
 	}
 	rows, err := tx.Query(ctx, `
@@ -80,11 +81,11 @@ func ListKioskWorkOrders(ctx context.Context, pool *pgxpool.Pool, terminalRef st
 		         COALESCE((SELECT MAX(COALESCE(p.completed_at,p.failed_at,p.dispatched_at,p.created_at)) FROM wo_print_job p WHERE p.wo_id=h.wo_id),h.updated_at))
 		FROM wo_header h
 		LEFT JOIN rm_item_revision r ON r.master_id=h.item_revision_id
-		WHERE h.dispatch_mode='DEMO_SHARED_KIOSK'
+		WHERE ($3 OR h.dispatch_mode='DEMO_SHARED_KIOSK')
 		  AND EXISTS (SELECT 1 FROM wo_operation o WHERE o.wo_id=h.wo_id AND o.execution_target_type <> 'PRINT_STATION')
 		ORDER BY h.updated_at DESC,h.wo_code
 		LIMIT $1 OFFSET $2
-	`, pageSize, (page-1)*pageSize)
+	`, pageSize, (page-1)*pageSize, receiveAllWorkstations)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func GetKioskWorkOrderDetail(ctx context.Context, pool *pgxpool.Pool, terminalRe
 	if err != nil {
 		return nil, err
 	}
-	if header.DispatchMode != "DEMO_SHARED_KIOSK" {
+	if header.DispatchMode != "DEMO_SHARED_KIOSK" && !demoReceivesAllWorkstations() {
 		return nil, fmt.Errorf("KIOSK_WORK_ORDER_NOT_FOUND")
 	}
 	states, err := loadKioskOperationStates(ctx, tx, woID)
@@ -206,6 +207,11 @@ func validateDemoTerminal(terminalRef string) error {
 		return fmt.Errorf("KIOSK_TERMINAL_SCOPE_FORBIDDEN")
 	}
 	return nil
+}
+
+func demoReceivesAllWorkstations() bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv("DEMO_KIOSK_RECEIVE_ALL_WORKSTATIONS")))
+	return value == "1" || value == "true" || value == "yes"
 }
 
 func normalizePagination(page, pageSize int) (int, int) {

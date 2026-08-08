@@ -217,6 +217,7 @@ export const RoutingOperationsScreen: React.FC = () => {
         headers: { ...authHeaders(user), "Content-Type": "application/json" },
         body: JSON.stringify({
           operations: desiredRows.map((row) => ({
+            master_id: row.master_id || undefined,
             operation_id: row.operation_id,
             work_center_id: row.work_center_id,
             seq: Number(row.seq),

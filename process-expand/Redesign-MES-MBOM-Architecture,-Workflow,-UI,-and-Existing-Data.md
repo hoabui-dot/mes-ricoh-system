@@ -1,5 +1,7 @@
 # Redesign MES MBOM Architecture, Workflow, UI, and Existing Data
 
+> Architecture correction, 2026-08-06: MBOM no longer owns or stores Site. Production Version stores the execution Site derived from the Routing's single Work Center Site. Any Site-on-MBOM requirement below is retained only as historical context and is superseded.
+
 ## Objective
 
 Audit the current MES MBOM implementation and refactor it into a complete manufacturing BOM model that accurately represents how finished goods and semi-finished goods are produced.

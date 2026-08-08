@@ -13,7 +13,7 @@ import { BaseDataTable, type BaseDataTableColumn } from '../../components/base';
 const EMPLOYEE_STATUSES = ['Active', 'Inactive', 'OnLeave'] as const;
 const SKILL_LEVELS = ['L1', 'L2', 'L3'] as const;
 const QUALIFICATION_STATUSES = ['Active', 'Suspended', 'Expired'] as const;
-const blank = { code: '', name: '', site_id: '', default_work_center_id: '', employee_status: 'Active', hired_date: '' };
+const blank = { code: '', name: '', default_work_center_id: '', employee_status: 'Active', hired_date: '' };
 
 type EmployeeSkillAssignment = {
   skill_id: string;
@@ -39,7 +39,6 @@ export const EmployeesScreen: React.FC = () => {
   const { t, locale } = useI18n();
   const location = useLocation();
   const [employees, setEmployees] = useState<any[]>([]);
-  const [sites, setSites] = useState<any[]>([]);
   const [workCenters, setWorkCenters] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
   const [filters, setFilters] = useState({ work_center_id: '', status: '' });
@@ -53,14 +52,12 @@ export const EmployeesScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [emp, siteRows, wcRows, skillRows] = await Promise.all([
+      const [emp, wcRows, skillRows] = await Promise.all([
         fetchResource('employees', user, filters.work_center_id ? `?work_center_id=${filters.work_center_id}` : ''),
-        fetchResource('sites', user),
         fetchResource('work-centers', user),
         fetchResource('skills', user, '?scope=Employee'),
       ]);
       setEmployees(emp);
-      setSites(siteRows);
       setWorkCenters(wcRows);
       setSkills(skillRows);
     } catch (err) {
@@ -112,7 +109,7 @@ export const EmployeesScreen: React.FC = () => {
 
   const openModal = (row?: any) => {
     setModal(row || {});
-    setForm(row ? { ...row, hired_date: row.hired_date || '' } : { ...blank, site_id: sites[0]?.master_id || '', default_work_center_id: workCenters[0]?.master_id || '' });
+    setForm(row ? { ...row, hired_date: row.hired_date || '' } : { ...blank, default_work_center_id: '' });
     setSkillAssignments([]);
     if (row?.master_id) {
       fetch(`${masterDataBaseUrl()}/employees/${row.master_id}/skills`, { headers: authHeaders(user) })
@@ -152,8 +149,7 @@ export const EmployeesScreen: React.FC = () => {
       const payload = {
         code: form.code,
         name: form.name,
-        site_id: form.site_id,
-        default_work_center_id: form.default_work_center_id || null,
+        default_work_center_id: form.default_work_center_id,
         employee_status: form.employee_status,
         hired_date: form.hired_date || null,
       };
@@ -225,8 +221,7 @@ export const EmployeesScreen: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <label className="space-y-1"><span className="block text-sm font-medium text-slate-200">{t('employees.code')} *</span><input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder={t('employees.code')} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
               <label className="space-y-1"><span className="block text-sm font-medium text-slate-200">{t('employees.fullName')} *</span><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('employees.fullName')} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
-              <SelectBase label={`${t('common.site')} *`} required value={form.site_id} onValueChange={(value) => setForm({ ...form, site_id: value })} options={sites.map((site) => ({ value: site.master_id, label: localizedText(site.name, locale), secondaryLabel: site.code }))} aria-label={t('common.site')} />
-              <SelectBase label={t('nav.workCenters')} value={form.default_work_center_id || ''} onValueChange={(value) => setForm({ ...form, default_work_center_id: value })} options={[{ value: '', label: t('employees.noDefault') }, ...workCenters.map((wc) => ({ value: wc.master_id, label: localizedText(wc.name, locale), secondaryLabel: wc.code }))]} aria-label={t('nav.workCenters')} />
+              <SelectBase label={`${t('nav.workCenters')} *`} required value={form.default_work_center_id || ''} onValueChange={(value) => setForm({ ...form, default_work_center_id: value })} options={[{ value: '', label: t('employees.selectWorkCenter') }, ...workCenters.map((wc) => ({ value: wc.master_id, label: localizedText(wc.name, locale), secondaryLabel: wc.code }))]} aria-label={t('nav.workCenters')} />
               <SelectBase label={t('common.status')} value={form.employee_status} onValueChange={(value) => setForm({ ...form, employee_status: value })} options={EMPLOYEE_STATUSES.map((status) => ({ value: status, label: translatedEnum(t, 'status.employee', status) }))} aria-label={t('common.status')} />
               <label className="space-y-1"><span className="block text-sm font-medium text-slate-200">{t('employees.hired')}</span><input type="date" value={form.hired_date || ''} onChange={(e) => setForm({ ...form, hired_date: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
             </div>

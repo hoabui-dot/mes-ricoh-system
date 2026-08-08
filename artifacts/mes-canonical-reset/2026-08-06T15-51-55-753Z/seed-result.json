@@ -1,0 +1,52 @@
+{
+  "success": false,
+  "generated_at": "2026-08-06T15:51:55.754Z",
+  "target_date": "2026-08-06",
+  "safety": {
+    "passed": true,
+    "reasons": [],
+    "environment": "development"
+  },
+  "command_results": [
+    {
+      "label": "Build MES Master Data service before importing seed",
+      "command": "npm --prefix services/mes-master-data-service run build",
+      "exit_code": 0,
+      "started_at": "2026-08-06T15:51:55.756Z",
+      "ended_at": "2026-08-06T15:52:02.331Z",
+      "stdout": "\n> mes-master-data-service@1.0.0 build\n> tsc\n\n",
+      "stderr": ""
+    },
+    {
+      "label": "Apply canonical two-line MES dataset",
+      "command": "/usr/bin/node scripts/mes-phase10-reset-seed-verify.mjs --seed",
+      "exit_code": 1,
+      "started_at": "2026-08-06T15:52:02.929Z",
+      "ended_at": "2026-08-06T15:52:03.147Z",
+      "stdout": "",
+      "stderr": "update or delete on table \"md_workstation\" violates foreign key constraint \"md_routing_operation_workstation_id_fkey\" on table \"md_routing_operation\"\n"
+    }
+  ],
+  "base_seed": {
+    "status": "applied",
+    "source": "services/mes-master-data-service/src/infrastructure/db/seed.ts"
+  },
+  "base_execution_projection": {
+    "status": "rebuilt",
+    "production_version_code": "PV-FG-WS-CM01-R1",
+    "routing_operations": 6,
+    "mbom_lines": 5,
+    "work_centers": 4,
+    "production_lines": 1,
+    "line_work_centers": 4,
+    "capabilities": 6,
+    "calendars": 18,
+    "skills": 3,
+    "employees": 12,
+    "employee_skills": 12,
+    "employee_schedules": 12,
+    "operation_skill_requirements": 3
+  },
+  "error": "Apply canonical two-line MES dataset failed with exit 1",
+  "completed_at": "2026-08-06T15:52:03.147Z"
+}

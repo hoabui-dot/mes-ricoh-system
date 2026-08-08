@@ -1,5 +1,7 @@
 # Complete the MES MBOM Architecture and End-to-End Workflow
 
+> Architecture correction, 2026-08-06: MBOM no longer owns or stores Site. Production Version stores the execution Site derived from the Routing's single Work Center Site. Any later requirement in this historical task that displays, validates, or persists Site on MBOM is superseded by this correction.
+
 ## Objective
 
 Continue from the existing MBOM redesign and complete all remaining backend, MES Console, migration, substitute-policy, Production Version, Work Order, WMS, documentation, and runtime-verification gaps.

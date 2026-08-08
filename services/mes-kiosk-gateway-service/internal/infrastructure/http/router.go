@@ -44,12 +44,36 @@ func NewRouter(pool *pgxpool.Pool, authService *application.AuthService, hub *ws
 		r.Get("/ws", hub.HandleWebSocket)
 
 		r.Post("/terminals/{id}/login", handleTerminalLogin(authService))
+		r.Post("/terminals/{id}/sso", handleTerminalSSOLogin(authService))
 		r.Post("/terminals/{id}/logout", handleTerminalLogout(authService, hub))
 		r.Get("/terminals/{id}/status", handleGetTerminalStatus(pool))
 		r.Get("/terminals", handleListTerminals(pool))
 	})
 
 	return r
+}
+
+func handleTerminalSSOLogin(authService *application.AuthService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Fields(strings.TrimSpace(r.Header.Get("Authorization")))
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "KIOSK_SSO_REQUIRED"})
+			return
+		}
+
+		resp, err := authService.LoginTerminalSSO(r.Context(), chi.URLParam(r, "id"), parts[1])
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "KIOSK_SSO_REJECTED", "message": err.Error()})
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}
 }
 
 func handleTerminalLogin(authService *application.AuthService) http.HandlerFunc {

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Loader2, Search } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -25,7 +26,9 @@ type ComboboxBaseProps = {
 export function ComboboxBase({ value, options, onValueChange, onSearchChange, placeholder, emptyMessage, loading, error, disabled, 'aria-label': ariaLabel }: ComboboxBaseProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value);
   const filteredOptions = query.trim()
     ? options.filter((option) => `${option.searchText || ''} ${String(option.label)} ${String(option.description || '')}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
@@ -33,11 +36,25 @@ export function ComboboxBase({ value, options, onValueChange, onSearchChange, pl
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const updateMenuPosition = () => setMenuRect(rootRef.current?.getBoundingClientRect() || null);
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [open]);
 
   const updateQuery = (next: string) => {
     setQuery(next);
@@ -63,7 +80,7 @@ export function ComboboxBase({ value, options, onValueChange, onSearchChange, pl
         />
         <button type="button" onClick={() => setOpen((current) => !current)} disabled={disabled} aria-label={placeholder} className="text-muted-foreground hover:text-foreground"><ChevronDown className="h-4 w-4" /></button>
       </div>
-      {open && <div role="listbox" className="absolute z-50 mt-1 max-h-80 w-full overflow-auto rounded-md border border-slate-700 bg-slate-900 p-1 text-slate-100 shadow-xl">
+      {open && menuRect && createPortal(<div ref={menuRef} role="listbox" style={{ top: menuRect.bottom + 4, left: menuRect.left, width: menuRect.width }} className="fixed z-[9999] max-h-80 overflow-auto rounded-md border border-slate-700 bg-slate-900 p-1 text-slate-100 shadow-xl">
         {loading && <div className="flex items-center gap-2 px-3 py-3 text-sm text-slate-300"><Loader2 className="h-4 w-4 animate-spin" />Loading…</div>}
         {!loading && error && <div className="px-3 py-3 text-sm text-rose-300">{error}</div>}
         {!loading && !error && filteredOptions.length === 0 && <div className="px-3 py-3 text-sm text-slate-300">{emptyMessage}</div>}
@@ -71,7 +88,7 @@ export function ComboboxBase({ value, options, onValueChange, onSearchChange, pl
           <span className="mt-0.5 w-4 shrink-0 text-amber-300">{option.value === value ? <Check className="h-4 w-4" /> : null}</span>
           <span className="min-w-0"><span className="block truncate text-sm font-semibold">{option.label}</span>{option.description && <span className="block truncate text-xs text-slate-400">{option.description}</span>}</span>
         </button>)}
-      </div>}
+      </div>, document.body)}
     </div>
   );
 }

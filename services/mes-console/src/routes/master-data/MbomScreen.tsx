@@ -6,11 +6,11 @@ import { CheckCircle2, ChevronDown, ChevronRight, Eye, Layers, MoreHorizontal, P
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
-import { createMbomNewVersion, deleteResource, fetchMbomDetail, fetchResource, postResource, putResource, releaseResource, replaceMbomLines, replaceMbomSubstitutes, validateMbom } from '../../lib/masterDataApi';
-import { translateMbomError } from '../../lib/errorMessages';
+import { deleteResource, fetchMbomDetail, fetchResource, postResource, putResource, releaseResource, replaceMbomLines, replaceMbomSubstitutes, validateMbom } from '../../lib/masterDataApi';
+import { translateMbomError, translateMbomValidationDetail } from '../../lib/errorMessages';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum, normalizeStatusCode } from '../../lib/i18nLabels';
-import { Confirmation, FieldHelpPopover, Modal, SelectBase } from '../../components/ui';
+import { Confirmation, FieldHelpPopover, Modal } from '../../components/ui';
 import { uomLabel } from '../../components/UomSelector';
 import { UomNumberInput } from '../../components/UomNumberInput';
 import { DecimalInput } from '../../components/DecimalInput';
@@ -18,10 +18,14 @@ import { formatQuantityForDisplay } from '../../lib/numeric/uomNumeric';
 import { ValidationErrorToast } from '../../components/ValidationErrorToast';
 import { BaseDataTable, type BaseDataTableColumn } from '../../components/base';
 import { mesQueryKeys } from '../../lib/queryKeys';
+import { ItemRevisionSelector } from '../../components/ItemRevisionSelector';
+import { SubstituteValidationSummary } from '../../components/SubstituteValidationSummary';
+import { filterMbomInputRevisions } from '../../lib/mbomItemTypeRules';
+import { getMbomSubstituteCompatibilityDetails } from '../../lib/mbomSubstituteValidation';
 
-const blankHeader = { code: '', name: '', site_id: '', base_quantity: '100', base_uom_id: '' };
-const blankLine = { seq: 10, parent_line_id: '', component_revision_id: '', quantity_per: '1', uom_id: '', scrap_rate: '0', issue_operation_id: null, backflush_flag: true, phantom_flag: false, optional_flag: false, effective_from: new Date().toISOString().slice(0, 10), effective_to: '' };
-const blankSubstitute = { substitute_revision_id: '', priority: 1, conversion_factor: '1', max_usage_percent: '100', requires_approval: false, effective_from: new Date().toISOString().slice(0, 10), effective_to: '' };
+const blankHeader = { code: '', name: '', base_quantity: '100', base_uom_id: '' };
+const blankLine = { seq: 10, parent_line_id: '', component_item_id: '', component_revision_id: '', quantity_per: '1', uom_id: '', scrap_rate: '0', issue_operation_id: null, backflush_flag: true, phantom_flag: false, optional_flag: false, effective_from: new Date().toISOString().slice(0, 10), effective_to: '' };
+const blankSubstitute = { substitute_item_id: '', substitute_revision_id: '', priority: 1, conversion_factor: '1', max_usage_percent: '100', requires_approval: false, effective_from: new Date().toISOString().slice(0, 10), effective_to: '' };
 
 function status(row: any) {
   return row?.lifecycle_status || row?.status || 'Draft';
@@ -52,16 +56,7 @@ function validationFailureMessage(failure: any, t: (key: string, params?: Record
 function showMbomValidationToast(error: any, t: (key: string, params?: Record<string, string | number | undefined>) => string) {
   const code = String(error?.code || error?.message || 'MBOM_VALIDATION_FAILED').split(':', 1)[0];
   const rawDetails = error?.details || error?.validationFailures || error?.validationErrors;
-  const details = Array.isArray(rawDetails) ? rawDetails.map((detail: any) => {
-    if (typeof detail === 'string') return detail;
-    const detailCode = String(detail?.code || '');
-    if (detailCode === 'MBOM_SUBSTITUTE_ITEM_GROUP_MISMATCH') return t(`mbom.validation.${detailCode}`, { expected: String(detail.expected_group || '-'), actual: String(detail.actual_group || '-') });
-    if (detailCode === 'MBOM_SUBSTITUTE_UOM_CONVERSION_MISSING') return t(`mbom.validation.${detailCode}`, { component: String(detail.component_uom_code || '-'), substitute: String(detail.substitute_uom_code || '-') });
-    if (detailCode === 'MBOM_SUBSTITUTE_REVISION_INVALID') return t(`mbom.validation.${detailCode}_DETAIL`, { reason: String(detail.reason || 'NOT_RELEASED'), status: String(detail.lifecycle_status || '-'), revision: String(detail.revision_code || '-') });
-    if (detailCode === 'UOM_DECIMAL_PRECISION_EXCEEDED' || detailCode === 'UOM_FRACTION_NOT_ALLOWED') return t(`mbom.validation.${detailCode}`);
-    const translated = detailCode ? translateMbomValidationCode(detailCode, t) : String(detail?.message || detailCode || detail);
-    return detail?.path ? `${translated} (${detail.path})` : translated;
-  }) : [];
+  const details = Array.isArray(rawDetails) ? rawDetails.map((detail: unknown) => translateMbomValidationDetail(detail, t)) : [];
   const message = code === 'MBOM_RELEASE_VALIDATION_FAILED' ? t('mbom.releaseValidationFailed') : translateMbomError(code, t);
   toast.custom((toastId) => <ValidationErrorToast code={code} message={message} details={details} moreDetailsLabel={t('mbom.moreDetails')} hideDetailsLabel={t('mbom.hideDetails')} closeLabel={t('common.close')} onClose={() => toast.dismiss(toastId)} />);
 }
@@ -109,9 +104,9 @@ export const MbomScreen: React.FC = () => {
   const [mboms, setMboms] = useState<any[]>([]);
   const [lines, setLines] = useState<any[]>([]);
   const [substitutes, setSubstitutes] = useState<any[]>([]);
-  const [sites, setSites] = useState<any[]>([]);
   const [revisions, setRevisions] = useState<any[]>([]);
   const [uoms, setUoms] = useState<any[]>([]);
+  const [uomConversions, setUomConversions] = useState<any[]>([]);
   const [headerForm, setHeaderForm] = useState<any>(blankHeader);
   const [lineForm, setLineForm] = useState<any>(blankLine);
   const [subForm, setSubForm] = useState<any>(blankSubstitute);
@@ -131,8 +126,8 @@ export const MbomScreen: React.FC = () => {
   const [draftSubstitutes, setDraftSubstitutes] = useState<any[]>([]);
 
   const revisionSelectorQuery = useQuery({
-    queryKey: mesQueryKeys.itemRevisions.selector({ lifecycle_status: 'Released', limit: 500 }),
-    queryFn: () => fetchResource('item-revisions', user, '?limit=500&lifecycle_status=Released'),
+    queryKey: mesQueryKeys.itemRevisions.selector({ lifecycle_status: 'Released', limit: 500, usage: 'component' }),
+    queryFn: () => fetchResource('item-revisions', user, '?limit=500&lifecycle_status=Released&usage=component'),
     enabled: false,
     staleTime: 0,
   });
@@ -143,18 +138,20 @@ export const MbomScreen: React.FC = () => {
     staleTime: 0,
   });
   const selected = mboms.find((row) => row.master_id === id) || null;
+  const allowedInputRevisions = useMemo(() => filterMbomInputRevisions(revisions, selected?.output_item_type), [revisions, selected?.output_item_type]);
+  const allowedInputRevisionIds = useMemo(() => new Set(allowedInputRevisions.map((row) => String(row.master_id))), [allowedInputRevisions]);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [headers, lineRows, subRows, siteRows, revisionRows, uomRows] = await Promise.all([
+      const [headers, lineRows, subRows, revisionRows, uomRows, conversionRows] = await Promise.all([
         fetchResource('mbom-headers', user),
         fetchResource('mbom-lines', user, '?limit=500'),
         fetchResource('component-substitutes', user, '?limit=500'),
-        fetchResource('sites', user),
-        fetchResource('item-revisions', user, '?limit=500'),
+        fetchResource('item-revisions', user, '?limit=500&usage=component'),
         fetchResource('uoms', user),
+        fetchResource('uom-conversions', user, '?limit=500'),
       ]);
       const now = Date.now();
       const releasedRevisions = revisionRows.filter((row: any) => row.lifecycle_status === 'Released'
@@ -164,18 +161,18 @@ export const MbomScreen: React.FC = () => {
       setMboms(headers);
       setLines(lineRows);
       setSubstitutes(subRows);
-      setSites(siteRows);
       setRevisions(releasedRevisions);
       setUoms(releasedUoms);
+      setUomConversions(conversionRows);
       if (id) {
         const detail = await fetchMbomDetail(id, user);
         setMboms((rows) => rows.map((row) => row.master_id === id ? { ...row, ...detail } : row));
         setLines(detail.lines || []);
         setSubstitutes(detail.substitutes || []);
       }
-      setHeaderForm({ ...blankHeader, site_id: siteRows[0]?.master_id || '', base_uom_id: releasedUoms[0]?.master_id || '' });
-      setLineForm({ ...blankLine, component_revision_id: releasedRevisions[0]?.master_id || '', uom_id: revisionBaseUomId(releasedRevisions[0], releasedUoms[0]?.master_id || '') });
-      setSubForm({ ...blankSubstitute, substitute_revision_id: releasedRevisions[0]?.master_id || '' });
+      setHeaderForm({ ...blankHeader, base_uom_id: releasedUoms[0]?.master_id || '' });
+      setLineForm({ ...blankLine });
+      setSubForm({ ...blankSubstitute });
     } catch (err) {
       setError(err);
     } finally {
@@ -208,6 +205,14 @@ export const MbomScreen: React.FC = () => {
         toast.error(t('mbom.errors.MBOM_LINE_REQUIRED_FIELDS'));
         return;
       }
+      if (!allowedInputRevisionIds.has(String(lineForm.component_revision_id))) {
+        toast.error(t('mbom.errors.MBOM_COMPONENT_ITEM_TYPE_INVALID'));
+        return;
+      }
+      if (draftSubstitutes.some((row) => !allowedInputRevisionIds.has(String(row.substitute_revision_id)))) {
+        toast.error(t('mbom.errors.MBOM_SUBSTITUTE_ITEM_TYPE_INVALID'));
+        return;
+      }
       // Parent hierarchy and issue operation are legacy persistence fields. They
       // are intentionally not part of the material-component editor contract.
       // Preserve an existing parent when editing, but never ask for a new one.
@@ -228,7 +233,7 @@ export const MbomScreen: React.FC = () => {
       setDraftSubstitutes([]);
       setSubstituteLine(null);
       setLineEditorOpen(false);
-      setLineForm({ ...blankLine, component_revision_id: revisions[0]?.master_id || '', uom_id: revisionBaseUomId(revisions[0], uoms[0]?.master_id || '') });
+      setLineForm({ ...blankLine });
       await load();
     } catch (err: any) {
       showMbomValidationToast(err, t);
@@ -239,7 +244,7 @@ export const MbomScreen: React.FC = () => {
     setEditingLineId(line.master_id);
     setSelectedLine(line.master_id);
     const revision = revisions.find((item: any) => item.master_id === line.component_revision_id);
-    setLineForm({ ...blankLine, ...line, parent_line_id: line.parent_line_id || '', uom_id: revisionBaseUomId(revision, line.uom_id), quantity_per: formatQuantityForDisplay(line.quantity_per), scrap_rate: formatQuantityForDisplay(line.scrap_rate) });
+    setLineForm({ ...blankLine, ...line, component_item_id: String(revision?.item_id || ''), parent_line_id: line.parent_line_id || '', uom_id: revisionBaseUomId(revision, line.uom_id), quantity_per: formatQuantityForDisplay(line.quantity_per), scrap_rate: formatQuantityForDisplay(line.scrap_rate) });
     setLineEditorOpen(true);
     setDraftSubstitutes(substitutes.filter((row) => row.mbom_line_id === line.master_id));
     void refreshSubstitutes(line.master_id).then((rows) => setDraftSubstitutes(rows));
@@ -261,12 +266,12 @@ export const MbomScreen: React.FC = () => {
   };
 
   const openAddLine = async () => {
-    const { nextRevisions, nextUoms } = await refreshSelectorsBeforeOpen();
+    await refreshSelectorsBeforeOpen();
     setEditingLineId('');
     setSelectedLine('draft');
     setDraftSubstitutes([]);
     setSubstituteLine(null);
-    setLineForm({ ...blankLine, parent_line_id: null, issue_operation_id: null, component_revision_id: nextRevisions[0]?.master_id || '', uom_id: revisionBaseUomId(nextRevisions[0], nextUoms[0]?.master_id || '') });
+    setLineForm({ ...blankLine, parent_line_id: null, issue_operation_id: null });
     setLineEditorOpen(true);
   };
 
@@ -283,12 +288,20 @@ export const MbomScreen: React.FC = () => {
     catch (err: any) { showMbomValidationToast(err, t); }
   };
 
-  const createSubstitute = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const createSubstitute = async () => {
     if (!selectedLine) return toast.error(t('mbom.chooseLineFirst'));
     try {
-      if (draftSubstitutes.some((row) => row.substitute_revision_id === subForm.substitute_revision_id)) throw Object.assign(new Error('MBOM_SUBSTITUTE_DUPLICATE'), { code: 'MBOM_SUBSTITUTE_DUPLICATE' });
+      if (draftSubstitutes.some((row) => row.substitute_revision_id === subForm.substitute_revision_id || Number(row.priority) === Number(subForm.priority))) throw Object.assign(new Error('MBOM_SUBSTITUTE_DUPLICATE'), { code: 'MBOM_SUBSTITUTE_DUPLICATE' });
+      if (!subForm.substitute_item_id || !subForm.substitute_revision_id) throw Object.assign(new Error('MBOM_SUBSTITUTE_REQUIRED_FIELDS'), { code: 'MBOM_SUBSTITUTE_REQUIRED_FIELDS' });
+      if (!allowedInputRevisionIds.has(String(subForm.substitute_revision_id))) throw Object.assign(new Error('MBOM_SUBSTITUTE_ITEM_TYPE_INVALID'), { code: 'MBOM_SUBSTITUTE_ITEM_TYPE_INVALID' });
+      if (!Number.isInteger(Number(subForm.priority)) || Number(subForm.priority) <= 0) throw Object.assign(new Error('MBOM_SUBSTITUTE_PRIORITY_INVALID'), { code: 'MBOM_SUBSTITUTE_PRIORITY_INVALID' });
+      if (!Number.isFinite(Number(subForm.conversion_factor)) || Number(subForm.conversion_factor) <= 0) throw Object.assign(new Error('MBOM_SUBSTITUTE_CONVERSION_INVALID'), { code: 'MBOM_SUBSTITUTE_CONVERSION_INVALID' });
+      if (!Number.isFinite(Number(subForm.max_usage_percent)) || Number(subForm.max_usage_percent) <= 0 || Number(subForm.max_usage_percent) > 100) throw Object.assign(new Error('MBOM_SUBSTITUTE_MAX_USAGE_INVALID'), { code: 'MBOM_SUBSTITUTE_MAX_USAGE_INVALID' });
+      if (!subForm.effective_from || Number.isNaN(Date.parse(subForm.effective_from)) || (subForm.effective_to && (Number.isNaN(Date.parse(subForm.effective_to)) || Date.parse(subForm.effective_to) <= Date.parse(subForm.effective_from)))) throw Object.assign(new Error('MBOM_SUBSTITUTE_EFFECTIVE_DATES_INVALID'), { code: 'MBOM_SUBSTITUTE_EFFECTIVE_DATES_INVALID' });
       const selectedRevision = revisions.find((revision: any) => revision.master_id === subForm.substitute_revision_id);
+      const componentRevision = revisions.find((revision: any) => revision.master_id === substituteLine?.component_revision_id);
+      const compatibilityDetails = getMbomSubstituteCompatibilityDetails(componentRevision, selectedRevision, uoms, uomConversions);
+      if (compatibilityDetails.length) throw Object.assign(new Error('MBOM_SUBSTITUTE_COMPATIBILITY_INVALID'), { code: 'MBOM_SUBSTITUTE_COMPATIBILITY_INVALID', details: compatibilityDetails });
       const next = { ...subForm, client_id: `client-${Date.now()}-${Math.random().toString(36).slice(2)}`, code: `SUB-${Date.now()}`, name: 'Component substitute', substitute_revision_id: subForm.substitute_revision_id, substitute_item_name: selectedRevision?.item_name, substitute_item_code: selectedRevision?.item_code || selectedRevision?.code, substitute_revision_code: selectedRevision?.revision_code || selectedRevision?.version_code, priority: Number(subForm.priority), effective_to: subForm.effective_to || null };
       setDraftSubstitutes((rows) => [...rows, next]);
       toast.success(t('mbom.addedSubstitute'));
@@ -371,33 +384,15 @@ export const MbomScreen: React.FC = () => {
     }
   };
 
-  const createNewVersion = async () => {
-    if (!selected || normalizeStatusCode(status(selected)) !== 'Released') return;
-    try {
-      const next = await createMbomNewVersion(selected.master_id, {}, user);
-      toast.success(t('mbom.newVersionCreated'));
-      window.location.href = `/master-data/mboms/${next.master_id}`;
-    } catch (err: any) { showMbomValidationToast(err, t); }
-  };
-
-  const createNewVersionFor = async (mbomId: string) => {
-    try {
-      const next = await createMbomNewVersion(mbomId, {}, user);
-      toast.success(t('mbom.newVersionCreated'));
-      window.location.href = `/master-data/mboms/${next.master_id}`;
-    } catch (err: any) { toast.error(translateMbomError(err.code || err.message, t)); }
-  };
-
   if (error) return <ErrorBoundaryCard error={error} onRetry={load} />;
 
   const mbomColumns: BaseDataTableColumn<any>[] = [
     { id: 'code', header: 'MBOM', accessorKey: 'code', cell: ({ row }) => <span className="font-mono font-bold text-action">{row.original.code}</span> },
     { id: 'name', header: t('mbom.name'), accessorFn: (row) => localizedText(row.name), cell: ({ row }) => <><div className="font-semibold text-foreground">{localizedText(row.original.name)}</div><div className="text-xs text-muted-foreground">{localizedText(row.original.description)}</div></> },
-    { id: 'site', header: t('common.site'), accessorFn: (row) => row.site_code || t('common.notAvailable') },
     { id: 'base', header: t('mbom.base'), accessorFn: (row) => `${row.base_quantity} ${row.base_uom_code || t('common.notAvailable')}` },
     { id: 'purpose', header: t('mbom.purpose'), accessorFn: (row) => row.purpose || t('common.notAvailable') },
     { id: 'status', header: t('common.status'), accessorFn: (row) => status(row), cell: ({ row }) => <span className="rounded-full border border-border bg-surface-subtle px-2.5 py-1 text-xs">{translatedEnum(t, 'status.master', status(row.original))}</span> },
-    { id: 'actions', header: t('common.actions'), align: 'right', cell: ({ row }) => { const mbom = row.original; const released = normalizeStatusCode(status(mbom)) === 'Released'; return <div className="relative text-right" onClick={(event) => event.stopPropagation()}><button type="button" onClick={() => setActionMenuId(actionMenuId === mbom.master_id ? null : mbom.master_id)} title={t('common.actions')} aria-label={t('common.actions')} className="inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-hover"><MoreHorizontal className="h-5 w-5" /></button>{actionMenuId === mbom.master_id && <div className="absolute right-0 top-10 z-[120] min-w-48 rounded-md border border-border bg-surface p-1 text-left shadow-xl"><Link to={`/master-data/mboms/${mbom.master_id}`} onClick={() => setActionMenuId(null)} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-hover"><Eye className="h-4 w-4" />{t('common.edit')}</Link>{released ? <button type="button" onClick={() => { setActionMenuId(null); void createNewVersionFor(mbom.master_id); }} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-hover"><Pencil className="h-4 w-4" />{t('mbom.createNewVersion')}</button> : <><button type="button" onClick={() => { setActionMenuId(null); void release(mbom.master_id); }} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-hover"><CheckCircle2 className="h-4 w-4" />{t('common.release')}</button><button type="button" onClick={() => { setActionMenuId(null); setDeleteTarget(mbom); }} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-rose-200 hover:bg-rose-950"><Trash2 className="h-4 w-4" />{t('mbom.delete')}</button></>}</div>}</div>; } },
+    { id: 'actions', header: t('common.actions'), align: 'right', cell: ({ row }) => { const mbom = row.original; const released = normalizeStatusCode(status(mbom)) === 'Released'; return <div className="relative text-right" onClick={(event) => event.stopPropagation()}><button type="button" onClick={() => setActionMenuId(actionMenuId === mbom.master_id ? null : mbom.master_id)} title={t('common.actions')} aria-label={t('common.actions')} className="inline-flex items-center justify-center rounded-md p-2 text-foreground hover:bg-hover"><MoreHorizontal className="h-5 w-5" /></button>{actionMenuId === mbom.master_id && <div className="absolute right-0 top-10 z-[120] min-w-48 rounded-md border border-border bg-surface p-1 text-left shadow-xl"><Link to={`/master-data/mboms/${mbom.master_id}`} onClick={() => setActionMenuId(null)} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-hover"><Eye className="h-4 w-4" />{released ? t('common.detail') : t('common.edit')}</Link>{!released && <><button type="button" onClick={() => { setActionMenuId(null); void release(mbom.master_id); }} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-hover"><CheckCircle2 className="h-4 w-4" />{t('common.release')}</button><button type="button" onClick={() => { setActionMenuId(null); setDeleteTarget(mbom); }} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-rose-200 hover:bg-rose-950"><Trash2 className="h-4 w-4" />{t('mbom.delete')}</button></>}</div>}</div>; } },
   ];
 
   if (!id) {
@@ -417,7 +412,7 @@ export const MbomScreen: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-5 rounded-lg"><div><Link to="/master-data/mboms" className="text-xs text-sky-300">{t('mbom.backToList')}</Link><h1 className="text-xl font-bold">{selected?.code || t('mbom.detail')}</h1><p className="text-sm text-slate-200">{localizedText(selected?.name)}</p><p className="text-xs text-slate-400">{localizedText(selected?.description)}</p><p className="mt-1 text-xs text-slate-500">{t('mbom.manufacturingStructureHelp')} · v{selected?.structure_version || 1}</p></div><div className="flex gap-2">{selected && <button onClick={() => void validate(selected.master_id)} disabled={validationState === 'validating'} className="px-4 py-2.5 bg-slate-700 rounded-lg font-semibold">{validationState === 'validating' ? t('mbom.validating') : t('mbom.validate')}</button>}{selected && normalizeStatusCode(status(selected)) !== 'Released' && <><button onClick={() => void saveStructure()} className="px-4 py-2.5 bg-slate-700 rounded-lg font-semibold"><Save className="w-4 h-4 inline mr-1" />{t('mbom.saveStructure')}</button><button onClick={() => release(selected.master_id)} className="px-4 py-2.5 bg-action rounded-lg font-semibold flex gap-2"><CheckCircle2 className="w-4 h-4" />{t('common.release')}</button><button onClick={() => setDeleteTarget(selected)} title={t('mbom.delete')} aria-label={t('mbom.delete')} className="inline-flex items-center justify-center p-2.5 bg-rose-950 text-rose-200 rounded-lg"><Trash2 className="w-4 h-4" /></button></>}{selected && normalizeStatusCode(status(selected)) === 'Released' && <button onClick={() => void createNewVersion()} className="px-4 py-2.5 bg-action rounded-lg font-semibold">{t('mbom.createNewVersion')}</button>}</div></div>
+      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-5 rounded-lg"><div><Link to="/master-data/mboms" className="text-xs text-sky-300">{t('mbom.backToList')}</Link><h1 className="text-xl font-bold">{selected?.code || t('mbom.detail')}</h1><p className="text-sm text-slate-200">{localizedText(selected?.name)}</p><p className="text-xs text-slate-400">{localizedText(selected?.description)}</p><p className="mt-1 text-xs text-slate-500">{t('mbom.manufacturingStructureHelp')} · v{selected?.structure_version || 1}</p></div><div className="flex gap-2">{selected && <button onClick={() => void validate(selected.master_id)} disabled={validationState === 'validating'} className="px-4 py-2.5 bg-slate-700 rounded-lg font-semibold">{validationState === 'validating' ? t('mbom.validating') : t('mbom.validate')}</button>}{selected && normalizeStatusCode(status(selected)) !== 'Released' && <><button onClick={() => void saveStructure()} className="px-4 py-2.5 bg-slate-700 rounded-lg font-semibold"><Save className="w-4 h-4 inline mr-1" />{t('mbom.saveStructure')}</button><button onClick={() => release(selected.master_id)} className="px-4 py-2.5 bg-action rounded-lg font-semibold flex gap-2"><CheckCircle2 className="w-4 h-4" />{t('common.release')}</button><button onClick={() => setDeleteTarget(selected)} title={t('mbom.delete')} aria-label={t('mbom.delete')} className="inline-flex items-center justify-center p-2.5 bg-rose-950 text-rose-200 rounded-lg"><Trash2 className="w-4 h-4" /></button></>}</div></div>
       <div className="flex items-start gap-2 rounded-lg border border-amber-800/60 bg-amber-950/20 p-4 text-sm text-amber-100"><FieldHelpPopover label={t('mbom.releaseCriteria')} title={t('mbom.releaseCriteria')} content={t('mbom.releaseCriteriaHelp')} /><div><div className="font-semibold">{t('mbom.releaseCriteria')}</div><p className="mt-1 text-xs text-amber-200/80">{t('mbom.releaseCriteriaHelp')}</p></div></div>
       {validationErrors.length > 0 && <div className="bg-rose-950/40 border border-rose-800 rounded-lg p-4 text-sm text-rose-200">{validationErrors.map((msg) => <div key={msg}>{msg}</div>)}</div>}
       <section className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
@@ -437,21 +432,22 @@ export const MbomScreen: React.FC = () => {
       <Modal open={lineEditorOpen} size="xl" title={editingLineId ? t('mbom.editComponent') : t('mbom.addComponent')} onClose={() => setLineEditorOpen(false)} footerLeft={<button type="button" onClick={() => setLineEditorOpen(false)} className="rounded-md border border-slate-700 px-4 py-2">{t('common.cancel')}</button>} footer={<button type="submit" form="mbom-line-editor" className="inline-flex items-center gap-2 rounded-md bg-action px-4 py-2 font-semibold"><Save className="h-4 w-4" />{editingLineId ? t('common.save') : t('mbom.saveComponent')}</button>}>
         <form id="mbom-line-editor" onSubmit={createLine} className="grid gap-4 sm:grid-cols-2">
           <label><FieldLabel label={t('mbom.seq')} help={t('mbom.seqHelp')} /><input required type="number" min="1" step="1" value={lineForm.seq} onChange={(e) => setLineForm({ ...lineForm, seq: Number(e.target.value) })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
-          <SelectBase label={<FieldLabel label={t('mbom.componentRevision')} help={t('mbom.componentRevisionHelp')} />} required value={lineForm.component_revision_id} onValueChange={(value) => { const revision = revisions.find((item) => item.master_id === value); setLineForm({ ...lineForm, component_revision_id: value, uom_id: revisionBaseUomId(revision, '') }); }} options={revisions.map((rev) => ({ value: rev.master_id, label: revisionIdentity(rev, localizedText, t('mbom.unknownComponent')), secondaryLabel: rev.item_type || rev.item_group }))} aria-label={t('mbom.componentRevision')} />
+          <ItemRevisionSelector revisions={allowedInputRevisions} itemValue={lineForm.component_item_id} revisionValue={lineForm.component_revision_id} onItemValueChange={(itemId) => setLineForm({ ...lineForm, component_item_id: itemId, component_revision_id: '', uom_id: '' })} onRevisionValueChange={(value, revision) => setLineForm({ ...lineForm, component_item_id: String(revision?.item_id || lineForm.component_item_id), component_revision_id: value, uom_id: revisionBaseUomId(revision, '') })} itemLabel={t('mbom.componentItem')} revisionLabel={t('mbom.componentRevision')} revisionHelp={t('mbom.componentRevisionHelp')} showItemType testIdPrefix="mbom-component" />
           <UomNumberInput label={<FieldLabel label={t('mbom.quantityPer')} help={t('mbom.quantityPerHelp')} />} required min="0.000001" allowZero={false} value={String(lineForm.quantity_per ?? '')} uom={uoms.find((uom) => uom.master_id === lineForm.uom_id)} onValueChange={(value) => setLineForm({ ...lineForm, quantity_per: value })} className="bg-slate-950 border-slate-800" />
           <div className="rounded-lg border border-slate-800 bg-slate-950 p-3"><FieldLabel label={t('mbom.uom')} help={t('mbom.uomHelp')} /><div className="font-semibold text-slate-100">{uomLabel(uoms.find((uom) => uom.master_id === lineForm.uom_id), localizedText, t('common.notAvailable'))}</div><p className="mt-1 text-xs text-slate-400">{t('mbom.uomDerivedFromRevision')}</p></div>
           <DecimalInput label={<FieldLabel label={t('mbom.scrap')} help={t('mbom.scrapHelp')} />} required min="0" max="1" precision={4} value={String(lineForm.scrap_rate ?? '')} onValueChange={(value) => setLineForm({ ...lineForm, scrap_rate: value })} className="bg-slate-950 border-slate-800" />
           <label><FieldLabel label={t('mbom.effectiveFrom')} help={t('mbom.effectiveDateHelp')} /><input required type="date" value={lineForm.effective_from} onChange={(e) => setLineForm({ ...lineForm, effective_from: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
           <label><FieldLabel label={t('mbom.effectiveTo')} help={t('mbom.effectiveDateHelp')} /><input type="date" min={lineForm.effective_from} value={lineForm.effective_to} onChange={(e) => setLineForm({ ...lineForm, effective_to: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
           <div className="sm:col-span-2 grid gap-3 sm:grid-cols-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={lineForm.backflush_flag} onChange={(e) => setLineForm({ ...lineForm, backflush_flag: e.target.checked })} /><span>{t('mbom.flag.backflush')}</span><FieldHelpPopover label={t('mbom.flag.backflush')} title={t('mbom.flag.backflush')} content={t('mbom.backflushHelp')} /></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={lineForm.phantom_flag} onChange={(e) => setLineForm({ ...lineForm, phantom_flag: e.target.checked })} /><span>{t('mbom.flag.phantom')}</span><FieldHelpPopover label={t('mbom.flag.phantom')} title={t('mbom.flag.phantom')} content={t('mbom.phantomHelp')} /></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={lineForm.optional_flag} onChange={(e) => setLineForm({ ...lineForm, optional_flag: e.target.checked })} /><span>{t('mbom.flag.optional')}</span><FieldHelpPopover label={t('mbom.flag.optional')} title={t('mbom.flag.optional')} content={t('mbom.optionalHelp')} /></label></div>
-          {editingLineId && <section className="sm:col-span-2 rounded-lg border border-slate-700 bg-slate-950/60 p-4"><div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold text-slate-100">{t('mbom.substituteMaterials')}</h3><p className="text-xs text-slate-400">{t('mbom.substituteSectionHelp')}</p></div><button type="button" onClick={() => { setSubForm({ ...blankSubstitute, substitute_revision_id: revisions.find((revision: any) => revision.master_id !== lineForm.component_revision_id && !draftSubstitutes.some((row) => row.substitute_revision_id === revision.master_id))?.master_id || '' }); setSelectedLine(editingLineId); setSubstituteLine({ ...lineForm, master_id: editingLineId }); }} disabled={normalizeStatusCode(status(selected)) === 'Released'} className="rounded-md bg-action px-3 py-2 text-sm font-semibold">{t('mbom.addSubstitute')}</button></div>{draftSubstitutes.length === 0 ? <div className="rounded-md border border-dashed border-slate-700 p-4 text-sm text-slate-400">{t('mbom.noSubstitutes')}</div> : <BaseDataTable data={draftSubstitutes} getRowId={(row) => row.client_id || row.master_id} columns={[{ id: 'revision', header: t('mbom.substituteMaterial'), accessorFn: (row: any) => row.substitute_item_code || row.substitute_revision_code || row.substitute_revision_id, cell: ({ row }: any) => <><div className="font-semibold">{localizedText(row.original.substitute_item_name) || row.original.substitute_item_code || row.original.substitute_revision_code || row.original.substitute_revision_id}</div><div className="font-mono text-xs text-muted-foreground">{row.original.substitute_revision_code || row.original.substitute_revision_id}</div></> }, { id: 'config', header: t('mbom.priority'), accessorFn: (row: any) => row.priority, cell: ({ row }: any) => <span>{row.original.priority} · {row.original.conversion_factor} · {row.original.max_usage_percent}%</span> }, { id: 'status', header: t('mbom.status'), accessorFn: (row: any) => row.approval_status || 'Draft', cell: ({ row }: any) => <span>{row.original.approval_status || t('common.notAvailable')}</span> }, { id: 'actions', header: t('common.actions'), cell: ({ row }: any) => <button type="button" className="rounded px-2 py-1 text-xs text-rose-200 hover:bg-rose-950" onClick={() => setSubstituteConfirm(row.original)}>{t('common.delete')}</button> }]} emptyState={<span>{t('mbom.noSubstitutes')}</span>} />}</section>}
-          {!editingLineId && <section className="sm:col-span-2 rounded-lg border border-slate-700 bg-slate-950/60 p-4"><div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold text-slate-100">{t('mbom.substituteMaterials')}</h3><p className="text-xs text-slate-400">{t('mbom.substituteSectionHelp')}</p></div><button type="button" onClick={() => { setSubForm({ ...blankSubstitute, substitute_revision_id: revisions.find((revision: any) => revision.master_id !== lineForm.component_revision_id && !draftSubstitutes.some((row) => row.substitute_revision_id === revision.master_id))?.master_id || '' }); setSelectedLine('draft'); setSubstituteLine({ ...lineForm, master_id: 'draft' }); }} className="rounded-md bg-action px-3 py-2 text-sm font-semibold">{t('mbom.addSubstitute')}</button></div>{draftSubstitutes.length === 0 ? <div className="rounded-md border border-dashed border-slate-700 p-4 text-sm text-slate-400">{t('mbom.noSubstitutes')}</div> : <BaseDataTable data={draftSubstitutes} getRowId={(row) => row.client_id || row.master_id} columns={[{ id: 'revision', header: t('mbom.substituteMaterial'), accessorFn: (row: any) => row.substitute_revision_id, cell: ({ row }: any) => <div><div className="font-semibold">{localizedText(row.original.substitute_item_name) || row.original.substitute_item_code || row.original.substitute_revision_code || row.original.substitute_revision_id}</div><div className="font-mono text-xs text-muted-foreground">{row.original.substitute_revision_code || row.original.substitute_revision_id}</div></div> }, { id: 'priority', header: t('mbom.priority'), accessorKey: 'priority' }, { id: 'actions', header: t('common.actions'), cell: ({ row }: any) => <button type="button" className="rounded px-2 py-1 text-xs text-rose-200 hover:bg-rose-950" onClick={() => setSubstituteConfirm(row.original)}>{t('common.delete')}</button> }]} emptyState={<span>{t('mbom.noSubstitutes')}</span>} />}</section>}
+          {editingLineId && <section className="sm:col-span-2 rounded-lg border border-slate-700 bg-slate-950/60 p-4"><div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold text-slate-100">{t('mbom.substituteMaterials')}</h3><p className="text-xs text-slate-400">{t('mbom.substituteSectionHelp')}</p></div><button type="button" onClick={() => { setSubForm({ ...blankSubstitute }); setSelectedLine(editingLineId); setSubstituteLine({ ...lineForm, master_id: editingLineId }); }} disabled={normalizeStatusCode(status(selected)) === 'Released'} className="rounded-md bg-action px-3 py-2 text-sm font-semibold">{t('mbom.addSubstitute')}</button></div>{draftSubstitutes.length === 0 ? <div className="rounded-md border border-dashed border-slate-700 p-4 text-sm text-slate-400">{t('mbom.noSubstitutes')}</div> : <BaseDataTable data={draftSubstitutes} getRowId={(row) => row.client_id || row.master_id} columns={[{ id: 'revision', header: t('mbom.substituteMaterial'), accessorFn: (row: any) => row.substitute_item_code || row.substitute_revision_code || row.substitute_revision_id, cell: ({ row }: any) => <><div className="font-semibold">{localizedText(row.original.substitute_item_name) || row.original.substitute_item_code || row.original.substitute_revision_code || row.original.substitute_revision_id}</div><div className="font-mono text-xs text-muted-foreground">{row.original.substitute_revision_code || row.original.substitute_revision_id}</div></> }, { id: 'config', header: t('mbom.priority'), accessorFn: (row: any) => row.priority, cell: ({ row }: any) => <span>{row.original.priority} · {row.original.conversion_factor} · {row.original.max_usage_percent}%</span> }, { id: 'status', header: t('mbom.status'), accessorFn: (row: any) => row.approval_status || 'Draft', cell: ({ row }: any) => <span>{row.original.approval_status || t('common.notAvailable')}</span> }, { id: 'actions', header: t('common.actions'), cell: ({ row }: any) => <button type="button" className="rounded px-2 py-1 text-xs text-rose-200 hover:bg-rose-950" onClick={() => setSubstituteConfirm(row.original)}>{t('common.delete')}</button> }]} emptyState={<span>{t('mbom.noSubstitutes')}</span>} />}</section>}
+          {!editingLineId && <section className="sm:col-span-2 rounded-lg border border-slate-700 bg-slate-950/60 p-4"><div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold text-slate-100">{t('mbom.substituteMaterials')}</h3><p className="text-xs text-slate-400">{t('mbom.substituteSectionHelp')}</p></div><button type="button" onClick={() => { setSubForm({ ...blankSubstitute }); setSelectedLine('draft'); setSubstituteLine({ ...lineForm, master_id: 'draft' }); }} className="rounded-md bg-action px-3 py-2 text-sm font-semibold">{t('mbom.addSubstitute')}</button></div>{draftSubstitutes.length === 0 ? <div className="rounded-md border border-dashed border-slate-700 p-4 text-sm text-slate-400">{t('mbom.noSubstitutes')}</div> : <BaseDataTable data={draftSubstitutes} getRowId={(row) => row.client_id || row.master_id} columns={[{ id: 'revision', header: t('mbom.substituteMaterial'), accessorFn: (row: any) => row.substitute_revision_id, cell: ({ row }: any) => <div><div className="font-semibold">{localizedText(row.original.substitute_item_name) || row.original.substitute_item_code || row.original.substitute_revision_code || row.original.substitute_revision_id}</div><div className="font-mono text-xs text-muted-foreground">{row.original.substitute_revision_code || row.original.substitute_revision_id}</div></div> }, { id: 'priority', header: t('mbom.priority'), accessorKey: 'priority' }, { id: 'actions', header: t('common.actions'), cell: ({ row }: any) => <button type="button" className="rounded px-2 py-1 text-xs text-rose-200 hover:bg-rose-950" onClick={() => setSubstituteConfirm(row.original)}>{t('common.delete')}</button> }]} emptyState={<span>{t('mbom.noSubstitutes')}</span>} />}</section>}
         </form>
       </Modal>
-      <Modal open={Boolean(substituteLine)} title={t('mbom.addSubstitute')} onClose={() => setSubstituteLine(null)} footerLeft={<button type="button" onClick={() => setSubstituteLine(null)} className="rounded-md border border-slate-700 px-4 py-2">{t('common.cancel')}</button>} footer={<button type="submit" form="mbom-substitute-editor" className="rounded-md bg-action px-4 py-2 font-semibold">{t('mbom.saveSubstitute')}</button>}>
-        <form id="mbom-substitute-editor" onSubmit={createSubstitute} className="grid gap-4 sm:grid-cols-2">
+      <Modal open={Boolean(substituteLine)} title={t('mbom.addSubstitute')} onClose={() => setSubstituteLine(null)} footerLeft={<button type="button" onClick={() => setSubstituteLine(null)} className="rounded-md border border-slate-700 px-4 py-2">{t('common.cancel')}</button>} footer={<button type="button" onClick={() => void createSubstitute()} className="rounded-md bg-action px-4 py-2 font-semibold">{t('mbom.saveSubstitute')}</button>}>
+        <form id="mbom-substitute-editor" onSubmit={(event) => { event.preventDefault(); void createSubstitute(); }} className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2 rounded-md border border-slate-700 bg-slate-950 p-3"><div className="text-xs uppercase text-slate-400">{t('mbom.originalComponent')}</div><div className="mt-1 font-semibold text-slate-100">{revisionIdentity(revisions.find((rev) => rev.master_id === substituteLine?.component_revision_id), localizedText, t('mbom.unknownComponent'))}</div></div>
-        <SelectBase label={<FieldLabel label={t('mbom.substituteMaterial')} help={t('mbom.substituteHelp')} />} required value={subForm.substitute_revision_id} onValueChange={(value) => setSubForm({ ...subForm, substitute_revision_id: value })} options={revisions.filter((rev) => rev.master_id !== substituteLine?.component_revision_id && !draftSubstitutes.some((row) => row.substitute_revision_id === rev.master_id)).map((rev) => ({ value: rev.master_id, label: revisionIdentity(rev, localizedText, t('mbom.unknownComponent')), secondaryLabel: rev.item_type || rev.item_group }))} aria-label={t('mbom.substituteMaterial')} />
+        <ItemRevisionSelector revisions={allowedInputRevisions} itemValue={subForm.substitute_item_id} revisionValue={subForm.substitute_revision_id} onItemValueChange={(itemId) => setSubForm({ ...subForm, substitute_item_id: itemId, substitute_revision_id: '' })} onRevisionValueChange={(value, revision) => setSubForm({ ...subForm, substitute_item_id: String(revision?.item_id || subForm.substitute_item_id), substitute_revision_id: value })} itemLabel={t('mbom.substituteItem')} revisionLabel={t('mbom.substituteRevision')} revisionHelp={t('mbom.substituteHelp')} excludedRevisionIds={[substituteLine?.component_revision_id, ...draftSubstitutes.map((row) => row.substitute_revision_id)]} showItemType testIdPrefix="mbom-substitute" />
+          <SubstituteValidationSummary componentRevision={revisions.find((revision: any) => revision.master_id === substituteLine?.component_revision_id)} substituteRevision={revisions.find((revision: any) => revision.master_id === subForm.substitute_revision_id)} outputItemType={selected?.output_item_type} uoms={uoms} conversions={uomConversions} priority={subForm.priority} conversionFactor={subForm.conversion_factor} maxUsagePercent={subForm.max_usage_percent} effectiveFrom={subForm.effective_from} effectiveTo={subForm.effective_to} existingSubstitutes={draftSubstitutes} />
           <label><FieldLabel label={t('mbom.priority')} help={t('mbom.priorityHelp')} /><input required type="number" min="1" step="1" value={subForm.priority} onChange={(e) => setSubForm({ ...subForm, priority: Number(e.target.value) })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>
           <DecimalInput label={<FieldLabel label={t('mbom.conversionFactor')} help={t('mbom.conversionHelp')} />} required min="0.000001" precision={6} value={String(subForm.conversion_factor ?? '')} onValueChange={(value) => setSubForm({ ...subForm, conversion_factor: value })} className="bg-slate-950 border-slate-800" />
           <label><FieldLabel label={t('mbom.effectiveFrom')} help={t('mbom.effectiveDateHelp')} /><input required type="date" value={subForm.effective_from} onChange={(e) => setSubForm({ ...subForm, effective_from: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3" /></label>

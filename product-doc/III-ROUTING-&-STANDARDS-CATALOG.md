@@ -2,6 +2,19 @@
 
 Tài liệu đặc tả danh mục Master Data quản lý công đoạn (`Operation`), quy trình công nghệ (`Routing`), định mức thời gian / năng suất (`Production Standard`) và hướng dẫn thao tác (`Work Instruction`) cho hệ thống MES MVP.
 
+## Ranh giới authoring của Routing Operation (2026-08-07)
+
+Khi thêm một công đoạn vào Routing, cùng một dòng sẽ chọn Work Center và
+khai báo nguồn định mức cùng các giá trị theo Routing: số lượng tham chiếu,
+thời gian setup, cycle time, số nhân lực, efficiency và yield. Vì vậy cùng
+một Operation có thể có giá trị khác nhau trong các Routing khác nhau.
+
+Console không còn yêu cầu người dùng lặp lại quan hệ này tại các trang
+Resource Capability hoặc Production Standard độc lập. Các bảng backend vẫn
+được giữ để tương thích và lưu các ràng buộc eligibility theo tài nguyên.
+Operation defaults là mặc định dùng chung; Work Order chụp giá trị đã phân
+giải khi tạo.
+
 ---
 
 ## C1. MD_OPERATION — Danh mục công đoạn
@@ -217,4 +230,11 @@ giá trị và nguồn đã phân giải vào planning snapshot; thay đổi mas
 
 ## C7. Production Version Compatibility Boundary (2026-07-29)
 
-Routing belongs to one output Item Revision through `item_revision_id`; Site remains resolved from its Work Center context. Production Version validates matching Item Revision ownership across MBOM and Routing, the selected Site, base UOM, current MBOM lines, issue-operation membership and Work Center site before release. Routing operations remain process occurrences of reusable Operation Catalog records; Routing owns order, dependencies and resource capability context.
+Routing is an independent operation flow and does not store `item_revision_id`; Site is resolved from its Work Center context. Production Version selects a Released MBOM and Routing, derives Item Revision from MBOM, derives Site from Routing, and validates Site compatibility, base UOM, current MBOM lines, issue-operation membership and Work Center scope before release. Routing operations remain process occurrences of reusable Operation Catalog records; Routing owns order, dependencies and resource capability context.
+
+Draft Routing edits synchronize the current operation graph by stable `md_routing_operation.master_id`; unchanged
+operations are updated in place so Production Standards and worker-skill overrides retain their references. Removed
+operations become inactive history. Sequence uniqueness applies only to current active operations. Routing detail
+must show resolved planning values and their source, not browser defaults. The base-quantity lifecycle estimate is
+`setup * 60 + cycle + queue * 60 + move * 60`; Work Order duration is calculated separately from WO quantity and
+runtime resource/calendar factors.

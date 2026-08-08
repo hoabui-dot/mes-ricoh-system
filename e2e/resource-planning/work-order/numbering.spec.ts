@@ -41,11 +41,11 @@ async function json(ctx: APIRequestContext, base: string, path: string, init: Pa
   return body?.data ?? body;
 }
 
-async function create(ctx: APIRequestContext, base: string, version: any, shift: any, key: string) {
+async function create(ctx: APIRequestContext, base: string, version: any, key: string) {
   const workflow = await json(ctx, base, '/api/mes/execution/work-order-creation-workflows', {
     method: 'POST',
     headers: { 'Idempotency-Key': key },
-    data: { production_version_id: version.production_version_id, quantity: 1, target_date: new Date().toISOString().slice(0, 10), shift_id: shift.master_id },
+    data: { production_version_id: version.production_version_id, quantity: 1, target_date: new Date().toISOString().slice(0, 10) },
   });
   for (let attempt = 0; attempt < 60; attempt += 1) {
     const snapshot = await json(ctx, base, `/api/mes/execution/work-order-creation-workflows/${workflow.workflow_id}`);
@@ -74,19 +74,15 @@ test('[@numbering] RP-E2E-130/131 Work Order codes remain unique sequentially an
       .filter((row: any) => row.readiness_status === 'Ready' && (row.production_version_code?.startsWith('PV-') || row.production_version_code?.startsWith('WST-SEED-PV-')))
       .sort((a: any, b: any) => Number(b.production_version_code?.startsWith('WST-SEED-PV-')) - Number(a.production_version_code?.startsWith('WST-SEED-PV-')))[0];
     expect(version).toBeTruthy();
-    const shifts = await json(ctx, auth.base, `/api/mes/master-data/shifts?site_id=${encodeURIComponent(version.site_id)}&limit=500`);
-    const shift = shifts.find((row: any) => row.site_id === version.site_id && row.lifecycle_status !== 'Inactive');
-    expect(shift).toBeTruthy();
-
-    const first = await create(ctx, auth.base, version, shift, `E2E-RP-NUMBER-SEQUENTIAL-A-${Date.now()}`);
-    const second = await create(ctx, auth.base, version, shift, `E2E-RP-NUMBER-SEQUENTIAL-B-${Date.now()}`);
+    const first = await create(ctx, auth.base, version, `E2E-RP-NUMBER-SEQUENTIAL-A-${Date.now()}`);
+    const second = await create(ctx, auth.base, version, `E2E-RP-NUMBER-SEQUENTIAL-B-${Date.now()}`);
     expect(first.work_order_id).not.toBe(second.work_order_id);
     expect(first.work_order_code).not.toBe(second.work_order_code);
 
     const concurrentRun = Date.now();
     const [third, fourth] = await Promise.all([
-      create(ctx, auth.base, version, shift, `E2E-RP-NUMBER-CONCURRENT-A-${concurrentRun}`),
-      create(ctx, auth.base, version, shift, `E2E-RP-NUMBER-CONCURRENT-B-${concurrentRun}`),
+      create(ctx, auth.base, version, `E2E-RP-NUMBER-CONCURRENT-A-${concurrentRun}`),
+      create(ctx, auth.base, version, `E2E-RP-NUMBER-CONCURRENT-B-${concurrentRun}`),
     ]);
     expect(third.work_order_id).not.toBe(fourth.work_order_id);
     expect(third.work_order_code).not.toBe(fourth.work_order_code);

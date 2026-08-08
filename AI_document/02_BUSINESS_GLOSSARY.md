@@ -12,7 +12,7 @@ APIs: `/api/mes/execution/work-orders`, `/compute-check`, `/approve`, `/reject`,
 
 ## Routing
 
-Definition: ordered manufacturing process for an output item revision.
+Definition: independent, reusable ordered manufacturing process. It has no output Item Revision ownership; a Production Version combines it with an MBOM.
 Owner: `mes-master-data-service`.
 Modules: MES Console, Execution read model, Resource Planning.
 Entities: `md_routing_header`, `md_routing_operation`, `rm_routing_header`, `rm_routing_operation`.
@@ -20,7 +20,7 @@ APIs: `/api/mes/master-data/routing-headers`, `/routing-headers/:id/operations`.
 
 ## Production Version
 
-Definition: authoritative released combination of Item Revision, MBOM, Routing, and optional EBOM baseline used to create a Work Order.
+Definition: authoritative released combination of MBOM and independent Routing used to create a Work Order. Output Item Revision is derived from MBOM, while Site is derived from Routing Work Centers; both are persisted as backend-owned snapshots.
 Owner: `mes-master-data-service`.
 Modules: MES Console, Execution.
 Entities: `md_production_version`, `rm_production_version`.
@@ -33,14 +33,6 @@ Owner: `mes-master-data-service`.
 Modules: MES Console, Execution material snapshot, WMS integration.
 Entities: `md_mbom_header`, `md_mbom_line`, `md_component_substitute`, `rm_mbom_header`, `rm_mbom_line`, `wo_material_requirement`.
 APIs: `/mbom-headers`, `/mbom-headers/:id/lines/replace`, `/mbom-lines/:lineId/substitutes`.
-
-## EBOM
-
-Definition: engineering bill of material baseline. It does not drive material explosion, staging, execution, backflush, substitutes, or WO readiness.
-Owner: `mes-master-data-service`.
-Modules: MES Console product engineering.
-Entities: `md_ebom_header`, `md_ebom_line`.
-APIs: `/api/mes/master-data/ebom-headers` through generic master-data routes.
 
 ## Genealogy
 

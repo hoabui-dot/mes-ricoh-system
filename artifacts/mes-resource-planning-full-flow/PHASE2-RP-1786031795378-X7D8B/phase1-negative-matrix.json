@@ -1,0 +1,91 @@
+{
+  "success": true,
+  "run_id": "PHASE1-RP-1786031797595-G3N20",
+  "declared": 20,
+  "executed": 20,
+  "passed": 20,
+  "failed": 0,
+  "skipped": 0,
+  "scenarios": [
+    {
+      "name": "missing Primary Machine Requirement blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "insufficient physical Machine Units blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "expired Resource Assignment blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "Workstation in another Work Center is not a candidate",
+      "status": "passed"
+    },
+    {
+      "name": "Machine Unit in another Site blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "Machine Unit under maintenance blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "Machine Unit out of service blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "Machine Unit not planning eligible blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "unavailable Resource Calendar blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "invalid Shift blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "missing Production Standard blocks readiness",
+      "status": "passed"
+    },
+    {
+      "name": "stale candidate is rejected at commit",
+      "status": "passed"
+    },
+    {
+      "name": "simultaneous allocation conflict rejects second commit",
+      "status": "passed"
+    },
+    {
+      "name": "idempotent replay returns the same allocation response",
+      "status": "passed"
+    },
+    {
+      "name": "reused idempotency key with different request fails",
+      "status": "passed"
+    },
+    {
+      "name": "reallocation supersedes history and cancels old reservations",
+      "status": "passed"
+    },
+    {
+      "name": "allocation cancellation removes active reservations without deleting audit history",
+      "status": "passed"
+    },
+    {
+      "name": "approval after resource state changed fails revalidation",
+      "status": "passed"
+    },
+    {
+      "name": "execution start without valid allocation is rejected",
+      "status": "passed"
+    },
+    {
+      "name": "unauthorized role cannot commit allocation",
+      "status": "passed"
+    }
+  ]
+}

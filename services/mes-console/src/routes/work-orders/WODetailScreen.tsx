@@ -7,11 +7,12 @@ import { toast } from 'sonner';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
 import { translatedEnum } from '../../lib/i18nLabels';
 import { normalizeWorkOrderDetail, localizedText } from './workOrderDetail';
-import type { LineEvaluationResult, ReadinessDimension, WorkOrderDetail } from './workOrderContracts';
+import type { LineEvaluationResult, LineOperationEvaluation, ReadinessDimension, WorkOrderDetail } from './workOrderContracts';
 import { gatewayBaseUrl } from '../../lib/masterDataApi';
 import { translateWorkOrderError } from '../../lib/errorMessages';
-import { FieldHelpPopover } from '../../components/ui';
+import { Button, FieldHelpPopover } from '../../components/ui';
 import { formatNumberForDisplay } from '../../lib/numeric/uomNumeric';
+import { BaseModal } from '../../components/base';
 
 export const WODetailScreen: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -76,6 +77,7 @@ export const WODetailScreen: React.FC = () => {
   const readinessLabel = (status?: string | null) => status ? translatedEnum(t, 'resourceReadiness.status', status) : t('common.notAvailable');
   const lineResultStatusClass = (status?: string) => status === 'Ready' ? 'border-emerald-700 text-emerald-300' : 'border-rose-800 text-rose-300';
   const evaluatedLineResults: LineEvaluationResult[] = Array.isArray(wo?.evaluated_line_results) ? wo.evaluated_line_results : [];
+  const evaluatedOperationCodes = Array.from(new Set(evaluatedLineResults.flatMap((line) => (line.operations || []).map((operation) => operation.operation_code))));
   const lineLocked = Boolean(wo?.line_locked_at);
   const canReplanLine = canPlanResources && ['Draft', 'PendingApproval', 'Released', 'ResourceHold'].includes(wo?.status);
   const lineReplanBlockedAfterStart = ['InProgress', 'Completed', 'Closed'].includes(wo?.status);
@@ -631,6 +633,19 @@ export const WODetailScreen: React.FC = () => {
             </div>
           );})}
         </div>
+        {evaluatedOperationCodes.length > 0 && <div className="overflow-x-auto rounded-md border border-slate-800" data-testid="line-operation-feasibility-matrix">
+          <table className="w-full min-w-[680px] table-fixed text-left text-xs">
+            <thead className="bg-slate-950 text-slate-400"><tr><th className="w-[28%] px-3 py-2">{t('woDetail.operationFeasibility')}</th>{evaluatedLineResults.map((line) => <th key={line.production_line_id || line.production_line_code} className="px-3 py-2"><span className="block text-slate-200">{line.production_line_code || t('common.notAvailable')}</span><span>{lineSelectionLabel('role', line.selection_role)}</span></th>)}</tr></thead>
+            <tbody>{evaluatedOperationCodes.map((operationCode) => <tr key={operationCode} className="border-t border-slate-800 align-top"><th className="px-3 py-2 font-medium text-slate-200">{operationCode}</th>{evaluatedLineResults.map((line) => {
+              const operation = (line.operations || []).find((candidate: LineOperationEvaluation) => candidate.operation_code === operationCode);
+              const blockerCode = operation?.blocker_codes?.[0];
+              return <td key={`${line.production_line_id || line.production_line_code}-${operationCode}`} className="px-3 py-2" data-testid={`line-operation-${String(line.selection_role || '').toLowerCase()}-${operationCode}`}>
+                {operation ? <><span className={`block font-semibold ${dimensionStatusClass(operation.status)}`}>{dimensionStatusLabel(operation.status)}</span><span className="block text-slate-400">{t('woDetail.feasibleCandidates', { count: operation.feasible_candidate_count ?? 0, total: operation.total_candidate_count ?? 0 })}</span>{blockerCode && <span className="mt-1 block text-rose-300">{translateWorkOrderError(blockerCode, t) || blockerCode}</span>}</> : <span className="text-slate-500">{t('common.notAvailable')}</span>}
+              </td>;
+            })}</tr>)}</tbody>
+            <tfoot><tr className="border-t border-slate-700 bg-slate-950"><th className="px-3 py-2 text-slate-300">{t('woDetail.completeLineResult')}</th>{evaluatedLineResults.map((line) => <td key={line.production_line_id || line.production_line_code} className={`px-3 py-2 font-semibold ${dimensionStatusClass(line.complete_line_feasibility_status || line.status)}`}>{dimensionStatusLabel(line.complete_line_feasibility_status || line.status)}<span className="block font-normal text-slate-500">{line.production_line_id === wo.selected_production_line_id ? t('woDetail.selectedEvaluationLine') : t('woDetail.notSelectedEvaluationLine')}</span></td>)}</tr></tfoot>
+          </table>
+        </div>}
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" data-testid="work-order-operation-line-consistency"><div className="rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.operationLineConsistency')}</div><div className="mt-1 text-sm text-slate-200">{resourceOperations.length === 0 ? t('common.notAvailable') : resourceOperations.every((operation: any) => !operation.production_line_code || operation.production_line_code === wo.selected_production_line_code) ? t('woDetail.operationLineConsistent') : t('woDetail.operationLineMismatch')}</div></div><div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-950 p-3"><div className="text-xs font-semibold uppercase text-slate-500">{t('woDetail.gateSummary')}</div><table className="mt-2 w-full text-left text-xs"><thead className="text-slate-500"><tr><th className="py-1 pr-2">{t('woDetail.gate')}</th><th className="py-1 pr-2">{t('common.status')}</th><th className="py-1 pr-2">{t('woDetail.gateMeaning')}</th><th className="py-1">{t('woDetail.gateNextAction')}</th></tr></thead><tbody>{[
           ['WorkOrder', 'woDetail.gateWorkOrder', wo.status],
           ['LineSelection', 'woDetail.gateLineSelection', wo.line_selection_status],
@@ -809,14 +824,8 @@ export const WODetailScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Reject Modal with AlertDialog pattern */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-          <form onSubmit={handleReject} className="bg-slate-900 border border-rose-900/50 rounded-md p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex items-center space-x-3 text-rose-400">
-              <XCircle className="w-6 h-6" />
-              <h3 className="text-lg font-bold">{t('woDetail.rejectTitle')}</h3>
-            </div>
+      <BaseModal open={showRejectModal} title={<span className="flex items-center gap-2 text-rose-400"><XCircle className="h-5 w-5" />{t('woDetail.rejectTitle')}</span>} onClose={() => setShowRejectModal(false)} size="sm" placement="center" footerLeft={<Button type="button" variant="secondary" onClick={() => setShowRejectModal(false)}>{t('common.cancel')}</Button>} footer={<Button type="submit" form="wo-reject-form" variant="destructive" disabled={submittingAction}>{t('woDetail.confirmReject')}</Button>}>
+          <form id="wo-reject-form" onSubmit={handleReject} className="space-y-4">
             <p className="text-xs text-slate-300">
               {t('woDetail.rejectBody')}
             </p>
@@ -828,36 +837,15 @@ export const WODetailScreen: React.FC = () => {
               className="w-full bg-slate-950 border border-slate-800 rounded-md p-3 text-sm text-slate-100 focus:outline-none focus:border-rose-500"
               required
             />
-            <div className="flex justify-end space-x-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowRejectModal(false)}
-                className="px-4 py-2 bg-slate-800 text-slate-300 rounded-md text-sm font-semibold"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="submit"
-                disabled={submittingAction}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-sm font-semibold"
-              >
-                {t('woDetail.confirmReject')}
-              </button>
-            </div>
           </form>
-        </div>
-      )}
+      </BaseModal>
 
-      {showLineReplanModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-          <form onSubmit={handleLineReplan} className="bg-slate-900 border border-action/50 rounded-md p-6 max-w-lg w-full space-y-4 shadow-2xl">
-            <div className="flex items-center space-x-3 text-amber-300"><RefreshCw className="w-6 h-6" /><h3 className="text-lg font-bold">{t('woDetail.lineReplan')}</h3></div>
+      <BaseModal open={showLineReplanModal} title={<span className="flex items-center gap-2 text-amber-300"><RefreshCw className="h-5 w-5" />{t('woDetail.lineReplan')}</span>} onClose={() => setShowLineReplanModal(false)} size="sm" placement="center" footerLeft={<Button type="button" variant="secondary" onClick={() => setShowLineReplanModal(false)}>{t('common.cancel')}</Button>} footer={<Button data-testid="line-replan-confirm-button" type="submit" form="wo-line-replan-form" disabled={submittingAction}>{t('woDetail.confirmLineReplan')}</Button>}>
+          <form id="wo-line-replan-form" onSubmit={handleLineReplan} className="space-y-4">
             <p className="text-sm text-slate-300">{wo.status === 'Released' ? t('woDetail.lineReplanReleasedImpact') : t('woDetail.lineReplanDraftImpact')}</p>
             <textarea value={lineReplanReason} onChange={(e) => setLineReplanReason(e.target.value)} placeholder={t('woDetail.lineReplanReasonPlaceholder')} rows={3} className="w-full bg-slate-950 border border-slate-800 rounded-md p-3 text-sm text-slate-100 focus:outline-none focus:border-action" required />
-            <div className="flex justify-end space-x-3 pt-2"><button type="button" onClick={() => setShowLineReplanModal(false)} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-md text-sm font-semibold">{t('common.cancel')}</button><button data-testid="line-replan-confirm-button" type="submit" disabled={submittingAction} className="px-5 py-2 bg-action hover:bg-action-hover text-white rounded-md text-sm font-semibold">{t('woDetail.confirmLineReplan')}</button></div>
           </form>
-        </div>
-      )}
+      </BaseModal>
     </div>
   );
 };

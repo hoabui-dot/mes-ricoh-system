@@ -1,171 +1,115 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
-  ClipboardList,
-  Package,
-  Layers,
-  GitCommit,
-  Cpu,
-  Factory,
-  Wrench,
-  Gauge,
   AlertTriangle,
   Award,
-  Users,
-  Clock,
   CalendarDays,
+  ChevronDown,
+  ClipboardList,
+  Clock,
+  Cpu,
+  Factory,
+  Gauge,
+  GitCommit,
+  Layers,
   Map,
   Monitor,
-  Link2,
+  Package,
   Printer,
   Ruler,
   Tags,
+  Users,
+  Wrench,
+  type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@mom-platform/i18n-ui-shared';
+import { cn } from '../lib/utils';
 
-export const Sidebar: React.FC = () => {
+type SectionId = 'operations' | 'product' | 'labor' | 'resources';
+type NavItem = { to: string; labelKey: string; icon: LucideIcon };
+
+const sections: Array<{ id: SectionId; labelKey: string; icon: LucideIcon; items: NavItem[] }> = [
+  { id: 'operations', labelKey: 'nav.productionOperations', icon: ClipboardList, items: [
+    { to: '/work-orders', labelKey: 'nav.workOrders', icon: ClipboardList },
+  ] },
+  { id: 'product', labelKey: 'nav.productDefinition', icon: Package, items: [
+    { to: '/master-data/items', labelKey: 'nav.items', icon: Package },
+    { to: '/master-data/uoms', labelKey: 'nav.uoms', icon: Ruler },
+    { to: '/master-data/material-groups', labelKey: 'nav.materialGroups', icon: Tags },
+    { to: '/master-data/mboms', labelKey: 'nav.mbom', icon: Layers },
+    { to: '/master-data/routings', labelKey: 'nav.routing', icon: GitCommit },
+    { to: '/master-data/production-versions', labelKey: 'nav.productionVersion', icon: Cpu },
+    { to: '/master-data/operations', labelKey: 'operationCatalog.title', icon: Gauge },
+  ] },
+  { id: 'labor', labelKey: 'nav.workforceAndCalendar', icon: Users, items: [
+    { to: '/employees', labelKey: 'nav.employees', icon: Users },
+    { to: '/shifts', labelKey: 'nav.shifts', icon: Clock },
+    { to: '/work-calendar', labelKey: 'nav.workCalendar', icon: CalendarDays },
+  ] },
+  { id: 'resources', labelKey: 'nav.plantStructureAndResources', icon: Factory, items: [
+    { to: '/master-data/factories', labelKey: 'resourceFoundation.factories', icon: Map },
+    { to: '/master-data/shopfloors', labelKey: 'resourceFoundation.shopfloors', icon: Map },
+    { to: '/master-data/production-areas', labelKey: 'resourceFoundation.productionAreas', icon: Map },
+    { to: '/master-data/production-lines', labelKey: 'resourceFoundation.productionLines', icon: Factory },
+    { to: '/master-data/work-centers', labelKey: 'nav.workCenters', icon: Factory },
+    { to: '/master-data/workstations', labelKey: 'resourceFoundation.workstations', icon: Monitor },
+    { to: '/master-data/print-stations', labelKey: 'nav.printStations', icon: Printer },
+    { to: '/master-data/machines', labelKey: 'resourceFoundation.machines', icon: Wrench },
+    { to: '/master-data/resource-calendars', labelKey: 'resourceFoundation.calendars', icon: CalendarDays },
+    { to: '/master-data/reason-codes', labelKey: 'nav.reasonCodes', icon: AlertTriangle },
+    { to: '/master-data/skills', labelKey: 'nav.skills', icon: Award },
+  ] },
+];
+
+function activeSection(pathname: string): SectionId {
+  const match = sections.find((section) => section.items.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`)));
+  return match?.id || 'operations';
+}
+
+export const Sidebar: React.FC<{ className?: string; onNavigate?: () => void }> = ({ className, onNavigate }) => {
   const { t } = useI18n();
-  const navSectionClass = 'px-3 mb-2 mt-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground';
-  const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center space-x-3 px-3 py-2.5 rounded-md text-sm font-semibold transition ${
-      isActive
-        ? 'mes-nav-active border-action/45 bg-action/15 text-foreground shadow-sm'
-        : 'border-transparent text-muted-foreground hover:bg-hover hover:text-foreground'
-    }`;
+  const { pathname } = useLocation();
+  const [openSection, setOpenSection] = useState<SectionId | null>(() => activeSection(pathname));
+
+  useEffect(() => setOpenSection(activeSection(pathname)), [pathname]);
+
+  const linkClass = ({ isActive }: { isActive: boolean }) => cn(
+    'flex min-h-10 items-center gap-3 rounded-md border px-3 py-2 text-sm font-semibold transition',
+    isActive
+      ? 'mes-nav-active border-action/45 bg-action/15 text-foreground shadow-sm'
+      : 'border-transparent text-muted-foreground hover:bg-hover hover:text-foreground',
+  );
 
   return (
-    <aside className="h-full w-64 min-h-0 shrink-0 space-y-2 overflow-y-auto border-r border-border bg-surface-subtle p-4">
-      <div>
-        <div className={navSectionClass}>{t('nav.operations')}</div>
-        <div className="space-y-1">
-          <NavLink to="/work-orders" className={linkClass}>
-            <ClipboardList className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.workOrders')}</span>
-          </NavLink>
-        </div>
-      </div>
-
-      <div>
-        <div className={navSectionClass}>{t('nav.masterDataTier1')}</div>
-        <div className="space-y-1">
-          <NavLink to="/master-data/items" className={linkClass}>
-            <Package className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.items')}</span>
-          </NavLink>
-          <NavLink to="/master-data/uoms" className={linkClass}>
-            <Ruler className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.uoms')}</span>
-          </NavLink>
-          <NavLink to="/master-data/material-groups" className={linkClass}>
-            <Tags className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.materialGroups')}</span>
-          </NavLink>
-          <NavLink to="/master-data/mboms" className={linkClass}>
-            <Layers className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.mbom')}</span>
-          </NavLink>
-          <NavLink to="/master-data/routings" className={linkClass}>
-            <GitCommit className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.routing')}</span>
-          </NavLink>
-          <NavLink to="/master-data/production-versions" className={linkClass}>
-            <Cpu className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.productionVersion')}</span>
-          </NavLink>
-          <NavLink to="/master-data/eboms" className={linkClass}>
-            <GitCommit className="mes-nav-icon h-4 w-4 text-info" />
-            <span>EBOM</span>
-          </NavLink>
-          <NavLink to="/master-data/operations" className={linkClass}>
-            <Gauge className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('operationCatalog.title')}</span>
-          </NavLink>
-        </div>
-      </div>
-
-      <div>
-        <div className={navSectionClass}>{t('nav.labor')}</div>
-        <div className="space-y-1">
-          <NavLink to="/employees" className={linkClass}>
-            <Users className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.employees')}</span>
-          </NavLink>
-          <NavLink to="/shifts" className={linkClass}>
-            <Clock className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.shifts')}</span>
-          </NavLink>
-          <NavLink to="/work-calendar" className={linkClass}>
-            <CalendarDays className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.workCalendar')}</span>
-          </NavLink>
-        </div>
-      </div>
-
-      <div>
-        <div className={navSectionClass}>{t('nav.masterDataTier2')}</div>
-        <div className="space-y-1">
-          <NavLink to="/master-data/factories" className={linkClass}>
-            <Map className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.factories')}</span>
-          </NavLink>
-          <NavLink to="/master-data/shopfloors" className={linkClass}>
-            <Map className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.shopfloors')}</span>
-          </NavLink>
-          <NavLink to="/master-data/production-areas" className={linkClass}>
-            <Map className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.productionAreas')}</span>
-          </NavLink>
-          <NavLink to="/master-data/production-lines" className={linkClass}>
-            <Factory className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.productionLines')}</span>
-          </NavLink>
-          <NavLink to="/master-data/work-centers" className={linkClass}>
-            <Factory className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.workCenters')}</span>
-          </NavLink>
-          <NavLink to="/master-data/workstations" className={linkClass}>
-            <Monitor className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.workstations')}</span>
-          </NavLink>
-          <NavLink to="/master-data/print-stations" className={linkClass}>
-            <Printer className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.printStations')}</span>
-          </NavLink>
-          <NavLink to="/master-data/machines" className={linkClass}>
-            <Wrench className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.machines')}</span>
-          </NavLink>
-          <NavLink to="/master-data/resource-assignments" className={linkClass}>
-            <Link2 className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.assignments')}</span>
-          </NavLink>
-          <NavLink to="/master-data/resource-capabilities" className={linkClass}>
-            <Gauge className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.capabilities')}</span>
-          </NavLink>
-          <NavLink to="/master-data/resource-calendars" className={linkClass}>
-            <CalendarDays className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.calendars')}</span>
-          </NavLink>
-          <NavLink to="/master-data/production-standards" className={linkClass}>
-            <Gauge className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.productionStandards')}</span>
-          </NavLink>
-          <NavLink to="/master-data/operation-skill-requirements" className={linkClass}>
-            <Award className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('resourceFoundation.operationSkillRequirements')}</span>
-          </NavLink>
-          <NavLink to="/master-data/reason-codes" className={linkClass}>
-            <AlertTriangle className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.reasonCodes')}</span>
-          </NavLink>
-          <NavLink to="/master-data/skills" className={linkClass}>
-            <Award className="mes-nav-icon h-4 w-4 text-info" />
-            <span>{t('nav.skills')}</span>
-          </NavLink>
-        </div>
-      </div>
+    <aside className={cn('h-full min-h-0 w-64 shrink-0 overflow-y-auto border-r border-border bg-surface-subtle p-3', className)}>
+      <nav aria-label={t('nav.mainMenu')} className="space-y-2">
+        {sections.map((section) => {
+          const expanded = openSection === section.id;
+          const SectionIcon = section.icon;
+          return <section key={section.id} className="overflow-hidden rounded-md border border-border/70 bg-surface">
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={`mes-nav-${section.id}`}
+              onClick={() => setOpenSection((current) => current === section.id ? null : section.id)}
+              className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left text-sm font-bold text-foreground hover:bg-hover"
+            >
+              <SectionIcon className="h-4 w-4 shrink-0 text-info" />
+              <span className="min-w-0 flex-1">{t(section.labelKey)}</span>
+              <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
+            </button>
+            {expanded ? <div id={`mes-nav-${section.id}`} className="space-y-1 border-t border-border/70 p-2">
+              {section.items.map((item) => {
+                const ItemIcon = item.icon;
+                return <NavLink key={item.to} to={item.to} className={linkClass} onClick={onNavigate}>
+                  <ItemIcon className="mes-nav-icon h-4 w-4 shrink-0 text-info" />
+                  <span className="min-w-0">{t(item.labelKey)}</span>
+                </NavLink>;
+              })}
+            </div> : null}
+          </section>;
+        })}
+      </nav>
     </aside>
   );
 };

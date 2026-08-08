@@ -26,6 +26,7 @@ services:
         VITE_MES_URL: ${VITE_MES_URL:?VITE_MES_URL is required}
         VITE_WMS_URL: ${VITE_WMS_URL:?VITE_WMS_URL is required}
         VITE_QMS_URL: ${VITE_QMS_URL:?VITE_QMS_URL is required}
+        VITE_KIOSK_URL: ${VITE_KIOSK_URL:?VITE_KIOSK_URL is required}
     container_name: platform-portal
     networks: [platform-net]
     ports:

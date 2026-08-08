@@ -5,6 +5,7 @@ import { ShieldCheck, UserCheck, KeyRound, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SUPPORTED_LOCALES, languageNames, useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
 import { gatewayUrl, getKioskRuntimeConfig } from '../lib/runtimeConfig';
+import { getKioskSSOToken, initKioskSSO, refreshKioskSSOToken } from '../lib/keycloak';
 
 export const LoginScreen: React.FC = () => {
   const { terminalId = 'KIOSK-DEMO-01' } = useParams();
@@ -18,6 +19,13 @@ export const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  React.useEffect(() => {
+    // Demo/UAT terminals intentionally use the gateway operator login. In
+    // production the same screen is SSO-first and Keycloak is required.
+    if (runtimeConfig.demoCredentialsEnabled) return;
+    void initKioskSSO().catch((error) => setErrorMsg(error instanceof Error ? error.message : 'SSO initialization failed'));
+  }, [runtimeConfig.demoCredentialsEnabled]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!employeeId || !pin) {
@@ -29,10 +37,11 @@ export const LoginScreen: React.FC = () => {
     setErrorMsg('');
 
     try {
-      const resp = await fetch(gatewayUrl(`/api/mes/kiosk-gateway/terminals/${encodeURIComponent(terminalId)}/login`), {
+      const ssoToken = await refreshKioskSSOToken().catch(() => getKioskSSOToken());
+      const resp = await fetch(gatewayUrl(`/api/mes/kiosk-gateway/terminals/${encodeURIComponent(terminalId)}/${ssoToken ? 'sso' : 'login'}`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: employeeId, pin }),
+        headers: ssoToken ? { Authorization: `Bearer ${ssoToken}` } : { 'Content-Type': 'application/json' },
+        ...(ssoToken ? {} : { body: JSON.stringify({ employee_id: employeeId, pin }) }),
       });
 
       if (!resp.ok) {

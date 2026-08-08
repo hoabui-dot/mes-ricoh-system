@@ -12,5 +12,7 @@ describe('MES master-data table registry', () => {
     expect(TABLE_BY_RESOURCE.get('resource-assignments')?.tableName).toBe('md_resource_assignment');
     expect(TABLE_BY_RESOURCE.has('traceability-policies')).toBe(false);
     expect(TABLE_BY_RESOURCE.has('terminals')).toBe(false);
+    expect(TABLE_BY_RESOURCE.has('ebom-headers')).toBe(false);
+    expect(TABLE_BY_RESOURCE.has('ebom-lines')).toBe(false);
   });
 });

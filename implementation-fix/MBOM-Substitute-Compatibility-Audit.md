@@ -9,7 +9,11 @@ For an MBOM line component, a substitute Item Revision is valid only when:
 1. the substitute Revision is `Released` and effective now;
 2. it is not the same Revision as the original component;
 3. its `item_group` matches the original component group; and
-4. its base UOM matches the component UOM, or a Released, open-ended UOM conversion exists.
+4. its base UOM matches the component UOM, or a currently effective `Released` UOM conversion exists.
+
+An Item-scoped conversion is valid only when it belongs to the substitute Item. A global conversion is
+valid only when both UOMs belong to the same UOM class/dimension. A finite `effective_to` is valid until
+that timestamp; a future or expired conversion is not valid.
 
 An incompatible group or missing UOM conversion returns `MBOM_SUBSTITUTE_COMPATIBILITY_INVALID`.
 The compatibility exception path is intentional: the request must provide
@@ -63,3 +67,16 @@ MES Console uses the reusable `ValidationErrorToast` component. The toast shows 
 message and stable error code, with a `More details` action that expands translated condition failures.
 The component accepts a details list through props and can be reused by other validation forms. The
 same-group/different-UOM case was also verified and returns the translated UOM-conversion condition.
+
+## 2026-08-07 remediation
+
+- Aggregate create, direct create, replace, and generic create now use the same compatibility evaluator.
+- Every compatibility rejection includes component/substitute Item codes and expected/actual group or
+  UOM code/class values in `details[]`.
+- MES Console preserves API details, translates them, and displays a nine-condition validation summary
+  in both create and edit substitute forms.
+- The create/edit modal blocks staging an incompatible substitute immediately. The ordinary
+  `requires_approval` flag does not bypass compatibility.
+- The explicit exception contract remains separate: `compatibility_exception_approved=true` requires a
+  non-empty reason and forces approval. MES Console does not expose this exceptional path as routine data entry.
+- Playwright covers the visible group failure, structured group/UOM API details, and aggregate rollback.

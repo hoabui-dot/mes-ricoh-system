@@ -62,7 +62,7 @@ async function createWorkOrder(ctx: APIRequestContext, base: string, version: an
   const started = await json(ctx, base, '/api/mes/execution/work-order-creation-workflows', {
     method: 'POST',
     headers: { 'Idempotency-Key': key },
-    data: { production_version_id: version.production_version_id, quantity: 2, target_date: targetDate, shift_id: shift.master_id },
+    data: { production_version_id: version.production_version_id, quantity: 2, target_date: targetDate },
   });
   expect(started.response.ok(), JSON.stringify(started.body)).toBeTruthy();
   const workflowId = started.body.workflow_id;

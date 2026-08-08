@@ -1,30 +1,30 @@
 {
   "success": true,
-  "generated_at": "2026-08-04T05:16:54.576Z",
+  "generated_at": "2026-08-07T09:47:05.553Z",
   "api_base": "http://100.68.50.41:18000/api/mes/execution",
-  "target_date": "2026-08-04",
+  "target_date": "2026-08-07",
   "model": {
     "production_version": {
-      "master_id": "e27ce86f-27b4-4aa4-a645-5adca711ad19",
+      "master_id": "4ea749d5-1b02-4f44-bff0-f37f5128bfa6",
       "code": "WST-SEED-PV-SEAL-ASM-01",
-      "item_revision_id": "fefa8e4c-b8b3-4143-8409-e0e28851f0b7",
-      "site_id": "009d3fb2-52f3-4efc-8e8d-08460d264554",
-      "base_uom_id": "0777956a-0a7d-403d-8bfc-26de4693a746"
+      "item_revision_id": "be7247c0-8246-42aa-b38b-e1025aa638b4",
+      "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+      "base_uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a"
     },
     "primary_line": {
-      "production_line_id": "9eb6da29-5e13-450d-8302-5a7f2eb10579",
+      "production_line_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
       "code": "WST-SEED-LINE-1",
       "selection_role": "PRIMARY",
       "priority": 1
     },
     "backup_line": {
-      "production_line_id": "65b6dcea-6038-4a3f-bc64-1c9e82729908",
+      "production_line_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
       "code": "WST-SEED-LINE-2",
       "selection_role": "BACKUP",
       "priority": 2
     },
     "shift": {
-      "master_id": "f9abaf59-d249-42d9-9560-fcb39cf929e5",
+      "master_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
       "code": "SHIFT-A",
       "name": "Day Shift",
       "version_no": 1,
@@ -32,14 +32,14 @@
       "effective_from": "2026-07-21T00:00:00.000Z",
       "effective_to": null,
       "created_by": "00000000-0000-0000-0000-000000000001",
-      "created_at": "2026-08-04T05:06:26.638Z",
+      "created_at": "2026-08-06T15:54:47.347Z",
       "updated_by": "00000000-0000-0000-0000-000000000001",
-      "updated_at": "2026-08-04T05:06:26.638Z",
+      "updated_at": "2026-08-06T15:54:47.347Z",
       "approved_by": "00000000-0000-0000-0000-000000000001",
       "approved_at": "2026-07-21T00:00:00.000Z",
       "row_version": 1,
       "attributes": {},
-      "site_id": "009d3fb2-52f3-4efc-8e8d-08460d264554",
+      "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
       "start_time": "08:00",
       "end_time": "17:00",
       "crosses_midnight": false
@@ -49,21 +49,28 @@
   "fixtures": [
     {
       "scenario": "primary-ready",
-      "workflow_id": "191b824c-f682-423f-90c2-17a03a276342",
-      "work_order_id": "74b6b29e-a787-4b24-b173-e6ea04ba595f",
-      "work_order_code": "WO-20260804-0008"
+      "workflow_id": "05dec3da-232b-4563-b169-619e5de19ff3",
+      "work_order_id": "c8214dca-cbdc-4080-98ac-7d9ab7f1505a",
+      "work_order_code": "WO-20260807-0182"
+    },
+    {
+      "scenario": "primary-alternative-ready",
+      "degraded_workstation_code": "WST-SEED-WS-L1-BINDING",
+      "workflow_id": "53e244af-4f75-4bd2-8ba7-233a51f9806c",
+      "work_order_id": "7adbac00-3872-4414-b50f-4785992f1769",
+      "work_order_code": "WO-20260807-0183"
     },
     {
       "scenario": "backup-fallback",
-      "workflow_id": "a55c5546-655b-4ae9-9be0-2596b0ac7eac",
-      "work_order_id": "6b67edfb-e00c-47b6-bc22-310b86022112",
-      "work_order_code": "WO-20260804-0009"
+      "workflow_id": "47e3ced1-e56b-4249-904e-20cdefd8a283",
+      "work_order_id": "e2b30492-4d88-4cce-b129-8cb2ccd199c8",
+      "work_order_code": "WO-20260807-0184"
     },
     {
       "scenario": "resource-hold",
-      "workflow_id": "18560d92-a235-480d-933f-34d92a608cd2",
-      "work_order_id": "9b14f187-3c56-4f3e-aec5-a792548cbc51",
-      "work_order_code": "WO-20260804-0010"
+      "workflow_id": "a13bf795-61a1-4002-b505-020efc2cc70a",
+      "work_order_id": "51e68263-08bd-4a88-bfb9-e34e831fe31f",
+      "work_order_code": "WO-20260807-0185"
     }
   ],
   "artifacts": {

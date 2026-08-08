@@ -19,7 +19,9 @@ const managerUserId = process.env.MES_E2E_USER_ID || '00000000-0000-0000-0000-00
 const managerRole = process.env.MES_KIOSK_PREP_ROLE || 'PLANT_MANAGER';
 const terminalCode = 'KIOSK-DEMO-01';
 const productionVersionCode = 'WST-SEED-PV-SEAL-ASM-01';
-const targetDate = process.env.KIOSK_DEMO_TARGET_DATE || '2026-08-03';
+// Keep the demo fixture aligned with the canonical MES seed. The seed uses
+// the next working day because the current date may be a weekend.
+const targetDate = process.env.KIOSK_DEMO_TARGET_DATE || '2026-08-10';
 const expectedManualOperations = ['WST-SEED-OP-BINDING', 'WST-SEED-OP-TEST5IN1', 'WST-SEED-OP-AIRTEST'];
 const expectedPrintOperation = 'WST-SEED-OP-PACKING';
 const scenarios = {

@@ -13,11 +13,13 @@ const beforeStatePath = path.join(artifactDir, 'resource-before-state.json');
 const mutatedStatePath = path.join(artifactDir, 'resource-mutated-state.json');
 const restoredStatePath = path.join(artifactDir, 'resource-restored-state.json');
 const primaryEvidencePath = path.join(artifactDir, 'primary-ready-evidence.json');
+const alternativeEvidencePath = path.join(artifactDir, 'primary-alternative-ready-evidence.json');
 const backupEvidencePath = path.join(artifactDir, 'backup-fallback-evidence.json');
 const holdEvidencePath = path.join(artifactDir, 'resource-hold-evidence.json');
 const apiBase = (process.env.MES_EXECUTION_URL || 'http://100.68.50.41:18000/api/mes/execution').replace(/\/$/, '');
 const masterDataBase = (process.env.MES_MASTER_DATA_URL || 'http://100.68.50.41:18000/api/mes/master-data').replace(/\/$/, '');
 const executionUrl = process.env.MES_EXECUTION_DATABASE_URL || 'postgresql://mes_execution_user:mes_execution_pass@localhost:15435/mes_execution_db';
+const masterDataUrl = process.env.MES_MASTER_DATA_DATABASE_URL || 'postgresql://mes_master_data_user:mes_master_data_pass@localhost:15434/mes_master_data_db';
 const environment = String(process.env.MES_ENV || '').toLowerCase();
 const allowMutation = process.env.ALLOW_TWO_LINE_UAT_MUTATION === 'true';
 const userId = process.env.MES_E2E_USER_ID || '00000000-0000-0000-0000-000000000001';
@@ -25,6 +27,7 @@ const roleCode = process.env.MES_E2E_ROLE_CODE || 'PLANT_MANAGER';
 const targetDate = process.env.MES_TWO_LINE_UAT_DATE || defaultPlanningDate();
 const prefix = 'MES-UAT-UI02';
 const db = new Client({ connectionString: executionUrl });
+const masterDb = new Client({ connectionString: masterDataUrl });
 
 function defaultPlanningDate() {
   const date = new Date();
@@ -39,6 +42,8 @@ function assertSafety() {
   if (!allowMutation) throw new Error('Set ALLOW_TWO_LINE_UAT_MUTATION=true for UI-02 fixture lifecycle.');
   const host = new URL(executionUrl).hostname;
   if (!['localhost', '127.0.0.1', '::1'].includes(host)) throw new Error(`Execution DB must be local/test: ${host}`);
+  const masterHost = new URL(masterDataUrl).hostname;
+  if (!['localhost', '127.0.0.1', '::1'].includes(masterHost)) throw new Error(`Master Data DB must be local/test: ${masterHost}`);
 }
 
 async function writeJson(file, value) {
@@ -112,7 +117,14 @@ async function discoverModel() {
   if (!shiftRow) throw new Error(`Canonical SHIFT-A is missing for site ${pv.site_id}.`);
   const calendars = await calendarRows();
   if (calendars.length < 8) throw new Error(`Expected at least 8 canonical line calendars, got ${calendars.length}`);
-  return { production_version: pv, primary_line: primary, backup_line: backup, operations, shift: shiftRow, target_date: targetDate, calendars };
+  const primaryBindingWorkstations = (await masterDb.query(`
+    SELECT master_id, code, active_flag
+    FROM md_workstation
+    WHERE code IN ('WST-SEED-WS-L1-BINDING','WST-SEED-WS-L1-BINDING-ALT')
+    ORDER BY code
+  `)).rows;
+  if (primaryBindingWorkstations.length !== 2) throw new Error(`Expected two Primary Binding candidates, got ${primaryBindingWorkstations.length}. Reseed Phase 10 canonical data.`);
+  return { production_version: pv, primary_line: primary, backup_line: backup, operations, shift: shiftRow, target_date: targetDate, calendars, primary_binding_workstations: primaryBindingWorkstations };
 }
 
 async function calendarRows() {
@@ -129,9 +141,29 @@ async function calendarRows() {
   `)).rows;
 }
 
+async function masterCalendarRows() {
+  return (await masterDb.query(`
+    SELECT cal.master_id, line.master_id AS production_line_id, line.code AS production_line_code,
+           wc.master_id AS work_center_id, wc.code AS work_center_code,
+           cal.lifecycle_status, cal.availability_status, cal.available_minutes, cal.capacity_factor
+    FROM md_resource_calendar cal
+    JOIN md_work_center wc ON wc.master_id=cal.work_center_id
+    JOIN md_production_line_work_center lwc ON lwc.work_center_id=wc.master_id AND lwc.active_flag=TRUE
+    JOIN md_production_line line ON line.master_id=lwc.production_line_id
+    WHERE line.code IN ('WST-SEED-LINE-1','WST-SEED-LINE-2') AND cal.calendar_date=$1::date
+    ORDER BY line.code, wc.code, cal.master_id
+  `, [targetDate])).rows;
+}
+
 async function restoreCalendars(beforeState) {
-  for (const row of beforeState.calendars || []) {
+  for (const row of beforeState.execution_calendars || beforeState.calendars || []) {
     await db.query(`UPDATE rm_resource_calendar SET lifecycle_status=$2, available_from=$3, available_to=$4, capacity_percent=$5 WHERE master_id=$1`, [row.master_id, row.lifecycle_status, row.available_from, row.available_to, row.capacity_percent]);
+  }
+  for (const row of beforeState.master_calendars || []) {
+    await masterDb.query(`UPDATE md_resource_calendar SET lifecycle_status=$2, availability_status=$3, available_minutes=$4, capacity_factor=$5 WHERE master_id=$1`, [row.master_id, row.lifecycle_status, row.availability_status, row.available_minutes, row.capacity_factor]);
+  }
+  for (const row of beforeState.primary_binding_workstations || []) {
+    await masterDb.query(`UPDATE md_workstation SET active_flag=$2 WHERE master_id=$1`, [row.master_id, row.active_flag]);
   }
 }
 
@@ -144,6 +176,17 @@ async function mutateCalendars(lineIds, lifecycleStatus) {
        AND lwc.production_line_id=ANY($1::uuid[])
        AND lwc.active_flag=true
   `, [lineIds, lifecycleStatus]);
+  await masterDb.query(`
+    UPDATE md_resource_calendar cal
+      SET availability_status=CASE WHEN $2='Inactive' THEN 'PlannedDown' ELSE 'Available' END,
+           available_minutes=CASE WHEN $2='Inactive' THEN 0 ELSE available_minutes END,
+           capacity_factor=CASE WHEN $2='Inactive' THEN 0 ELSE capacity_factor END
+      FROM md_production_line_work_center lwc
+     WHERE lwc.work_center_id=cal.work_center_id
+       AND lwc.production_line_id=ANY($1::uuid[])
+       AND lwc.active_flag=TRUE
+       AND cal.calendar_date=$3::date
+  `, [lineIds, lifecycleStatus, targetDate]);
 }
 
 async function createWorkflow(model, scenario, idempotencyKey) {
@@ -151,7 +194,6 @@ async function createWorkflow(model, scenario, idempotencyKey) {
     production_version_id: model.production_version.master_id,
     quantity: 2,
     uom_id: model.production_version.base_uom_id,
-    shift_id: model.shift.master_id,
     planned_start_at: `${targetDate}T08:00:00.000Z`,
     planned_end_at: `${targetDate}T12:00:00.000Z`,
   };
@@ -245,9 +287,14 @@ async function validateScenario(name, fixture, model) {
   const selectedOperationMismatch = selectedLine ? operationLineIds.some((lineID) => lineID !== selectedLine) : operationLineIds.some(Boolean);
   if (selectedOperationMismatch) throw new Error(`${name}: operation line mismatch ${JSON.stringify(operationLineIds)}`);
   assertDimensionEvidence(name, lines);
-  if (name === 'primary-ready') {
+  if (name === 'primary-ready' || name === 'primary-alternative-ready') {
     if (h.line_selection_status !== 'READY' || selectedLine !== model.primary_line.production_line_id || h.fallback_reason) throw new Error(`${name}: header mismatch ${JSON.stringify(h)}`);
     if (!lines.some((line) => line.production_line_id === model.primary_line.production_line_id && line.status === 'Ready')) throw new Error(`${name}: primary line not Ready`);
+    if (name === 'primary-alternative-ready') {
+      const primaryLine = lines.find((line) => line.production_line_id === model.primary_line.production_line_id);
+      const binding = (primaryLine?.operations || []).find((operation) => operation.operation_code === 'WST-SEED-OP-BINDING');
+      if (!binding || Number(binding.feasible_candidate_count) < 1) throw new Error(`${name}: surviving alternative candidate evidence missing ${JSON.stringify(binding)}`);
+    }
   }
   if (name === 'backup-fallback') {
     if (h.line_selection_status !== 'READY' || selectedLine !== model.backup_line.production_line_id || !h.fallback_reason) throw new Error(`${name}: header mismatch ${JSON.stringify(h)}`);
@@ -275,7 +322,7 @@ async function validateScenario(name, fixture, model) {
 
 async function prepare() {
   const existing = await readJson(manifestPath);
-  if (existing?.fixtures?.length === 3) {
+  if (existing?.fixtures?.length === 4) {
     try {
       await verify(false);
       console.log(JSON.stringify({ success: true, mode: 'prepare', idempotent_reuse: true, manifest: manifestPath }));
@@ -285,12 +332,18 @@ async function prepare() {
     }
   }
   const model = await discoverModel();
-  const before = { generated_at: new Date().toISOString(), calendars: await calendarRows() };
+  const before = { generated_at: new Date().toISOString(), execution_calendars: await calendarRows(), master_calendars: await masterCalendarRows(), primary_binding_workstations: model.primary_binding_workstations };
+  if (before.master_calendars.length < 8) throw new Error(`Expected at least 8 authoritative Master Data calendars, got ${before.master_calendars.length}`);
   await writeJson(beforeStatePath, before);
   await restoreCalendars(before);
   const fixtures = [];
   const primary = await createWorkflow(model, 'primary-ready', `${prefix}-PRIMARY-READY`);
   fixtures.push({ scenario: 'primary-ready', ...primary });
+  const basePrimaryBinding = model.primary_binding_workstations.find((workstation) => workstation.code === 'WST-SEED-WS-L1-BINDING');
+  await masterDb.query(`UPDATE md_workstation SET active_flag=FALSE WHERE master_id=$1`, [basePrimaryBinding.master_id]);
+  const alternative = await createWorkflow(model, 'primary-alternative-ready', `${prefix}-PRIMARY-ALTERNATIVE-READY`);
+  fixtures.push({ scenario: 'primary-alternative-ready', degraded_workstation_code: basePrimaryBinding.code, ...alternative });
+  await restoreCalendars(before);
   await mutateCalendars([model.primary_line.production_line_id], 'Inactive');
   await writeJson(mutatedStatePath, { generated_at: new Date().toISOString(), mutation: 'primary calendars inactive', calendars: await calendarRows() });
   const backup = await createWorkflow(model, 'backup-fallback', `${prefix}-BACKUP-FALLBACK`);
@@ -300,7 +353,7 @@ async function prepare() {
   const hold = await createWorkflow(model, 'resource-hold', `${prefix}-RESOURCE-HOLD`);
   fixtures.push({ scenario: 'resource-hold', ...hold });
   await restoreCalendars(before);
-  const restored = { generated_at: new Date().toISOString(), calendars: await calendarRows() };
+  const restored = { generated_at: new Date().toISOString(), execution_calendars: await calendarRows(), master_calendars: await masterCalendarRows() };
   await writeJson(restoredStatePath, restored);
   const manifest = {
     success: true,
@@ -331,9 +384,10 @@ async function verify(log = true) {
     evidence[fixture.scenario] = await validateScenario(fixture.scenario, fixture, model);
   }
   await writeJson(primaryEvidencePath, evidence['primary-ready']);
+  await writeJson(alternativeEvidencePath, evidence['primary-alternative-ready']);
   await writeJson(backupEvidencePath, evidence['backup-fallback']);
   await writeJson(holdEvidencePath, evidence['resource-hold']);
-  const result = { success: true, mode: 'verify', manifest: manifestPath, declared: 3, executed: 3, passed: 3, failed: 0, skipped: 0, evidence };
+  const result = { success: true, mode: 'verify', manifest: manifestPath, declared: manifest.fixtures.length, executed: manifest.fixtures.length, passed: manifest.fixtures.length, failed: 0, skipped: 0, evidence };
   if (log) console.log(JSON.stringify(result, null, 2));
   return result;
 }
@@ -344,7 +398,7 @@ async function cleanup() {
   if (before) await restoreCalendars(before);
   const ids = (manifest.fixtures || []).map((fixture) => fixture.work_order_id);
   const cleanupResult = await cleanupWorkOrders(ids);
-  const restored = { generated_at: new Date().toISOString(), calendars: await calendarRows() };
+  const restored = { generated_at: new Date().toISOString(), execution_calendars: await calendarRows(), master_calendars: await masterCalendarRows() };
   await writeJson(restoredStatePath, restored);
   const leaks = await db.query(`
     SELECT
@@ -359,10 +413,12 @@ async function cleanup() {
 assertSafety();
 if (!['prepare', 'verify', 'cleanup'].includes(mode)) throw new Error(`Usage: node ${path.relative(repoRoot, process.argv[1])} <prepare|verify|cleanup>`);
 await db.connect();
+await masterDb.connect();
 try {
   if (mode === 'prepare') await prepare();
   if (mode === 'verify') await verify();
   if (mode === 'cleanup') await cleanup();
 } finally {
   await db.end();
+  await masterDb.end();
 }

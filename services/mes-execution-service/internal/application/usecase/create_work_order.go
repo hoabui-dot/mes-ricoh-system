@@ -63,7 +63,7 @@ func localizedNameValue(raw []byte) string {
 
 const WorkOrderCodePrefix = "WO"
 
-func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInput) (map[string]interface{}, error) {
+func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, planner LineResourceReadinessClient, input CreateWOInput) (map[string]interface{}, error) {
 	input.DispatchMode = strings.ToUpper(strings.TrimSpace(input.DispatchMode))
 	if input.DispatchMode == "" {
 		input.DispatchMode = "WORK_CENTER"
@@ -154,6 +154,23 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 	if err != nil {
 		return nil, fmt.Errorf("WORK_ORDER_PLANNED_END_INVALID")
 	}
+	if planner == nil {
+		return nil, fmt.Errorf("WORK_ORDER_SHIFT_RESOLVER_REQUIRED")
+	}
+	shiftPayload, err := planner.ShiftCandidates(ctx, map[string]interface{}{
+		"production_version_id": pvID,
+		"planned_date":          plannedStartAt.UTC().Format("2006-01-02"),
+	}, map[string]string{"X-User-ID": input.UserID, "X-Trace-ID": input.TraceID})
+	if err != nil {
+		return nil, fmt.Errorf("WORK_ORDER_SHIFT_RESOLUTION_FAILED: %w", err)
+	}
+	shiftCandidates := planningShiftIDs(shiftPayload)
+	if len(shiftCandidates) == 0 {
+		return nil, fmt.Errorf("WORK_ORDER_SHIFT_NOT_RESOLVED: no released shift and Work Center resource calendar is available for planned date %s", plannedStartAt.UTC().Format("2006-01-02"))
+	}
+	// Shift is a planning result, never a create-WO command input. The first
+	// candidate is only provisional until complete-line feasibility succeeds.
+	input.ShiftID = shiftCandidates[0]
 
 	var seq int64
 	numberDate := time.Now().UTC().Format("2006-01-02")
@@ -287,9 +304,23 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 			}
 			lineOps = append(lineOps, lineSelectionRoutingOperation{MasterID: *o.masterID, OperationID: *o.opID, OperationCode: opCodeStr, WorkCenterID: *o.wcID, Seq: o.seq})
 		}
-		lineSelection, err := evaluateProductionLineSelection(ctx, tx, pvID, input.SiteID, plannedStartAt, plannedEndAt, lineOps)
-		if err != nil {
-			return nil, err
+		var lineSelection lineSelectionResult
+		for index, shiftID := range shiftCandidates {
+			candidate, err := evaluateProductionLineSelection(ctx, tx, planner, pvID, derivedItemRevisionID, input.SiteID, shiftID, input.Quantity, input.UserID, input.TraceID, plannedStartAt, plannedEndAt, lineOps)
+			if err != nil {
+				return nil, err
+			}
+			if index == 0 {
+				lineSelection = candidate
+			}
+			if candidate.Status != "RESOURCE_HOLD" {
+				lineSelection = candidate
+				input.ShiftID = shiftID
+				break
+			}
+		}
+		if _, err := tx.Exec(ctx, `UPDATE wo_header SET shift_id=$2::uuid, planning_snapshot=jsonb_set(planning_snapshot, '{shift_id}', to_jsonb($3::text), true), updated_at=NOW() WHERE wo_id=$1::uuid`, woID, input.ShiftID, input.ShiftID); err != nil {
+			return nil, fmt.Errorf("WORK_ORDER_SHIFT_SNAPSHOT_FAILED: %w", err)
 		}
 		finalLineSelection = lineSelection
 		if lineSelection.Status == "RESOURCE_HOLD" {
@@ -404,6 +435,7 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		"item_revision_code":           itemRevisionCode,
 		"quantity":                     input.Quantity,
 		"site_id":                      input.SiteID,
+		"shift_id":                     input.ShiftID,
 		"status":                       createdStatus,
 		"dispatch_mode":                input.DispatchMode,
 	}
@@ -429,6 +461,7 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		"quantity":                      input.Quantity,
 		"uom_id":                        input.UOMID,
 		"site_id":                       input.SiteID,
+		"shift_id":                      input.ShiftID,
 		"planned_start_at":              input.PlannedStartAt,
 		"planned_end_at":                input.PlannedEndAt,
 		"status":                        createdStatus,
@@ -438,4 +471,20 @@ func CreateWorkOrder(ctx context.Context, pool *pgxpool.Pool, input CreateWOInpu
 		"fallback_reason":               finalLineSelection.FallbackReason,
 		"created_by":                    createdBy,
 	}, nil
+}
+
+func planningShiftIDs(payload map[string]interface{}) []string {
+	data, _ := payload["data"].(map[string]interface{})
+	rows := mapSlice(data["candidates"])
+	result := make([]string, 0, len(rows))
+	seen := map[string]bool{}
+	for _, row := range rows {
+		shiftID := asString(row["shift_id"])
+		if shiftID == "" || seen[shiftID] {
+			continue
+		}
+		seen[shiftID] = true
+		result = append(result, shiftID)
+	}
+	return result
 }

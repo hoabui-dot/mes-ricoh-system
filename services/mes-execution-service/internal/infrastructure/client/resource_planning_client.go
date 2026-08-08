@@ -24,9 +24,17 @@ func NewResourcePlanningClient(baseURL string) *ResourcePlanningClient {
 }
 
 func (c *ResourcePlanningClient) Readiness(ctx context.Context, body map[string]interface{}, headers map[string]string) (map[string]interface{}, error) {
+	return c.post(ctx, "/api/mes/master-data/resource-planning/readiness", body, headers)
+}
+
+func (c *ResourcePlanningClient) ShiftCandidates(ctx context.Context, body map[string]interface{}, headers map[string]string) (map[string]interface{}, error) {
+	return c.post(ctx, "/api/mes/master-data/resource-planning/shift-candidates", body, headers)
+}
+
+func (c *ResourcePlanningClient) post(ctx context.Context, path string, body map[string]interface{}, headers map[string]string) (map[string]interface{}, error) {
 	result, err := c.cb.Execute(func() (interface{}, error) {
 		encoded, _ := json.Marshal(body)
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/mes/master-data/resource-planning/readiness", bytes.NewReader(encoded))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(encoded))
 		if err != nil {
 			return nil, err
 		}

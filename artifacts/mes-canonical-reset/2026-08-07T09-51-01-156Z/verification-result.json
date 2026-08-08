@@ -1,0 +1,322 @@
+{
+  "success": true,
+  "generated_at": "2026-08-07T09:51:45.668Z",
+  "target_date": "2026-08-07",
+  "read_only": true,
+  "checks": [
+    {
+      "name": "released SITE-KZ3 exists",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "released areas exist",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "name": "PCS UOM exists",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "SHIFT-A exists",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "Kiosk execution failure reason exists",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "Kiosk abort reason exists",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "canonical two production lines",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "name": "canonical eight work centers",
+      "passed": true,
+      "actual": 8
+    },
+    {
+      "name": "canonical nine workstations including Primary alternative",
+      "passed": true,
+      "actual": 9
+    },
+    {
+      "name": "canonical nine equipment definitions including Primary alternative",
+      "passed": true,
+      "actual": 9
+    },
+    {
+      "name": "canonical nine identified machine units including Primary alternative",
+      "passed": true,
+      "actual": 9
+    },
+    {
+      "name": "canonical nine assignments including Primary alternative",
+      "passed": true,
+      "actual": 9
+    },
+    {
+      "name": "canonical thirteen capabilities",
+      "passed": true,
+      "actual": 13
+    },
+    {
+      "name": "canonical calendars ready on target date",
+      "passed": true,
+      "actual": 9
+    },
+    {
+      "name": "base calendars ready on target date",
+      "passed": true,
+      "actual": 25
+    },
+    {
+      "name": "canonical six operations",
+      "passed": true,
+      "actual": 6
+    },
+    {
+      "name": "canonical twelve routing operations",
+      "passed": true,
+      "actual": 12
+    },
+    {
+      "name": "canonical production version",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "three UAT production versions",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "six UAT line eligibilities",
+      "passed": true,
+      "actual": 6
+    },
+    {
+      "name": "canonical line eligibility count",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "name": "exactly one primary line",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "base worker skills exist",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "base active workers exist",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "name": "base worker skill assignments exist",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "name": "base worker shift schedules exist on target date",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "name": "base operation skill requirements exist",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "integrity line_work_center_orphans",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "integrity assignment_orphans",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "integrity pv_orphans",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "integrity overlapping_assignments",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "execution has no work orders after seed",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "execution read model has canonical PV",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "execution read model has three UAT PVs",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "execution read model has six UAT line eligibilities",
+      "passed": true,
+      "actual": 6
+    },
+    {
+      "name": "execution read model has two lines",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "name": "execution read model has two line eligibilities",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "name": "execution read model calendars cover target date",
+      "passed": true,
+      "actual": 33
+    },
+    {
+      "name": "execution read model has worker skills",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "execution read model has workers",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "name": "execution read model has worker skill assignments",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "name": "execution read model has worker shift schedules on target date",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "name": "execution read model has base operation skill requirements",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "name": "execution labor readiness has no worker candidate gaps",
+      "passed": true,
+      "actual": 0
+    },
+    {
+      "name": "traceability has one canonical template",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "traceability has one numbering rule",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "traceability has one split rule",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "traceability has four policies",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "name": "KIOSK-DEMO-01 canonical terminal context",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "name": "canonical seed has no active terminal sessions",
+      "passed": true,
+      "actual": 0
+    }
+  ],
+  "counts": {
+    "master": {
+      "site_kz3": 1,
+      "released_areas": 2,
+      "pcs_uom": 1,
+      "shift_a": 1,
+      "kiosk_execution_failure_reasons": 1,
+      "kiosk_abort_reasons": 1,
+      "canonical_lines": 2,
+      "canonical_work_centers": 8,
+      "canonical_workstations": 9,
+      "canonical_equipment": 9,
+      "canonical_machine_units": 9,
+      "canonical_assignments": 9,
+      "canonical_capabilities": 13,
+      "canonical_calendars": 9,
+      "base_calendars": 25,
+      "canonical_operations": 6,
+      "canonical_routing_operations": 12,
+      "canonical_production_version": 1,
+      "uat_production_versions": 3,
+      "uat_line_eligibilities": 6,
+      "canonical_line_eligibilities": 2,
+      "canonical_primary_lines": 1,
+      "worker_skills": 3,
+      "workers": 4,
+      "worker_skill_assignments": 4,
+      "worker_shift_schedules": 4,
+      "base_operation_skill_requirements": 3
+    },
+    "execution": {
+      "work_orders": 0,
+      "rm_production_version": 1,
+      "rm_uat_production_versions": 3,
+      "rm_uat_line_eligibilities": 6,
+      "rm_lines": 2,
+      "rm_line_eligibilities": 2,
+      "rm_target_calendars": 33,
+      "rm_worker_skills": 3,
+      "rm_workers": 4,
+      "rm_worker_skill_assignments": 4,
+      "rm_worker_shift_schedules": 4,
+      "rm_base_operation_skill_requirements": 3,
+      "rm_labor_candidate_gaps": 0
+    },
+    "traceability": {
+      "templates": 1,
+      "numbering_rules": 1,
+      "split_rules": 1,
+      "policies": 4,
+      "labels": 0
+    },
+    "gateway": {
+      "canonical_demo_terminals": 1,
+      "active_terminal_sessions": 0
+    },
+    "integrity": {
+      "line_work_center_orphans": 0,
+      "assignment_orphans": 0,
+      "pv_orphans": 0,
+      "overlapping_assignments": 0
+    }
+  },
+  "completed_at": "2026-08-07T09:51:45.749Z"
+}

@@ -33,6 +33,7 @@ test.describe('[@phase3] MES Console route redirects and navigation', () => {
       await expect(page.locator('aside a[href="/master-data/production-areas"]')).toBeVisible();
       await expect(page.locator('aside a[href="/master-data/machines"]')).toHaveCount(1);
       await expect(page.locator('aside a[href="/master-data/equipment"]')).toHaveCount(0);
+      await expect(page.locator('aside a[href="/master-data/eboms"]')).toHaveCount(0);
       await expect(page.locator('aside a[href="/console/mes/i18n-review"]')).toHaveCount(0);
       await expect(page.locator('aside a[href="/work-orders"]')).toHaveClass(/mes-nav-active/);
     });
@@ -122,6 +123,10 @@ test.describe('[@phase3] MES Console route redirects and navigation', () => {
     });
 
     await test.step('Not Found route remains explicit', async () => {
+      await page.goto('/master-data/eboms', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('main')).toContainText(/404/);
+      await expect(page.locator('main')).toContainText('/master-data/eboms');
+
       await page.goto('/ui03-route-does-not-exist', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('main')).toContainText(/404/);
       await expect(page.locator('main')).toContainText('/ui03-route-does-not-exist');

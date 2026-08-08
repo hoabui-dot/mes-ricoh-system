@@ -29,10 +29,10 @@ export type BaseModalProps = {
 
 const sizeClasses: Record<BaseModalSize, string> = {
   sm: 'max-w-md',
-  md: 'max-w-2xl',
-  lg: 'max-w-3xl',
-  xl: 'max-w-5xl',
-  full: 'max-w-none',
+  md: 'w-[min(75vw,calc(100vw-2rem))] max-w-2xl h-[min(75dvh,calc(100dvh-2rem))]',
+  lg: 'w-[min(75vw,calc(100vw-2rem))] max-w-4xl h-[min(75dvh,calc(100dvh-2rem))]',
+  xl: 'w-[min(75vw,calc(100vw-2rem))] max-w-6xl h-[min(75dvh,calc(100dvh-2rem))]',
+  full: 'w-[calc(100vw-2rem)] max-w-none h-[calc(100dvh-2rem)]',
 };
 
 /** Public MES modal contract. External dialog primitives stay behind this component. */
@@ -42,7 +42,7 @@ export function BaseModal({
   onClose,
   children,
   size = 'lg',
-  placement = 'top',
+  placement = 'center',
   loading = false,
   loadingLabel,
   confirmLabel,

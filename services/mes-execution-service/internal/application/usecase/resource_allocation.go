@@ -98,7 +98,7 @@ func (s *AllocationService) workOrderContext(ctx context.Context, woID, opID str
 }
 
 func readinessRequest(ctx map[string]interface{}, start time.Time, shift string) map[string]interface{} {
-	return map[string]interface{}{"site_id": ctx["site_id"], "product_revision_id": ctx["product_revision_id"], "routing_operation_id": ctx["routing_operation_id"], "work_center_id": ctx["work_center_id"], "quantity": ctx["quantity"], "planned_date": start.UTC().Format("2006-01-02"), "shift_id": shift}
+	return map[string]interface{}{"site_id": ctx["site_id"], "product_revision_id": ctx["product_revision_id"], "routing_operation_id": ctx["routing_operation_id"], "work_center_id": ctx["work_center_id"], "production_line_id": ctx["selected_production_line_id"], "quantity": ctx["quantity"], "planned_date": start.UTC().Format("2006-01-02"), "shift_id": shift}
 }
 
 func (s *AllocationService) Candidates(ctx context.Context, woID, opID, plannedStart, shiftID, userID, traceID string) (map[string]interface{}, error) {
@@ -601,13 +601,14 @@ func (s *AllocationService) Revalidate(ctx context.Context, woID, userID, traceI
 			return nil, err
 		}
 		ok := false
-		for _, raw := range c["candidates"].([]interface{}) {
+		candidates, _ := c["candidates"].([]interface{})
+		for _, raw := range candidates {
 			candidate, _ := raw.(map[string]interface{})
 			matchesWorkstation := containsID(nested(candidate, "workstation"), "id", asString(ws))
 			matchesEquipment := asString(eq) == "" || containsID(nested(candidate, "equipment"), "id", asString(eq)) || containsID(nested(candidate, "primary_machine"), "id", asString(eq))
 			matchesMachineGroup := asString(machineGroup) == "" || containsID(nested(candidate, "machine_group"), "id", asString(machineGroup))
 			matchesPrimaryUnit := asString(primaryUnit) == "" || asString(nested(candidate, "primary_machine")["unit_id"]) == asString(primaryUnit)
-			if matchesWorkstation && matchesEquipment && matchesMachineGroup && matchesPrimaryUnit && asString(candidate["readiness"]) != "Blocked" {
+			if matchesWorkstation && matchesEquipment && matchesMachineGroup && matchesPrimaryUnit && proposalCandidateReady(candidate) {
 				ok = true
 			}
 		}

@@ -33,7 +33,7 @@ Canonical UI context requires base/shared components for tables, modals/dialogs,
 
 ## Routing
 
-MES Console routes include Work Orders, Items, UOM, Material Groups, MBOM, Routing, Routing Operations, Production Versions, EBOM, Operation Catalog, Factories, Shopfloors, Production Areas, Work Centers, Workstations, Equipment/Machines, Print Stations, Resource Assignments, Resource Capabilities, Resource Calendars, Operation Skill Requirements, Production Standards, Reason Codes, Skill Management, Employees, Shifts, Work Calendar, and i18n Review.
+MES Console routes include Work Orders, Items, UOM, Material Groups, MBOM, Routing, Routing Operations, Production Versions, Operation Catalog, Factories, Shopfloors, Production Areas, Work Centers, Workstations, Equipment/Machines, Print Stations, Resource Assignments, Resource Capabilities, Resource Calendars, Operation Skill Requirements, Production Standards, Reason Codes, Skill Management, Employees, Shifts, Work Calendar, and i18n Review. EBOM is SAP-owned and has no MES Console route.
 
 QMS Console routes include dashboard, inspection results/detail, plans/detail, defect codes, NCR/detail, CAPA/detail, and not found.
 

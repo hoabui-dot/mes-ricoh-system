@@ -1,5 +1,7 @@
 # Decouple MBOM from Item Revision
 
+> Historical report. The running architecture was corrected again on 2026-08-06: MBOM has no Site, Production Version Site is derived solely from Routing Work Centers, and current ownership through `item_revision_id` was restored by migration `0054`.
+
 ## Scope
 
 Implemented `process-fix/Decouple-MBOM-from-Item-Revision-Across-the-MES-Platform.md`.

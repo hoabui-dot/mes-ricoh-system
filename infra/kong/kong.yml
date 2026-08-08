@@ -91,7 +91,7 @@ consumers:
           -----END PUBLIC KEY-----
       # Quick-tunnel issuer used by the current browser-accessible Keycloak.
       # Replace with the stable Keycloak issuer when the named tunnel is available.
-      - key: https://wizard-whatever-old-reel.trycloudflare.com/realms/wonsealtech
+      - key: https://develops-tomatoes-increases-cincinnati.trycloudflare.com/realms/wonsealtech
         algorithm: RS256
         rsa_public_key: |
           -----BEGIN PUBLIC KEY-----
@@ -353,10 +353,16 @@ services:
               end
 
               local role_code = nil
-              for _, candidate in ipairs({ "WAREHOUSE_STAFF", "PLANT_MANAGER", "EXECUTIVE", "OPERATOR", "QC_TECHNICIAN" }) do
-                if role_set[candidate] then
-                  role_code = candidate
-                  break
+              if role_set["EXECUTIVE"] then
+                role_code = "WMS_ADMIN"
+              elseif role_set["PLANT_MANAGER"] then
+                role_code = "WMS_EXECUTION_SUPERVISOR"
+              else
+                for _, candidate in ipairs({ "WAREHOUSE_STAFF", "OPERATOR", "QC_TECHNICIAN" }) do
+                  if role_set[candidate] then
+                    role_code = candidate
+                    break
+                  end
                 end
               end
               if not role_code then
@@ -372,6 +378,34 @@ services:
               kong.service.request.set_header("X-Role-Code", role_code)
               kong.service.request.set_header("X-Trace-ID", trace_id)
 
+  # WMS Console governance aggregation. Business approval effects remain in
+  # Inbound, Inventory, and Warehouse Execution behind this route layer.
+  - name: wms-public-gateway
+    url: http://wms-public-gateway:18000
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-public-approval-route
+        paths:
+          - /api/wms/v1/approvals
+        strip_path: false
+        methods: [GET, POST, OPTIONS]
+    plugins: *wms_auth_plugins
+
+  - name: wms-pda-backend-service
+    url: http://wms-pda-backend-service:3110
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-pda-backend-route
+        paths:
+          - /api/pda
+        strip_path: false
+        methods: [GET, POST, OPTIONS]
+    plugins: *wms_auth_plugins
+
   - name: wms-inventory-service
     url: http://wms-inventory-service:3070
     connect_timeout: 5000
@@ -381,6 +415,19 @@ services:
       - name: wms-inventory-route
         paths:
           - /api/wms/inventory
+        strip_path: false
+        methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
+    plugins: *wms_auth_plugins
+
+  - name: wms-warehouse-execution-service
+    url: http://wms-warehouse-execution-service:3100
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: wms-warehouse-execution-route
+        paths:
+          - /api/wms/execution
         strip_path: false
         methods: [GET, POST, PUT, DELETE, OPTIONS, PATCH]
     plugins: *wms_auth_plugins

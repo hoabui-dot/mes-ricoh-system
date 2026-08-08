@@ -10,7 +10,6 @@ The ERD in `product-doc/MES-DATABASE-ERD-AND-RELATIONSHIPS.md` is the catalog re
 |---|---|---|
 | Site/Shopfloor/Area | MES Master Data | factory hierarchy |
 | Item/Item Revision | MES Master Data | product identity and versioning |
-| EBOM | MES Master Data | engineering baseline |
 | MBOM | MES Master Data | manufacturing material structure |
 | Routing | MES Master Data | process structure |
 | Production Version | MES Master Data | production configuration authority |
@@ -18,6 +17,14 @@ The ERD in `product-doc/MES-DATABASE-ERD-AND-RELATIONSHIPS.md` is the catalog re
 | Work Order | MES Execution | production transaction and immutable snapshots |
 | Traceability | MES Traceability | label, QR, genealogy |
 | Terminal | MES Kiosk Gateway | terminal/session state |
+
+## Product Definition Ownership
+
+- `md_mbom_header.item_revision_id` owns the FG/SFG output Revision.
+- `md_routing_header` is an independent operation flow and has no `item_revision_id` column.
+- Production Version authoring requires `mbom_header_id` and `routing_header_id`.
+- `md_production_version.item_revision_id` is derived from MBOM; `site_id` is derived from the unique Site of Routing Work Centers.
+- The database trigger and API reject a Production Version when MBOM output Revision Site and Routing Site differ.
 | QMS Inspection | QMS Inspection | plan/result data |
 | QMS Nonconformance | QMS Nonconformance | NCR/CAPA data |
 

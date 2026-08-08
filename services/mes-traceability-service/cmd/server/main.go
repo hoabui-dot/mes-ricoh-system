@@ -34,6 +34,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/000004_i18n_read_models_and_templates.up.sql",
 		"migrations/000005_outbox_event_metadata.up.sql",
 		"migrations/000006_outbox_dead_letter_replay.up.sql",
+		"migrations/000007_decouple_mbom_from_site.up.sql",
 	}
 
 	for _, relPath := range migrationFiles {

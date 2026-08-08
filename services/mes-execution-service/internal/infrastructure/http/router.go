@@ -27,7 +27,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 	keycloakURL := envOrDefault("KEYCLOAK_URL", "http://platform-keycloak:8080")
 	issuerValue := envOrDefault("KEYCLOAK_ISSUERS", keycloakURL+"/realms/wonsealtech")
 	kioskVerifier := serviceauth.NewVerifier(keycloakURL, "wonsealtech", "mes-client", strings.Split(issuerValue, ","))
-	creationWorkflows := newCreationWorkflowManager(pool)
+	creationWorkflows := newCreationWorkflowManager(pool, resourcePlanningClient)
 	allocationService := usecase.NewAllocationService(pool, resourcePlanningClient)
 
 	r.Use(func(next http.Handler) http.Handler {
@@ -50,12 +50,17 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 
 	r.Get("/metrics", func(w http.ResponseWriter, _ *http.Request) {
 		metrics, err := sharedkernel.ReadOutboxMetrics(context.Background(), pool)
-		if err != nil { metrics = sharedkernel.OutboxMetrics{} }
+		if err != nil {
+			metrics = sharedkernel.OutboxMetrics{}
+		}
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		fmt.Fprintf(w, "# HELP mes_execution_service_up Service health\n# TYPE mes_execution_service_up gauge\nmes_execution_service_up 1\n# TYPE mes_outbox_pending gauge\nmes_outbox_pending %d\n# TYPE mes_outbox_failed gauge\nmes_outbox_failed %d\n# TYPE mes_outbox_oldest_pending_age_seconds gauge\nmes_outbox_oldest_pending_age_seconds %.3f\n", metrics.Pending, metrics.Failed, metrics.OldestPendingAgeSeconds)
 	})
 	r.Post("/api/mes/execution/outbox/{eventID}/replay", func(w http.ResponseWriter, r *http.Request) {
-		if err := sharedkernel.ReplayOutboxEvent(r.Context(), pool, chi.URLParam(r, "eventID")); err != nil { http.Error(w, err.Error(), http.StatusNotFound); return }
+		if err := sharedkernel.ReplayOutboxEvent(r.Context(), pool, chi.URLParam(r, "eventID")); err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 		json.NewEncoder(w).Encode(map[string]string{"event_id": chi.URLParam(r, "eventID"), "status": "REQUEUED"})
 	})
 
@@ -64,12 +69,12 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		r.Get("/work-order-code-preview", creationWorkflows.handleCodePreview)
 		r.Get("/work-order-creation-workflows/{id}", creationWorkflows.handleSnapshot)
 		r.Get("/ws/work-order-creation", creationWorkflows.handleWebSocket)
-		r.Post("/work-orders", handleCreateWorkOrder(pool))
+		r.Post("/work-orders", handleCreateWorkOrder(pool, resourcePlanningClient))
 		r.Post("/work-orders/{id}/compute-check", handleComputeCheck(pool))
 		r.Get("/work-orders/{id}/line-readiness", handleLineReadiness(pool))
-		r.Post("/work-orders/{id}/line-replan", handleLineReplan(pool))
+		r.Post("/work-orders/{id}/line-replan", handleLineReplan(pool, resourcePlanningClient))
 		r.Post("/work-orders/{id}/approve", handleApproveWO(pool, allocationService))
-		r.Post("/work-orders/{id}/start-execution", handleStartExecution(pool))
+		r.Post("/work-orders/{id}/start-execution", handleStartExecution(pool, allocationService))
 		r.Post("/work-orders/{id}/operations/{opId}/print-retry", handlePrintRetry(pool))
 		r.Post("/work-orders/{id}/stage-materials", handleStageMaterials(pool))
 		r.Post("/work-orders/{id}/reject", handleRejectWO(pool))
@@ -85,7 +90,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 			kiosk.Use(requireKioskOperator(kioskVerifier))
 			kiosk.Get("/kiosk/terminals/{terminalRef}/work-orders", handleListKioskWorkOrders(pool))
 			kiosk.Get("/kiosk/terminals/{terminalRef}/work-orders/{id}", handleGetKioskWorkOrder(pool))
-			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/start", handleStartOperation(pool))
+			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/start", handleStartOperation(pool, allocationService))
 			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/confirm", handleConfirmOperation(pool, traceabilityClient))
 			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/fail", handleFailOperation(pool, failureReasonClient))
 			kiosk.Post("/kiosk/work-orders/{id}/operations/{opId}/abort", handleAbortSession(pool))
@@ -93,7 +98,7 @@ func NewRouter(pool *pgxpool.Pool, traceabilityClient *client.TraceabilityClient
 		})
 
 		// Stage B Execution Endpoints
-		r.Post("/work-orders/{id}/operations/{opId}/start", handleStartOperation(pool))
+		r.Post("/work-orders/{id}/operations/{opId}/start", handleStartOperation(pool, allocationService))
 		r.Post("/work-orders/{id}/operations/{opId}/confirm", handleConfirmOperation(pool, traceabilityClient))
 		r.Post("/work-orders/{id}/operations/{opId}/fail", handleFailOperation(pool, failureReasonClient))
 		r.Post("/work-orders/{id}/operations/{opId}/abort", handleAbortSession(pool))
@@ -363,11 +368,25 @@ func getHeader(r *http.Request, key, fallback string) string {
 	return val
 }
 
-func handleStartOperation(pool *pgxpool.Pool) http.HandlerFunc {
+func handleStartOperation(pool *pgxpool.Pool, allocationService *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		woID := chi.URLParam(r, "id")
 		opID := chi.URLParam(r, "opId")
 		userID := getHeader(r, "X-User-ID", systemUserID)
+		traceID := getHeader(r, "X-Trace-ID", "missing-trace")
+
+		var operationStatus string
+		if err := pool.QueryRow(r.Context(), `SELECT status::text FROM wo_operation WHERE wo_id=$1 AND wo_operation_id=$2`, woID, opID).Scan(&operationStatus); err != nil {
+			writeResourceLifecycleValidationError(w, map[string]interface{}{"valid": false, "error_code": "WO_OPERATION_NOT_FOUND"})
+			return
+		}
+		// An already-started command may be retried by the same terminal. Do not
+		// turn that idempotent retry into a new pre-start readiness decision.
+		if operationStatus != "InProgress" {
+			if !requireCurrentResourceAllocations(w, r, allocationService, woID, userID, traceID) {
+				return
+			}
+		}
 
 		var body map[string]interface{}
 		_ = json.NewDecoder(r.Body).Decode(&body)
@@ -475,9 +494,15 @@ func handleConfirmOperation(pool *pgxpool.Pool, traceabilityClient *client.Trace
 	}
 }
 
-func handleStartExecution(pool *pgxpool.Pool) http.HandlerFunc {
+func handleStartExecution(pool *pgxpool.Pool, allocationService *usecase.AllocationService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result, err := usecase.StartExecution(r.Context(), pool, usecase.StartExecutionInput{WOID: chi.URLParam(r, "id"), UserID: getHeader(r, "X-User-ID", systemUserID), TraceID: getHeader(r, "X-Trace-ID", "missing-trace")})
+		woID := chi.URLParam(r, "id")
+		userID := getHeader(r, "X-User-ID", systemUserID)
+		traceID := getHeader(r, "X-Trace-ID", "missing-trace")
+		if !requireCurrentResourceAllocations(w, r, allocationService, woID, userID, traceID) {
+			return
+		}
+		result, err := usecase.StartExecution(r.Context(), pool, usecase.StartExecutionInput{WOID: woID, UserID: userID, TraceID: traceID})
 		w.Header().Set("Content-Type", "application/json")
 		if err != nil {
 			w.WriteHeader(http.StatusConflict)
@@ -698,7 +723,7 @@ func handleGetConsumption(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
-func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
+func handleCreateWorkOrder(pool *pgxpool.Pool, planner *client.ResourcePlanningClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getHeader(r, "X-User-ID", systemUserID)
 		traceID := getHeader(r, "X-Trace-ID", "missing-trace")
@@ -735,10 +760,6 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 		siteID, _ := body["site_id"].(string)
 		if siteID == "" {
 			siteID = "9f785cbd-98aa-4b2c-98ef-287a189e760c"
-		}
-		shiftID, _ := body["shift_id"].(string)
-		if shiftID == "" {
-			shiftID, _ = body["shiftId"].(string)
 		}
 		dispatchMode, _ := body["dispatch_mode"].(string)
 		if dispatchMode == "" {
@@ -793,7 +814,7 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 
 		// 3. Create WO
-		wo, err := usecase.CreateWorkOrder(r.Context(), pool, usecase.CreateWOInput{
+		wo, err := usecase.CreateWorkOrder(r.Context(), pool, planner, usecase.CreateWOInput{
 			ProductionVersionID: productionVersionID,
 			ItemRevisionID:      itemRevID,
 			ItemCode:            itemCode,
@@ -801,7 +822,6 @@ func handleCreateWorkOrder(pool *pgxpool.Pool) http.HandlerFunc {
 			Quantity:            quantity,
 			UOMID:               uomID,
 			SiteID:              siteID,
-			ShiftID:             shiftID,
 			PlannedStartAt:      pStart,
 			PlannedEndAt:        pEnd,
 			UserID:              userID,
@@ -848,7 +868,7 @@ func handleLineReadiness(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
-func handleLineReplan(pool *pgxpool.Pool) http.HandlerFunc {
+func handleLineReplan(pool *pgxpool.Pool, planner *client.ResourcePlanningClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !canMutateResourcePlanning(r) {
 			writeAllocationForbidden(w)
@@ -859,7 +879,7 @@ func handleLineReplan(pool *pgxpool.Pool) http.HandlerFunc {
 			RowVersion int    `json:"row_version"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		res, err := usecase.ReplanWorkOrderLine(r.Context(), pool, usecase.ReplanLineInput{
+		res, err := usecase.ReplanWorkOrderLine(r.Context(), pool, planner, usecase.ReplanLineInput{
 			WOID:       chi.URLParam(r, "id"),
 			UserID:     getHeader(r, "X-User-ID", systemUserID),
 			TraceID:    getHeader(r, "X-Trace-ID", "missing-trace"),
@@ -881,18 +901,8 @@ func handleApproveWO(pool *pgxpool.Pool, allocationService *usecase.AllocationSe
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		comment, _ := body["comment"].(string)
 		demoPrint := usecase.DemoPrintOnApprovalEnabled() && !strings.EqualFold(strings.TrimSpace(r.Header.Get("X-MES-Approval-Policy")), "Strict")
-		if !demoPrint {
-			allocationCheck, allocationErr := allocationService.Revalidate(r.Context(), woID, userID, traceID)
-			if allocationErr != nil {
-				writeAllocationResponse(w, nil, allocationErr)
-				return
-			}
-			if valid, ok := allocationCheck["valid"].(bool); !ok || !valid {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusConflict)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "WO_RESOURCE_ALLOCATION_INVALID", "message": "Every Work Order operation needs a current valid committed resource allocation before release.", "details": allocationCheck})
-				return
-			}
+		if !requireCurrentResourceAllocations(w, r, allocationService, woID, userID, traceID) {
+			return
 		}
 
 		res, err := usecase.ApproveWorkOrder(r.Context(), pool, usecase.ApproveWOInput{
@@ -918,6 +928,29 @@ func handleApproveWO(pool *pgxpool.Pool, allocationService *usecase.AllocationSe
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(res)
 	}
+}
+
+func requireCurrentResourceAllocations(w http.ResponseWriter, r *http.Request, service *usecase.AllocationService, woID, userID, traceID string) bool {
+	allocationCheck, err := service.Revalidate(r.Context(), woID, userID, traceID)
+	if err != nil {
+		writeAllocationResponse(w, nil, err)
+		return false
+	}
+	if valid, ok := allocationCheck["valid"].(bool); ok && valid {
+		return true
+	}
+	writeResourceLifecycleValidationError(w, allocationCheck)
+	return false
+}
+
+func writeResourceLifecycleValidationError(w http.ResponseWriter, details map[string]interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusConflict)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"error":   "WO_RESOURCE_ALLOCATION_INVALID",
+		"message": "Every Work Order operation needs a current valid committed resource allocation before approval or execution start.",
+		"details": details,
+	})
 }
 
 func handleRejectWO(pool *pgxpool.Pool) http.HandlerFunc {

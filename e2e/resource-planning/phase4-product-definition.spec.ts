@@ -22,7 +22,7 @@ test('[@phase4] Work Order browser creation uses Production Version as the only 
   await page.locator('input[type="date"]').fill(defaultPlanningDate());
   await page.locator('input[inputmode="decimal"]').first().fill('2');
   await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-|Won Seal Tech/i);
-  await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
+  await expect(page.getByRole('textbox', { name: /Shift|Ca làm việc/i })).toHaveCount(0);
 
   const createRequest = page.waitForRequest((request) => request.method() === 'POST' && request.url().includes('/api/mes/execution/work-order-creation-workflows'));
   await page.getByTestId('work-order-create-submit').click();
@@ -31,7 +31,7 @@ test('[@phase4] Work Order browser creation uses Production Version as the only 
   expect(payload.production_version_id).toMatch(/[0-9a-f-]{36}/i);
   expect(payload.quantity).toBe(2);
   expect(payload.target_date).toBe(defaultPlanningDate());
-  expect(payload.shift_id).toMatch(/[0-9a-f-]{36}/i);
+  expect(payload.shift_id).toBeUndefined();
   expect(payload.item_revision_id).toBeUndefined();
   expect(payload.mbom_header_id).toBeUndefined();
   expect(payload.routing_header_id).toBeUndefined();

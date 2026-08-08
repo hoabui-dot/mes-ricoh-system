@@ -14,12 +14,16 @@ Why: prevents invalid technical combinations and preserves released manufacturin
 Evidence: `AI_CONTEXT.md`, product docs, master-data validation routes.
 Consequence: WO snapshots must derive from Production Version.
 
-## ADR-003: EBOM and MBOM Separation
+Production Version authoring selects MBOM and Routing. The backend derives `item_revision_id` from
+`MBOM.item_revision_id` and `site_id` from the unique Site of Routing Work Centers. Routing is an independent
+operation flow and has no Item Revision ownership column.
 
-Decision: EBOM is engineering baseline; MBOM is manufacturing material definition.
-Why: engineering structure must not accidentally drive material staging, execution, substitutes, or backflush.
-Evidence: `AI_CONTEXT.md`, product-doc Products & MBOM catalog.
-Consequence: Work Orders use MBOM selected by Production Version.
+## ADR-003: SAP Owns EBOM; MES Owns MBOM
+
+Decision: SAP owns EBOM when available. MES does not currently persist, manage, import, compare, or expose EBOM. MBOM remains the MES manufacturing material definition.
+Why: the future SAP snapshot/comparison mechanism requires an explicit integration and retention contract; a MES-authored EBOM would create conflicting ownership.
+Evidence: migration `0070_remove_mes_owned_ebom_domain` and current Master Data/Console contracts.
+Consequence: Production Version and Work Orders use Item Revision, MBOM, and Routing only. A future SAP integration must introduce a separate approved snapshot model rather than restoring MES EBOM CRUD.
 
 ## ADR-004: Work Center Routing, Workstation Runtime Allocation
 

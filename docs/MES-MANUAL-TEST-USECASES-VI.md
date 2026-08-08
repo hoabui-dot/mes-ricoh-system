@@ -47,7 +47,7 @@ Trước khi chạy luồng chính, xác nhận dữ liệu sau đã tồn tại
 
 - Item hoặc Item Revision thành phẩm `FG-WS-CM01` ở trạng thái `Released`.
 - Production Version mặc định ở trạng thái `Released`.
-- MBOM và Routing liên kết cùng Item Revision và Site.
+- MBOM sở hữu Item Revision đầu ra; Routing là luồng công đoạn độc lập và không gắn Item Revision. Production Version chọn MBOM + Routing, suy ra Item Revision từ MBOM và Site từ Work Center của Routing.
 - Routing có các công đoạn: `OP-MIX`, `OP-PREP`, `OP-CUT`, `OP-MOLD`, `OP-TRIM`, `OP-QC`.
 - Work Center, Workstation, Machine, Capability, Shift và Work Calendar cùng Site.
 - Ít nhất một Employee đang `Active`, có Worker Skill phù hợp nếu resource planning yêu cầu.

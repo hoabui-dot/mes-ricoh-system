@@ -100,12 +100,14 @@ async function cleanupOwnedSeed() {
     operationIds: (await q(master, `SELECT master_id FROM md_operation WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
     routingIds: (await q(master, `SELECT master_id FROM md_routing_header WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
     mbomIds: (await q(master, `SELECT master_id FROM md_mbom_header WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
-    ebomIds: (await q(master, `SELECT master_id FROM md_ebom_header WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
     pvIds: (await q(master, `SELECT master_id FROM md_production_version WHERE code LIKE '${namespace}-%' OR code LIKE 'WST-UAT-%'`)).rows.map((row) => row.master_id),
     lineIds: (await q(master, `SELECT master_id FROM md_production_line WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
     wcIds: (await q(master, `SELECT master_id FROM md_work_center WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
     workstationIds: (await q(master, `SELECT master_id FROM md_workstation WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
     equipmentIds: (await q(master, `SELECT master_id FROM md_equipment WHERE code LIKE '${namespace}-%'`)).rows.map((row) => row.master_id),
+    employeeIds: (await q(master, `SELECT master_id FROM md_employee WHERE code LIKE '${namespace}-EMP-%'`)).rows.map((row) => row.master_id),
+    skillIds: (await q(master, `SELECT master_id FROM md_skill WHERE code LIKE '${namespace}-SK-%'`)).rows.map((row) => row.master_id),
+    shiftSetIds: (await q(master, `SELECT master_id FROM md_work_center_shift_set WHERE code LIKE '${namespace}-SHIFTSET-%'`)).rows.map((row) => row.master_id),
   };
   const counts = {};
   await master.query('BEGIN');
@@ -115,27 +117,31 @@ async function cleanupOwnedSeed() {
       ['line_eligibility', `DELETE FROM md_production_version_line_eligibility WHERE production_version_id=ANY($1::uuid[]) OR production_line_id=ANY($2::uuid[])`, [owned.pvIds.length ? owned.pvIds : empty, owned.lineIds.length ? owned.lineIds : empty]],
       ['line_resource_scope', `DELETE FROM md_production_line_resource_scope WHERE production_line_id=ANY($1::uuid[]) OR work_center_id=ANY($2::uuid[])`, [owned.lineIds.length ? owned.lineIds : empty, owned.wcIds.length ? owned.wcIds : empty]],
       ['line_work_centers', `DELETE FROM md_production_line_work_center WHERE production_line_id=ANY($1::uuid[]) OR work_center_id=ANY($2::uuid[])`, [owned.lineIds.length ? owned.lineIds : empty, owned.wcIds.length ? owned.wcIds : empty]],
-      ['operation_skill_requirements', `DELETE FROM md_operation_skill_requirement WHERE operation_id=ANY($1::uuid[])`, [owned.operationIds.length ? owned.operationIds : empty]],
-      ['resource_capabilities', `DELETE FROM md_resource_capability WHERE code LIKE '${namespace}-%' OR operation_id=ANY($1::uuid[]) OR work_center_id=ANY($2::uuid[])`, [owned.operationIds.length ? owned.operationIds : empty, owned.wcIds.length ? owned.wcIds : empty]],
+      ['operation_skill_requirements', `DELETE FROM md_operation_skill_requirement WHERE routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[]))`, [owned.routingIds.length ? owned.routingIds : empty]],
+      ['employee_schedules', `DELETE FROM md_employee_shift_schedule WHERE employee_id=ANY($1::uuid[])`, [owned.employeeIds.length ? owned.employeeIds : empty]],
+      ['employee_skills', `DELETE FROM md_employee_skill WHERE employee_id=ANY($1::uuid[]) OR skill_id=ANY($2::uuid[])`, [owned.employeeIds.length ? owned.employeeIds : empty, owned.skillIds.length ? owned.skillIds : empty]],
+      ['employees', `DELETE FROM md_employee WHERE master_id=ANY($1::uuid[])`, [owned.employeeIds.length ? owned.employeeIds : empty]],
+      ['skills', `DELETE FROM md_skill WHERE master_id=ANY($1::uuid[])`, [owned.skillIds.length ? owned.skillIds : empty]],
+      ['work_center_shift_assignments', `DELETE FROM md_work_center_shift WHERE shift_set_id=ANY($1::uuid[])`, [owned.shiftSetIds.length ? owned.shiftSetIds : empty]],
+      ['work_center_shift_sets', `DELETE FROM md_work_center_shift_set WHERE master_id=ANY($1::uuid[])`, [owned.shiftSetIds.length ? owned.shiftSetIds : empty]],
+      ['resource_capabilities', `DELETE FROM md_resource_capability WHERE code LIKE '${namespace}-%' OR work_center_id=ANY($1::uuid[])`, [owned.wcIds.length ? owned.wcIds : empty]],
       ['resource_calendars', `DELETE FROM md_resource_calendar WHERE code LIKE '${namespace}-%' OR work_center_id=ANY($1::uuid[])`, [owned.wcIds.length ? owned.wcIds : empty]],
       ['production_standards', `DELETE FROM md_production_standard WHERE code LIKE '${namespace}-%' OR routing_operation_id IN (SELECT master_id FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[])) OR work_center_id=ANY($2::uuid[])`, [owned.routingIds.length ? owned.routingIds : empty, owned.wcIds.length ? owned.wcIds : empty]],
       ['resource_assignments', `DELETE FROM md_resource_assignment WHERE code LIKE '${namespace}-%' OR work_center_id=ANY($1::uuid[])`, [owned.wcIds.length ? owned.wcIds : empty]],
       ['production_versions_before_resources', `DELETE FROM md_production_version WHERE master_id=ANY($1::uuid[])`, [owned.pvIds.length ? owned.pvIds : empty]],
-      ['routing_operations_before_resources', `DELETE FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[])`, [owned.routingIds.length ? owned.routingIds : empty]],
+      ['routing_operations_before_resources', `DELETE FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[]) OR work_center_id=ANY($2::uuid[]) OR workstation_id=ANY($3::uuid[])`, [owned.routingIds.length ? owned.routingIds : empty, owned.wcIds.length ? owned.wcIds : empty, owned.workstationIds.length ? owned.workstationIds : empty]],
       ['machine_units', `DELETE FROM md_machine_unit WHERE machine_id=ANY($1::uuid[])`, [owned.equipmentIds.length ? owned.equipmentIds : empty]],
       ['equipment', `DELETE FROM md_equipment WHERE master_id=ANY($1::uuid[])`, [owned.equipmentIds.length ? owned.equipmentIds : empty]],
       ['workstation_print_station_bindings', `DELETE FROM md_workstation_print_station_binding WHERE workstation_id=ANY($1::uuid[])`, [owned.workstationIds.length ? owned.workstationIds : empty]],
       ['workstations', `DELETE FROM md_workstation WHERE master_id=ANY($1::uuid[])`, [owned.workstationIds.length ? owned.workstationIds : empty]],
       ['production_versions', `DELETE FROM md_production_version WHERE master_id=ANY($1::uuid[])`, [owned.pvIds.length ? owned.pvIds : empty]],
       ['mbom_lines', `DELETE FROM md_mbom_line WHERE mbom_header_id=ANY($1::uuid[])`, [owned.mbomIds.length ? owned.mbomIds : empty]],
-      ['ebom_lines', `DELETE FROM md_ebom_line WHERE ebom_header_id=ANY($1::uuid[])`, [owned.ebomIds.length ? owned.ebomIds : empty]],
       ['routing_operations', `DELETE FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[])`, [owned.routingIds.length ? owned.routingIds : empty]],
-      ['ebom_headers', `DELETE FROM md_ebom_header WHERE master_id=ANY($1::uuid[])`, [owned.ebomIds.length ? owned.ebomIds : empty]],
       ['routing_headers', `DELETE FROM md_routing_header WHERE master_id=ANY($1::uuid[])`, [owned.routingIds.length ? owned.routingIds : empty]],
       ['mbom_headers', `DELETE FROM md_mbom_header WHERE master_id=ANY($1::uuid[])`, [owned.mbomIds.length ? owned.mbomIds : empty]],
       ['item_revisions', `DELETE FROM md_item_revision WHERE master_id=ANY($1::uuid[])`, [owned.revisionIds.length ? owned.revisionIds : empty]],
       ['items', `DELETE FROM md_item WHERE master_id=ANY($1::uuid[])`, [owned.itemIds.length ? owned.itemIds : empty]],
-      ['operations', `DELETE FROM md_operation WHERE master_id=ANY($1::uuid[])`, [owned.operationIds.length ? owned.operationIds : empty]],
+      ['operations', `DELETE FROM md_operation op WHERE master_id=ANY($1::uuid[]) AND NOT EXISTS (SELECT 1 FROM md_routing_operation ro WHERE ro.operation_id=op.master_id)`, [owned.operationIds.length ? owned.operationIds : empty]],
       ['work_centers', `DELETE FROM md_work_center WHERE master_id=ANY($1::uuid[])`, [owned.wcIds.length ? owned.wcIds : empty]],
       ['production_lines', `DELETE FROM md_production_line WHERE master_id=ANY($1::uuid[])`, [owned.lineIds.length ? owned.lineIds : empty]],
       ['outbox_events', `DELETE FROM outbox_events WHERE payload::text LIKE $1`, [`%${namespace}%`]],
@@ -155,6 +161,7 @@ async function cleanupOwnedSeed() {
       ['resource_calendars', `DELETE FROM rm_resource_calendar WHERE work_center_id IN (SELECT master_id FROM rm_work_center WHERE code LIKE '${namespace}-%')`],
       ['production_standards', `DELETE FROM rm_production_standard WHERE work_center_id IN (SELECT master_id FROM rm_work_center WHERE code LIKE '${namespace}-%') OR item_revision_id IN (SELECT master_id FROM rm_item_revision WHERE code LIKE '${namespace}-%')`],
       ['resource_capabilities', `DELETE FROM rm_resource_capability WHERE work_center_id IN (SELECT master_id FROM rm_work_center WHERE code LIKE '${namespace}-%')`],
+      ['operation_skill_requirements', `DELETE FROM rm_operation_skill_requirement WHERE operation_id IN (SELECT operation_id FROM rm_routing_operation WHERE routing_header_id IN (SELECT master_id FROM rm_routing_header WHERE code LIKE '${namespace}-%'))`],
       ['routing_operations', `DELETE FROM rm_routing_operation WHERE routing_header_id IN (SELECT master_id FROM rm_routing_header WHERE code LIKE '${namespace}-%')`],
       ['routing_headers', `DELETE FROM rm_routing_header WHERE code LIKE '${namespace}-%'`],
       ['mbom_lines', `DELETE FROM rm_mbom_line WHERE mbom_header_id IN (SELECT master_id FROM rm_mbom_header WHERE code LIKE '${namespace}-%')`],
@@ -163,6 +170,10 @@ async function cleanupOwnedSeed() {
       ['production_lines', `DELETE FROM rm_production_line WHERE code LIKE '${namespace}-%'`],
       ['work_centers', `DELETE FROM rm_work_center WHERE code LIKE '${namespace}-%'`],
       ['item_revisions', `DELETE FROM rm_item_revision WHERE code LIKE '${namespace}-%'`],
+      ['employee_schedules', `DELETE FROM rm_employee_shift_schedule WHERE employee_id IN (SELECT master_id FROM rm_employee WHERE code LIKE '${namespace}-EMP-%')`],
+      ['employee_skills', `DELETE FROM rm_employee_skill WHERE employee_id IN (SELECT master_id FROM rm_employee WHERE code LIKE '${namespace}-EMP-%') OR skill_id IN (SELECT master_id FROM rm_skill WHERE code LIKE '${namespace}-SK-%')`],
+      ['employees', `DELETE FROM rm_employee WHERE code LIKE '${namespace}-EMP-%'`],
+      ['skills', `DELETE FROM rm_skill WHERE code LIKE '${namespace}-SK-%'`],
     ];
     for (const [name, text] of execStmts) counts[`execution_${name}`] = Number((await q(execution, text)).rowCount || 0);
     await execution.query('COMMIT');
@@ -198,21 +209,25 @@ async function seedTwoLineWonSealTech(targetDate = defaultPlanningDate()) {
     revision: cryptoRandom(),
     componentItem: cryptoRandom(),
     componentRevision: cryptoRandom(),
-    ebom: cryptoRandom(),
-    ebomLine: cryptoRandom(),
     mbom: cryptoRandom(),
     mbomLine: cryptoRandom(),
     routing: cryptoRandom(),
     pv: cryptoRandom(),
     line1: cryptoRandom(),
     line2: cryptoRandom(),
+    line1BindingAltWs: cryptoRandom(),
+    line1BindingAltEq: cryptoRandom(),
+    line1BindingAltUnit: cryptoRandom(),
+    line1BindingAltAssignment: cryptoRandom(),
   };
+  const existingOperationRows = (await q(master, `SELECT master_id, code FROM md_operation WHERE code IN ('${namespace}-OP-BINDING','${namespace}-OP-TEST5IN1','${namespace}-OP-AIRTEST','${namespace}-OP-PACKING')`)).rows;
+  const existingOperationIds = new Map(existingOperationRows.map((row) => [row.code, row.master_id]));
   const operations = [
     { key: 'BINDING', name: 'Binding', cycle: 90, seq: 10 },
     { key: 'TEST5IN1', name: 'Test 5 in 1', cycle: 120, seq: 20 },
     { key: 'AIRTEST', name: 'Air Test', cycle: 80, seq: 30 },
     { key: 'PACKING', name: 'Packing', cycle: 60, seq: 40 },
-  ].map((op, index) => ({ ...op, operationId: cryptoRandom(), routingOperationId: cryptoRandom(), line1Wc: cryptoRandom(), line2Wc: cryptoRandom(), line1Ws: cryptoRandom(), line2Ws: cryptoRandom(), line1Eq: cryptoRandom(), line2Eq: cryptoRandom(), line1Unit: cryptoRandom(), line2Unit: cryptoRandom(), line1Assignment: cryptoRandom(), line2Assignment: cryptoRandom() }));
+  ].map((op) => ({ ...op, operationId: existingOperationIds.get(`${namespace}-OP-${op.key}`) || cryptoRandom(), routingOperationId: cryptoRandom(), line1Wc: cryptoRandom(), line2Wc: cryptoRandom(), line1Ws: cryptoRandom(), line2Ws: cryptoRandom(), line1Eq: cryptoRandom(), line2Eq: cryptoRandom(), line1Unit: cryptoRandom(), line2Unit: cryptoRandom(), line1Assignment: cryptoRandom(), line2Assignment: cryptoRandom() }));
 
   await master.query('BEGIN');
   try {
@@ -227,7 +242,8 @@ async function seedTwoLineWonSealTech(targetDate = defaultPlanningDate()) {
       [ids.revision, i18n('Won Seal Tech Seal Assembly A'), userId, ids.item, site.master_id, uom.master_id, ids.componentRevision, i18n('Won Seal Tech Seal Ring Component A'), ids.componentItem]);
     for (const op of operations) {
       await q(master, `INSERT INTO md_operation (master_id, code, name, description, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_type, confirmation_mode, quantity_reporting, requires_material_scan, requires_output_label, is_schedulable, default_cycle_time_sec, default_setup_time_min, default_base_quantity, default_required_persons, default_efficiency_factor, default_yield)
-        VALUES ($1,$2,$3::jsonb,$3::jsonb,1,'Released',NOW(),$4,$4,$5,'QuantityOnly','GoodOnly',$6,$7,TRUE,$8,5,1,1,1,1)`,
+        VALUES ($1,$2,$3::jsonb,$3::jsonb,1,'Released',NOW(),$4,$4,$5,'QuantityOnly','GoodOnly',$6,$7,TRUE,$8,5,1,1,1,1)
+        ON CONFLICT (master_id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description, lifecycle_status='Released', effective_to=NULL, updated_by=EXCLUDED.updated_by, updated_at=NOW(), operation_type=EXCLUDED.operation_type, confirmation_mode=EXCLUDED.confirmation_mode, quantity_reporting=EXCLUDED.quantity_reporting, requires_material_scan=EXCLUDED.requires_material_scan, requires_output_label=EXCLUDED.requires_output_label, is_schedulable=TRUE, default_cycle_time_sec=EXCLUDED.default_cycle_time_sec, default_setup_time_min=EXCLUDED.default_setup_time_min, default_base_quantity=EXCLUDED.default_base_quantity, default_required_persons=EXCLUDED.default_required_persons, default_efficiency_factor=EXCLUDED.default_efficiency_factor, default_yield=EXCLUDED.default_yield`,
         [op.operationId, `${namespace}-OP-${op.key}`, i18n(op.name), userId, op.key === 'PACKING' ? 'Packing' : op.key.includes('TEST') ? 'Inspection' : 'Production', op.key === 'BINDING', op.key === 'PACKING', op.cycle]);
     }
     for (const op of operations) {
@@ -254,24 +270,32 @@ async function seedTwoLineWonSealTech(targetDate = defaultPlanningDate()) {
           [op[`${line}Assignment`], `${namespace}-RA-${suffix}`, i18n(`Won Seal Tech assignment ${suffix}`), userId, wc, ws, eq, site.master_id, unit]);
       }
     }
-    await q(master, `INSERT INTO md_ebom_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id)
-      VALUES ($1,'${namespace}-EBOM-SEAL-ASM-01',$2::jsonb,1,'Released',NOW(),$3,$3,$4)`, [ids.ebom, i18n('Won Seal Tech Seal Assembly EBOM'), userId, ids.revision]);
-    await q(master, `INSERT INTO md_ebom_line (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, ebom_header_id, seq, component_revision_id, quantity_per, uom_id)
-      VALUES ($1,'${namespace}-EBOM-L01',$2::jsonb,1,'Released',NOW(),$3,$3,$4,10,$5,1,$6)`, [ids.ebomLine, i18n('Seal ring component'), userId, ids.ebom, ids.componentRevision, uom.master_id]);
-    await q(master, `INSERT INTO md_routing_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, business_version, routing_type, item_revision_id)
-      VALUES ($1,'${namespace}-ROUTING-SEAL-ASM-01',$2::jsonb,1,'Released',NOW(),$3,$3,'1','Standard',$4)`, [ids.routing, i18n('Won Seal Tech two-line seal routing'), userId, ids.revision]);
+    const binding = operations[0];
+    await q(master, `INSERT INTO md_workstation (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, site_id, work_center_id, workstation_type, active_flag, area_id, execution_mode, max_concurrent_jobs, machine_requirement_flag)
+      VALUES ($1,'${namespace}-WS-L1-BINDING-ALT',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,'Kiosk',TRUE,$6,'Kiosk',1,FALSE)`,
+      [ids.line1BindingAltWs, i18n('Won Seal Tech workstation L1-BINDING alternative'), userId, site.master_id, binding.line1Wc, area.master_id]);
+    await q(master, `INSERT INTO md_equipment (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, site_id, work_center_id, equipment_type, active_flag, manufacturer, model, planning_resource_flag, execution_status, default_efficiency, quantity)
+      VALUES ($1,'${namespace}-EQ-L1-BINDING-ALT',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,'BINDING',TRUE,'Won Seal Tech','${namespace}-MODEL',TRUE,'Available',1,1)`,
+      [ids.line1BindingAltEq, i18n('Won Seal Tech equipment L1-BINDING alternative'), userId, site.master_id, binding.line1Wc]);
+    await q(master, `INSERT INTO md_machine_unit (machine_unit_id, machine_id, code, unit_sequence, serial_number, lifecycle_status, physical_identity_status, planning_resource_flag, execution_status, active_flag)
+      VALUES ($1,$2,'${namespace}-UNIT-L1-BINDING-ALT',1,'${namespace}-SN-L1-BINDING-ALT','Released','Identified',TRUE,'Available',TRUE)`, [ids.line1BindingAltUnit, ids.line1BindingAltEq]);
+    await q(master, `INSERT INTO md_resource_assignment (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, work_center_id, workstation_id, equipment_id, assignment_type, site_id, assignment_role, scheduling_flag, oee_aggregation_flag, machine_unit_id, requirement_type, sequence_no)
+      VALUES ($1,'${namespace}-RA-L1-BINDING-ALT',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,$6,'MachineUnit',$7,'Alternate',TRUE,FALSE,$8,'Required',2)`,
+      [ids.line1BindingAltAssignment, i18n('Won Seal Tech assignment L1-BINDING alternative'), userId, binding.line1Wc, ids.line1BindingAltWs, ids.line1BindingAltEq, site.master_id, ids.line1BindingAltUnit]);
+    await q(master, `INSERT INTO md_routing_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, business_version, routing_type)
+      VALUES ($1,'${namespace}-ROUTING-SEAL-ASM-01',$2::jsonb,1,'Released',NOW(),$3,$3,'1','Standard')`, [ids.routing, i18n('Won Seal Tech two-line seal routing'), userId]);
     for (const op of operations) {
       await q(master, `INSERT INTO md_routing_operation (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, routing_header_id, operation_id, work_center_id, workstation_id, seq, predecessor_seq, scheduling_mode, queue_time_min, move_time_min, planning_mode)
         VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,$9,$10,'Finite',2,1,'ROUTING_OVERRIDE')`,
         [op.routingOperationId, `${namespace}-RO-${op.key}`, i18n(`Routing ${op.name}`), userId, ids.routing, op.operationId, op.line1Wc, op.line1Ws, op.seq, op.seq === 10 ? null : op.seq - 10]);
     }
-    await q(master, `INSERT INTO md_mbom_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, site_id, item_revision_id, business_version, purpose, base_quantity, base_uom_id)
-      VALUES ($1,'${namespace}-MBOM-SEAL-ASM-01',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,'1','Standard',1,$6)`, [ids.mbom, i18n('Won Seal Tech Seal Assembly MBOM'), userId, site.master_id, ids.revision, uom.master_id]);
+    await q(master, `INSERT INTO md_mbom_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id, business_version, purpose, base_quantity, base_uom_id)
+      VALUES ($1,'${namespace}-MBOM-SEAL-ASM-01',$2::jsonb,1,'Released',NOW(),$3,$3,$4,'1','Standard',1,$5)`, [ids.mbom, i18n('Won Seal Tech Seal Assembly MBOM'), userId, ids.revision, uom.master_id]);
     await q(master, `INSERT INTO md_mbom_line (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, mbom_header_id, seq, component_revision_id, quantity_per, uom_id, scrap_rate, issue_operation_id, backflush_flag, phantom_flag)
       VALUES ($1,'${namespace}-MBOM-L01',$2::jsonb,1,'Released',NOW(),$3,$3,$4,10,$5,1,$6,0,$7,FALSE,FALSE)`, [ids.mbomLine, i18n('Seal ring component'), userId, ids.mbom, ids.componentRevision, uom.master_id, operations[0].operationId]);
-    await q(master, `INSERT INTO md_production_version (master_id, code, name, name_i18n, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id, ebom_header_id, mbom_header_id, routing_header_id, site_id, min_lot_size, max_lot_size, is_default)
-      VALUES ($1,'${namespace}-PV-SEAL-ASM-01','Won Seal Tech two-line seal production version',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,$6,$7,$8,1,1000,TRUE)`,
-      [ids.pv, i18n('Won Seal Tech two-line seal production version'), userId, ids.revision, ids.ebom, ids.mbom, ids.routing, site.master_id]);
+    await q(master, `INSERT INTO md_production_version (master_id, code, name, name_i18n, version_no, lifecycle_status, effective_from, created_by, updated_by, mbom_header_id, routing_header_id, site_id, min_lot_size, max_lot_size, is_default)
+      VALUES ($1,'${namespace}-PV-SEAL-ASM-01','Won Seal Tech two-line seal production version',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,$6,1,1000,TRUE)`,
+      [ids.pv, i18n('Won Seal Tech two-line seal production version'), userId, ids.mbom, ids.routing, site.master_id]);
     await q(master, `INSERT INTO md_production_line (master_id, code, name, description, version_no, lifecycle_status, effective_from, created_by, updated_by, site_id, area_id, default_shift_id, line_type, active_flag)
       VALUES ($1,'${namespace}-LINE-1',$2::jsonb,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,'Production',TRUE),
              ($8,'${namespace}-LINE-2',$9::jsonb,$10::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,'Production',TRUE)`,
@@ -282,6 +306,17 @@ async function seedTwoLineWonSealTech(targetDate = defaultPlanningDate()) {
           VALUES ($1,$2,$3,TRUE,NOW(),TRUE,$4)`, [lineID, op[`${lineKey}Wc`], index + 1, userId]);
       }
     }
+    await q(master, `INSERT INTO md_resource_capability (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_id, work_center_id, equipment_id, capability_type, active_flag, cycle_time_sec, site_id, product_revision_id, eligibility, priority_no, speed_factor)
+      VALUES ($1,'${namespace}-CAP-L1-BINDING-ALT',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,$6,'Eligible',TRUE,$7,$8,$9,TRUE,2,1)`,
+      [cryptoRandom(), i18n('Capability L1 Binding alternative'), userId, binding.operationId, binding.line1Wc, ids.line1BindingAltEq, binding.cycle, site.master_id, ids.revision]);
+    await q(master, `INSERT INTO md_production_standard (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id, operation_id, work_center_id, equipment_id, labor_count, setup_time_min, cycle_time_sec, efficiency_factor, site_id, routing_operation_id, base_quantity, standard_yield, source_method, valid_from)
+      VALUES ($1,'${namespace}-STD-L1-BINDING-ALT',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,$6,$7,1,5,$8,1,$9,$10,1,1,'Seed',CURRENT_DATE)`,
+      [cryptoRandom(), i18n('Standard L1 Binding alternative'), userId, ids.revision, binding.operationId, binding.line1Wc, ids.line1BindingAltEq, binding.cycle, site.master_id, binding.routingOperationId]);
+    await q(master, `INSERT INTO md_resource_calendar (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, work_center_id, equipment_id, available_from, available_to, capacity_percent, site_id, resource_type, resource_id, workstation_id, calendar_date, shift_id, availability_status, available_minutes, capacity_factor)
+      VALUES ($1,'${namespace}-CAL-L1-BINDING-ALT-${targetDate.replaceAll('-', '')}',$2::jsonb,1,'Released',NOW(),$3,$3,$4,$5,$6::date,$6::date + INTERVAL '2 days',1,$7,'Equipment',$5,$8,$6::date,$9,'Available',540,1)`,
+      [cryptoRandom(), i18n('Calendar L1 Binding alternative'), userId, binding.line1Wc, ids.line1BindingAltEq, targetDate, site.master_id, ids.line1BindingAltWs, shift.master_id]);
+    await q(master, `INSERT INTO md_production_line_resource_scope (production_line_id, resource_assignment_id, work_center_id, workstation_id, equipment_id, machine_unit_id, effective_from, active_flag, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,NOW(),TRUE,$7)`, [ids.line1, ids.line1BindingAltAssignment, binding.line1Wc, ids.line1BindingAltWs, ids.line1BindingAltEq, ids.line1BindingAltUnit, userId]);
     for (const op of operations) {
       for (const [lineKey, role] of [['line1', 'L1'], ['line2', 'L2']]) {
         const wc = op[`${lineKey}Wc`];
@@ -312,7 +347,8 @@ async function seedTwoLineWonSealTech(targetDate = defaultPlanningDate()) {
 
   await rebuildExecutionProjection({ ids, operations, site, area, shift, uom, targetDate });
   const scenarios = await seedUatProductionVersionScenarios({ ids, operations, site, targetDate });
-  return { production_version_id: scenarios.primary_ready.production_version_id, production_version_code: scenarios.primary_ready.code, item_revision_id: ids.revision, site_id: site.master_id, shift_id: shift.master_id, target_date: targetDate, line_1_id: ids.line1, line_2_id: ids.line2, operation_count: operations.length, scenarios };
+  const labor = await seedTwoLineLabor({ ids, operations, site, shift, targetDate, scenarioRoutingIds: scenarios.routing_ids });
+  return { production_version_id: scenarios.primary_ready.production_version_id, production_version_code: scenarios.primary_ready.code, item_revision_id: ids.revision, site_id: site.master_id, shift_id: shift.master_id, target_date: targetDate, line_1_id: ids.line1, line_2_id: ids.line2, operation_count: operations.length, scenarios, labor };
 }
 
 async function rebuildExecutionProjection(seed) {
@@ -321,12 +357,12 @@ async function rebuildExecutionProjection(seed) {
   try {
     await q(execution, `INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, lifecycle_status, updated_at)
       VALUES ($1,'${namespace}-FG-SEAL-ASM-01-A',$2::jsonb,'A','FG',$3,$4,'Released',NOW())`, [ids.revision, i18n('Won Seal Tech Seal Assembly A'), site.master_id, uom.master_id]);
-    await q(execution, `INSERT INTO rm_mbom_header (master_id, code, name, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at)
-      VALUES ($1,'${namespace}-MBOM-SEAL-ASM-01',$2::jsonb,$3,1,$4,'Released',NOW())`, [ids.mbom, i18n('Won Seal Tech Seal Assembly MBOM'), site.master_id, uom.master_id]);
+    await q(execution, `INSERT INTO rm_mbom_header (master_id, code, name, base_quantity, base_uom_id, lifecycle_status, updated_at)
+      VALUES ($1,'${namespace}-MBOM-SEAL-ASM-01',$2::jsonb,1,$3,'Released',NOW())`, [ids.mbom, i18n('Won Seal Tech Seal Assembly MBOM'), uom.master_id]);
     await q(execution, `INSERT INTO rm_mbom_line (master_id, mbom_header_id, seq, component_revision_id, component_item_code, quantity_per, uom_id, scrap_rate, issue_operation_id, backflush_flag, phantom_flag)
       VALUES ($1,$2,10,$3,'${namespace}-COMP-SEAL-RING-01-A',1,$4,0,$5,FALSE,FALSE)`, [ids.mbomLine, ids.mbom, ids.componentRevision, uom.master_id, operations[0].operationId]);
     await q(execution, `INSERT INTO rm_routing_header (master_id, code, item_revision_id, site_id, lifecycle_status, updated_at)
-      VALUES ($1,'${namespace}-ROUTING-SEAL-ASM-01',$2,$3,'Released',NOW())`, [ids.routing, ids.revision, site.master_id]);
+      VALUES ($1,'${namespace}-ROUTING-SEAL-ASM-01',NULL,$2,'Released',NOW())`, [ids.routing, site.master_id]);
     for (const op of operations) {
       for (const [wc, code] of [[op.line1Wc, `L1-${op.key}`], [op.line2Wc, `L2-${op.key}`]]) {
         await q(execution, `INSERT INTO rm_work_center (master_id, code, name, site_id, area_id, active_flag, lifecycle_status)
@@ -400,8 +436,8 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
       [scenarioIds.routing2, `${namespace}-UAT-ROUTING-BACKUP-FALLBACK`, 'UAT backup fallback routing'],
       [scenarioIds.routing3, `${namespace}-UAT-ROUTING-BOTH-HOLD`, 'UAT both lines hold routing'],
     ]) {
-      await q(master, `INSERT INTO md_routing_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, business_version, routing_type, item_revision_id)
-        VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,'1','Standard',$5)`, [routingId, code, i18n(name), userId, ids.revision]);
+      await q(master, `INSERT INTO md_routing_header (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, business_version, routing_type)
+        VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,'1','Standard')`, [routingId, code, i18n(name), userId]);
     }
     for (const [routingId, routeOperations, finalOperationId, finalRoutingOperationId, suffix] of [
       [scenarioIds.routing2, route2Operations, scenarioIds.backupOperation, backupFinalRoutingOperation, 'BACKUP'],
@@ -435,8 +471,8 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
     await q(master, `INSERT INTO md_production_standard (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id, operation_id, work_center_id, equipment_id, labor_count, setup_time_min, cycle_time_sec, efficiency_factor, site_id, routing_operation_id, base_quantity, standard_yield, source_method, valid_from)
       VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,1,5,60,1,$9,$10,1,1,'Seed',CURRENT_DATE)`, [cryptoRandom(), `${namespace}-UAT-STD-L2-BACKUP-PACKING`, i18n('BKP STD'), userId, ids.revision, scenarioIds.backupOperation, packing.line2Wc, packing.line2Eq, site.master_id, backupFinalRoutingOperation]);
     for (const version of versions) {
-      await q(master, `INSERT INTO md_production_version (master_id, code, name, name_i18n, version_no, lifecycle_status, effective_from, created_by, updated_by, item_revision_id, ebom_header_id, mbom_header_id, routing_header_id, site_id, min_lot_size, max_lot_size, is_default)
-        VALUES ($1,$2,$3,$4::jsonb,1,'Released',NOW(),$5,$5,$6,$7,$8,$9,$10,1,1000,FALSE)`, [version.id, version.code, version.name, i18n(version.name), userId, ids.revision, ids.ebom, ids.mbom, version.routing, site.master_id]);
+      await q(master, `INSERT INTO md_production_version (master_id, code, name, name_i18n, version_no, lifecycle_status, effective_from, created_by, updated_by, mbom_header_id, routing_header_id, site_id, min_lot_size, max_lot_size, is_default)
+        VALUES ($1,$2,$3,$4::jsonb,1,'Released',NOW(),$5,$5,$6,$7,$8,1,1000,FALSE)`, [version.id, version.code, version.name, i18n(version.name), userId, ids.mbom, version.routing, site.master_id]);
       await q(master, `INSERT INTO md_production_version_line_eligibility (production_version_id, production_line_id, is_primary, priority_no, efficiency_factor, selection_mode, selection_policy, lifecycle_status, effective_from, active_flag, created_by)
         VALUES ($1,$2,TRUE,1,1,'AutoPrimaryThenBackup','PrimaryThenBackup','Released',NOW(),TRUE,$4), ($1,$3,FALSE,2,1,'AutoPrimaryThenBackup','PrimaryThenBackup','Released',NOW(),TRUE,$4)`, [version.id, ids.line1, ids.line2, userId]);
     }
@@ -450,7 +486,7 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
   await execution.query('BEGIN');
   try {
     for (const [routingId, code] of [[scenarioIds.routing2, `${namespace}-UAT-ROUTING-BACKUP-FALLBACK`], [scenarioIds.routing3, `${namespace}-UAT-ROUTING-BOTH-HOLD`]]) {
-      await q(execution, `INSERT INTO rm_routing_header (master_id, code, item_revision_id, site_id, lifecycle_status, updated_at) VALUES ($1,$2,$3,$4,'Released',NOW())`, [routingId, code, ids.revision, site.master_id]);
+      await q(execution, `INSERT INTO rm_routing_header (master_id, code, item_revision_id, site_id, lifecycle_status, updated_at) VALUES ($1,$2,NULL,$3,'Released',NOW())`, [routingId, code, site.master_id]);
     }
     for (const [routingId, routeOperations, finalOperationId, finalRoutingOperationId, finalCode] of [
       [scenarioIds.routing2, route2Operations, scenarioIds.backupOperation, backupFinalRoutingOperation, `${namespace}-UAT-OP-BACKUP-PACKING`],
@@ -489,7 +525,88 @@ async function seedUatProductionVersionScenarios({ ids, operations, site, target
     primary_ready: { production_version_id: scenarioIds.pv1, code: versions[0].code, expected_line: `${namespace}-LINE-1`, expected_status: 'READY' },
     backup_fallback: { production_version_id: scenarioIds.pv2, code: versions[1].code, expected_line: `${namespace}-LINE-2`, expected_status: 'READY' },
     both_lines_hold: { production_version_id: scenarioIds.pv3, code: versions[2].code, expected_line: null, expected_status: 'RESOURCE_HOLD' },
+    routing_ids: [scenarioIds.routing2, scenarioIds.routing3],
   };
+}
+
+async function seedTwoLineLabor({ ids, operations, site, shift, targetDate, scenarioRoutingIds }) {
+  const skillId = cryptoRandom();
+  const skillCode = `${namespace}-SK-PRODUCTION-OPERATOR`;
+  const employeeRows = operations.flatMap((operation, index) => [
+    { id: cryptoRandom(), code: `${namespace}-EMP-L1-${String(index + 1).padStart(2, '0')}`, name: `WST Seed Primary Operator ${index + 1}`, workCenterId: operation.line1Wc },
+    { id: cryptoRandom(), code: `${namespace}-EMP-L2-${String(index + 1).padStart(2, '0')}`, name: `WST Seed Backup Operator ${index + 1}`, workCenterId: operation.line2Wc },
+  ]);
+  const routingIds = [ids.routing, ...scenarioRoutingIds];
+
+  await master.query('BEGIN');
+  try {
+    await master.query(`SELECT set_config('app.current_user_id', $1, true)`, [userId]);
+    await q(master, `INSERT INTO md_skill (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, skill_group, minimum_level, scope, legacy_flag)
+      VALUES ($1,$2,$3::jsonb,1,'Released',NOW(),$4,$4,'${namespace}', 'L1','Employee',FALSE)
+      ON CONFLICT (code, version_no) DO UPDATE SET name=EXCLUDED.name, lifecycle_status='Released', effective_to=NULL, updated_by=EXCLUDED.updated_by`,
+      [skillId, skillCode, i18n('WST Seed Production Operator'), userId]);
+    const workCenterIds = [...new Set(operations.flatMap((operation) => [operation.line1Wc, operation.line2Wc]))];
+    for (const workCenterId of workCenterIds) {
+      const shiftSetCode = `${namespace}-SHIFTSET-${workCenterId}`;
+      await q(master, `INSERT INTO md_work_center_shift_set (master_id, code, name, work_center_id, lifecycle_status, effective_from, created_by, updated_by)
+        VALUES ($1,$2,$3, $4,'Released',NOW(),$5,$5)
+        ON CONFLICT (code) DO UPDATE SET name=EXCLUDED.name, work_center_id=EXCLUDED.work_center_id, lifecycle_status='Released', effective_to=NULL, updated_by=EXCLUDED.updated_by`,
+        [cryptoRandom(), shiftSetCode, `WST Seed Shift Set ${workCenterId}`, workCenterId, userId]);
+      const shiftSet = (await q(master, `SELECT master_id FROM md_work_center_shift_set WHERE code=$1`, [shiftSetCode])).rows[0];
+      await q(master, `DELETE FROM md_work_center_shift WHERE shift_set_id=$1`, [shiftSet.master_id]);
+      await q(master, `INSERT INTO md_work_center_shift (work_center_id, shift_id, shift_set_id, active_flag, effective_from, created_by, updated_by)
+        VALUES ($1,$2,$3,TRUE,NOW(),$4,$4)`, [workCenterId, shift.master_id, shiftSet.master_id, userId]);
+    }
+    for (const employee of employeeRows) {
+      await q(master, `INSERT INTO md_employee (master_id, code, name, version_no, lifecycle_status, effective_from, site_id, default_work_center_id, employee_status, hired_date, created_by, updated_by)
+        VALUES ($1,$2,$3,1,'Released',NOW(),$4,$5,'Active',CURRENT_DATE,$6,$6)
+        ON CONFLICT (code, version_no) DO UPDATE SET name=EXCLUDED.name, lifecycle_status='Released', effective_to=NULL, site_id=EXCLUDED.site_id, default_work_center_id=EXCLUDED.default_work_center_id, employee_status='Active', updated_by=EXCLUDED.updated_by`,
+        [employee.id, employee.code, employee.name, site.master_id, employee.workCenterId, userId]);
+      const current = (await q(master, `SELECT master_id FROM md_employee WHERE code=$1 AND version_no=1`, [employee.code])).rows[0];
+      await q(master, `DELETE FROM md_employee_skill WHERE employee_id=$1 AND skill_id=$2`, [current.master_id, skillId]);
+      await q(master, `INSERT INTO md_employee_skill (employee_id, skill_id, level, created_by, effective_from, active_flag, qualification_status)
+        VALUES ($1,$2,'L2',$3,NOW(),TRUE,'Active')`, [current.master_id, skillId, userId]);
+      await q(master, `DELETE FROM md_employee_shift_schedule WHERE employee_id=$1 AND schedule_date=$2::date`, [current.master_id, targetDate]);
+      await q(master, `INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
+        VALUES ($1,$2,$3,$4,$5::date,'Scheduled',$6)`, [cryptoRandom(), current.master_id, shift.master_id, employee.workCenterId, targetDate, userId]);
+    }
+    for (const routingId of routingIds) {
+      const routingOperations = (await q(master, `SELECT master_id, operation_id, code FROM md_routing_operation WHERE routing_header_id=$1 AND lifecycle_status='Released'`, [routingId])).rows;
+      for (const routingOperation of routingOperations) {
+        await q(master, `INSERT INTO md_operation_skill_requirement (master_id, code, name, version_no, lifecycle_status, effective_from, created_by, updated_by, operation_id, skill_id, site_id, routing_operation_id, minimum_level, required_persons, mandatory_flag, active_flag)
+          VALUES ($1,$2,$3,1,'Released',NOW(),$4,$4,$5,$6,$7,$8,'L1',1,TRUE,TRUE)`,
+          [cryptoRandom(), `${namespace}-REQ-${routingOperation.code}`, `WST Seed labor requirement ${routingOperation.code}`, userId, routingOperation.operation_id, skillId, site.master_id, routingOperation.master_id]);
+      }
+    }
+    await master.query('COMMIT');
+  } catch (error) {
+    await master.query('ROLLBACK');
+    throw new Error(`TWO_LINE_LABOR_MASTER: ${error.message}`);
+  }
+
+  await execution.query('BEGIN');
+  try {
+    await q(execution, `INSERT INTO rm_skill (master_id, code, name, lifecycle_status) VALUES ($1,$2,$3::jsonb,'Released') ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,lifecycle_status='Released'`, [skillId, skillCode, i18n('WST Seed Production Operator')]);
+    for (const employee of employeeRows) {
+      const current = (await q(master, `SELECT master_id FROM md_employee WHERE code=$1 AND version_no=1`, [employee.code])).rows[0];
+      await q(execution, `INSERT INTO rm_employee (master_id, code, name, site_id, default_work_center_id, employee_status, lifecycle_status) VALUES ($1,$2,$3::jsonb,$4,$5,'Active','Released') ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,site_id=EXCLUDED.site_id,default_work_center_id=EXCLUDED.default_work_center_id,employee_status='Active',lifecycle_status='Released'`, [current.master_id, employee.code, i18n(employee.name), site.master_id, employee.workCenterId]);
+      await q(execution, `DELETE FROM rm_employee_skill WHERE employee_id=$1`, [current.master_id]);
+      await q(execution, `INSERT INTO rm_employee_skill (employee_id, skill_id, level) VALUES ($1,$2,'L2')`, [current.master_id, skillId]);
+      await q(execution, `DELETE FROM rm_employee_shift_schedule WHERE employee_id=$1 AND schedule_date=$2::date`, [current.master_id, targetDate]);
+      await q(execution, `INSERT INTO rm_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status) VALUES ($1,$2,$3,$4,$5::date,'Scheduled')`, [cryptoRandom(), current.master_id, shift.master_id, employee.workCenterId, targetDate]);
+    }
+    for (const routingId of routingIds) {
+      const routingOperations = (await q(master, `SELECT master_id, operation_id FROM md_routing_operation WHERE routing_header_id=$1 AND lifecycle_status='Released'`, [routingId])).rows;
+      for (const routingOperation of routingOperations) {
+        await q(execution, `INSERT INTO rm_operation_skill_requirement (master_id, operation_id, skill_id, minimum_level, required_persons, mandatory_flag) VALUES ($1,$2,$3,'L1',1,TRUE) ON CONFLICT (master_id) DO UPDATE SET operation_id=EXCLUDED.operation_id,skill_id=EXCLUDED.skill_id,minimum_level='L1',required_persons=1,mandatory_flag=TRUE`, [cryptoRandom(), routingOperation.operation_id, skillId]);
+      }
+    }
+    await execution.query('COMMIT');
+  } catch (error) {
+    await execution.query('ROLLBACK');
+    throw new Error(`TWO_LINE_LABOR_EXECUTION: ${error.message}`);
+  }
+  return { skill_code: skillCode, employees: employeeRows.length, schedules: employeeRows.length, routing_operation_requirements: routingIds.length * operations.length };
 }
 
 async function api(pathname, options = {}, allowed = []) {
@@ -615,6 +732,10 @@ async function verifyCounts() {
       (SELECT COUNT(*)::int FROM md_resource_capability WHERE code LIKE '${namespace}-%') AS capabilities,
       (SELECT COUNT(*)::int FROM md_resource_calendar WHERE code LIKE '${namespace}-%') AS calendars,
       (SELECT COUNT(*)::int FROM md_operation WHERE code LIKE '${namespace}-%') AS operations,
+      (SELECT COUNT(*)::int FROM md_skill WHERE code LIKE '${namespace}-SK-%' AND lifecycle_status='Released') AS labor_skills,
+      (SELECT COUNT(*)::int FROM md_employee WHERE code LIKE '${namespace}-EMP-%' AND lifecycle_status='Released' AND employee_status='Active') AS labor_employees,
+      (SELECT COUNT(*)::int FROM md_employee_shift_schedule s JOIN md_employee e ON e.master_id=s.employee_id WHERE e.code LIKE '${namespace}-EMP-%' AND s.schedule_status='Scheduled') AS labor_schedules,
+      (SELECT COUNT(*)::int FROM md_operation_skill_requirement r WHERE r.code LIKE '${namespace}-REQ-%' AND r.lifecycle_status='Released' AND r.active_flag=TRUE) AS labor_requirements,
       (SELECT COUNT(*)::int FROM md_production_version WHERE code LIKE '${namespace}-%' OR code LIKE 'WST-UAT-%') AS production_versions,
       (SELECT COUNT(*)::int FROM md_production_version_line_eligibility e JOIN md_production_version pv ON pv.master_id=e.production_version_id WHERE (pv.code LIKE '${namespace}-%' OR pv.code LIKE 'WST-UAT-%') AND e.active_flag=TRUE) AS line_eligibilities
   `)).rows[0];
@@ -627,6 +748,10 @@ async function verifyCounts() {
   const passed = Number(masterCounts.production_lines) === 2
     && Number(masterCounts.work_centers) === 8
     && Number(masterCounts.operations) === 6
+    && Number(masterCounts.labor_skills) === 1
+    && Number(masterCounts.labor_employees) === 8
+    && Number(masterCounts.labor_schedules) === 8
+    && Number(masterCounts.labor_requirements) === 12
     && Number(masterCounts.production_versions) === 4
     && Number(masterCounts.line_eligibilities) === 8
     && Object.values(orphanCounts).every((count) => Number(count) === 0);

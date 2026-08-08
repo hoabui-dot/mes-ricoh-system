@@ -1,0 +1,1491 @@
+{
+  "header": {
+    "created_at": "2026-08-07T09:20:01.430618Z",
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "demo_print_on_approval": true,
+    "dispatch_mode": "WORK_CENTER",
+    "evaluated_line_results": [
+      {
+        "status": "Blocked",
+        "blockers": [
+          {
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-BINDING",
+            "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+            "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+            "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+            "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+            "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+            "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+            "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-PACKING",
+            "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+            "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          }
+        ],
+        "priority": 1,
+        "dimensions": [
+          {
+            "key": "eligibility",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_ELIGIBILITY_READY",
+            "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+            "dimension_code": "eligibility",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
+          },
+          {
+            "key": "work_centers",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
+            "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+            "dimension_code": "work_centers",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
+          },
+          {
+            "key": "capability",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CAPABILITY_READY",
+            "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+            "dimension_code": "capability",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
+          },
+          {
+            "key": "production_standard",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_PRODUCTION_STANDARD_READY",
+            "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+            "dimension_code": "production_standard",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
+          },
+          {
+            "key": "calendar_shift",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CALENDAR_SHIFT_READY",
+            "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+            "dimension_code": "calendar_shift",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
+          },
+          {
+            "key": "capacity",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "BLOCKED",
+            "details": [
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-BINDING",
+                "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+                "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-TEST5IN1",
+                "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+                "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-AIRTEST",
+                "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+                "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-PACKING",
+                "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+                "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              }
+            ],
+            "blocking": true,
+            "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+            "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+            "dimension_code": "capacity",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          },
+          {
+            "key": "workstations",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "WORKSTATION_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "workstations",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.WORKSTATION_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "machine_requirements",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "machine_requirements",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "equipment_units",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "equipment_units",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "assignments",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "ASSIGNMENT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "assignments",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.ASSIGNMENT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "worker_skill_labor",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LABOR_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "worker_skill_labor",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.LABOR_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "final_result",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "BLOCKED",
+            "details": [
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-BINDING",
+                "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+                "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-TEST5IN1",
+                "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+                "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-AIRTEST",
+                "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+                "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              },
+              {
+                "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+                "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+                "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+                "blocker_codes": [
+                  "INSUFFICIENT_CAPACITY",
+                  "RESOURCE_PLANNED_DOWN",
+                  "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+                ],
+                "operation_code": "WST-SEED-OP-PACKING",
+                "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+                "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+                "total_candidate_count": 1,
+                "feasible_candidate_count": 0,
+                "excluded_candidate_reasons": {
+                  "INSUFFICIENT_CAPACITY": 1,
+                  "RESOURCE_PLANNED_DOWN": 1
+                }
+              }
+            ],
+            "blocking": true,
+            "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
+            "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+            "dimension_code": "final_result",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
+          },
+          {
+            "key": "selection_reason",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "NOT_APPLICABLE",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_NOT_SELECTED_BLOCKED",
+            "evaluated_at": null,
+            "dimension_code": "selection_reason",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
+          }
+        ],
+        "operations": [
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_name": "WST-SEED-OP-BINDING",
+            "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+            "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_name": "WST-SEED-OP-TEST5IN1",
+            "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+            "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_name": "WST-SEED-OP-AIRTEST",
+            "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+            "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          },
+          {
+            "status": "BLOCKED",
+            "mandatory": true,
+            "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+            "blocker_codes": [
+              "INSUFFICIENT_CAPACITY",
+              "RESOURCE_PLANNED_DOWN",
+              "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+            ],
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_name": "WST-SEED-OP-PACKING",
+            "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+            "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 0,
+            "excluded_candidate_reasons": {
+              "INSUFFICIENT_CAPACITY": 1,
+              "RESOURCE_PLANNED_DOWN": 1
+            }
+          }
+        ],
+        "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+        "policy_version": "MES_LINE_SELECTION_V2",
+        "selection_role": "PRIMARY",
+        "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
+        "production_line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+        "production_line_code": "WST-SEED-LINE-1",
+        "complete_line_feasibility_status": "BLOCKED"
+      },
+      {
+        "status": "Ready",
+        "blockers": [],
+        "priority": 2,
+        "dimensions": [
+          {
+            "key": "eligibility",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_ELIGIBILITY_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "eligibility",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
+          },
+          {
+            "key": "work_centers",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "work_centers",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
+          },
+          {
+            "key": "capability",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CAPABILITY_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "capability",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
+          },
+          {
+            "key": "production_standard",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_PRODUCTION_STANDARD_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "production_standard",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
+          },
+          {
+            "key": "calendar_shift",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CALENDAR_SHIFT_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "calendar_shift",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
+          },
+          {
+            "key": "capacity",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_COARSE_CAPACITY_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "capacity",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_COARSE_CAPACITY_READY"
+          },
+          {
+            "key": "workstations",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "WORKSTATION_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "workstations",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.WORKSTATION_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "machine_requirements",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "machine_requirements",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "equipment_units",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "equipment_units",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "assignments",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "ASSIGNMENT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "assignments",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.ASSIGNMENT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "worker_skill_labor",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LABOR_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "worker_skill_labor",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.LABOR_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "final_result",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "MANDATORY_LINE_SELECTION_DIMENSIONS_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "final_result",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
+          },
+          {
+            "key": "selection_reason",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "BACKUP_LINE_READY",
+            "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+            "dimension_code": "selection_reason",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.BACKUP_LINE_READY"
+          }
+        ],
+        "operations": [
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+            "candidate_ids": [
+              "7273ef36-a10a-46c3-865e-69fd1d4ca8b4"
+            ],
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_name": "WST-SEED-OP-BINDING",
+            "work_center_id": "4378840c-990f-461d-8a2f-b3933306bee0",
+            "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+            "candidate_ids": [
+              "8c5abf3a-1719-49b4-86f2-154bf892a2d6"
+            ],
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_name": "WST-SEED-OP-TEST5IN1",
+            "work_center_id": "b1d81cf8-4946-4ddb-ac0d-8f2b033ee8a6",
+            "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+            "candidate_ids": [
+              "82a1f743-fd5e-423b-b3c4-9abb8c9daecc"
+            ],
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_name": "WST-SEED-OP-AIRTEST",
+            "work_center_id": "b4dbbe8f-7848-43c8-a96d-2e194da8a93e",
+            "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+            "candidate_ids": [
+              "79bdb308-7a8a-43b6-8465-137d01b2bac9"
+            ],
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_name": "WST-SEED-OP-PACKING",
+            "work_center_id": "f015cd31-55dc-4a7e-b44b-030795b20419",
+            "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          }
+        ],
+        "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+        "policy_version": "MES_LINE_SELECTION_V2",
+        "selection_role": "BACKUP",
+        "selection_reason": "BACKUP_LINE_READY",
+        "production_line_id": "591c3dd7-fa62-47da-9572-4b2eb6ec519c",
+        "production_line_code": "WST-SEED-LINE-2",
+        "complete_line_feasibility_status": "READY"
+      }
+    ],
+    "fallback_reason": "PRIMARY_LINE_BLOCKED",
+    "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_name": "Won Seal Tech Seal Assembly A",
+    "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_revision_id": "c5d4d15f-3de6-47ce-86cf-6293dc3105d0",
+    "item_revision_name_i18n": {
+      "en": "Won Seal Tech Seal Assembly A",
+      "ja": "Won Seal Tech Seal Assembly A",
+      "ko": "Won Seal Tech Seal Assembly A",
+      "vi": "Won Seal Tech Seal Assembly A"
+    },
+    "line_locked_at": "2026-08-07T09:20:01.430618Z",
+    "line_selection_mode": "BACKUP",
+    "line_selection_reason": "BACKUP_LINE_READY",
+    "line_selection_status": "READY",
+    "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+    "planned_end_at": "2026-08-07T12:00:00Z",
+    "planned_start_at": "2026-08-07T08:00:00Z",
+    "planning_snapshot": {
+      "mbom_id": "18667a00-e869-43d5-8705-d333cb6d66c8",
+      "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+      "routing_id": "8e11cda0-d122-4ebc-9792-96b2c4265bcd",
+      "production_version_id": "14207f27-aa7b-4318-928f-70f04815ff07",
+      "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
+    },
+    "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+    "production_version_id": "14207f27-aa7b-4318-928f-70f04815ff07",
+    "production_version_name_i18n": {
+      "en": "Won Seal Tech two-line seal production version",
+      "ja": "Won Seal Tech two-line seal production version",
+      "ko": "Won Seal Tech two-line seal production version",
+      "vi": "Won Seal Tech two-line seal production version"
+    },
+    "quantity": 2,
+    "resource_hold_reason": {},
+    "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+    "row_version": 2,
+    "selected_production_line_code": "WST-SEED-LINE-2",
+    "selected_production_line_id": "591c3dd7-fa62-47da-9572-4b2eb6ec519c",
+    "selected_production_line_name_i18n": {
+      "en": "Won Seal Tech Line 2",
+      "ja": "Won Seal Tech Line 2",
+      "ko": "Won Seal Tech Line 2",
+      "vi": "Won Seal Tech Line 2"
+    },
+    "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+    "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+    "status": "Draft",
+    "uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a",
+    "wo_code": "WO-20260807-0086",
+    "wo_id": "50bb6c34-beef-43fd-8a4e-36f59f17ec10"
+  },
+  "evaluated_line_results": [
+    {
+      "status": "Blocked",
+      "blockers": [
+        {
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-BINDING",
+          "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+          "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+          "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+          "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+          "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+          "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+          "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-PACKING",
+          "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+          "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        }
+      ],
+      "priority": 1,
+      "dimensions": [
+        {
+          "key": "eligibility",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_ELIGIBILITY_READY",
+          "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+          "dimension_code": "eligibility",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
+        },
+        {
+          "key": "work_centers",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
+          "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+          "dimension_code": "work_centers",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
+        },
+        {
+          "key": "capability",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CAPABILITY_READY",
+          "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+          "dimension_code": "capability",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
+        },
+        {
+          "key": "production_standard",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_PRODUCTION_STANDARD_READY",
+          "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+          "dimension_code": "production_standard",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
+        },
+        {
+          "key": "calendar_shift",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CALENDAR_SHIFT_READY",
+          "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+          "dimension_code": "calendar_shift",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
+        },
+        {
+          "key": "capacity",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "BLOCKED",
+          "details": [
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-BINDING",
+              "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+              "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+              "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+              "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-PACKING",
+              "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+              "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            }
+          ],
+          "blocking": true,
+          "reason_code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+          "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+          "dimension_code": "capacity",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+        },
+        {
+          "key": "workstations",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "WORKSTATION_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "workstations",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.WORKSTATION_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "machine_requirements",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "machine_requirements",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "equipment_units",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "equipment_units",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "assignments",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "ASSIGNMENT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "assignments",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.ASSIGNMENT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "worker_skill_labor",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LABOR_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "worker_skill_labor",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.LABOR_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "final_result",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "BLOCKED",
+          "details": [
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-BINDING",
+              "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+              "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-TEST5IN1",
+              "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+              "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-AIRTEST",
+              "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+              "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            },
+            {
+              "code": "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING",
+              "line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+              "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+              "blocker_codes": [
+                "INSUFFICIENT_CAPACITY",
+                "RESOURCE_PLANNED_DOWN",
+                "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+              ],
+              "operation_code": "WST-SEED-OP-PACKING",
+              "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+              "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+              "total_candidate_count": 1,
+              "feasible_candidate_count": 0,
+              "excluded_candidate_reasons": {
+                "INSUFFICIENT_CAPACITY": 1,
+                "RESOURCE_PLANNED_DOWN": 1
+              }
+            }
+          ],
+          "blocking": true,
+          "reason_code": "MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED",
+          "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+          "dimension_code": "final_result",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSION_BLOCKED"
+        },
+        {
+          "key": "selection_reason",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "NOT_APPLICABLE",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_NOT_SELECTED_BLOCKED",
+          "evaluated_at": null,
+          "dimension_code": "selection_reason",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_NOT_SELECTED_BLOCKED"
+        }
+      ],
+      "operations": [
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_name": "WST-SEED-OP-BINDING",
+          "work_center_id": "09fee2b3-107b-4d68-853c-5b5b847d5962",
+          "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_name": "WST-SEED-OP-TEST5IN1",
+          "work_center_id": "51efad89-007a-4d3a-ba13-62df116dfe6a",
+          "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_name": "WST-SEED-OP-AIRTEST",
+          "work_center_id": "b3ff72fd-3fb6-4863-9b69-22d04dd62d42",
+          "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "mandatory": true,
+          "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+          "blocker_codes": [
+            "INSUFFICIENT_CAPACITY",
+            "RESOURCE_PLANNED_DOWN",
+            "LINE_OPERATION_FEASIBLE_CANDIDATE_MISSING"
+          ],
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_name": "WST-SEED-OP-PACKING",
+          "work_center_id": "fd326adc-4daf-4961-b35c-c06043f595c8",
+          "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 0,
+          "excluded_candidate_reasons": {
+            "INSUFFICIENT_CAPACITY": 1,
+            "RESOURCE_PLANNED_DOWN": 1
+          }
+        }
+      ],
+      "evaluated_at": "2026-08-07T09:20:01.570672214Z",
+      "policy_version": "MES_LINE_SELECTION_V2",
+      "selection_role": "PRIMARY",
+      "selection_reason": "LINE_NOT_SELECTED_BLOCKED",
+      "production_line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+      "production_line_code": "WST-SEED-LINE-1",
+      "complete_line_feasibility_status": "BLOCKED"
+    },
+    {
+      "status": "Ready",
+      "blockers": [],
+      "priority": 2,
+      "dimensions": [
+        {
+          "key": "eligibility",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_ELIGIBILITY_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "eligibility",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
+        },
+        {
+          "key": "work_centers",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "work_centers",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
+        },
+        {
+          "key": "capability",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CAPABILITY_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "capability",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
+        },
+        {
+          "key": "production_standard",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_PRODUCTION_STANDARD_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "production_standard",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
+        },
+        {
+          "key": "calendar_shift",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CALENDAR_SHIFT_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "calendar_shift",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
+        },
+        {
+          "key": "capacity",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_COARSE_CAPACITY_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "capacity",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_COARSE_CAPACITY_READY"
+        },
+        {
+          "key": "workstations",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "WORKSTATION_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "workstations",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.WORKSTATION_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "machine_requirements",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "machine_requirements",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "equipment_units",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "equipment_units",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "assignments",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "ASSIGNMENT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "assignments",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.ASSIGNMENT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "worker_skill_labor",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LABOR_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "worker_skill_labor",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.LABOR_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "final_result",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "MANDATORY_LINE_SELECTION_DIMENSIONS_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "final_result",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
+        },
+        {
+          "key": "selection_reason",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "BACKUP_LINE_READY",
+          "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+          "dimension_code": "selection_reason",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.BACKUP_LINE_READY"
+        }
+      ],
+      "operations": [
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "03bf8665-a149-4000-b6dc-a258d6b6f8ae",
+          "candidate_ids": [
+            "7273ef36-a10a-46c3-865e-69fd1d4ca8b4"
+          ],
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_name": "WST-SEED-OP-BINDING",
+          "work_center_id": "4378840c-990f-461d-8a2f-b3933306bee0",
+          "routing_operation_id": "c768ad79-b17c-4c5a-8550-1a6b7e99b903",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "a50224c8-ac90-4f27-8665-d10ba6a59426",
+          "candidate_ids": [
+            "8c5abf3a-1719-49b4-86f2-154bf892a2d6"
+          ],
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_name": "WST-SEED-OP-TEST5IN1",
+          "work_center_id": "b1d81cf8-4946-4ddb-ac0d-8f2b033ee8a6",
+          "routing_operation_id": "20d7ef5f-8581-434d-af2f-c04da98058e0",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "db765b0d-db23-47e0-b086-4299563fadee",
+          "candidate_ids": [
+            "82a1f743-fd5e-423b-b3c4-9abb8c9daecc"
+          ],
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_name": "WST-SEED-OP-AIRTEST",
+          "work_center_id": "b4dbbe8f-7848-43c8-a96d-2e194da8a93e",
+          "routing_operation_id": "16e8639d-b55c-4f9c-9830-9e575c86857f",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "9da727ec-7258-4edb-9697-bec30bd53e89",
+          "candidate_ids": [
+            "79bdb308-7a8a-43b6-8465-137d01b2bac9"
+          ],
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_name": "WST-SEED-OP-PACKING",
+          "work_center_id": "f015cd31-55dc-4a7e-b44b-030795b20419",
+          "routing_operation_id": "9d9ab9b9-84de-41c4-854a-b72501207cce",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        }
+      ],
+      "evaluated_at": "2026-08-07T09:20:01.694584177Z",
+      "policy_version": "MES_LINE_SELECTION_V2",
+      "selection_role": "BACKUP",
+      "selection_reason": "BACKUP_LINE_READY",
+      "production_line_id": "591c3dd7-fa62-47da-9572-4b2eb6ec519c",
+      "production_line_code": "WST-SEED-LINE-2",
+      "complete_line_feasibility_status": "READY"
+    }
+  ],
+  "operation_line_ids": [
+    "591c3dd7-fa62-47da-9572-4b2eb6ec519c",
+    "591c3dd7-fa62-47da-9572-4b2eb6ec519c",
+    "591c3dd7-fa62-47da-9572-4b2eb6ec519c",
+    "591c3dd7-fa62-47da-9572-4b2eb6ec519c"
+  ]
+}

@@ -25,7 +25,11 @@ test('[@phase8] persisted Work Order list triage, server filters, and detail mat
   await expect(page.getByTestId('work-order-line-selection-panel')).toBeVisible();
   await expect(page.getByTestId('line-dimension-matrix-primary')).toBeVisible();
   await expect(page.getByTestId('line-dimension-matrix-backup')).toBeVisible();
-  if (process.env.MES_UI08_ARTIFACT_DIR) await page.screenshot({ path: `${process.env.MES_UI08_ARTIFACT_DIR}/work-order-hold-detail-matrix.png`, fullPage: true });
+  await expect(page.getByTestId('line-operation-feasibility-matrix')).toBeVisible();
+  if (process.env.MES_UI08_ARTIFACT_DIR) {
+    await page.screenshot({ path: `${process.env.MES_UI08_ARTIFACT_DIR}/work-order-hold-detail-matrix.png`, fullPage: true });
+    await page.getByTestId('line-operation-feasibility-matrix').screenshot({ path: `${process.env.MES_UI08_ARTIFACT_DIR}/work-order-operation-feasibility-matrix.png` });
+  }
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('work-order-line-selection-panel')).toBeVisible();
 });

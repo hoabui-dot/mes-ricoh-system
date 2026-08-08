@@ -1,0 +1,103 @@
+{
+  "workOrders": [
+    {
+      "wo_id": "63fc36c5-6342-4a01-a531-025f28821bc4",
+      "wo_code": "WO-20260808-0005",
+      "status": "Draft",
+      "created_at": "2026-08-08T07:09:51.181Z",
+      "production_version_id": "83e1d491-b90a-4d39-8c6d-cd97f30ed051",
+      "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
+      "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+      "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+      "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+      "planning_snapshot": {
+        "mbom_id": "16d8f858-5681-4914-9e81-cd1cb08e78ef",
+        "shift_id": "813d94f8-cf91-4dad-b83c-306d754c1a4f",
+        "routing_id": "7c6fd507-ba31-4c87-8bf6-0dc71014dc87",
+        "production_version_id": "83e1d491-b90a-4d39-8c6d-cd97f30ed051",
+        "production_version_code": "WST-UAT-PV-01-PRIMARY-READY"
+      },
+      "operation_count": 4,
+      "material_count": 1,
+      "allocation_count": 0,
+      "print_job_count": 0,
+      "pv_status": "Released",
+      "routing_status": "Released",
+      "mbom_status": "Released",
+      "item_revision_status": "Released",
+      "primary_reason": null,
+      "classification": "VALID",
+      "reasons": []
+    },
+    {
+      "wo_id": "91d94873-4d9a-45b5-b432-534f6f8eeee3",
+      "wo_code": "WO-20260808-0006",
+      "status": "Draft",
+      "created_at": "2026-08-08T07:09:51.421Z",
+      "production_version_id": "afef147f-ce42-4195-9c66-cef44e0e857d",
+      "production_version_code": "WST-UAT-PV-02-BACKUP-FALLBACK",
+      "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+      "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+      "routing_code": "WST-SEED-UAT-ROUTING-BACKUP-FALLBACK",
+      "planning_snapshot": {
+        "mbom_id": "16d8f858-5681-4914-9e81-cd1cb08e78ef",
+        "shift_id": "813d94f8-cf91-4dad-b83c-306d754c1a4f",
+        "routing_id": "7069e735-85f3-4279-a583-ebe2fdf4dc00",
+        "production_version_id": "afef147f-ce42-4195-9c66-cef44e0e857d",
+        "production_version_code": "WST-UAT-PV-02-BACKUP-FALLBACK"
+      },
+      "operation_count": 4,
+      "material_count": 1,
+      "allocation_count": 0,
+      "print_job_count": 0,
+      "pv_status": "Released",
+      "routing_status": "Released",
+      "mbom_status": "Released",
+      "item_revision_status": "Released",
+      "primary_reason": null,
+      "classification": "VALID",
+      "reasons": []
+    },
+    {
+      "wo_id": "dcb5e716-15ac-4cd9-bfef-3ba56d238182",
+      "wo_code": "WO-20260808-0007",
+      "status": "ResourceHold",
+      "created_at": "2026-08-08T07:09:51.653Z",
+      "production_version_id": "8eea45ee-2637-412b-a761-b0f2ecaab41a",
+      "production_version_code": "WST-UAT-PV-03-BOTH-LINES-HOLD",
+      "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+      "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+      "routing_code": "WST-SEED-UAT-ROUTING-BOTH-HOLD",
+      "planning_snapshot": {
+        "mbom_id": "16d8f858-5681-4914-9e81-cd1cb08e78ef",
+        "shift_id": "813d94f8-cf91-4dad-b83c-306d754c1a4f",
+        "routing_id": "2702014d-4af1-4ffa-9032-9ddd6b35c35d",
+        "production_version_id": "8eea45ee-2637-412b-a761-b0f2ecaab41a",
+        "production_version_code": "WST-UAT-PV-03-BOTH-LINES-HOLD"
+      },
+      "operation_count": 4,
+      "material_count": 1,
+      "allocation_count": 0,
+      "print_job_count": 0,
+      "pv_status": "Released",
+      "routing_status": "Released",
+      "mbom_status": "Released",
+      "item_revision_status": "Released",
+      "primary_reason": null,
+      "classification": "VALID",
+      "reasons": []
+    }
+  ],
+  "orphans": {
+    "operation_without_header": 0,
+    "material_without_header": 0,
+    "session_without_operation": 0,
+    "confirmation_without_operation": 0,
+    "print_job_without_header": 0,
+    "print_attempt_without_job": 0,
+    "print_event_without_job": 0,
+    "allocation_without_operation": 0,
+    "reservation_without_allocation": 0,
+    "workflow_without_work_order": 0
+  }
+}

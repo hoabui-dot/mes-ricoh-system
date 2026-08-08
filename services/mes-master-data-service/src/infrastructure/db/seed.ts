@@ -28,10 +28,17 @@ async function upsertMaster(
   const columns = Object.keys(record);
   const placeholders = columns.map((_, index) => `$${index + 1}`);
   const conflictTarget = table === 'md_material_group' ? '((UPPER(code)))' : '(code, version_no)';
+  const conflictAction = table === 'md_material_group'
+    ? `DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()
+       WHERE NOT EXISTS (SELECT 1 FROM md_item i WHERE i.material_group_id = md_material_group.master_id)
+         AND NOT EXISTS (SELECT 1 FROM md_item_revision r WHERE r.material_group_id = md_material_group.master_id)`
+    : table === 'md_resource_calendar'
+    ? 'DO UPDATE SET name = EXCLUDED.name, calendar_date = EXCLUDED.calendar_date, updated_at = NOW()'
+    : 'DO NOTHING';
   const sql = `
     INSERT INTO ${table} (${columns.join(', ')})
     VALUES (${placeholders.join(', ')})
-    ON CONFLICT ${conflictTarget} DO NOTHING
+    ON CONFLICT ${conflictTarget} ${conflictAction}
     RETURNING master_id
   `;
   const { rows } = await client.query(sql, columns.map((column) => record[column]));
@@ -125,8 +132,16 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     await upsertMaster(client, 'md_reason_code', { ...common, code: 'KIOSK-DEMO-ABORT', name: 'Demo operation abort', reason_type: 'Abort', requires_comment: false });
 
     const materialGroupIds = new Map<string, string>();
-    for (const code of ['FG_RUBBER_METAL', 'SFG_TREATED_METAL', 'SFG_COMPOUND', 'RM_METAL_BASE', 'RM_CHEMICALS']) {
-      materialGroupIds.set(code, await upsertMaster(client, 'md_material_group', { ...common, code, name: code }));
+    const materialGroups: Record<string, Record<string, string>> = {
+      FG_RUBBER_METAL: { vi: 'Cao su và kim loại thành phẩm', en: 'Finished rubber and metal', ja: '完成品ゴム・金属', ko: '완제품 고무 및 금속' },
+      SFG_TREATED_METAL: { vi: 'Kim loại bán thành phẩm đã xử lý', en: 'Treated metal semi-finished', ja: '処理済み金属半製品', ko: '처리 금속 반제품' },
+      SFG_COMPOUND: { vi: 'Hợp chất cao su bán thành phẩm', en: 'Rubber compound semi-finished', ja: 'ゴムコンパウンド半製品', ko: '고무 컴파운드 반제품' },
+      RM_METAL_BASE: { vi: 'Kim loại nguyên vật liệu', en: 'Metal raw material', ja: '金属原材料', ko: '금속 원자재' },
+      RM_CHEMICALS: { vi: 'Hóa chất nguyên vật liệu', en: 'Chemical raw material', ja: '化学原材料', ko: '화학 원자재' },
+      RM_RUBBER_BASE: { vi: 'Cao su nguyên vật liệu', en: 'Rubber raw material', ja: 'ゴム原材料', ko: '고무 원자재' },
+    };
+    for (const [code, name] of Object.entries(materialGroups)) {
+      materialGroupIds.set(code, await upsertMaster(client, 'md_material_group', { ...common, code, name }));
     }
 
     const fgItemId = await upsertMaster(client, 'md_item', { ...common, code: 'FG-WS-CM01', name: 'Cao su chân máy ô tô', item_group: 'FG_RUBBER_METAL', material_group_id: materialGroupIds.get('FG_RUBBER_METAL'), item_type: 'FG', base_uom_id: pcsId });
@@ -135,6 +150,7 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const rollItemId = await upsertMaster(client, 'md_item', { ...common, code: 'SFG-ROLL-EPDM', name: 'Tấm cao su mẹ EPDM dạng cuộn', item_group: 'SFG_COMPOUND', material_group_id: materialGroupIds.get('SFG_COMPOUND'), item_type: 'SFG', base_uom_id: m2Id });
     const steelItemId = await upsertMaster(client, 'md_item', { ...common, code: 'RM-STL-05', name: 'Thép tấm định hình thô', item_group: 'RM_METAL_BASE', material_group_id: materialGroupIds.get('RM_METAL_BASE'), item_type: 'RM', base_uom_id: pcsId });
     const bondItemId = await upsertMaster(client, 'md_item', { ...common, code: 'RM-CHEM-BOND', name: 'Keo lưu hóa đặc chủng', item_group: 'RM_CHEMICALS', material_group_id: materialGroupIds.get('RM_CHEMICALS'), item_type: 'RM', base_uom_id: kgId });
+    const epdmBaseItemId = await upsertMaster(client, 'md_item', { ...common, code: 'RM-EPDM-BASE', name: 'Cao su EPDM nguyên liệu', item_group: 'RM_RUBBER_BASE', material_group_id: materialGroupIds.get('RM_RUBBER_BASE'), item_type: 'RM', base_uom_id: kgId });
 
     const revisionDefaults = { planning_strategy: 'MakeToStock', tracking_level: 'None', default_scrap_rate: 0 };
     const fgRevId = await upsertMaster(client, 'md_item_revision', { ...common, ...revisionDefaults, code: 'FG-WS-CM01-R1', name: 'FG-WS-CM01 Revision 1', item_id: fgItemId, item_group: 'FG_RUBBER_METAL', material_group_id: materialGroupIds.get('FG_RUBBER_METAL'), base_uom_id: pcsId, procurement_type: 'Make', revision_code: 'R1', site_id: siteId, is_default: true });
@@ -143,6 +159,7 @@ export async function seedMasterData(pool: Pool): Promise<void> {
     const rollRevId = await upsertMaster(client, 'md_item_revision', { ...common, ...revisionDefaults, code: 'SFG-ROLL-EPDM-R1', name: 'EPDM parent roll revision 1', item_id: rollItemId, item_group: 'SFG_COMPOUND', material_group_id: materialGroupIds.get('SFG_COMPOUND'), base_uom_id: m2Id, procurement_type: 'Make', revision_code: 'R1', site_id: siteId, is_default: true });
     const steelRevId = await upsertMaster(client, 'md_item_revision', { ...common, ...revisionDefaults, code: 'RM-STL-05-R1', name: 'Steel raw material revision 1', item_id: steelItemId, item_group: 'RM_METAL_BASE', material_group_id: materialGroupIds.get('RM_METAL_BASE'), base_uom_id: pcsId, procurement_type: 'Buy', revision_code: 'R1', site_id: siteId, is_default: true });
     const bondRevId = await upsertMaster(client, 'md_item_revision', { ...common, ...revisionDefaults, code: 'RM-CHEM-BOND-R1', name: 'Bonding chemical revision 1', item_id: bondItemId, item_group: 'RM_CHEMICALS', material_group_id: materialGroupIds.get('RM_CHEMICALS'), base_uom_id: kgId, procurement_type: 'Buy', revision_code: 'R1', site_id: siteId, is_default: true });
+    const epdmBaseRevId = await upsertMaster(client, 'md_item_revision', { ...common, ...revisionDefaults, code: 'RM-EPDM-BASE-R1', name: 'EPDM raw material revision 1', item_id: epdmBaseItemId, item_group: 'RM_RUBBER_BASE', material_group_id: materialGroupIds.get('RM_RUBBER_BASE'), base_uom_id: kgId, procurement_type: 'Buy', revision_code: 'R1', site_id: siteId, is_default: true });
 
     const opMixId = await upsertMaster(client, 'md_operation', { ...common, code: 'OP-MIX', name: 'Luyện cán cao su', operation_type: 'Production', confirmation_mode: 'StartFinish', requires_material_scan: true, requires_output_label: true, is_schedulable: true });
     const opPrepId = await upsertMaster(client, 'md_operation', { ...common, code: 'OP-PREP', name: 'Xử lý lõi kim loại', operation_type: 'Production', confirmation_mode: 'QuantityOnly', requires_material_scan: true, requires_output_label: false, is_schedulable: true });
@@ -155,6 +172,24 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	    const wcCutId = await upsertMaster(client, 'md_work_center', { ...common, code: 'WC-CUTTING', name: 'Rubber Cutting Work Center', site_id: siteId, area_id: areaRubberId, shopfloor_id: shopfloorId, work_center_type: 'Production', active_flag: true });
 	    const wcMoldId = await upsertMaster(client, 'md_work_center', { ...common, code: 'WC-VULCAN-MOLD', name: 'Cụm máy ép thủy lực gia nhiệt', site_id: siteId, area_id: areaRubberId, shopfloor_id: shopfloorId, work_center_type: 'Production', active_flag: true });
 	    const wcQcId = await upsertMaster(client, 'md_work_center', { ...common, code: 'WC-QC', name: 'Quality Inspection', site_id: siteId, area_id: areaRubberId, shopfloor_id: shopfloorId, work_center_type: 'Inspection', active_flag: true });
+	    for (const workCenterId of [wcMixId, wcCutId, wcMoldId, wcQcId]) {
+	      await client.query(`
+	        INSERT INTO md_work_center_shift_set (code, name, work_center_id, lifecycle_status, effective_from, created_by, updated_by)
+	        SELECT wc.code || '-SHIFT-SET-01', wc.code || ' Shift Set', wc.master_id, 'Released', $2, $3, $3
+	        FROM md_work_center wc WHERE wc.master_id = $1
+	        ON CONFLICT (code) DO UPDATE SET work_center_id=EXCLUDED.work_center_id, lifecycle_status='Released', effective_to=NULL, updated_by=$3, updated_at=NOW()
+	      `, [workCenterId, now, SYSTEM_USER_ID]);
+	      await client.query(`
+	        INSERT INTO md_work_center_shift (work_center_id, shift_id, shift_set_id, active_flag, effective_from, created_by, updated_by)
+	        SELECT $1, $2, shift_set.master_id, TRUE, $3, $4, $4
+	        FROM md_work_center_shift_set shift_set
+	        WHERE shift_set.work_center_id = $1
+          AND shift_set.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+          AND shift_set.effective_to IS NULL
+        ON CONFLICT (work_center_id, shift_id) WHERE active_flag = TRUE AND effective_to IS NULL
+	        DO UPDATE SET active_flag=TRUE, effective_to=NULL, updated_by=$4, updated_at=NOW()
+	      `, [workCenterId, shiftAId, now, SYSTEM_USER_ID]);
+	    }
 
 	    const wsMoldId = await upsertMaster(client, 'md_workstation', { ...common, code: 'WS-MOLD-KIOSK01', name: 'Molding Kiosk 01', site_id: siteId, area_id: areaRubberId, shopfloor_id: shopfloorId, work_center_id: wcMoldId, workstation_type: 'Kiosk', execution_mode: 'Kiosk', active_flag: true });
 	    const wsMixId = await upsertMaster(client, 'md_workstation', { ...common, code: 'WS-MIXING-01', name: 'Mixing Workstation', site_id: siteId, area_id: areaRubberId, shopfloor_id: shopfloorId, work_center_id: wcMixId, workstation_type: 'Kiosk', execution_mode: 'Kiosk', active_flag: true });
@@ -270,17 +305,13 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	      ON CONFLICT (employee_id, skill_id) WHERE active_flag = TRUE AND effective_to IS NULL
 	      DO UPDATE SET level='L3', qualification_status='Active', certified_at=$4, updated_by=$3, updated_at=NOW()
 	    `, [employeeId, skillMixId, SYSTEM_USER_ID, now]);
+    await client.query(`DELETE FROM md_employee_shift_schedule WHERE employee_id=$1 AND schedule_date=$2::date`, [employeeId, targetDate]);
     await client.query(`
-      WITH updated AS (
-        UPDATE md_employee_shift_schedule
-        SET employee_id=$2, shift_id=$3, work_center_id=$4, schedule_date=$6::date,
-            schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
-        WHERE schedule_id=$1 OR (employee_id=$2 AND schedule_date=$6::date)
-        RETURNING schedule_id
-      )
       INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
-      SELECT $1, $2, $3, $4, $6::date, 'Scheduled', $5
-      WHERE NOT EXISTS (SELECT 1 FROM updated)
+      VALUES ($1, $2, $3, $4, $6::date, 'Scheduled', $5)
+      ON CONFLICT (schedule_id) DO UPDATE SET employee_id=EXCLUDED.employee_id, shift_id=EXCLUDED.shift_id,
+        work_center_id=EXCLUDED.work_center_id, schedule_date=EXCLUDED.schedule_date, schedule_status='Scheduled',
+        updated_by=EXCLUDED.created_by, updated_at=NOW()
     `, [scheduleId, employeeId, shiftAId, wcMixId, SYSTEM_USER_ID, targetDate]);
 	    const ensureBaseMachine = async (fixture: { equipmentCode: string; equipmentName: string; unitCode: string; serial: string; groupCode: string; groupName: string; assignmentCode: string; workCenterId: string; workstationId: string; equipmentType: string }) => {
 	      const equipmentId = await upsertMaster(client, 'md_equipment', { ...common, code: fixture.equipmentCode, name: fixture.equipmentName, site_id: siteId, work_center_id: fixture.workCenterId, equipment_type: fixture.equipmentType, active_flag: true, planning_resource_flag: true, execution_status: 'Available' });
@@ -325,31 +356,27 @@ export async function seedMasterData(pool: Pool): Promise<void> {
 	        ON CONFLICT (employee_id, skill_id) WHERE active_flag = TRUE AND effective_to IS NULL
 	        DO UPDATE SET level=EXCLUDED.level, qualification_status='Active', certified_at=$5, updated_by=$4, updated_at=NOW()
 	      `, [empId, skillId, level, SYSTEM_USER_ID, now]);
+      await client.query(`DELETE FROM md_employee_shift_schedule WHERE employee_id=$1 AND schedule_date=$2::date`, [empId, targetDate]);
       await client.query(`
-        WITH updated AS (
-          UPDATE md_employee_shift_schedule
-          SET employee_id=$2, shift_id=$3, work_center_id=$4, schedule_date=$6::date,
-              schedule_status='Scheduled', updated_by=$5, updated_at=NOW()
-          WHERE schedule_id=$1 OR (employee_id=$2 AND schedule_date=$6::date)
-          RETURNING schedule_id
-        )
         INSERT INTO md_employee_shift_schedule (schedule_id, employee_id, shift_id, work_center_id, schedule_date, schedule_status, created_by)
-        SELECT $1, $2, $3, $4, $6::date, 'Scheduled', $5
-        WHERE NOT EXISTS (SELECT 1 FROM updated)
+        VALUES ($1, $2, $3, $4, $6::date, 'Scheduled', $5)
+        ON CONFLICT (schedule_id) DO UPDATE SET employee_id=EXCLUDED.employee_id, shift_id=EXCLUDED.shift_id,
+          work_center_id=EXCLUDED.work_center_id, schedule_date=EXCLUDED.schedule_date, schedule_status='Scheduled',
+          updated_by=EXCLUDED.created_by, updated_at=NOW()
       `, [schedule, empId, shiftAId, wcId, SYSTEM_USER_ID, targetDate]);
 	    }
 
-	    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', site_id: siteId, item_revision_id: fgRevId, base_quantity: '100.000000', base_uom_id: pcsId });
+	    const mbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-FG-WS-CM01-R1', name: 'MBOM Cao su chân máy ô tô', item_revision_id: fgRevId, base_quantity: '100.000000', base_uom_id: pcsId });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L10', name: 'Treated metal core', mbom_header_id: mbomId, seq: 10, component_revision_id: metRevId, quantity_per: '100.000000', uom_id: pcsId, scrap_rate: '0.0100', issue_operation_id: opMoldId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L20', name: 'Rubber child blank', mbom_header_id: mbomId, seq: 20, component_revision_id: rubRevId, quantity_per: '102.000000', uom_id: pcsId, scrap_rate: '0.0200', issue_operation_id: opMoldId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L30', name: 'Raw steel blank', mbom_header_id: mbomId, seq: 30, component_revision_id: steelRevId, quantity_per: '101.000000', uom_id: pcsId, scrap_rate: '0.0050', issue_operation_id: opPrepId, backflush_flag: false, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L40', name: 'Bonding chemical', mbom_header_id: mbomId, seq: 40, component_revision_id: bondRevId, quantity_per: '1.500000', uom_id: kgId, scrap_rate: '0.0500', issue_operation_id: opPrepId, backflush_flag: true, phantom_flag: false });
     await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-FG-WS-CM01-R1-L50', name: 'EPDM parent roll phantom', mbom_header_id: mbomId, seq: 50, component_revision_id: rollRevId, quantity_per: '15.500000', uom_id: m2Id, scrap_rate: '0.0300', issue_operation_id: opCutId, backflush_flag: true, phantom_flag: true });
 
-    const childMbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1', name: 'Child MBOM for EPDM phantom roll', site_id: siteId, item_revision_id: rollRevId, base_quantity: '1.000000', base_uom_id: m2Id });
-    await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1-L10', name: 'Synthetic rubber base', mbom_header_id: childMbomId, seq: 10, component_revision_id: rollRevId, quantity_per: '1.000000', uom_id: m2Id, scrap_rate: '0.0000', issue_operation_id: opMixId, backflush_flag: true, phantom_flag: false });
+    const childMbomId = await upsertMaster(client, 'md_mbom_header', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1', name: 'Child MBOM for EPDM phantom roll', item_revision_id: rollRevId, base_quantity: '1.000000', base_uom_id: m2Id });
+    await upsertMaster(client, 'md_mbom_line', { ...common, code: 'MBOM-SFG-ROLL-EPDM-R1-L10', name: 'EPDM raw material', mbom_header_id: childMbomId, seq: 10, component_revision_id: epdmBaseRevId, quantity_per: '1.000000', uom_id: kgId, scrap_rate: '0.0000', issue_operation_id: opMixId, backflush_flag: true, phantom_flag: false });
 
-    const routingId = await upsertMaster(client, 'md_routing_header', { ...common, code: 'RT-FG-WS-CM01-R1', name: 'Routing Cao su chân máy ô tô', item_revision_id: fgRevId });
+    const routingId = await upsertMaster(client, 'md_routing_header', { ...common, code: 'RT-FG-WS-CM01-R1', name: 'Routing Cao su chân máy ô tô' });
     const roMixId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-010', name: 'Mixing', routing_header_id: routingId, operation_id: opMixId, work_center_id: wcMixId, seq: 10 });
     const roPrepId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-020', name: 'Metal Prep', routing_header_id: routingId, operation_id: opPrepId, work_center_id: wcMoldId, seq: 20, predecessor_seq: 10 });
     const roCutId = await upsertMaster(client, 'md_routing_operation', { ...common, code: 'RT-FG-WS-CM01-R1-030', name: 'Cutting', routing_header_id: routingId, operation_id: opCutId, work_center_id: wcCutId, seq: 30, predecessor_seq: 20 });

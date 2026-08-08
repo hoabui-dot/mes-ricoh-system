@@ -122,7 +122,7 @@
         "/master-data/operations",
         "/master-data/production-versions"
       ],
-      "business_objects": ["md_item", "md_item_revision", "md_uom", "md_material_group", "md_ebom_header", "md_mbom_header", "md_routing_header", "md_routing_operation", "md_operation", "md_production_version"],
+      "business_objects": ["md_item", "md_item_revision", "md_uom", "md_material_group", "md_mbom_header", "md_routing_header", "md_routing_operation", "md_operation", "md_production_version"],
       "owner": "MES Master Data; snapshots/projected read models in MES Execution",
       "required_before_wo": true,
       "used_during_planning": true,

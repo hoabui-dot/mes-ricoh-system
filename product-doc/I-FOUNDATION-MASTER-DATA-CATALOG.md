@@ -7,7 +7,7 @@ Tài liệu đặc tả danh mục Master Data cấu trúc nền tảng bao gồ
 ## A1. MD_SITE — Nhà máy / Site
 
 ### 1. Thông tin chung (Overview)
-- **Mục đích:** Xác định phạm vi nhà máy mà toàn bộ SKU, MBOM, Work Center, lịch và quyền truy cập thuộc về.
+- **Mục đích:** Xác định phạm vi nhà máy cho Work Center, lịch, tài nguyên và quyền truy cập. MBOM không thuộc Site; Site thực thi được xác định qua Routing và Production Version.
 - **Mức ưu tiên:** MVP-Core
 - **Data Owner đề xuất:** Quản trị hệ thống / Quản lý nhà máy
 
@@ -145,7 +145,9 @@ Tài liệu đặc tả danh mục Master Data cấu trúc nền tảng bao gồ
 | :--- | :--- | :---: | :--- | :--- |
 | `ShiftID` | UUID | Có | `SHIFT-A` | Khóa chính ca làm việc. |
 | `SiteID` | UUID | Có | `SITE-HN01` | Tham chiếu Nhà máy áp dụng (`MD_SITE`). |
-| `ShiftCode` | String(20) | Có | `A` | Mã ca làm việc. |
+| `WorkCenterShiftSet` | Aggregate | Có khi sử dụng | `WC-MIXING-SHIFT-SET-01` | Một form chọn đúng một Work Center và quản lý toàn bộ các ca của Work Center đó trong một bộ ca. Mã bộ ca được MES tự sinh và chỉ đọc. |
+| `WorkCenterShift` | Quan hệ | Có khi sử dụng | `WC-MIXING / SHIFT-01` | Bảng trong form cho phép thêm nhiều ca có tên và khoảng `HH:mm - HH:mm`; toàn bộ bộ ca được lưu atomic và không được conflict trong 24 giờ của một ngày. |
+| `ShiftCode` | String(50) | Có sau khi lưu | `WC-MIXING-SHIFT-01` | Mã ca con được MES tự sinh theo Work Center, read-only trên form và duy nhất trong toàn hệ thống. |
 | `StartTime` | Time | Có | `06:00` | Giờ bắt đầu ca. |
 | `EndTime` | Time | Có | `14:00` | Giờ kết thúc ca. |
 | `BreakMinutes` | Integer | Có | `30` | Tổng số phút nghỉ trong ca. |
@@ -161,7 +163,13 @@ Tài liệu đặc tả danh mục Master Data cấu trúc nền tảng bao gồ
 
 ### 4. Quy tắc kiểm soát dữ liệu (Validation Rules)
 - Giá trị `NetAvailableMinutes` phải luôn bằng $\text{Tổng thời lượng ca} - \text{BreakMinutes}$.
-- Cấm cấu hình hai ca làm việc trùng khoảng thời gian trong cùng một `SiteID` nếu chính sách nhà máy không cho phép.
+- Một Work Center có thể có nhiều ca; tên ca do người dùng đặt tùy nghiệp vụ (`Ca 1`, `Ca 2`, `Ca sáng`, ...).
+- Không giới hạn số ca theo Work Center, nhưng hai ca trong cùng Work Center không được chồng thời gian; kiểm tra cả ca qua nửa đêm.
+- Công nhân bắt buộc được phân trực tiếp vào một Work Center; `SiteID` của công nhân do Work Center quyết định, không nhập độc lập.
+- Lịch công nhân bắt buộc có Work Center và Work Center phải trùng với Work Center của công nhân.
+- Ca trong lịch phải thuộc bộ ca active của Work Center tại ngày hiệu lực.
+- Cấm lịch `Scheduled` của cùng công nhân chồng khoảng thời gian. Kiểm tra dùng khoảng thời gian thực, bao gồm ca kéo dài qua nửa đêm.
+- LINE chỉ Ready về nhân lực khi từng công đoạn có đủ số công nhân tại đúng Work Center, đúng ca/ngày, trạng thái active và đạt level kỹ năng tối thiểu.
 
 ---
 

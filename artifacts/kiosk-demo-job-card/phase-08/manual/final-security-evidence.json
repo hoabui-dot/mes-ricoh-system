@@ -1,0 +1,7 @@
+{
+  "anonymous_status": 401,
+  "forged_identity_status": 200,
+  "wrong_terminal_status": 403,
+  "verified_subject": "21544e80-de86-470f-9927-b16f75bd9b68",
+  "passed": true
+}

@@ -1,0 +1,11 @@
+{
+  "number": 9,
+  "name": "Cross-line commit attack is rejected",
+  "status": "passed",
+  "started_at": "2026-08-07T10:38:46.397Z",
+  "finished_at": "2026-08-07T10:38:46.758Z",
+  "evidence": {
+    "error": "RESOURCE_CANDIDATE_STALE",
+    "message": "RESOURCE_CANDIDATE_STALE"
+  }
+}

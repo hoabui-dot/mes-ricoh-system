@@ -1,0 +1,137 @@
+{
+  "status": "PASS",
+  "generated_at": "2026-08-07T09:33:20.676Z",
+  "mode": "--seed",
+  "safety": {
+    "passed": true,
+    "mode": "--seed",
+    "environment": "development",
+    "reasons": [],
+    "host": "staging-master",
+    "databases": {
+      "master": {
+        "host": "localhost",
+        "port": "15434",
+        "database": "mes_master_data_db",
+        "user": "mes_master_data_user",
+        "password": "[REDACTED]"
+      },
+      "execution": {
+        "host": "localhost",
+        "port": "15435",
+        "database": "mes_execution_db",
+        "user": "mes_execution_user",
+        "password": "[REDACTED]"
+      },
+      "traceability": {
+        "host": "localhost",
+        "port": "15436",
+        "database": "mes_traceability_db",
+        "user": "traceability_user",
+        "password": "[REDACTED]"
+      }
+    }
+  },
+  "artifact_path": "/home/neurosus/recoh-system/mes-system/artifacts/mes-canonical-reset/2026-08-07T09-33-13-169Z/phase10-seed-result.json",
+  "command_results": [],
+  "cleanup": {
+    "master_line_eligibility": 8,
+    "master_line_resource_scope": 9,
+    "master_line_work_centers": 8,
+    "master_operation_skill_requirements": 0,
+    "master_resource_capabilities": 13,
+    "master_resource_calendars": 9,
+    "master_production_standards": 16,
+    "master_resource_assignments": 9,
+    "master_production_versions_before_resources": 4,
+    "master_routing_operations_before_resources": 12,
+    "master_machine_units": 9,
+    "master_equipment": 9,
+    "master_workstation_print_station_bindings": 0,
+    "master_workstations": 9,
+    "master_production_versions": 0,
+    "master_mbom_lines": 1,
+    "master_routing_operations": 0,
+    "master_routing_headers": 3,
+    "master_mbom_headers": 1,
+    "master_item_revisions": 2,
+    "master_items": 2,
+    "master_operations": 5,
+    "master_work_centers": 8,
+    "master_production_lines": 2,
+    "master_outbox_events": 0,
+    "execution_line_eligibility": 8,
+    "execution_line_work_centers": 8,
+    "execution_resource_calendars": 17,
+    "execution_production_standards": 15,
+    "execution_resource_capabilities": 12,
+    "execution_routing_operations": 12,
+    "execution_routing_headers": 3,
+    "execution_mbom_lines": 1,
+    "execution_mbom_headers": 1,
+    "execution_production_versions": 4,
+    "execution_production_lines": 2,
+    "execution_work_centers": 8,
+    "execution_item_revisions": 1,
+    "traceability_policies": 0,
+    "traceability_templates": 0,
+    "traceability_numbering": 0,
+    "traceability_qr_split": 0
+  },
+  "legacy_e2e_seed": {
+    "skipped": true,
+    "reason": "Phase 10 default seed is MES-owned only; legacy E2E seed delegates to WMS and requires a separate WMS seed contract."
+  },
+  "seed": {
+    "production_version_id": "4e4b4879-b1ac-440b-ae72-3c6e3120aed9",
+    "production_version_code": "WST-UAT-PV-01-PRIMARY-READY",
+    "item_revision_id": "be7247c0-8246-42aa-b38b-e1025aa638b4",
+    "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+    "shift_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+    "target_date": "2026-08-07",
+    "line_1_id": "f9a56e45-5783-4806-9e1d-f8c5d6abbf13",
+    "line_2_id": "a7a597a1-bd80-4852-8790-9564a1201c25",
+    "operation_count": 4,
+    "scenarios": {
+      "primary_ready": {
+        "production_version_id": "4e4b4879-b1ac-440b-ae72-3c6e3120aed9",
+        "code": "WST-UAT-PV-01-PRIMARY-READY",
+        "expected_line": "WST-SEED-LINE-1",
+        "expected_status": "READY"
+      },
+      "backup_fallback": {
+        "production_version_id": "2f06d8af-82d3-44c8-acd0-b887c3073d58",
+        "code": "WST-UAT-PV-02-BACKUP-FALLBACK",
+        "expected_line": "WST-SEED-LINE-2",
+        "expected_status": "READY"
+      },
+      "both_lines_hold": {
+        "production_version_id": "3d3a0d64-1685-410c-aa58-1ee867813ba5",
+        "code": "WST-UAT-PV-03-BOTH-LINES-HOLD",
+        "expected_line": null,
+        "expected_status": "RESOURCE_HOLD"
+      }
+    }
+  },
+  "counts": {
+    "masterCounts": {
+      "production_lines": 2,
+      "work_centers": 8,
+      "workstations": 9,
+      "equipment": 9,
+      "machine_units": 9,
+      "assignments": 9,
+      "capabilities": 13,
+      "calendars": 9,
+      "operations": 6,
+      "production_versions": 4,
+      "line_eligibilities": 8
+    },
+    "orphanCounts": {
+      "line_work_center_orphans": 0,
+      "assignment_orphans": 0,
+      "eligibility_orphans": 0
+    }
+  },
+  "completed_at": "2026-08-07T09:33:21.123Z"
+}

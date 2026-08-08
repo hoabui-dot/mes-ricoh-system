@@ -73,17 +73,17 @@ func (v *Verifier) VerifyOperator(tokenString string) (jwt.MapClaims, error) {
 	if subject, subjectErr := claims.GetSubject(); subjectErr != nil || subject == "" {
 		return nil, fmt.Errorf("token subject is missing")
 	}
-	if !hasRole(claims, "OPERATOR") {
-		return nil, fmt.Errorf("operator role is required")
+	if !hasKioskRole(claims) {
+		return nil, fmt.Errorf("operator or executive role is required")
 	}
 	return claims, nil
 }
 
-func hasRole(claims jwt.MapClaims, expected string) bool {
+func hasKioskRole(claims jwt.MapClaims) bool {
 	realmAccess, _ := claims["realm_access"].(map[string]interface{})
 	roles, _ := realmAccess["roles"].([]interface{})
 	for _, role := range roles {
-		if value, _ := role.(string); value == expected {
+		if value, _ := role.(string); value == "OPERATOR" || value == "EXECUTIVE" {
 			return true
 		}
 	}

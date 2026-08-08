@@ -1,0 +1,74 @@
+{
+  "success": true,
+  "generated_at": "2026-08-07T09:14:02.291Z",
+  "api_base": "http://localhost:13030/api/mes/execution",
+  "target_date": "2026-08-07",
+  "model": {
+    "production_version": {
+      "master_id": "14207f27-aa7b-4318-928f-70f04815ff07",
+      "code": "WST-SEED-PV-SEAL-ASM-01",
+      "item_revision_id": "c5d4d15f-3de6-47ce-86cf-6293dc3105d0",
+      "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+      "base_uom_id": "2c6d5f18-086c-4c1b-bd86-79adf1150f2a"
+    },
+    "primary_line": {
+      "production_line_id": "f1ed22f5-bf7f-4b9d-a8a6-360a12a76436",
+      "code": "WST-SEED-LINE-1",
+      "selection_role": "PRIMARY",
+      "priority": 1
+    },
+    "backup_line": {
+      "production_line_id": "591c3dd7-fa62-47da-9572-4b2eb6ec519c",
+      "code": "WST-SEED-LINE-2",
+      "selection_role": "BACKUP",
+      "priority": 2
+    },
+    "shift": {
+      "master_id": "96633600-ef95-4a8a-997e-c7eb8687f675",
+      "code": "SHIFT-A",
+      "name": "Day Shift",
+      "version_no": 1,
+      "lifecycle_status": "Released",
+      "effective_from": "2026-07-21T00:00:00.000Z",
+      "effective_to": null,
+      "created_by": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-08-06T15:54:47.347Z",
+      "updated_by": "00000000-0000-0000-0000-000000000001",
+      "updated_at": "2026-08-06T15:54:47.347Z",
+      "approved_by": "00000000-0000-0000-0000-000000000001",
+      "approved_at": "2026-07-21T00:00:00.000Z",
+      "row_version": 1,
+      "attributes": {},
+      "site_id": "8ab3b3d9-6dab-43c4-b742-3e2c7b7056fe",
+      "start_time": "08:00",
+      "end_time": "17:00",
+      "crosses_midnight": false
+    },
+    "operation_count": 4
+  },
+  "fixtures": [
+    {
+      "scenario": "primary-ready",
+      "workflow_id": "74c91aa5-768f-406c-93ea-e28c79b21f84",
+      "work_order_id": "02f3a11e-bf69-4ce3-8a62-4a839df9a396",
+      "work_order_code": "WO-20260807-0079"
+    },
+    {
+      "scenario": "backup-fallback",
+      "workflow_id": "122d861b-0b65-4196-b812-28fc6dc81801",
+      "work_order_id": "a8c48bf2-fd2d-4c9f-87f6-401971fe252d",
+      "work_order_code": "WO-20260807-0080"
+    },
+    {
+      "scenario": "resource-hold",
+      "workflow_id": "aead8619-db02-4eb2-9b12-d001737a0638",
+      "work_order_id": "87b989c3-5b8f-430b-b1a5-cd61ce119719",
+      "work_order_code": "WO-20260807-0081"
+    }
+  ],
+  "artifacts": {
+    "before_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat-phase7/resource-before-state.json",
+    "mutated_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat-phase7/resource-mutated-state.json",
+    "restored_state": "/home/neurosus/recoh-system/mes-system/artifacts/mes-two-line-uat-phase7/resource-restored-state.json"
+  }
+}

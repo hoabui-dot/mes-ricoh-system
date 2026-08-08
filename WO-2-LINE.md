@@ -25,8 +25,26 @@
 | Phiên bản | Ngày | Nội dung thay đổi | Người/đơn vị |
 | :--- | :--- | :--- | :--- |
 | 1.0 | 2026 | Phát hành lần đầu: bổ sung Line Eligibility, Workstation-Equipment Map, Shopfloor Check-in, Labor Availability và Auto Skill Assignment. | ND System / Sfactory |
+| 1.1 | 2026-08-07 | Đồng bộ hành vi hai line đã triển khai: complete-line feasibility, Primary/Backup fallback, Resource Hold, resource scope và lifecycle guard. | MES implementation audit |
 
-### 0.2. Mục lục nội dung
+### 0.2. Trạng thái triển khai hiện tại
+
+Phần dưới của tài liệu vẫn giữ các giải thích nghiệp vụ và đề xuất dài hạn. Khi có khác biệt, contract đã triển khai sau đây là nguồn đúng cho MES hiện tại:
+
+* Production Version khai báo chính xác một line `PRIMARY` và có thể khai báo các line `BACKUP`, với priority duy nhất và effectivity rõ ràng.
+* Khi tạo hoặc replan Work Order, backend đánh giá từng line như một execution lane hoàn chỉnh. Mọi Routing Operation bắt buộc phải có ít nhất một candidate khả thi trên cùng line.
+* Một candidate hỏng không làm hỏng line nếu operation đó còn candidate khác khả thi. Nếu một operation bắt buộc có zero candidate, line bị `BLOCKED`.
+* Backend chọn line khả thi có priority cao nhất. Primary không khả thi nhưng Backup hoàn chỉnh thì chọn Backup và lưu `fallback_reason=PRIMARY_LINE_BLOCKED`.
+* Nếu không có line hoàn chỉnh, Work Order lưu `line_selection_status=RESOURCE_HOLD`, không có selected line và lưu diagnostics của mọi line đã đánh giá.
+* Work Center có thể dùng chung cho nhiều line khi Resource Scope phân tách rõ Resource Assignment theo line. Quy tắc cũ “một Work Center chỉ thuộc một line” không còn là ràng buộc tuyệt đối.
+* Line được chọn và snapshot vào Work Order khi tạo. Replan có audit chỉ được phép trước khi execution bắt đầu; sau khi bắt đầu không có silent hot-switch. Chuyển phần sản lượng còn lại bằng Execution Segment vẫn là backlog tương lai.
+* Candidate, commit, reallocation, revalidation, approval, Work Order start và Operation start đều bị giới hạn bởi selected line và trạng thái resource authoritative hiện tại.
+* Suy giảm sau khi operation đã bắt đầu đi qua state machine `InProgress -> ExecutionError`, Work Order `InProgress -> Paused`, sau đó retry/recovery có audit; hệ thống không tự chuyển sang Backup.
+* Các dimension labor, IoT, material và một số kiểm tra exact-resource có thể hiển thị `DEFERRED` khi thuộc stage sau. Chúng không được giả lập là đã kiểm tra trong line-selection stage.
+
+Hướng dẫn cấu hình và chẩn đoán theo UI/API hiện hành: `AI_document/two-line/MES_TWO_LINE_CONFIGURATION_AND_OPERATIONS_GUIDE.md`.
+
+### 0.3. Mục lục nội dung
 1. Mục tiêu và phạm vi
 2. Nguyên tắc kiến trúc và thuật ngữ
 3. Kịch bản hai line và mô hình dữ liệu đích

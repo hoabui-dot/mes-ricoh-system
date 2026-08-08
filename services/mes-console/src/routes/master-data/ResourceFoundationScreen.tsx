@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Plus, RefreshCw, Save, Trash2, Wrench } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, CheckCircle2, Plus, RefreshCw, Save, Trash2, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
 import { LocalizedTextInput } from '../../components/LocalizedTextInput';
-import { deleteResource, fetchResource, masterDataBaseUrl, postResource, putResource, authHeaders } from '../../lib/masterDataApi';
+import { createProductionLineAggregate, deleteResource, fetchProductionLineResourceScopes, fetchResource, masterDataBaseUrl, postResource, putResource, authHeaders, saveProductionLineResourceScopes, saveProductionLineWorkCenters } from '../../lib/masterDataApi';
 import { useI18n, useLocalizedText } from '@mom-platform/i18n-ui-shared';
-import { Button, Card, Checkbox, Confirmation, FieldHelpPopover, Input, Modal, SelectBase } from '../../components/ui';
+import { Button, Card, Checkbox, ComboboxBase, Confirmation, FieldHelpPopover, Input, Modal, SelectBase } from '../../components/ui';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ResourceHierarchy } from '../../components/ResourceHierarchy';
 import { GeneratedCodeField } from '../../components/GeneratedCodeField';
@@ -18,6 +18,8 @@ import { formatNumberForDisplay } from '../../lib/numeric/uomNumeric';
 
 type Entity = 'factories' | 'shopfloors' | 'production-areas' | 'production-lines' | 'work-centers' | 'workstations' | 'equipment' | 'machines' | 'resource-assignments';
 type AnyRecord = Record<string, any>;
+
+const PRODUCTION_LINE_TYPES = ['Production', 'Assembly', 'Packaging', 'Inspection'] as const;
 
 const labels: Record<Entity, string> = {
   factories: 'resourceFoundation.factories',
@@ -70,6 +72,8 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
   const [operations, setOperations] = useState<AnyRecord[]>([]);
   const [skills, setSkills] = useState<AnyRecord[]>([]);
   const [machineGroups, setMachineGroups] = useState<AnyRecord[]>([]);
+  const [resourceAssignments, setResourceAssignments] = useState<AnyRecord[]>([]);
+  const [machineUnitsByEquipment, setMachineUnitsByEquipment] = useState<Record<string, AnyRecord[]>>({});
   const [detail, setDetail] = useState<AnyRecord | null>(null);
   const [form, setForm] = useState<AnyRecord>(emptyResourceForm);
   const [loading, setLoading] = useState(true);
@@ -94,9 +98,9 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
     setLoading(true); setError(null);
     if (isWorkstationForm) setFormSectionsLoading({ basic: true, machineGroups: true, operations: true, skills: true, availability: true });
     try {
-      const [siteRows, areaRows, shopfloorRows, wcRows, wsRows, eqRows, groupRows, operationRows, skillRows] = await Promise.all([
+      const [siteRows, areaRows, shopfloorRows, wcRows, wsRows, eqRows, groupRows, operationRows, skillRows, assignmentRows] = await Promise.all([
         fetchResource('sites', user), fetchResource('production-areas', user), fetchResource('shopfloors', user), fetchResource('work-centers', user),
-        fetchResource('workstations', user), fetchResource('equipment', user), fetchResource('machine-groups', user), fetchResource('operations', user), fetchResource('skills', user),
+        fetchResource('workstations', user), fetchResource('equipment', user), fetchResource('machine-groups', user), fetchResource('operations', user), fetchResource('skills', user), fetchResource('resource-assignments', user),
       ]);
       if (!isCurrent()) return;
       let machineRows = eqRows;
@@ -106,18 +110,26 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
         const availabilityPayload = await availabilityResponse.json();
         const availability = availabilityPayload.data || [];
         machineRows = eqRows.map((machine: AnyRecord) => ({ ...machine, ...(availability.find((item: AnyRecord) => item.machine_id === machine.master_id) || {}) }));
+        const unitEntries = await Promise.all(eqRows.map(async (machine: AnyRecord) => {
+          const response = await fetch(`${masterDataBaseUrl()}/machines/${machine.master_id}/units`, { headers: authHeaders(user), cache: 'no-store' });
+          if (!response.ok) return [machine.master_id, []] as const;
+          const payload = await response.json();
+          return [machine.master_id, payload.data || []] as const;
+        }));
+        if (!isCurrent()) return;
+        setMachineUnitsByEquipment(Object.fromEntries(unitEntries));
         if (!isCurrent()) return;
         setFormSectionsLoading((current) => ({ ...current, availability: false }));
       }
       if (!isCurrent()) return;
-      setSites(siteRows); setAreas(areaRows); setShopfloors(shopfloorRows); setWorkCenters(wcRows); setWorkstations(wsRows); setEquipment(machineRows); setMachineGroups(groupRows); setOperations(operationRows); setSkills(skillRows);
+      setSites(siteRows); setAreas(areaRows); setShopfloors(shopfloorRows); setWorkCenters(wcRows); setWorkstations(wsRows); setEquipment(machineRows); setMachineGroups(groupRows); setOperations(operationRows); setSkills(skillRows); setResourceAssignments(assignmentRows);
       if (isWorkstationForm) setFormSectionsLoading((current) => ({ ...current, basic: false, operations: false }));
       if (id) {
         const response = await fetch(`${masterDataBaseUrl()}/${entity}/${id}`, { headers: authHeaders(user), cache: 'no-store' });
         if (!response.ok) throw new Error(t('resourceFoundation.loadFailed'));
         const payload = await response.json();
         const record = payload.data ?? payload;
-        const normalizedRecord = {
+        const normalizedRecord: AnyRecord = {
           ...record,
           name: record.name || { vi: '' },
           description: record.description || { vi: '' },
@@ -127,6 +139,7 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
           planning_resource_flag: record.planning_resource_flag === true,
           execution_status: record.execution_status || 'Available',
         };
+        if (entity === 'production-lines') normalizedRecord.resource_scopes = await fetchProductionLineResourceScopes(id, user);
         if (entity === 'workstations') {
           const availabilityResponse = await fetch(`${masterDataBaseUrl()}/workstations/machine-availability?workstation_id=${encodeURIComponent(id)}`, { headers: authHeaders(user), cache: 'no-store' });
           if (availabilityResponse.ok) {
@@ -166,12 +179,37 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
   useEffect(() => {
     loadRequestRef.current += 1;
     if (formMode && !id) { setDetail(null); setForm(emptyResourceForm()); }
+    if (!formMode) setMachineUnitsByEquipment({});
     void load();
   }, [entity, id, formMode]);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     try {
+      if (entity === 'production-lines') {
+        const selectedShopfloor = shopfloors.find((row: AnyRecord) => row.master_id === form.shopfloor_id);
+        const selectedArea = areas.find((row: AnyRecord) => row.master_id === form.area_id);
+        if (!form.site_id || !selectedShopfloor || !selectedArea) {
+          toast.error(t('resourceFoundation.productionLineHierarchyRequired'));
+          return;
+        }
+        if (selectedShopfloor.site_id !== form.site_id || selectedArea.site_id !== form.site_id) {
+          toast.error(t('resourceFoundation.productionLineHierarchyMismatch'));
+          return;
+        }
+        if (!PRODUCTION_LINE_TYPES.includes(form.line_type as typeof PRODUCTION_LINE_TYPES[number])) {
+          toast.error(t('resourceFoundation.lineTypeInvalid'));
+          return;
+        }
+        if (!id && (!Array.isArray(form.line_work_centers) || form.line_work_centers.length === 0)) {
+          toast.error(t('resourceFoundation.noWorkCenterCoverage'));
+          return;
+        }
+        if (!id && (!Array.isArray(form.line_workstation_ids) || form.line_workstation_ids.length === 0)) {
+          toast.error(t('resourceFoundation.noResourceScope'));
+          return;
+        }
+      }
       const machineEntity = entity === 'equipment' || entity === 'machines';
       const skillScope = machineEntity ? 'Machine' : entity === 'workstations' ? 'Workstation' : entity === 'work-centers' ? 'WorkCenter' : '';
       if (machineEntity && (!Array.isArray(form.skill_ids) || form.skill_ids.length === 0)) {
@@ -197,6 +235,8 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
           const lines = Array.isArray(group.requirements) ? group.requirements : [];
           return group.primary_machine_id ? false : !lines.some((line: AnyRecord) => line.role === 'Primary' && line.machine_id);
         })) { toast.error(t('resourceFoundation.machineGroupPrimaryRequired')); return; }
+        const unpinned = (form.machine_groups as AnyRecord[]).flatMap((group) => (group.requirements || []).filter((line: AnyRecord) => line.machine_id && Number(line.required_quantity || 1) !== (line.pinned_machine_unit_ids || []).length));
+        if (unpinned.length) { toast.error(t('resourceFoundation.machineSerialSelectionRequired')); return; }
       }
       const payload: AnyRecord = machineEntity ? {
         ...(id ? {} : { code: form.code, code_reservation_id: form.code_reservation_id }),
@@ -233,7 +273,9 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
         }
         confirmedMachineSave.current = false;
       }
-      const saved = id ? await putResource(entity, id, payload, user) : await postResource(entity, payload, user);
+      const saved = id ? await putResource(entity, id, payload, user) : entity === 'production-lines'
+        ? await createProductionLineAggregate({ ...payload, work_centers: form.line_work_centers, workstation_ids: form.line_workstation_ids }, user)
+        : await postResource(entity, payload, user);
       if (entity === 'workstations' && id) {
         const workstationId = id || saved?.master_id;
         const groupResponse = await fetch(`${masterDataBaseUrl()}/workstations/${workstationId}/machine-groups`, { method: 'PUT', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify({ groups: form.machine_groups || [] }) });
@@ -246,7 +288,24 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
       }
       toast.success(t('resourceFoundation.saved')); navigate(id ? `/master-data/${entity}/${id}` : `/master-data/${entity}`);
       return saved;
-    } catch (err: any) { const code = String(err.code || err.message || ''); const translated = code === 'WORK_CENTER_AND_MACHINE_GROUPS_REQUIRED' ? t('resourceFoundation.workCenterAndMachineGroupsRequired') : code === 'WORKSTATION_CAPABILITY_DUPLICATE' ? t('resourceFoundation.workstationCapabilityDuplicate') : code === 'MACHINE_UNIT_PRIMARY_CONFLICT' || code === 'PRIMARY_EQUIPMENT_ASSIGNMENT_OVERLAP' ? t('resourceFoundation.machinePrimaryConflict') : code === 'MACHINE_REQUIREMENT_QUANTITY_UNAVAILABLE' ? t('resourceFoundation.machineQuantityUnavailable') : code === 'MACHINE_UNIT_ALREADY_ASSIGNED' ? t('resourceFoundation.machinePrimaryConflict') : code; toast.error(translated); }
+    } catch (err: any) {
+      const code = String(err.code || err.message || '');
+      const resourceErrorKey = `resourceFoundation.errors.${code}`;
+      const translated = code === 'WORK_CENTER_AND_MACHINE_GROUPS_REQUIRED'
+        ? t('resourceFoundation.workCenterAndMachineGroupsRequired')
+        : code === 'WORKSTATION_CAPABILITY_DUPLICATE'
+          ? t('resourceFoundation.workstationCapabilityDuplicate')
+          : code === 'MACHINE_UNIT_PRIMARY_CONFLICT' || code === 'PRIMARY_EQUIPMENT_ASSIGNMENT_OVERLAP'
+            ? t('resourceFoundation.machinePrimaryConflict')
+            : code === 'MACHINE_REQUIREMENT_QUANTITY_UNAVAILABLE'
+              ? t('resourceFoundation.machineQuantityUnavailable')
+              : code === 'MACHINE_UNIT_ALREADY_ASSIGNED'
+                ? t('resourceFoundation.machinePrimaryConflict')
+                : t(resourceErrorKey) !== resourceErrorKey
+                  ? t(resourceErrorKey)
+                  : t('resourceFoundation.errors.PRODUCTION_LINE_AGGREGATE_CONFLICT');
+      toast.error(translated);
+    }
   };
 
   const set = (key: string, value: any) => setForm((current) => ({ ...current, [key]: value }));
@@ -257,8 +316,8 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
       const response = await fetch(`${masterDataBaseUrl()}/${entity}/${id}/release`, { method: 'POST', headers: { ...authHeaders(user), 'Content-Type': 'application/json' }, cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.message || payload.error || t('resourceFoundation.releaseFailed'));
-      setDetail(payload.data ?? payload);
-      toast.success(t('resourceFoundation.released'));
+      await load();
+      toast.success(t(entity === 'production-lines' ? 'resourceFoundation.lineReleased' : 'resourceFoundation.released'));
       setReleaseConfirmationOpen(false);
     } catch (err: any) { toast.error(err.message || t('resourceFoundation.releaseFailed')); }
     finally { setReleasing(false); }
@@ -291,8 +350,8 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
   };
   const resourceTitle = t(labels[entity]);
   if (error) return <ErrorBoundaryCard error={error} onRetry={load} />;
-  if (formMode) return <><ResourceForm entity={entity} title={resourceTitle} form={form} set={set} save={save} sites={sites} areas={areas} shopfloors={shopfloors} workCenters={workCenters} workstations={workstations} equipment={equipment} machineGroups={machineGroups} operations={operations} setOperations={setOperations} skills={skills} text={text} t={t} id={id} user={user} loading={loading} formSectionsLoading={formSectionsLoading} /><Confirmation open={machineConfirmationOpen && machineConfirmationKind === 'edit'} title={t(entity === 'workstations' ? 'resourceFoundation.confirmEditWorkstation' : 'resourceFoundation.confirmEditMachine')} description={t(entity === 'workstations' ? 'resourceFoundation.editWorkstationImpactConfirm' : 'resourceFoundation.editImpactConfirm')} confirmLabel={t('common.save')} cancelLabel={t('common.cancel')} onClose={() => setMachineConfirmationOpen(false)} onConfirm={() => void confirmMachineEdit()} /></>;
-  if (detailMode && detail) return <><ResourceDetail entity={entity} row={detail} text={text} t={t} user={user} onBack={() => navigate(`/master-data/${entity}`)} onRelease={() => setReleaseConfirmationOpen(true)} releasing={releasing} /><Confirmation open={releaseConfirmationOpen} title={t('resourceFoundation.release')} description={t('resourceFoundation.releaseConfirm')} confirmLabel={t('resourceFoundation.release')} cancelLabel={t('common.cancel')} onClose={() => setReleaseConfirmationOpen(false)} onConfirm={() => void releaseResource()} /></>;
+  if (formMode) return <><ResourceForm entity={entity} title={resourceTitle} form={form} set={set} setMany={(changes: AnyRecord) => setForm((current) => ({ ...current, ...changes }))} save={save} sites={sites} areas={areas} shopfloors={shopfloors} workCenters={workCenters} workstations={workstations} equipment={equipment} machineGroups={machineGroups} machineUnitsByEquipment={machineUnitsByEquipment} operations={operations} setOperations={setOperations} skills={skills} text={text} t={t} id={id} user={user} loading={loading} formSectionsLoading={formSectionsLoading} /><Confirmation open={machineConfirmationOpen && machineConfirmationKind === 'edit'} title={t(entity === 'workstations' ? 'resourceFoundation.confirmEditWorkstation' : 'resourceFoundation.confirmEditMachine')} description={t(entity === 'workstations' ? 'resourceFoundation.editWorkstationImpactConfirm' : 'resourceFoundation.editImpactConfirm')} confirmLabel={t('common.save')} cancelLabel={t('common.cancel')} onClose={() => setMachineConfirmationOpen(false)} onConfirm={() => void confirmMachineEdit()} /></>;
+  if (detailMode && detail) return <><ResourceDetail entity={entity} row={detail} text={text} t={t} user={user} workCenterCatalog={workCenters} workstationCatalog={workstations} resourceAssignments={resourceAssignments} onReload={load} onBack={() => navigate(`/master-data/${entity}`)} onRelease={() => setReleaseConfirmationOpen(true)} releasing={releasing} /><Confirmation open={releaseConfirmationOpen} title={t(entity === 'production-lines' ? 'resourceFoundation.releaseLine' : 'resourceFoundation.release')} description={t(entity === 'production-lines' ? 'resourceFoundation.releaseLineConfirm' : 'resourceFoundation.releaseConfirm')} confirmLabel={t(entity === 'production-lines' ? 'resourceFoundation.releaseLine' : 'resourceFoundation.release')} cancelLabel={t('common.cancel')} onClose={() => setReleaseConfirmationOpen(false)} onConfirm={() => void releaseResource()} /></>;
   const workstationAction = machineTarget?.__resourceType === 'workstations';
   const actionLabel = (kind: 'delete' | 'deactivate') => workstationAction ? t(kind === 'delete' ? 'resourceFoundation.deleteWorkstation' : 'resourceFoundation.deactivateWorkstation') : t(kind === 'delete' ? 'resourceFoundation.deleteMachine' : 'resourceFoundation.deactivateMachine');
   return <><ResourceList entity={entity} title={resourceTitle} rows={rows} loading={loading} text={text} t={t} sites={sites} areas={areas} shopfloors={shopfloors} workCenters={workCenters} workstations={workstations} equipment={equipment} onRefresh={load} onCreate={() => navigate(`/master-data/${entity}/new`)} onOpen={(row: AnyRecord) => entity === 'resource-assignments' ? undefined : navigate(`/master-data/${entity}/${row.master_id}`)} onEdit={(row: AnyRecord) => navigate(`/master-data/${entity}/${row.master_id}/edit`)} onDelete={(row: AnyRecord) => void openMachineAction(row, 'delete')} />
@@ -301,7 +360,7 @@ export function ResourceFoundationScreen({ entity }: { entity: Entity }) {
     </Modal><Confirmation open={machineConfirmationOpen} title={machineConfirmationKind === 'edit' ? t(machineTarget?.__resourceType === 'workstations' ? 'resourceFoundation.confirmEditWorkstation' : 'resourceFoundation.confirmEditMachine') : actionLabel(machineConfirmationKind === 'delete' ? 'delete' : 'deactivate')} description={machineConfirmationKind === 'edit' ? t(machineTarget?.__resourceType === 'workstations' ? 'resourceFoundation.editWorkstationImpactConfirm' : 'resourceFoundation.editImpactConfirm') : machineConfirmationKind === 'delete' ? t(machineTarget?.__resourceType === 'workstations' ? 'resourceFoundation.deleteWorkstationConfirm' : 'resourceFoundation.deleteConfirm') : t(machineTarget?.__resourceType === 'workstations' ? 'resourceFoundation.deactivateWorkstationConfirm' : 'resourceFoundation.deactivateConfirm')} confirmLabel={machineConfirmationKind === 'edit' ? t('common.save') : actionLabel(machineConfirmationKind === 'delete' ? 'delete' : 'deactivate')} cancelLabel={t('common.cancel')} destructive={machineConfirmationKind !== 'edit'} onClose={() => setMachineConfirmationOpen(false)} onConfirm={() => void (machineConfirmationKind === 'edit' ? confirmMachineEdit() : confirmMachineAction())} /></>;
 }
 
-function ResourceForm({ entity, title, form, set, save, sites, areas, shopfloors, workCenters, workstations, equipment, machineGroups, operations, setOperations, skills, text, t, id, user, loading, formSectionsLoading }: AnyRecord) {
+function ResourceForm({ entity, title, form, set, setMany, save, sites, areas, shopfloors, workCenters, workstations, equipment, machineGroups, machineUnitsByEquipment, operations, setOperations, skills, text, t, id, user, loading, formSectionsLoading }: AnyRecord) {
   const [machineUnits, setMachineUnits] = useState<AnyRecord[]>([]);
   useEffect(() => {
     if (entity !== 'resource-assignments' || !form.equipment_id) { setMachineUnits([]); return; }
@@ -315,10 +374,18 @@ function ResourceForm({ entity, title, form, set, save, sites, areas, shopfloors
   const siteOptions = sites.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const areaOptions = areas.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const shopfloorOptions = shopfloors.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
-  const productionLineAreaOptions = areas.filter((area: AnyRecord) => !form.site_id || area.site_id === form.site_id).map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
-  const productionLineShopfloorOptions = shopfloors.filter((shopfloor: AnyRecord) => !form.site_id || shopfloor.site_id === form.site_id).map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
+  const activeHierarchyRecord = (row: AnyRecord) => row.active_flag !== false && !['Inactive', 'Obsolete'].includes(String(row.lifecycle_status));
+  const productionLineSiteOptions = sites.filter(activeHierarchyRecord).map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
+  const productionLineShopfloorOptions = shopfloors.filter((shopfloor: AnyRecord) => activeHierarchyRecord(shopfloor) && shopfloor.site_id === form.site_id).map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
+  const productionLineAreaOptions = areas.filter((area: AnyRecord) => activeHierarchyRecord(area) && area.site_id === form.site_id).map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const wcOptions = workCenters.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const wsOptions = workstations.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
+  const selectedLineWorkCenters = Array.isArray(form.line_work_centers) ? form.line_work_centers : [];
+  const selectedLineWorkstationIds = Array.isArray(form.line_workstation_ids) ? form.line_workstation_ids : [];
+  const selectedLineWorkCenterIds = new Set(selectedLineWorkCenters.map((item: AnyRecord) => String(item.work_center_id)));
+  const availableLineWorkCenters = workCenters.filter((row: AnyRecord) => activeHierarchyRecord(row) && row.site_id === form.site_id && row.area_id === form.area_id && !selectedLineWorkCenterIds.has(String(row.master_id)));
+  const selectedLineWorkstationSet = new Set(selectedLineWorkstationIds.map((value: unknown) => String(value)));
+  const availableLineWorkstations = workstations.filter((row: AnyRecord) => activeHierarchyRecord(row) && selectedLineWorkCenterIds.has(String(row.work_center_id)) && !selectedLineWorkstationSet.has(String(row.master_id)));
   const eqOptions = equipment.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }));
   const machineGroupOptions = machineGroups.filter((group: AnyRecord) => !form.workstation_id || group.workstation_id === form.workstation_id).map((group: AnyRecord) => ({ value: group.master_id, label: optionLabel(text, group) }));
   const factoryEntity = entity === 'factories';
@@ -331,9 +398,21 @@ function ResourceForm({ entity, title, form, set, save, sites, areas, shopfloors
     {entity === 'factories' ? <><Field label={t('resourceFoundation.timezone')} value={form.timezone || 'Asia/Ho_Chi_Minh'} onChange={(value) => set('timezone', value)} required /><StatusSwitchField label={t('common.active')} checked={form.lifecycle_status !== 'Inactive'} onCheckedChange={(checked) => set('lifecycle_status', checked ? 'Released' : 'Inactive')} activeLabel={t('common.active')} inactiveLabel={t('common.inactive')} /></> : null}
     {entity === 'production-areas' ? <label className="block space-y-1"><span className="text-sm font-medium">{t('common.site')}</span><SelectBase value={form.site_id} onValueChange={(value) => set('site_id', value)} options={siteOptions} placeholder={t('common.site')} required /></label> : null}
     {entity === 'production-areas' ? <><Field label={t('resourceFoundation.areaType')} value={form.area_type || 'Workshop'} onChange={(value) => set('area_type', value)} /><Field label={t('resourceFoundation.sequence')} type="number" value={form.sequence_no ?? 0} onChange={(value) => set('sequence_no', value)} /><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.parentArea')}</span><SelectBase value={form.parent_area_id} onValueChange={(value) => set('parent_area_id', value)} options={[{ value: '', label: t('common.none') }, ...areaOptions]} placeholder={t('resourceFoundation.parentArea')} /></label></> : null}
-    {entity === 'production-lines' ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('common.site')}</span><SelectBase value={form.site_id} onValueChange={(value) => set('site_id', value)} options={siteOptions} placeholder={t('common.site')} required /></label><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.area')}</span><SelectBase value={form.area_id} onValueChange={(value) => set('area_id', value)} options={productionLineAreaOptions} placeholder={t('resourceFoundation.area')} required /></label><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.shopfloors')}</span><SelectBase value={form.shopfloor_id} onValueChange={(value) => set('shopfloor_id', value)} options={[{ value: '', label: t('common.none') }, ...productionLineShopfloorOptions]} placeholder={t('common.none')} /></label><Field label={t('resourceFoundation.lineType')} value={form.line_type || 'Production'} onChange={(value) => set('line_type', value)} /></> : null}
+    {entity === 'production-lines' ? <>
+      <label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.factories')} *</span><SelectBase data-testid="production-line-factory-select" value={form.site_id} onValueChange={(value) => setMany({ site_id: value, shopfloor_id: '', area_id: '' })} options={productionLineSiteOptions} placeholder={t('resourceFoundation.selectFactoryFirst')} required /></label>
+      <label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.shopfloors')} *</span><SelectBase data-testid="production-line-shopfloor-select" value={form.shopfloor_id} onValueChange={(value) => setMany({ shopfloor_id: value, area_id: '' })} options={productionLineShopfloorOptions} placeholder={form.site_id ? t('resourceFoundation.shopfloors') : t('resourceFoundation.selectFactoryFirst')} disabled={!form.site_id} required /></label>
+      <label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.area')} *</span><SelectBase data-testid="production-line-area-select" value={form.area_id} onValueChange={(value) => set('area_id', value)} options={productionLineAreaOptions} placeholder={form.shopfloor_id ? t('resourceFoundation.area') : t('resourceFoundation.selectShopfloorFirst')} disabled={!form.site_id || !form.shopfloor_id} required /></label>
+      <label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.lineType')} *</span><SelectBase data-testid="production-line-type-select" value={form.line_type || 'Production'} onValueChange={(value) => set('line_type', value)} options={PRODUCTION_LINE_TYPES.map((value) => ({ value, label: t(`resourceFoundation.lineType.${value}`) }))} placeholder={t('resourceFoundation.lineType')} required /></label>
+      <p className="text-xs text-muted-foreground md:col-span-2">{t('resourceFoundation.productionLineHierarchyHelp')}</p>
+      {!id ? <div className="md:col-span-2 rounded-md border border-action/30 bg-action/5 p-4" aria-label={t('resourceFoundation.workstations')}>
+        <div className="flex items-start gap-3"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-action text-sm font-bold text-action-foreground">1</div><div><h2 className="font-semibold">{t('nav.workCenters')}</h2><p className="mt-1 text-xs text-muted-foreground">{t('resourceFoundation.workCenterCoverageHelp')}</p></div></div>
+        <div className="mt-4 flex items-start gap-3"><div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-action text-sm font-bold text-action">2</div><div><h2 className="font-semibold">{t('resourceFoundation.workstations')}</h2><p className="mt-1 text-xs text-muted-foreground">{t('workCenters.workstationsHelp')}</p></div></div>
+        <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">{t('resourceFoundation.noResourceScope')}</p>
+      </div> : null}
+      {!id ? <div className="space-y-4 md:col-span-2 rounded-md border border-border bg-surface-subtle p-4" data-testid="production-line-resource-config"><div><h2 className="font-semibold">{t('resourceFoundation.workstations')}</h2><p className="mt-1 text-xs text-muted-foreground">{t('resourceFoundation.workCenterCoverageHelp')}</p></div><div className="flex flex-col gap-2 sm:flex-row"><SelectBase data-testid="production-line-create-work-center-select" value="" onValueChange={(value) => { const row = workCenters.find((item: AnyRecord) => item.master_id === value); if (row) setMany({ line_work_centers: [...selectedLineWorkCenters, { work_center_id: row.master_id, work_center_code: row.code, work_center_name: row.name, sequence_no: selectedLineWorkCenters.length + 1, mandatory_flag: true }] }); }} options={availableLineWorkCenters.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row) }))} placeholder={t('resourceFoundation.selectWorkCenter')} disabled={!form.site_id || !form.area_id} /><span className="self-center text-xs text-muted-foreground">{selectedLineWorkCenters.length} {t('resourceFoundation.workCentersTab')}</span></div>{selectedLineWorkCenters.length ? <div className="space-y-2">{selectedLineWorkCenters.map((row: AnyRecord, index: number) => <div key={row.work_center_id} className="flex items-center gap-3 rounded border border-border bg-background p-3"><div className="min-w-0 flex-1"><div className="font-semibold">{text(row.work_center_name) || row.work_center_code}</div><div className="font-mono text-xs text-muted-foreground">{row.work_center_code}</div></div><span className="text-xs text-muted-foreground">#{index + 1}</span><Button type="button" size="icon" variant="ghost" title={t('common.remove')} onClick={() => { const workCenterId = String(row.work_center_id); setMany({ line_work_centers: selectedLineWorkCenters.filter((item: AnyRecord) => String(item.work_center_id) !== workCenterId), line_workstation_ids: selectedLineWorkstationIds.filter((workstationId: string) => String(workstations.find((item: AnyRecord) => item.master_id === workstationId)?.work_center_id) !== workCenterId) }); }}><Trash2 className="h-4 w-4" /></Button></div>)}</div> : <div className="rounded border border-dashed border-border p-3 text-sm text-muted-foreground">{t('resourceFoundation.noWorkCenterCoverage')}</div>}<div className="flex flex-col gap-2 sm:flex-row"><SelectBase data-testid="production-line-create-workstation-select" value="" onValueChange={(value) => set('line_workstation_ids', [...selectedLineWorkstationIds, value])} options={availableLineWorkstations.map((row: AnyRecord) => ({ value: row.master_id, label: optionLabel(text, row), secondaryLabel: row.code }))} placeholder={t('resourceFoundation.workstations')} disabled={!selectedLineWorkCenters.length} /><span className="self-center text-xs text-muted-foreground">{selectedLineWorkstationIds.length} {t('resourceFoundation.workstations')}</span></div>{selectedLineWorkstationIds.length ? <div className="space-y-2">{selectedLineWorkstationIds.map((workstationId: string) => { const row = workstations.find((item: AnyRecord) => item.master_id === workstationId); return <div key={workstationId} className="flex items-center gap-3 rounded border border-border bg-background p-3"><div className="min-w-0 flex-1"><div className="font-semibold">{row ? text(row.name) || row.code : workstationId}</div><div className="font-mono text-xs text-muted-foreground">{row?.code || workstationId}</div><div className="text-xs text-muted-foreground">{row?.work_center_code || ''}</div></div><Button type="button" size="icon" variant="ghost" title={t('common.remove')} onClick={() => set('line_workstation_ids', selectedLineWorkstationIds.filter((value: string) => value !== workstationId))}><Trash2 className="h-4 w-4" /></Button></div>; })}</div> : <div className="rounded border border-dashed border-border p-3 text-sm text-muted-foreground">{t('resourceFoundation.noResourceScope')}</div>}</div> : null}
+    </> : null}
     {entity === 'work-centers' ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.shopfloors')}</span><SelectBase value={form.shopfloor_id} onValueChange={(value) => set('shopfloor_id', value)} options={shopfloorOptions} placeholder={t('resourceFoundation.shopfloors')} required /></label><ResourceHierarchyContext label={t('resourceFoundation.hierarchyLabel')} factory={text(sites.find((s: AnyRecord) => s.master_id === workCenters.find((w: AnyRecord) => w.master_id === form.master_id)?.site_id)?.name)} shopfloor={text(shopfloors.find((s: AnyRecord) => s.master_id === form.shopfloor_id)?.name)} /></> : null}
-    {entity === 'workstations' ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('nav.workCenters')}</span><SelectBase data-testid="workstation-work-center-select" value={form.work_center_id} onValueChange={(value) => set('work_center_id', value)} options={wcOptions} placeholder={t('nav.workCenters')} required /></label><ResourceHierarchyContext label={t('resourceFoundation.hierarchyLabel')} factory={text(sites.find((s: AnyRecord) => s.master_id === workCenters.find((w: AnyRecord) => w.master_id === form.work_center_id)?.site_id)?.name)} shopfloor={text(shopfloors.find((s: AnyRecord) => s.master_id === form.work_center_id)?.name)} workCenter={text(workCenters.find((w: AnyRecord) => w.master_id === form.work_center_id)?.name)} /><MachineRequirementEditor groups={form.machine_groups || []} setGroups={(groups: AnyRecord[]) => set('machine_groups', groups)} machines={equipment} text={text} t={t} />{id ? <><AssignedMachinesPanel assignments={form.assignments || []} text={text} t={t} /><WorkstationReadinessSummary row={form} text={text} t={t} /><AssignmentHistoryPanel assignments={form.assignments || []} text={text} t={t} /></> : <InitialAssignmentNotice t={t} />}</> : null}
+    {entity === 'workstations' ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('nav.workCenters')}</span><SelectBase data-testid="workstation-work-center-select" value={form.work_center_id} onValueChange={(value) => set('work_center_id', value)} options={wcOptions} placeholder={t('nav.workCenters')} required /></label><ResourceHierarchyContext label={t('resourceFoundation.hierarchyLabel')} factory={text(sites.find((s: AnyRecord) => s.master_id === workCenters.find((w: AnyRecord) => w.master_id === form.work_center_id)?.site_id)?.name)} shopfloor={text(shopfloors.find((s: AnyRecord) => s.master_id === form.work_center_id)?.name)} workCenter={text(workCenters.find((w: AnyRecord) => w.master_id === form.work_center_id)?.name)} /><MachineRequirementSerialEditor groups={form.machine_groups || []} setGroups={(groups: AnyRecord[]) => set('machine_groups', groups)} machines={equipment} unitsByEquipment={machineUnitsByEquipment} currentWorkstationId={id} text={text} t={t} />{id ? <><AssignedMachinesPanel assignments={form.assignments || []} text={text} t={t} /><WorkstationReadinessSummary row={form} text={text} t={t} /><AssignmentHistoryPanel assignments={form.assignments || []} text={text} t={t} /></> : <InitialAssignmentNotice t={t} />}</> : null}
     {entity === 'work-centers' ? <><Field label={t('resourceFoundation.resourceType')} value={form.resource_type || 'MachineGroup'} onChange={(value) => set('resource_type', value)} /><Field label={t('resourceFoundation.capacityModel')} value={form.capacity_model || 'TimeBased'} onChange={(value) => set('capacity_model', value)} /></> : null}
     {entity === 'workstations' ? <label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.executionMode')}</span><SelectBase value={form.execution_mode || 'Kiosk'} onValueChange={(value) => set('execution_mode', value)} options={['Kiosk', 'Manual', 'Automatic'].map((value) => ({ value, label: t(`resourceFoundation.executionMode.${value}`) }))} placeholder={t('resourceFoundation.executionMode')} required /></label> : null}
     {machineEntity ? <><label className="block space-y-1"><span className="text-sm font-medium">{t('common.site')} *</span><SelectBase data-testid="machine-site-select" value={form.site_id} onValueChange={(value) => set('site_id', value)} options={siteOptions} placeholder={t('common.site')} required /></label><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.workCenter')}</span><SelectBase data-testid="machine-work-center-select" value={form.work_center_id} onValueChange={(value) => set('work_center_id', value)} options={[{ value: '', label: t('common.none') }, ...wcOptions]} placeholder={t('common.none')} /></label><LocalizedTextInput label={t('resourceFoundation.description')} value={form.description || {}} onChange={(value: any) => set('description', value)} /><Field testId="machine-type-input" label={t('resourceFoundation.equipmentType')} value={form.equipment_type} onChange={(value) => set('equipment_type', value)} required /><Field label={t('resourceFoundation.manufacturer')} value={form.manufacturer} onChange={(value) => set('manufacturer', value)} /><Field label={t('resourceFoundation.model')} value={form.model} onChange={(value) => set('model', value)} /><Field testId="machine-expected-unit-count-input" label={t('resourceFoundation.expectedUnitCount')} type="number" value={form.expected_unit_count ?? form.quantity ?? 0} onChange={(value) => set('expected_unit_count', value)} required /><p className="text-xs text-muted-foreground md:col-span-2">{t('resourceFoundation.expectedUnitCountHelp')}</p><Field label={t('resourceFoundation.efficiency')} type="number" value={form.default_efficiency ?? 1} onChange={(value) => set('default_efficiency', value)} /><label className="block space-y-1"><span className="text-sm font-medium">{t('resourceFoundation.catalogLifecycle')}</span><SelectBase value={form.lifecycle_status || 'Draft'} onValueChange={(value) => set('lifecycle_status', value)} options={['Draft', 'Released', 'Inactive', 'Obsolete'].map((value) => ({ value, label: t(`status.lifecycle.${value}`) }))} placeholder={t('resourceFoundation.catalogLifecycle')} required /></label><StatusSwitchField label={t('resourceFoundation.planningPolicy')} checked={form.planning_resource_flag === true} onCheckedChange={(checked) => set('planning_resource_flag', checked)} activeLabel={t('common.active')} inactiveLabel={t('common.inactive')} /></> : null}
@@ -360,6 +439,16 @@ function WorkstationOperationEditor({ operations, setOperations, capabilities, s
 function ResourceSkillSelector({ scope, skills, selected, onChange, text, t }: { scope: string; skills: AnyRecord[]; selected: string[]; onChange: (value: string[]) => void; text: (value: unknown) => string; t: (key: string, params?: Record<string, unknown>) => string }) {
   const scoped = skills.filter((skill) => (skill.scope || skill.scope_type) === scope);
   return <Card className="space-y-3 border-action/40 bg-surface-subtle p-4 md:col-span-2"><div><h2 className="font-bold">{t('skills.resourceSkills')}</h2><p className="text-xs text-muted-foreground">{t('skills.resourceSkillsHelp')}</p></div><div className="grid gap-2 sm:grid-cols-2">{scoped.map((skill) => <label key={skill.master_id} className="flex items-center gap-2 rounded border border-border bg-background p-2 text-sm"><input data-testid={`machine-skill-${skill.master_id}`} type="checkbox" checked={selected.includes(skill.master_id)} onChange={(event) => onChange(event.target.checked ? [...selected, skill.master_id] : selected.filter((id) => id !== skill.master_id))} /><span className="min-w-0 flex-1">{text(skill.name) || skill.code}</span><span className="font-mono text-xs text-muted-foreground">{skill.code}</span></label>)}</div></Card>;
+}
+
+function MachineRequirementSerialEditor({ groups, setGroups, machines, unitsByEquipment, currentWorkstationId, text, t }: { groups: AnyRecord[]; setGroups: (groups: AnyRecord[]) => void; machines: AnyRecord[]; unitsByEquipment: Record<string, AnyRecord[]>; currentWorkstationId?: string; text: (value: unknown) => string; t: (key: string, params?: Record<string, unknown>) => string }) {
+  const normalized: AnyRecord[] = groups.map((group) => ({ ...group, name: group.name || { vi: '' }, requirements: (Array.isArray(group.requirements) ? group.requirements : (group.members || []).map((member: AnyRecord) => ({ machine_id: member.machine_id || member.equipment_id, role: member.role || member.assignment_role || 'Supporting', required_quantity: 1, requirement_type: member.requirement_type || 'Required', pinned_machine_unit_ids: member.machine_unit_id ? [member.machine_unit_id] : [] }))).map((line: AnyRecord) => ({ ...line, pinned_machine_unit_ids: Array.isArray(line.pinned_machine_unit_ids) ? line.pinned_machine_unit_ids.map(String) : [] })) }));
+  const update = (index: number, value: AnyRecord) => setGroups(normalized.map((group, groupIndex) => groupIndex === index ? { ...group, ...value } : group));
+  const updateLine = (groupIndex: number, lineIndex: number, value: AnyRecord) => update(groupIndex, { requirements: normalized[groupIndex].requirements.map((item: AnyRecord, index: number) => index === lineIndex ? { ...item, ...value } : item) });
+  const equipmentOptions = machines.map((machine) => ({ value: machine.master_id, label: text(machine.name) || machine.code, description: `${machine.code} · ${machine.available_unit_count ?? 0} ${t('resourceFoundation.availableUnits')}`, searchText: `${text(machine.name)} ${machine.code}` }));
+  const selectedUnitIds = new Set(normalized.flatMap((group) => (group.requirements || []).flatMap((line: AnyRecord) => line.pinned_machine_unit_ids || [])));
+  const unitsFor = (machineId: string, line: AnyRecord) => (unitsByEquipment[machineId] || []).filter((unit) => unit.active_flag !== false && unit.execution_status === 'Available' && unit.physical_identity_status === 'Identified' && unit.planning_resource_flag === true && (!unit.current_assignment_id || unit.current_workstation_id === currentWorkstationId || line.pinned_machine_unit_ids?.includes(String(unit.machine_unit_id))));
+  return <Card className="space-y-4 border-action/40 bg-surface-subtle p-4 md:col-span-2"><div className="flex items-center justify-between"><div><h2 className="font-bold text-foreground">{t('resourceFoundation.machineRequirements')} *</h2><p className="text-xs text-muted-foreground">{t('resourceFoundation.machineSerialSelectionHelp')}</p></div><Button data-testid="machine-requirement-add-group" type="button" variant="outline" onClick={() => setGroups([...normalized, { name: { vi: '' }, requirements: [] }])}><Plus className="h-4 w-4" />{t('resourceFoundation.addMachineGroup')}</Button></div>{normalized.map((group, groupIndex) => <Card key={group.master_id || groupIndex} className="space-y-3 border-border bg-background p-4"><div className="flex items-start gap-3"><LocalizedTextInput data-testid={`machine-requirement-group-name-${groupIndex}`} label={t('resourceFoundation.machineGroupName')} required value={group.name} onChange={(value) => update(groupIndex, { name: value })} /><Button type="button" variant="ghost" size="icon" title={t('common.remove')} onClick={() => setGroups(normalized.filter((_, index) => index !== groupIndex))}><Trash2 className="h-4 w-4" /></Button></div><div className="overflow-x-auto rounded-md border border-border"><table className="w-full min-w-[800px] text-sm"><thead className="bg-surface-subtle text-left text-xs uppercase text-muted-foreground"><tr><th className="px-3 py-2">{t('resourceFoundation.equipment')}</th><th className="px-3 py-2">{t('resourceFoundation.assignmentRole')}</th><th className="px-3 py-2">{t('resourceFoundation.requirementType')}</th><th className="px-3 py-2">{t('resourceFoundation.machineUnits')}</th><th className="px-3 py-2" /></tr></thead><tbody className="divide-y divide-border">{group.requirements.map((line: AnyRecord, lineIndex: number) => { const units = line.machine_id ? unitsFor(line.machine_id, line) : []; const selected = new Set((line.pinned_machine_unit_ids || []).map(String)); return <tr key={lineIndex} className="align-top"><td className="w-64 px-3 py-3"><ComboboxBase value={line.machine_id} options={equipmentOptions} onValueChange={(value) => updateLine(groupIndex, lineIndex, { machine_id: value, pinned_machine_unit_ids: [] })} placeholder={t('resourceFoundation.selectEquipment')} emptyMessage={t('common.empty')} aria-label={t('resourceFoundation.equipment')} /></td><td className="w-36 px-3 py-3"><SelectBase value={line.role || 'Supporting'} onValueChange={(value) => updateLine(groupIndex, lineIndex, { role: value })} options={[{ value: 'Primary', label: t('resourceFoundation.primary') }, { value: 'Supporting', label: t('resourceFoundation.supporting') }]} /></td><td className="w-36 px-3 py-3"><SelectBase value={line.requirement_type || 'Required'} onValueChange={(value) => updateLine(groupIndex, lineIndex, { requirement_type: value })} options={[{ value: 'Required', label: t('resourceFoundation.required') }, { value: 'Optional', label: t('resourceFoundation.optional') }]} /></td><td className="px-3 py-3"><div className="mb-2 text-xs text-muted-foreground">{line.machine_id ? `${selected.size} ${t('resourceFoundation.selectedUnits')}` : t('resourceFoundation.selectEquipmentFirst')}</div><div className="grid gap-1 sm:grid-cols-2">{units.map((unit) => { const unitId = String(unit.machine_unit_id); const checked = selected.has(unitId); const usedElsewhere = selectedUnitIds.has(unitId) && !checked; return <label key={unitId} className={`flex items-start gap-2 rounded border px-2 py-2 text-xs ${usedElsewhere ? 'opacity-50' : ''}`}><Checkbox checked={checked} disabled={usedElsewhere} onCheckedChange={(value) => { const next = [...selected].filter((id) => id !== unitId); if (value === true && !usedElsewhere) next.push(unitId); updateLine(groupIndex, lineIndex, { pinned_machine_unit_ids: next, required_quantity: next.length || 1 }); }} /><span><span className="block font-semibold">{unit.code}</span><span className="block font-mono text-muted-foreground">{unit.serial_number || t('resourceFoundation.pendingIdentification')}</span></span></label>; })}</div>{line.machine_id && !units.length ? <p className="text-xs text-amber-600">{t('resourceFoundation.noAvailableMachineUnits')}</p> : null}</td><td className="px-3 py-3"><Button type="button" variant="ghost" size="icon" title={t('common.remove')} onClick={() => update(groupIndex, { requirements: group.requirements.filter((_: AnyRecord, index: number) => index !== lineIndex) })}><Trash2 className="h-4 w-4" /></Button></td></tr>; })}</tbody></table></div><Button data-testid={`machine-requirement-add-line-${groupIndex}`} type="button" variant="outline" onClick={() => update(groupIndex, { requirements: [...group.requirements, { role: group.requirements.some((line: AnyRecord) => line.role === 'Primary') ? 'Supporting' : 'Primary', requirement_type: 'Required', required_quantity: 1, pinned_machine_unit_ids: [] }] })}><Plus className="h-4 w-4" />{t('resourceFoundation.addRequirement')}</Button></Card>)}</Card>;
 }
 
 function MachineRequirementEditor({ groups, setGroups, machines, text, t }: { groups: AnyRecord[]; setGroups: (groups: AnyRecord[]) => void; machines: AnyRecord[]; text: (value: unknown) => string; t: (key: string, params?: Record<string, unknown>) => string }) {
@@ -532,14 +621,68 @@ function DetailItem({ label, value }: { label: string; value: React.ReactNode })
   return <div><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 text-sm font-medium text-foreground">{value}</div></div>;
 }
 
-function ProductionLineDetail({ row, text, t, onBack }: AnyRecord) {
+function ProductionLineDetail({ row, text, t, user, workCenterCatalog, workstationCatalog, onReload, onBack }: AnyRecord) {
   const [tab, setTab] = useState('overview');
   const workCenters = Array.isArray(row.work_centers) ? row.work_centers : [];
+  const currentWorkCenters = workCenters.filter((item: AnyRecord) => item.active_flag !== false && !item.effective_to);
+  const resourceScopes = Array.isArray(row.resource_scopes) ? row.resource_scopes : [];
+  const currentScopes = resourceScopes.filter((item: AnyRecord) => item.active_flag !== false && !item.effective_to);
   const eligibilities = Array.isArray(row.production_version_eligibilities) ? row.production_version_eligibilities : [];
   const readiness = row.readiness_summary || { status: row.readiness_status || 'Unknown', blocker_count: row.readiness_blocker_count ?? 0, blockers: [] };
+  const [workCenterDraft, setWorkCenterDraft] = useState<AnyRecord[]>(currentWorkCenters);
+  const currentWorkstations = currentScopes.filter((item: AnyRecord, index: number, all: AnyRecord[]) => item.workstation_id && all.findIndex((candidate) => String(candidate.workstation_id) === String(item.workstation_id)) === index);
+  const [scopeDraft, setScopeDraft] = useState<AnyRecord[]>(currentWorkstations);
+  const [selectedWorkCenter, setSelectedWorkCenter] = useState('');
+  const [selectedWorkstation, setSelectedWorkstation] = useState('');
+  const [saving, setSaving] = useState<'work-centers' | 'resource-scopes' | null>(null);
+  const [mutationError, setMutationError] = useState('');
+  useEffect(() => { setWorkCenterDraft(currentWorkCenters); setScopeDraft(currentWorkstations); setMutationError(''); }, [row.master_id, row.updated_at, workCenters.length, resourceScopes.length]);
+
+  const configuredIds = new Set(workCenterDraft.map((item) => String(item.work_center_id)));
+  const availableWorkCenters = (workCenterCatalog || []).filter((item: AnyRecord) => item.site_id === row.site_id && item.area_id === row.area_id && item.active_flag !== false && !configuredIds.has(String(item.master_id)));
+  const scopedWorkstationIds = new Set(scopeDraft.map((item) => String(item.workstation_id || item.master_id)));
+  const availableWorkstations = (workstationCatalog || []).filter((item: AnyRecord) => configuredIds.has(String(item.work_center_id)) && item.site_id === row.site_id && item.active_flag !== false && !['Inactive', 'Obsolete'].includes(String(item.lifecycle_status)) && !scopedWorkstationIds.has(String(item.master_id)));
+
+  const addWorkCenter = () => {
+    const selected = (workCenterCatalog || []).find((item: AnyRecord) => item.master_id === selectedWorkCenter);
+    if (!selected) return;
+    setWorkCenterDraft((current) => [...current, { work_center_id: selected.master_id, work_center_code: selected.code, work_center_name: selected.name, sequence_no: current.length + 1, mandatory_flag: true }]);
+    setSelectedWorkCenter(''); setMutationError('');
+  };
+  const moveWorkCenter = (index: number, offset: number) => setWorkCenterDraft((current) => {
+    const target = index + offset;
+    if (target < 0 || target >= current.length) return current;
+    const next = [...current]; [next[index], next[target]] = [next[target], next[index]];
+    return next.map((item, itemIndex) => ({ ...item, sequence_no: itemIndex + 1 }));
+  });
+  const removeWorkCenter = (id: string) => {
+    setWorkCenterDraft((current) => current.filter((item) => String(item.work_center_id) !== id).map((item, index) => ({ ...item, sequence_no: index + 1 })));
+    setScopeDraft((current) => current.filter((item) => String(item.work_center_id) !== id));
+  };
+  const addScope = () => {
+    const selected = (workstationCatalog || []).find((item: AnyRecord) => item.master_id === selectedWorkstation);
+    if (!selected) return;
+    setScopeDraft((current) => [...current, selected]);
+    setSelectedWorkstation(''); setMutationError('');
+  };
+  const saveWorkCenters = async () => {
+    try {
+      setSaving('work-centers'); setMutationError('');
+      await saveProductionLineWorkCenters(row.master_id, workCenterDraft.map((item, index) => ({ work_center_id: item.work_center_id, sequence_no: index + 1, mandatory_flag: item.mandatory_flag !== false, effective_from: item.effective_from || null, effective_to: item.effective_to || null })), user);
+      toast.success(t('resourceFoundation.lineWorkCentersSaved')); await onReload();
+    } catch (error: any) { const code = String(error.code || error.message || ''); setMutationError(code); toast.error(t(`resourceFoundation.errors.${code}`)); } finally { setSaving(null); }
+  };
+  const saveScopes = async () => {
+    try {
+      setSaving('resource-scopes'); setMutationError('');
+      await saveProductionLineResourceScopes(row.master_id, scopeDraft.map((item) => ({ workstation_id: item.workstation_id || item.master_id, effective_from: item.effective_from || null, effective_to: item.effective_to || null })), user);
+      toast.success(t('resourceFoundation.lineResourceScopesSaved')); await onReload();
+    } catch (error: any) { const code = String(error.code || error.message || ''); setMutationError(code); toast.error(t(`resourceFoundation.errors.${code}`)); } finally { setSaving(null); }
+  };
   const tabs = [
     ['overview', t('resourceFoundation.overview')],
     ['work-centers', t('resourceFoundation.workCentersTab')],
+    ['resource-scope', t('resourceFoundation.workstations')],
     ['eligibility', t('resourceFoundation.eligibility')],
     ['readiness', t('resourceFoundation.readiness')],
     ['history', t('resourceFoundation.auditHistory')],
@@ -557,10 +700,11 @@ function ProductionLineDetail({ row, text, t, onBack }: AnyRecord) {
       <DetailItem label={t('resourceFoundation.shopfloors')} value={text(row.shopfloor_name) || row.shopfloor_code || '-'} />
       <DetailItem label={t('resourceFoundation.effectivePeriod')} value={`${row.effective_from || '-'} - ${row.effective_to || 'open'}`} />
     </Card> : null}
-    {tab === 'work-centers' ? <Card className="space-y-3 p-5"><h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t('resourceFoundation.workCentersTab')}</h2>{workCenters.length ? <div className="space-y-2">{workCenters.map((item: AnyRecord) => <div key={item.line_work_center_id || item.work_center_id} className="rounded-md border border-border p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="font-semibold">{text(item.work_center_name) || item.work_center_code}</div><div className="font-mono text-xs text-muted-foreground">{item.work_center_code}</div></div><StatusBadge status={item.active_flag === false ? 'Inactive' : 'Active'} /></div><div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3"><span>{t('resourceFoundation.sequence')}: {item.sequence_no ?? '-'}</span><span>{t('resourceFoundation.mandatory')}: {item.mandatory_flag === false ? t('common.no') : t('common.yes')}</span><span>{item.effective_from || '-'} - {item.effective_to || 'open'}</span></div></div>)}</div> : <div className="text-sm text-muted-foreground">{t('common.empty')}</div>}</Card> : null}
+    {tab === 'work-centers' ? <Card className="space-y-4 p-5" data-testid="line-work-center-editor"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t('resourceFoundation.workCentersTab')}</h2><p className="mt-1 text-xs text-muted-foreground">{t('resourceFoundation.workCenterCoverageHelp')}</p></div><Button onClick={() => void saveWorkCenters()} disabled={saving !== null}><Save className="h-4 w-4" />{t('common.save')}</Button></div><div className="flex flex-col gap-2 sm:flex-row"><SelectBase value={selectedWorkCenter} onValueChange={setSelectedWorkCenter} options={availableWorkCenters.map((item: AnyRecord) => ({ value: item.master_id, label: text(item.name) || item.code, secondaryLabel: `${item.code} · ${item.area_code || row.area_code || ''}` }))} placeholder={t('resourceFoundation.selectWorkCenter')} data-testid="line-work-center-select" /><Button type="button" variant="outline" disabled={!selectedWorkCenter} onClick={addWorkCenter}><Plus className="h-4 w-4" />{t('common.add')}</Button></div>{mutationError ? <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{t(`resourceFoundation.errors.${mutationError}`)}</div> : null}{workCenterDraft.length ? <div className="divide-y divide-border rounded-md border border-border">{workCenterDraft.map((item: AnyRecord, index: number) => <div key={item.work_center_id} className="flex flex-wrap items-center gap-3 p-3"><div className="min-w-0 flex-1"><div className="font-semibold">{text(item.work_center_name) || item.work_center_code}</div><div className="font-mono text-xs text-muted-foreground">{item.work_center_code}</div></div><label className="flex items-center gap-2 text-xs text-muted-foreground"><Checkbox checked={item.mandatory_flag !== false} onCheckedChange={(checked) => setWorkCenterDraft((current) => current.map((value) => value.work_center_id === item.work_center_id ? { ...value, mandatory_flag: checked === true } : value))} />{t('resourceFoundation.mandatory')}</label><div className="flex gap-1"><Button type="button" size="icon" variant="ghost" title={t('resourceFoundation.moveUp')} disabled={index === 0} onClick={() => moveWorkCenter(index, -1)}><ArrowUp className="h-4 w-4" /></Button><Button type="button" size="icon" variant="ghost" title={t('resourceFoundation.moveDown')} disabled={index === workCenterDraft.length - 1} onClick={() => moveWorkCenter(index, 1)}><ArrowDown className="h-4 w-4" /></Button><Button type="button" size="icon" variant="ghost" title={t('common.remove')} onClick={() => removeWorkCenter(String(item.work_center_id))}><Trash2 className="h-4 w-4" /></Button></div><span className="w-8 text-center text-xs font-semibold text-muted-foreground">{index + 1}</span></div>)}</div> : <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{t('resourceFoundation.noWorkCenterCoverage')}</div>}</Card> : null}
+    {tab === 'resource-scope' ? <Card className="space-y-4 p-5" data-testid="line-resource-scope-editor"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t('resourceFoundation.workstations')}</h2><p className="mt-1 text-xs text-muted-foreground">{t('resourceFoundation.executionResourceScopeHelp')}</p></div><Button onClick={() => void saveScopes()} disabled={saving !== null}><Save className="h-4 w-4" />{t('common.save')}</Button></div><div className="flex flex-col gap-2 sm:flex-row"><SelectBase value={selectedWorkstation} onValueChange={setSelectedWorkstation} options={availableWorkstations.map((item: AnyRecord) => ({ value: item.master_id, label: text(item.name) || item.code, secondaryLabel: `${item.code} · ${text(item.workstation_name || item.name) || item.workstation_code || item.code || text(item.work_center_name) || item.work_center_code || ''}` }))} placeholder={t('resourceFoundation.workstations')} data-testid="line-resource-scope-select" /><Button type="button" variant="outline" disabled={!selectedWorkstation} onClick={addScope}><Plus className="h-4 w-4" />{t('common.add')}</Button></div>{mutationError ? <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{t(`resourceFoundation.errors.${mutationError}`)}</div> : null}{scopeDraft.length ? <div className="divide-y divide-border rounded-md border border-border">{scopeDraft.map((item: AnyRecord) => <div key={item.workstation_id || item.scope_id} data-testid="line-resource-scope-row" className="flex flex-wrap items-center gap-3 p-3"><div className="min-w-0 flex-1"><div className="font-semibold">{text(item.workstation_name || item.name) || item.workstation_code || item.code}</div><div className="font-mono text-xs text-muted-foreground">{item.workstation_code}</div><div className="mt-1 text-xs text-muted-foreground">{item.work_center_code || t('common.notAvailable')}</div></div><StatusBadge status={item.active_flag === false ? 'Inactive' : 'Active'} /><Button type="button" size="icon" variant="ghost" data-testid="line-resource-scope-remove" title={t('common.remove')} onClick={() => setScopeDraft((current) => current.filter((value) => String(value.workstation_id || value.master_id) !== String(item.workstation_id || item.master_id)))}><Trash2 className="h-4 w-4" /></Button></div>)}</div> : <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{t('resourceFoundation.noResourceScope')}</div>}</Card> : null}
     {tab === 'eligibility' ? <Card className="space-y-3 p-5"><h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t('resourceFoundation.productionVersionEligibility')}</h2>{eligibilities.length ? <div className="space-y-2">{eligibilities.map((item: AnyRecord) => <div key={item.eligibility_id} className="rounded-md border border-border p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="font-semibold">{text(item.production_version_name) || item.production_version_code}</div><div className="font-mono text-xs text-muted-foreground">{item.production_version_code}</div></div><StatusBadge status={item.lifecycle_status || (item.active_flag === false ? 'Inactive' : 'Released')} /></div><div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4"><span>{item.is_primary ? t('resourceFoundation.primaryLine') : t('resourceFoundation.backupLine')}</span><span>{t('resourceFoundation.priority')}: {item.priority_no ?? '-'}</span><span>{t('resourceFoundation.efficiency')}: {item.efficiency_factor ?? 1}</span><span>{item.effective_from || '-'} - {item.effective_to || 'open'}</span></div></div>)}</div> : <div className="text-sm text-muted-foreground">{t('common.empty')}</div>}</Card> : null}
-    {tab === 'readiness' ? <Card className="space-y-4 border-action/40 bg-surface-subtle p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-bold uppercase tracking-wide text-foreground">{t('resourceFoundation.backendReadiness')}</h2><p className="mt-1 text-xs text-muted-foreground">{t('resourceFoundation.backendReadinessHelp')}</p></div><StatusBadge status={readiness.status || 'Unknown'} /></div><div className="grid gap-3 sm:grid-cols-2"><DetailItem label={t('resourceFoundation.workCenterCount')} value={formatNumberForDisplay(row.active_work_center_count ?? workCenters.length, '0')} /><DetailItem label={t('resourceFoundation.productionVersionCount')} value={formatNumberForDisplay(row.active_eligibility_count ?? eligibilities.length, '0')} /></div>{readiness.blockers?.length ? <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"><div className="font-semibold">{t('resourceFoundation.blockingReasons')}</div>{readiness.blockers.map((blocker: AnyRecord, index: number) => <div key={`${blocker.code}-${index}`}>{blocker.code}</div>)}</div> : null}</Card> : null}
-    {tab === 'history' ? <Card className="grid gap-4 p-5 md:grid-cols-3"><DetailItem label={t('resourceFoundation.lifecycleStatus')} value={row.lifecycle_status || '-'} /><DetailItem label={t('resourceFoundation.effectiveFrom')} value={row.effective_from || '-'} /><DetailItem label={t('resourceFoundation.effectiveTo')} value={row.effective_to || 'open'} /><DetailItem label={t('resourceFoundation.assignmentHistory')} value={`${workCenters.length} ${t('resourceFoundation.workCentersTab')} / ${eligibilities.length} ${t('resourceFoundation.productionVersionEligibility')}`} /></Card> : null}
+    {tab === 'readiness' ? <Card className="space-y-4 border-action/40 bg-surface-subtle p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-bold uppercase tracking-wide text-foreground">{t('resourceFoundation.backendReadiness')}</h2><p className="mt-1 text-xs text-muted-foreground">{t('resourceFoundation.backendReadinessHelp')}</p></div><StatusBadge status={readiness.status || 'Unknown'} /></div><div className="grid gap-3 sm:grid-cols-2"><DetailItem label={t('resourceFoundation.workCenterCount')} value={formatNumberForDisplay(row.active_work_center_count ?? workCenters.length, '0')} /><DetailItem label={t('resourceFoundation.productionVersionCount')} value={formatNumberForDisplay(row.active_eligibility_count ?? eligibilities.length, '0')} /></div>{readiness.blockers?.length ? <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"><div className="font-semibold">{t('resourceFoundation.blockingReasons')}</div>{readiness.blockers.map((blocker: AnyRecord, index: number) => <div key={`${blocker.code}-${index}`}>{t(`resourceFoundation.readiness.${blocker.code}`)} <span className="text-xs opacity-80">({t(`resourceFoundation.readinessCategory.${blocker.category}`)})</span></div>)}</div> : null}{readiness.warnings?.length ? <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning-foreground"><div className="font-semibold">{t('resourceFoundation.readinessWarnings')}</div>{readiness.warnings.map((warning: AnyRecord, index: number) => <div key={`${warning.code}-${index}`}>{t(`resourceFoundation.readiness.${warning.code}`)} <span className="text-xs opacity-80">({t(`resourceFoundation.readinessCategory.${warning.category}`)})</span></div>)}</div> : null}</Card> : null}
+    {tab === 'history' ? <Card className="grid gap-4 p-5 md:grid-cols-3"><DetailItem label={t('resourceFoundation.lifecycleStatus')} value={row.lifecycle_status || '-'} /><DetailItem label={t('resourceFoundation.effectiveFrom')} value={row.effective_from || '-'} /><DetailItem label={t('resourceFoundation.effectiveTo')} value={row.effective_to || 'open'} /><DetailItem label={t('resourceFoundation.assignmentHistory')} value={`${workCenters.length} ${t('resourceFoundation.workCentersTab')} / ${resourceScopes.length} ${t('resourceFoundation.executionResourceScope')} / ${eligibilities.length} ${t('resourceFoundation.productionVersionEligibility')}`} /></Card> : null}
   </div>;
 }
 
@@ -577,10 +721,12 @@ function ResourcePlanningEvidencePanel({ row, text, t }: { row: AnyRecord; text:
   </div>;
 }
 
-function ResourceDetail({ entity, row, text, t, user, onBack, onRelease, releasing }: AnyRecord) {
+function ResourceDetail({ entity, row, text, t, user, workCenterCatalog, workstationCatalog, resourceAssignments, onReload, onBack, onRelease, releasing }: AnyRecord) {
   const releasableEntity = ['workstations', 'production-lines'].includes(entity);
-  const canRelease = releasableEntity && ['Draft', 'InReview', 'Inactive'].includes(row.lifecycle_status);
-  if (entity === 'production-lines') return <>{releasableEntity ? <Card className="flex items-center justify-between gap-3 border-action/40 bg-surface-subtle p-4"><div><div className="font-semibold">{t('resourceFoundation.release')}</div><div className="text-sm text-muted-foreground">{t('resourceFoundation.releaseHelp')}</div></div>{canRelease ? <Button onClick={onRelease} disabled={releasing}><CheckCircle2 className="h-4 w-4" />{t('resourceFoundation.release')}</Button> : null}</Card> : null}<ProductionLineDetail row={row} text={text} t={t} onBack={onBack} /></>;
+  const releaseLifecycleAllowed = releasableEntity && ['Draft', 'InReview', 'Inactive'].includes(row.lifecycle_status);
+  const lineReleaseBlocked = entity === 'production-lines' && (row.readiness_summary?.blocker_count || 0) > 0;
+  const canRelease = releaseLifecycleAllowed && !lineReleaseBlocked;
+  if (entity === 'production-lines') return <>{releasableEntity ? <Card className="flex items-center justify-between gap-3 border-action/40 bg-surface-subtle p-4"><div><div className="font-semibold">{t('resourceFoundation.releaseLine')}</div><div className="text-sm text-muted-foreground">{t('resourceFoundation.releaseLineHelp')}</div></div>{releaseLifecycleAllowed ? <Button onClick={onRelease} disabled={releasing || lineReleaseBlocked}><CheckCircle2 className="h-4 w-4" />{t('resourceFoundation.releaseLine')}</Button> : null}</Card> : null}<ProductionLineDetail row={row} text={text} t={t} user={user} workCenterCatalog={workCenterCatalog} workstationCatalog={workstationCatalog} onReload={onReload} onBack={onBack} /></>;
   return <>{releasableEntity ? <><Card className="flex items-center justify-between gap-3 border-action/40 bg-surface-subtle p-4"><div><div className="font-semibold">{t('resourceFoundation.release')}</div><div className="text-sm text-muted-foreground">{t('resourceFoundation.releaseHelp')}</div></div>{canRelease ? <Button onClick={onRelease} disabled={releasing}><CheckCircle2 className="h-4 w-4" />{t('resourceFoundation.release')}</Button> : null}</Card>{entity === 'workstations' && row.print_station_integration ? <WorkstationPrintStationDetail integration={row.print_station_integration} text={text} t={t} /> : null}</> : null}<LegacyResourceDetail entity={entity} row={row} text={text} t={t} user={user} onBack={onBack} onRelease={onRelease} releasing={releasing} /></>;
 }
 
@@ -613,7 +759,47 @@ function MachineUnitsPanel({ machineId, units, user, t }: { machineId: string; u
 function LegacyResourceDetail(props: AnyRecord) {
   const { entity, row, user } = props;
   const machineEntity = entity === 'equipment' || entity === 'machines';
-  return <>{machineEntity ? <MachineUnitsPanel machineId={row.master_id} units={row.units || []} user={user} t={props.t} /> : null}<LegacyResourceDetailContent {...props} /></>;
+  return machineEntity ? <MachineDetailTabs {...props} /> : <LegacyResourceDetailContent {...props} />;
+}
+
+function MachineDetailTabs({ row, text, t, user, onBack }: AnyRecord) {
+  const [tab, setTab] = useState<'info' | 'history'>('info');
+  const assignments = Array.isArray(row.assignments) ? row.assignments : [];
+  const units = Array.isArray(row.units) ? row.units : [];
+  const skills = Array.isArray(row.skills) ? row.skills : [];
+  return <div data-testid="machine-detail" className="space-y-5">
+    <Card className="space-y-4 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div><h1 className="text-2xl font-black">{text(row.name) || row.code}</h1><p className="mt-1 text-sm text-muted-foreground">{row.site_code || '-'} · {row.work_center_code || row.shopfloor_code || row.area_code || '-'}</p></div>
+        <Button variant="outline" onClick={onBack}><ArrowLeft className="h-4 w-4" />{t('common.back')}</Button>
+      </div>
+      <div className="border-t border-border pt-4">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">{t('resourceFoundation.machineDescription')}</h2>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{text(row.description) || t('common.notAvailable')}</p>
+        <div className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <DetailItem label={t('common.code')} value={<span className="font-mono">{row.code}</span>} />
+          <DetailItem label={t('common.status')} value={<StatusBadge status={row.active_flag === false ? 'Inactive' : row.execution_status || row.lifecycle_status || 'Available'} />} />
+          <DetailItem label={t('resourceFoundation.equipmentType')} value={row.equipment_type || t('common.notAvailable')} />
+          <DetailItem label={t('resourceFoundation.manufacturer')} value={row.manufacturer || t('common.notAvailable')} />
+          <DetailItem label={t('resourceFoundation.model')} value={row.model || t('common.notAvailable')} />
+          <DetailItem label={t('common.site')} value={text(row.site_name) || row.site_code || t('common.notAvailable')} />
+          <DetailItem label={t('resourceFoundation.workCenter')} value={text(row.work_center_name) || row.work_center_code || t('common.notAvailable')} />
+          <DetailItem label={t('resourceFoundation.quantity')} value={row.quantity || units.length || 1} />
+          <DetailItem label={t('resourceFoundation.availableUnits')} value={`${row.available_unit_count ?? 0} / ${units.length || row.quantity || 1}`} />
+          <DetailItem label={t('resourceFoundation.efficiency')} value={row.default_efficiency ?? 1} />
+          <DetailItem label={t('resourceFoundation.planningResource')} value={row.planning_resource_flag ? t('common.active') : t('common.inactive')} />
+        </div>
+      </div>
+    </Card>
+    <div className="flex gap-2 border-b border-border">
+      <button type="button" className={`border-b-2 px-3 py-2 text-sm font-semibold ${tab === 'info' ? 'border-action text-action' : 'border-transparent text-muted-foreground hover:text-foreground'}`} onClick={() => setTab('info')}>{t('resourceFoundation.machineInformation')}</button>
+      <button type="button" className={`border-b-2 px-3 py-2 text-sm font-semibold ${tab === 'history' ? 'border-action text-action' : 'border-transparent text-muted-foreground hover:text-foreground'}`} onClick={() => setTab('history')}>{t('resourceFoundation.assignmentHistory')}</button>
+    </div>
+    {tab === 'info' ? <div className="space-y-5">
+      <MachineUnitsPanel machineId={row.master_id} units={units} user={user} t={t} />
+      <Card className="space-y-3 p-5"><div className="flex items-center justify-between"><div><h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t('skills.resourceSkills')}</h2><p className="text-xs text-muted-foreground">{t('skills.resourceSkillsHelp')}</p></div><span className="text-sm font-semibold">{skills.length}</span></div>{skills.length ? <div className="grid gap-2 md:grid-cols-2">{skills.map((skill: AnyRecord) => <div key={skill.assignment_id} className="rounded-md border border-border bg-surface-subtle p-3"><div className="font-semibold">{text(skill.skill_name) || skill.skill_code}</div><div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground"><span className="font-mono">{skill.skill_code}</span><span>{t('resourceFoundation.minimumLevel')}: {skill.minimum_level}</span><span>{skill.required_flag ? t('resourceFoundation.required') : t('resourceFoundation.optional')}</span></div></div>)}</div> : <div className="text-sm text-muted-foreground">{t('common.empty')}</div>}</Card>
+    </div> : <Card className="p-5"><h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">{t('resourceFoundation.assignmentHistory')}</h2>{assignments.length ? <div className="space-y-2">{assignments.map((assignment: AnyRecord) => <div key={assignment.master_id} className="rounded-md border border-border p-3"><div>{text(assignment.work_center_name) || assignment.work_center_code || '-'} · {text(assignment.workstation_name) || assignment.workstation_code || '-'}</div><div className="text-xs text-muted-foreground">{assignment.assignment_role || assignment.assignment_type} · {assignment.effective_from} → {assignment.effective_to || 'open'}</div></div>)}</div> : <div className="text-sm text-muted-foreground">{t('common.empty')}</div>}</Card>}
+  </div>;
 }
 
 function LegacyResourceDetailContent({ entity, row, text, t, onBack, onRelease, releasing, user }: AnyRecord) {

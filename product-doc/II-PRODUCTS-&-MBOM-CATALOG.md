@@ -59,7 +59,7 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 | `SpecificationRef` | String(255) | Không | `SPEC-RUB-002` | Mã tham chiếu tài liệu spec/bản vẽ kỹ thuật. |
 | `EffectiveFrom` | DateTime | Có | `2026-08-01` | Thời điểm bắt đầu có hiệu lực. |
 | `EffectiveTo` | DateTime | Không | *NULL* | Thời điểm kết thúc hiệu lực (Để trống nếu còn dùng). |
-| `ChangeReason` | String(500) | Không | Thay độ dày | Lý do thay đổi phiên bản kỹ thuật. |
+| `ChangeReason` | String(500) | Có với revision kế nhiệm | Thay độ dày | Lý do thay đổi phiên bản kỹ thuật; revision đầu tiên có thể để trống. |
 | `ReleasedBy` | UserID | Không | `USR-ENG-01` | ID Người phê duyệt phát hành. |
 
 ### 3. Kịch bản sử dụng (Use Cases)
@@ -72,13 +72,14 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 ### 4. Quy tắc kiểm soát dữ liệu (Validation Rules)
 - Tại một thời điểm, mỗi SKU chỉ có duy nhất một `RevisionStatus = Released` làm mặc định cho từng Site.
 - Cấm sửa đổi dữ liệu lõi của revision đã ở trạng thái `Released`; mọi thay đổi bắt buộc phải phát hành `Revision` mới.
+- Khi tạo revision kế nhiệm, backend phải đóng khoảng hiệu lực của revision liền trước đúng tại `EffectiveFrom` mới và ghi temporal audit trong cùng transaction; các khoảng `[EffectiveFrom, EffectiveTo)` không được chồng lấn.
 
 ---
 
 ## B3. MD_MBOM_HEADER — MBOM Header
 
 ### 1. Thông tin chung (Overview)
-- **Mục đích:** Định nghĩa cấu trúc sản xuất đa cấp độc lập tại một Nhà máy (Site). MBOM không sở hữu Item Revision; Production Version là nơi liên kết MBOM với Item Revision và Routing.
+- **Mục đích:** Định nghĩa cấu trúc sản xuất đa cấp. MBOM không sở hữu Nhà máy (Site); Production Version là nơi liên kết cấu hình sản xuất và lưu Site thực thi được suy ra từ Routing Work Center.
 - **Mức ưu tiên:** MVP-Core
 - **Data Owner đề xuất:** Kỹ thuật sản xuất
 
@@ -88,8 +89,6 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 | :--- | :--- | :---: | :--- | :--- |
 | `MBOMID` | UUID | Có | `MBOM-FG001-V1` | Khóa chính MBOM Header. |
 | `MBOMCode` | String(50) | Có | `MBOM-FG001` | Mã định danh MBOM. |
-| `SiteID` | UUID | Có | `SITE-HN01` | Nhà máy áp dụng MBOM. |
-| `MBOMVersion` | Integer | Có | `1` | Số phiên bản cấu trúc BOM. |
 | `BaseQuantity` | Decimal(18,6) | Có | `1.000000` | Sản lượng cơ sở dùng để tính định mức. |
 | `BaseUOMID` | UUID | Có | `UOM-M2` | Đơn vị tính của sản lượng cơ sở. |
 | `ValidFrom` | DateTime | Có | `2026-08-01` | Thời điểm bắt đầu hiệu lực MBOM. |
@@ -147,6 +146,7 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 - Tuyệt đối không cho phép vòng lặp trong cây cấu trúc BOM (Circular Reference Check).
 - Cờ `PhantomFlag` là thuộc tính thiết lập quan hệ trên từng dòng `MD_MBOM_LINE`, không đặt cố định tại `MD_ITEM`.
 - Giá trị định mức `QuantityPer` bắt buộc phải $> 0$.
+- Loại Item đầu vào phải theo loại Item đầu ra của MBOM: đầu ra `FG` chỉ nhận thành phần `SFG` hoặc `RM`; đầu ra `SFG` chỉ nhận thành phần `RM`. `FG` không bao giờ là thành phần MBOM.
 
 ---
 
@@ -169,6 +169,7 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 | `MaxUsagePercent` | Decimal(7,2) | Không | `100.00` | Tỷ lệ phần trăm sử dụng tối đa cho phép trong một WO. |
 | `RequiresApproval` | Boolean | Có | `Yes` | `Yes`: Bắt buộc Quản lý phê duyệt khi bấm chọn thay thế. |
 | `EffectiveFrom` | DateTime | Có | `2026-08-01` | Thời điểm quy tắc thay thế có hiệu lực. |
+| `EffectiveTo` | DateTime | Không | `2026-12-31` | Thời điểm quy tắc thay thế hết hiệu lực; để trống nếu không giới hạn. |
 
 ### 3. Kịch bản sử dụng (Use Cases)
 
@@ -179,14 +180,19 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 
 ### 4. Quy tắc kiểm soát dữ liệu (Validation Rules)
 - Vật tư `SubstituteRevisionID` cấm trùng với `ComponentRevisionID` của dòng MBOM gốc.
-- Vật tư thay thế bắt buộc phải cùng nhóm kỹ thuật hoặc phải thông qua quy trình phê duyệt kiểm định.
+- Revision thay thế phải ở trạng thái `Released` và đang nằm trong khoảng hiệu lực tại thời điểm khai báo.
+- Vật tư thay thế tuân theo cùng ma trận loại Item như thành phần chính: MBOM đầu ra `FG` chỉ nhận `SFG` hoặc `RM`; MBOM đầu ra `SFG` chỉ nhận `RM`.
+- Vật tư thay thế phải cùng `ItemGroup` kỹ thuật với thành phần chính.
+- Base UOM phải giống thành phần chính. Nếu khác UOM, phải có UOM conversion `Released` đang hiệu lực: conversion theo Item phải thuộc Item thay thế; conversion dùng chung chỉ hợp lệ khi hai UOM cùng class/dimension.
+- `PriorityNo` phải là số nguyên dương và không trùng trong cùng dòng MBOM; `ConversionFactor` phải lớn hơn `0`; `MaxUsagePercent` phải trong khoảng `(0, 100]`; khoảng ngày hiệu lực phải hợp lệ.
+- Ngoại lệ tương thích là luồng kiểm định riêng: phải có `CompatibilityExceptionApproved = true` và lý do không rỗng, đồng thời bản ghi bắt buộc chờ phê duyệt. `RequiresApproval = true` đơn thuần không bỏ qua kiểm tra nhóm/UOM.
 
 ---
 
 ## B6. MD_PRODUCTION_VERSION — Phiên bản sản xuất
 
 ### 1. Thông tin chung (Overview)
-- **Mục đích:** Khóa cố định bộ ba hợp lệ **[Item Revision + MBOM + Routing]** tại một Nhà máy để lập Lệnh sản xuất (WO), tránh rủi ro chọn sai cấu hình kỹ thuật.
+- **Mục đích:** Khóa cố định tổ hợp hợp lệ **[MBOM + Routing]** để lập Lệnh sản xuất (WO). Item Revision được suy ra từ MBOM và Site được suy ra từ Routing, tránh cho người dùng chọn các giá trị kỹ thuật mâu thuẫn.
 - **Mức ưu tiên:** MVP-Core
 - **Data Owner đề xuất:** Kỹ thuật sản xuất / Điều độ
 
@@ -195,10 +201,10 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 | Field | Kiểu dữ liệu | Bắt buộc | Ví dụ | Ý nghĩa / Quy tắc nghiệp vụ |
 | :--- | :--- | :---: | :--- | :--- |
 | `ProductionVersionID`| UUID | Có | `PV-FG001-01` | Khóa chính phiên bản sản xuất. |
-| `ProductRevisionID` | UUID | Có | `REV-FG001-R2` | Tham chiếu Revision thành phẩm đầu ra. |
+| `ProductRevisionID` | UUID | Backend suy ra | `REV-FG001-R2` | Snapshot Revision thành phẩm đầu ra, luôn bằng `MBOM.item_revision_id`; không phải field người dùng chọn. |
 | `MBOMID` | UUID | Có | `MBOM-FG001-V1` | Tham chiếu cấu trúc MBOM được duyệt. |
 | `RoutingID` | UUID | Có | `RT-FG001-V1` | Tham chiếu quy trình Routing được duyệt. |
-| `SiteID` | UUID | Có | `SITE-HN01` | Nhà máy áp dụng cấu hình này. |
+| `SiteID` | UUID | Backend suy ra | `SITE-HN01` | Site duy nhất của các Work Center trong Routing; không phải field người dùng chọn. |
 | `MinLotSize` | Decimal(18,3) | Không | `1.000` | Kích thước lô sản xuất tối thiểu. |
 | `MaxLotSize` | Decimal(18,3) | Không | `1000.000` | Kích thước lô sản xuất tối đa. |
 | `DefaultFlag` | Boolean | Có | `Yes` | `Yes`: Cấu hình mặc định tự động chọn khi tạo WO. |
@@ -214,20 +220,27 @@ Tài liệu đặc tả danh mục Master Data quản lý SKU, phiên bản kỹ
 | **UC-TRACE-01** | Quản lý | Truy xuất thông tin cấu hình đã dùng để tạo WO. | Dữ liệu lịch sử cấu hình sản xuất bất biến. |
 
 ### 4. Quy tắc kiểm soát dữ liệu (Validation Rules)
-- `MBOMID` và `RoutingID` được liên kết trong Production Version phải thỏa điều kiện cùng `SiteID`; Item Revision là quan hệ độc lập do chính Production Version lưu giữ.
+- MBOM sở hữu `ProductRevisionID` và không có `SiteID`. Routing không sở hữu Item Revision và phải sử dụng Work Center thuộc đúng một Site. Production Version suy ra/lưu `ProductRevisionID` từ MBOM và `SiteID` từ Routing; Site của Revision đầu ra phải tương thích với Site của Routing.
 - Tại một thời điểm, chỉ cho phép duy nhất một bản ghi có `DefaultFlag = Yes` có hiệu lực cho cùng một tổ hợp `[ProductRevisionID + SiteID + Khoảng LotSize]`.
 
 ## B7. Quyết định kiến trúc MBOM hiện hành (2026-07-29)
 
-MBOM Header là master data độc lập và không sở hữu trực tiếp Item Revision. Một Item Revision có thể được sử dụng bởi nhiều MBOM version thông qua các Production Version khác nhau theo Site, mục đích hoặc phương pháp sản xuất. MBOM Line mới là nơi sở hữu cấu trúc sản xuất đa cấp và định mức.
+MBOM Header không sở hữu Site. Cùng một MBOM có thể được Production Version kết hợp với các Routing khác nhau; Site thực thi thuộc Production Version và được suy ra từ Site duy nhất của các Routing Work Center. MBOM Line là nơi sở hữu cấu trúc sản xuất đa cấp và định mức.
 
-Không thêm trường `MBOMType` trùng lặp. Loại đầu ra Finished Good/Semi-Finished được suy ra từ Item Revision mà Production Version chọn; Raw Material không được phép làm đầu ra MBOM/Production Version. EBOM và MBOM là hai aggregate khác nhau. Work Order chỉ sử dụng MBOM được chọn bởi Production Version và lưu snapshot bất biến.
+Không thêm trường `MBOMType` trùng lặp. Loại đầu ra Finished Good/Semi-Finished được suy ra từ Item Revision mà MBOM sở hữu; Raw Material không được phép làm đầu ra MBOM/Production Version. EBOM thuộc SAP và hiện không được lưu hoặc quản lý trong MES. Work Order chỉ sử dụng MBOM được chọn bởi Production Version và lưu snapshot bất biến.
 
 Migration `0048_mbom_structure_and_substitute_controls` bổ sung cờ optional, uniqueness sequence theo sibling và metadata substitute có kiểu dữ liệu. Migration `0049_reconcile_released_mbom_line_lifecycle` sửa một dữ liệu legacy không nhất quán nhưng không đổi cấu trúc vật tư. Chi tiết API và giới hạn hiện tại: `implementation-fix/Redesign-MBOM-Architecture-and-Workflow-Implementation.md`.
 
 ## B8. Final MBOM Workflow Reconciliation (2026-07-29)
 
-MBOM Header belongs to one output Item Revision through `item_revision_id`. A Released MBOM is immutable; changes use `POST /mbom-headers/:id/create-new-version`. Current hierarchical lines are saved with complete replacement semantics and `expected_structure_version`. Work Order explosion uses `quantity_per * (WO quantity / MBOM base quantity) * (1 + scrap_rate)`, skips unselected optional lines, and preserves MBOM line/parent/version traceability in the Work Order snapshot. Production Version remains the authority that selects the matching Item Revision-owned MBOM and Routing.
+MBOM Header belongs to one output Item Revision through `item_revision_id` and has one business identity; there is no MBOM create-version workflow. A Released MBOM is immutable. A different manufacturing definition is created as a new MBOM with its own code. Current hierarchical lines are saved with complete replacement semantics and `expected_structure_version`; this technical counter prevents lost updates and is not a business version. Work Order explosion uses `quantity_per * (WO quantity / MBOM base quantity) * (1 + scrap_rate)`, skips unselected optional lines, and preserves MBOM line/parent identity in the Work Order snapshot. Production Version selects the MBOM and an independent Routing, then derives the output Item Revision from MBOM.
+
+## B9.1. Site Ownership Correction (2026-08-06)
+
+- `MD_MBOM_HEADER` không lưu `site_id`; form tạo/sửa/chi tiết/danh sách MBOM không hiển thị hoặc nhận Site.
+- Routing Work Center là nguồn xác định Site thực thi. Tất cả Work Center đang hiệu lực của một Routing phải thuộc đúng một Site.
+- `MD_PRODUCTION_VERSION.site_id` là snapshot Site của cấu hình sản xuất và được backend tự suy ra từ Routing; client không có quyền quyết định giá trị này.
+- Work Order tiếp tục lưu snapshot Production Version/Site đã dùng và dữ liệu lịch sử không bị viết lại khi master data thay đổi.
 
 Duplicate component policy: the same component may appear on different parents when the manufacturing structure requires it; active sibling sequence is unique under each parent. It is not implicitly aggregated across operations or parents because execution readiness and genealogy remain line-specific.
 

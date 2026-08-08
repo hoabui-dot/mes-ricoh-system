@@ -56,8 +56,8 @@ test('[@smoke] creates a Work Order and commits every Ready resource candidate t
   const dateInput = page.locator('input[type="date"]').first();
   if (await dateInput.count()) await dateInput.fill(targetDate);
   await page.locator('input[inputmode="decimal"]').first().fill('2');
-  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-|Won Seal Tech/i);
-  await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
+  await selectOption(page, /Production Version|Phiên bản sản xuất/i, /WST-SEED-PV-SEAL-ASM-01/);
+  await expect(page.getByRole('textbox', { name: /Shift|Ca làm việc/i })).toHaveCount(0);
   await page.getByTestId('work-order-create-submit').click();
   await expect(page.getByRole('dialog', { name: /Tạo lệnh sản xuất|Create Work Order/i })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/succeeded|Thành công|Succeeded/i)).toBeVisible({ timeout: 30_000 });
@@ -68,36 +68,13 @@ test('[@smoke] creates a Work Order and commits every Ready resource candidate t
   await page.getByRole('button', { name: /Compute|Tính toán/i }).click();
   await expect(page.getByText(/Kết quả tính toán thời lượng|Duration calculation result/i).first()).toBeVisible({ timeout: 15_000 });
 
-  const initialDetail = await api.request.get(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}`, { headers: api.headers });
-  expect(initialDetail.ok()).toBeTruthy();
-  const initialBody = await initialDetail.json();
-  const detailData = initialBody.data ?? initialBody;
-  const operations = detailData.operations || [];
-  expect(operations.length).toBeGreaterThan(0);
-  let cursor = new Date(`${targetDate}T08:00:00.000Z`);
-  for (const operation of operations) {
-    const start = cursor.toISOString();
-    const candidatesResponse = await api.request.get(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}/operations/${operation.wo_operation_id}/resource-candidates?planned_start_at=${encodeURIComponent(start)}&shift_id=${encodeURIComponent(detailData.header?.shift_id || detailData.shift_id)}`, { headers: api.headers });
-    expect(candidatesResponse.ok()).toBeTruthy();
-    const candidatesBody = await candidatesResponse.json();
-    const candidate = (candidatesBody.candidates || []).find((item: any) => item.readiness !== 'Blocked' && !(item.blocking_errors || []).length && !(item.capacity_conflicts || []).length);
-    expect(candidate, `Ready candidate for ${operation.operation_code}`).toBeTruthy();
-    const allocation = await api.request.post(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}/operations/${operation.wo_operation_id}/resource-allocation`, {
-      headers: { ...api.headers, 'Content-Type': 'application/json', 'Idempotency-Key': `resource-flow-${createdWorkOrderId}-${operation.wo_operation_id}` },
-      data: {
-        workstation_id: candidate.workstation?.id,
-        equipment_id: candidate.primary_machine?.id || candidate.equipment?.id,
-        machine_group_id: candidate.machine_group?.id,
-        shift_id: detailData.header?.shift_id || detailData.shift_id,
-        planned_start_at: start,
-        candidate_reference: `${candidate.assignment?.id || ''}:${candidate.machine_group?.id || ''}:${candidate.capability?.id || ''}`,
-        row_version: detailData.header?.row_version || detailData.row_version,
-      },
-    });
-    expect(allocation.ok(), await allocation.text()).toBeTruthy();
-    const duration = Number(candidate.estimated_duration_min ?? candidate.calculation?.estimated_duration_min ?? 1);
-    cursor = new Date(cursor.getTime() + Math.max(duration, 1) * 60_000);
-  }
+  const operationRows = page.locator('[data-testid^="work-order-operation-row-"]');
+  const operationCount = await operationRows.count();
+  expect(operationCount).toBeGreaterThan(0);
+  await expect(page.locator('[data-testid^="resource-proposal-candidate-"]')).toHaveCount(operationCount, { timeout: 15_000 });
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByTestId('resource-commit-all-button').click();
+  await expect(page.locator('[data-testid^="allocation-status-"]').filter({ hasText: /Đã cam kết|Committed/i })).toHaveCount(operationCount, { timeout: 15_000 });
   await page.reload();
   await expect(page.getByTestId('work-order-resource-planning-tab')).toBeVisible();
   const detail = await api.request.get(`${api.base}/api/mes/execution/work-orders/${createdWorkOrderId}`, { headers: api.headers });
@@ -122,7 +99,7 @@ test('[@validation] blocks an invalid Work Order quantity before submit', async 
   if (await dateInput.count()) await dateInput.fill(targetDate);
   await page.locator('input[inputmode="decimal"]').first().fill('0');
   await selectOption(page, /Production Version|Phiên bản sản xuất/i, /E2E WO Label Production Version|Cấu hình E2E WO in nhãn|PV-|Won Seal Tech/i);
-  await selectOption(page, /Shift|Ca/i, /SHIFT-|Ca/i);
+  await expect(page.getByRole('textbox', { name: /Shift|Ca làm việc/i })).toHaveCount(0);
   await expect(page.getByTestId('work-order-create-submit')).toBeDisabled();
   await expect(page.getByTestId('work-order-create-screen')).not.toContainText('[object Object]');
 });

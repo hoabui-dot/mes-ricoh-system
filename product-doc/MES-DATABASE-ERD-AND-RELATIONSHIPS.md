@@ -59,18 +59,12 @@ erDiagram
     md_material_group ||--o{ md_item : classifies
     md_material_group ||--o{ md_item_revision : classifies
 
-    md_item_revision ||--o{ md_ebom_header : owns
-    md_ebom_header ||--o{ md_ebom_line : contains
-    md_ebom_line ||--o{ md_ebom_line : parent_child
-    md_item_revision ||--o{ md_ebom_line : component
-
     md_item_revision ||--o{ md_mbom_header : owns
     md_mbom_header ||--o{ md_mbom_line : contains
     md_mbom_line ||--o{ md_component_substitute : substitutes
     md_item_revision ||--o{ md_mbom_line : component
     md_item_revision ||--o{ md_component_substitute : substitute
 
-    md_item_revision ||--o{ md_routing_header : owns
     md_routing_header ||--o{ md_routing_operation : contains
     md_operation ||--o{ md_routing_operation : used_by
     md_work_center ||--o{ md_routing_operation : selected
@@ -79,7 +73,6 @@ erDiagram
     md_item_revision ||--o{ md_production_version : configuration
     md_mbom_header ||--o{ md_production_version : configuration
     md_routing_header ||--o{ md_production_version : configuration
-    md_ebom_header o|--o{ md_production_version : optional_baseline
 
     md_work_center ||--o{ md_workstation : contains
     md_workstation ||--o{ md_workstation_machine_group : owns
@@ -103,6 +96,11 @@ erDiagram
     md_skill ||--o{ md_employee_skill : assigned
     md_employee ||--o{ md_employee_shift_schedule : scheduled
     md_shift ||--o{ md_employee_shift_schedule : shift
+    md_work_center ||--o{ md_work_center_shift_set : owns_shift_set
+    md_work_center_shift_set ||--o{ md_work_center_shift : contains
+    md_shift ||--o{ md_work_center_shift : assigned_to
+    md_work_center ||--o{ md_employee : owns_labor
+    md_work_center ||--o{ md_employee_shift_schedule : calendar_scope
 
     md_production_version ||--o{ wo_header : creates
     wo_header ||--o{ wo_operation : snapshots
@@ -152,7 +150,9 @@ normally physically deleted after release or use.
 | `md_site` | `master_id` | `code`, localized `name`, `timezone`, `address`, lifecycle/effectivity | Root manufacturing site. Parent of Shopfloor, Area, Work Center, Workstation, Equipment, Shift and Item Revision scope. |
 | `md_shopfloor` | `master_id` | `site_id`, `code`, localized `name`, lifecycle/effectivity | `md_shopfloor.site_id -> md_site.master_id`. Parent for Work Centers and Workstations. |
 | `md_production_area` | `master_id` | `site_id`, `parent_area_id`, `area_type`, `sequence_no` | Site-scoped area hierarchy. `parent_area_id` self-references `md_production_area.master_id`. |
-| `md_shift` | `master_id` | `site_id`, `start_time`, `end_time`, `crosses_midnight` | Site-scoped working time definition. |
+| `md_shift` | `master_id` | `site_id`, `start_time`, `end_time`, `crosses_midnight` | Reusable time template. Operational use requires an active `md_work_center_shift` assignment. |
+| `md_work_center_shift_set` | `master_id` | `work_center_id`, generated `code`, lifecycle/effectivity | Aggregate shift set owned by one Work Center. Its code is generated and read-only. |
+| `md_work_center_shift` | `assignment_id` | `work_center_id`, `shift_set_id`, `shift_id`, effectivity, active flag | Child shift mapping. The Console saves all child rows through the shift-set aggregate and rejects overlapping same-day ranges. |
 | `md_reason_code` | `master_id` | `reason_type`, `requires_comment` | Reason catalog used by changes, interruptions, and audit flows. |
 
 The hierarchy is:
@@ -192,36 +192,33 @@ The Item Revision is the ownership anchor for product structures in the current 
 is effective at a Site and carries its own base UOM. Other forms must show only Released/effective revisions when they
 consume a revision as a production definition.
 
-### 4.4 EBOM: engineering definition
+### 4.4 SAP engineering boundary
 
-| Table | Primary key | Important columns | Relationships |
-|---|---|---|---|
-| `md_ebom_header` | `master_id` | `item_revision_id`, localized identity, lifecycle/effectivity | One EBOM header belongs to exactly one output Item Revision. |
-| `md_ebom_line` | `master_id` | `ebom_header_id`, optional `parent_line_id`, `seq`, `component_revision_id`, `quantity`, `uom_id` | Header and component revision references. `parent_line_id` is retained by the current schema for historical/tree compatibility. |
-
-EBOM is engineering-only. It is not used for material explosion, resource planning, material staging, backflush,
-operation execution, substitute validation, or Work Order readiness. Production Version may store optional
-`ebom_header_id` for engineering traceability, but Work Order snapshots must not copy EBOM lines.
+SAP owns EBOM. The current MES model does not persist an EBOM header, EBOM line, SAP EBOM identifier, or an EBOM
+reference on Production Version. SAP import, immutable comparison snapshots, version mapping, reconciliation, and
+retention are deferred integration capabilities and must not be inferred from the current MES schema.
 
 ### 4.5 MBOM: manufacturing material definition
 
 | Table | Primary key | Important columns | Relationships |
 |---|---|---|---|
-| `md_mbom_header` | `master_id` | `item_revision_id`, `site_id`, `base_quantity`, `base_uom_id`, `structure_version`, lifecycle/effectivity | Manufacturing BOM owned by the output Item Revision. Site and base UOM are validated against the revision/configuration. |
+| `md_mbom_header` | `master_id` | `item_revision_id`, `base_quantity`, `base_uom_id`, `structure_version`, lifecycle/effectivity | Manufacturing BOM owned by the output Item Revision. MBOM has no Site; `structure_version` is only an optimistic-concurrency token. |
 | `md_mbom_line` | `master_id` | `mbom_header_id`, optional `parent_line_id`, `seq`, `component_revision_id`, `quantity_per`, derived `uom_id`, `issue_operation_id`, scrap/backflush/phantom/optional flags | Header -> lines; component revision -> line; optional issue Operation -> `md_operation`; optional parent line -> same MBOM line. |
-| `md_component_substitute` | `master_id` | `mbom_line_id`, `substitute_revision_id`, priority, conversion/max usage, approval/effectivity | One main MBOM line may have many substitute rows. Substitutes are manufacturing-only and remain separate from EBOM. |
+| `md_component_substitute` | `master_id` | `mbom_line_id`, `substitute_revision_id`, priority, conversion/max usage, approval/effectivity | One main MBOM line may have many manufacturing substitute rows. |
 
 The current UI treats MBOM line UOM as derived/read-only from the component Item Revision base UOM. The database
 retains `uom_id` for snapshot/validation compatibility; it must equal the authoritative component UOM after current
 normalization. `issue_operation_id` points to the reusable Operation Catalog and is resolved against a selected
 Routing Operation only when Production Version combines MBOM and Routing.
 
+MBOM has one business identity and no create-version workflow. A Released MBOM is immutable; a different manufacturing definition is created as a new MBOM with its own code. Production Version derives its execution Site from the unique Site of the selected Routing Work Centers.
+
 ### 4.6 Operation, Routing and Production Standards
 
 | Table | Primary key | Important columns | Relationships |
 |---|---|---|---|
 | `md_operation` | `master_id` | operation definition, confirmation/quantity policies, material scan/output label flags, engineering defaults, schedulable flag | Reusable Operation Catalog. Referenced by Routing Operation, MBOM issue mapping, standards, instructions, skills and resource capabilities. |
-| `md_routing_header` | `master_id` | localized identity, `business_version`, `routing_type`, optional `item_revision_id`, lifecycle/effectivity | Routing process definition. Its selected product configuration is bound through Production Version; ownership compatibility requires the same Item Revision when populated. |
+| `md_routing_header` | `master_id` | localized identity, `business_version`, `routing_type`, lifecycle/effectivity | Independent, reusable Routing process definition. It has no Item Revision ownership; product context is introduced only when Production Version combines it with an MBOM. |
 | `md_routing_operation` | `master_id` | `routing_header_id`, `operation_id`, `work_center_id`, authoritative `workstation_id`, sequence/predecessor, scheduling/planning/label fields | Routing header -> ordered operations. `operation_id -> md_operation`, `work_center_id -> md_work_center`, `workstation_id -> md_workstation`. |
 | `md_production_standard` | `master_id` | `operation_id`, `work_center_id`, optional `routing_operation_id`, optional `item_revision_id`, setup/cycle/base/yield/efficiency/labor values, lifecycle/effectivity | Generic Operation/Work Center standard, Routing-scoped standard, or Item Revision-specific standard. Resolution prefers item-specific, then Routing-scoped, then valid fallback according to the current validator. |
 | `md_work_instruction` | `master_id` | `operation_id`, instruction text, document URL | Operation instruction reference. |
@@ -244,15 +241,13 @@ execution target.
 
 | Table | Primary key | Important columns | Relationships |
 |---|---|---|---|
-| `md_production_version` | `master_id` | `item_revision_id`, `mbom_header_id`, `routing_header_id`, optional `ebom_header_id`, derived `site_id`, lot limits, default flag, lifecycle/effectivity | Configuration aggregate joining one Item Revision, one MBOM, one Routing, and optionally one EBOM baseline. |
+| `md_production_version` | `master_id` | derived `item_revision_id`, `mbom_header_id`, `routing_header_id`, derived `site_id`, lot limits, default flag, lifecycle/effectivity | Configuration aggregate created by selecting one MBOM and one independent Routing. Item Revision is copied from MBOM and Site from Routing by the backend. |
 
-Release validation requires ownership/effectivity compatibility:
+Create/update and release validation require derivation/effectivity compatibility:
 
 ```text
 ProductionVersion.item_revision_id
   = MBOM.item_revision_id
-  = Routing.item_revision_id
-  = EBOM.item_revision_id (when EBOM is selected)
 ```
 
 The Production Version is the only production configuration identity submitted by Work Order creation. Its Site is
@@ -285,9 +280,9 @@ Machine Unit, Shift, and committed allocation. These are different responsibilit
 | `md_skill_group` | `skill_group_id` | unique code, localized name, scope, lifecycle, legacy flag | Skill taxonomy. Distinct from Material Group. |
 | `md_skill` | `master_id` | `skill_group_id`, scope, minimum level, lifecycle | Skill definition. |
 | `md_operation_skill_requirement` | `master_id` | `operation_id`, `skill_id`, optional `routing_operation_id`, minimum level, persons, mandatory | Labor competency requirement for Operation/Routing Operation. |
-| `md_employee` | `master_id` | Site, default Work Center, employee status, hire date | Labor resource. |
+| `md_employee` | `master_id` | required Work Center, derived Site, employee status, hire date | Labor resource owned directly by one Work Center. Site is derived and guarded by the Work Center relationship. |
 | `md_employee_skill` | composite (`employee_id`,`skill_id`) | level, qualification, certificate/effectivity | Employee-to-Skill qualification. |
-| `md_employee_shift_schedule` | `schedule_id` | employee, shift, optional Work Center, date/status | Labor availability by shift/date. |
+| `md_employee_shift_schedule` | `schedule_id` | employee, shift, required Work Center, date/status | Work Center labor availability. Employee and Shift must both belong to that Work Center; overlapping scheduled time ranges are rejected, including overnight overlap. |
 
 ## 5. Execution database tables
 
@@ -297,7 +292,7 @@ Machine Unit, Shift, and committed allocation. These are different responsibilit
 |---|---|---|---|
 | `wo_header` | `wo_id` | unique `wo_code`, `production_version_id`, Item Revision/product identity snapshot, quantity/UOM/Site/Shift, planned dates, lifecycle status, approval fields | One Work Order is created from one Production Version. IDs and display names are immutable context snapshots, not live joins to Master Data. |
 | `wo_operation` | `wo_operation_id` | `wo_id`, sequence, Operation code/name snapshot, `routing_operation_id`, Work Center, `workstation_id`, Equipment, planning values/snapshot, status, print policy/status | One row per Routing Operation snapshot. It is the execution source after creation; later Master Data edits do not rewrite it. |
-| `wo_material_requirement` | `requirement_id` | `wo_id`, component revision/code snapshot, required quantity/UOM, issue Operation, backflush/phantom, stock status | Exploded only from authoritative MBOM selected by Production Version. EBOM is never exploded here. |
+| `wo_material_requirement` | `requirement_id` | `wo_id`, component revision/code snapshot, required quantity/UOM, issue Operation, backflush/phantom, stock status | Exploded only from the authoritative MBOM selected by Production Version. |
 | `wo_approval_log` | `log_id` | Work Order, action, actor/role/comment, approval mode/policy/allocation status, timestamp | Immutable lifecycle and approval audit. |
 | `wo_creation_workflow` | workflow ID | Work Order creation workflow state | Durable step-by-step creation progress. |
 | `wo_creation_workflow_event` | event ID | workflow, event/status/payload/timestamp | Workflow audit/event history. |
@@ -390,8 +385,6 @@ must tolerate duplicate delivery, preserve event IDs, and update projections ide
 ```mermaid
 flowchart LR
     I[md_item] --> IR[md_item_revision]
-    IR --> EB[md_ebom_header]
-    EB --> EBL[md_ebom_line]
     IR --> MB[md_mbom_header]
     MB --> MBL[md_mbom_line]
     MBL --> SUB[md_component_substitute]
@@ -403,7 +396,6 @@ flowchart LR
     IR --> PV[md_production_version]
     MB --> PV
     RH --> PV
-    EB -. optional audit baseline .-> PV
 ```
 
 ### 7.2 Production Version to Work Order
@@ -475,8 +467,6 @@ replacement and release APIs require a valid direct Workstation.
 - Item Revision owns the authoritative base UOM for that revision.
 - MBOM line UOM is derived/validated against the component revision base UOM; it is not an independent user-owned
   manufacturing UOM in the current UI.
-- EBOM line UOM is engineering line data and does not become Work Order material UOM unless separately converted by
-  the manufacturing configuration flow.
 - Work Order and execution quantities use explicit UOM snapshots and backend validation.
 
 ## 10. Referential integrity rules
@@ -487,7 +477,7 @@ legacy compatibility requirements:
 | Invariant | Enforcement |
 |---|---|
 | Item Revision belongs to Item and Site | Master Data transaction/API validation |
-| EBOM/MBOM/Routing ownership matches selected Item Revision | Production Version release validation |
+| Production Version Revision equals MBOM output Revision; Routing has no Revision ownership | Database trigger and Production Version validation |
 | MBOM issue Operation resolves exactly once in selected Routing | Production Version/WO readiness validation |
 | Routing Workstation belongs to Routing Work Center and Site | Routing replacement/release validation |
 | Workstation is active/effective | Routing validation and runtime readiness |
@@ -549,10 +539,8 @@ SELECT pv.master_id, pv.code
 FROM md_production_version pv
 JOIN md_mbom_header mb ON mb.master_id = pv.mbom_header_id
 JOIN md_routing_header rt ON rt.master_id = pv.routing_header_id
-LEFT JOIN md_ebom_header eb ON eb.master_id = pv.ebom_header_id
 WHERE pv.item_revision_id <> mb.item_revision_id
-   OR pv.item_revision_id <> rt.item_revision_id
-   OR (eb.master_id IS NOT NULL AND pv.item_revision_id <> eb.item_revision_id);
+   OR pv.item_revision_id <> rt.item_revision_id;
 
 -- One current resource allocation per Work Order Operation.
 SELECT wo_operation_id, COUNT(*)
@@ -567,9 +555,10 @@ HAVING COUNT(*) > 1;
 - Read this document together with `AI_CONTEXT.md` before changing MES schema.
 - Inspect the current migration and source before adding a field; do not guess legacy names.
 - Prefer additive forward-only migrations and compatibility windows for cross-service changes.
-- Do not introduce duplicate ownership for Item Revision, EBOM, MBOM, Routing, Production Version, Workstation, or
+- Do not introduce duplicate ownership for Item Revision, MBOM, Routing, Production Version, Workstation, or
   Work Order snapshots.
-- Do not make EBOM participate in manufacturing execution.
+- Do not add MES-owned EBOM storage or UI before the SAP import, identity, version, snapshot, reconciliation, and
+  retention contracts are approved.
 - Do not resolve a Routing Operation target by scanning legacy Workstation capability rows.
 - Do not add a second Work Order seed/reset script; extend `npm run reset:seed:mes:wo` when appropriate.
 - Update this document and `AI_CONTEXT.md` after verified schema or relationship changes.

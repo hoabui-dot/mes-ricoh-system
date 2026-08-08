@@ -100,7 +100,7 @@ async function main() {
       return pv.rows[0];
     });
 
-    const [primary, backup] = await record('production line CRUD and lifecycle API', async () => {
+    const [primary, backup] = await record('production line Draft CRUD API', async () => {
       const created = [];
       for (const suffix of ['PRIMARY', 'BACKUP']) {
         const line = (await api('/production-lines', {
@@ -115,8 +115,6 @@ async function main() {
           }),
         })).body;
         cleanup.lineIds.push(line.master_id);
-        const released = (await api(`/production-lines/${line.master_id}/release`, { method: 'POST' })).body;
-        if (released.lifecycle_status !== 'Released') throw new Error(`PRODUCTION_LINE_RELEASE_FAILED ${JSON.stringify(released)}`);
         created.push(line);
       }
       return created;
@@ -150,9 +148,20 @@ async function main() {
       return created;
     });
 
-    await record('conflicting active work center ownership is rejected', async () => {
-      const result = await api(`/production-lines/${backup.master_id}/work-centers`, { method: 'PUT', body: JSON.stringify({ work_centers: [{ work_center_id: workCenters[0].work_center_id, sequence_no: 1 }] }) }, [409]);
-      if (result.status !== 409 || result.body.error !== 'WORK_CENTER_LINE_OWNERSHIP_OVERLAP') throw new Error(`EXPECTED_OWNERSHIP_OVERLAP ${JSON.stringify(result)}`);
+    await record('production line readiness-gated release API', async () => {
+      const released = [];
+      for (const line of [primary, backup]) {
+        const value = (await api(`/production-lines/${line.master_id}/release`, { method: 'POST' })).body;
+        if (value.lifecycle_status !== 'Released') throw new Error(`PRODUCTION_LINE_RELEASE_FAILED ${JSON.stringify(value)}`);
+        released.push(value);
+      }
+      return released;
+    });
+
+    await record('shared work center topology is representable for line resource scoping', async () => {
+      const result = await api(`/production-lines/${backup.master_id}/work-centers`, { method: 'PUT', body: JSON.stringify({ work_centers: [{ work_center_id: workCenters[1].work_center_id, sequence_no: 1 }, { work_center_id: workCenters[0].work_center_id, sequence_no: 2 }] }) });
+      cleanup.lineWorkCenterIds.push(...result.body.map((row) => row.line_work_center_id));
+      if (result.body.length !== 2) throw new Error(`EXPECTED_SHARED_WORK_CENTER_TOPOLOGY ${JSON.stringify(result)}`);
       return result.body;
     });
 

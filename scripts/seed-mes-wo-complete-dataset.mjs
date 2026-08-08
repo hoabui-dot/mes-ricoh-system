@@ -117,7 +117,7 @@ async function cleanupOwned() {
   // Only the E2E fixture identified below is disposable. Shared factory
   // master data, users, roles, migrations, and historical records remain.
   const owned = {
-    routeCodes: [], routeIds: [], mbomCodes: [], mbomIds: [], ebomCodes: [], ebomIds: [], pvCodes: [], pvIds: [],
+    routeCodes: [], routeIds: [], mbomCodes: [], mbomIds: [], pvCodes: [], pvIds: [],
     itemCodes: [], itemIds: [], itemRevisionIds: [], operationIds: [],
   };
   // Only the explicitly owned E2E fixture is disposable. Shared Released
@@ -126,19 +126,16 @@ async function cleanupOwned() {
   const mboms = await master.query(`SELECT master_id, code FROM md_mbom_header WHERE code LIKE 'E2E-WO-%'`);
   const items = await master.query(`SELECT master_id, code FROM md_item WHERE code = $1`, [names.item]);
   const revisions = await master.query(`SELECT r.master_id, r.code FROM md_item_revision r JOIN md_item i ON i.master_id=r.item_id WHERE i.code = $1`, [names.item]);
-  const eboms = await master.query(`SELECT e.master_id, e.code FROM md_ebom_header e JOIN md_item_revision r ON r.master_id=e.item_revision_id JOIN md_item i ON i.master_id=r.item_id WHERE i.code = $1`, [names.item]);
   const pvs = await master.query(`SELECT pv.master_id, pv.code
     FROM md_production_version pv
     LEFT JOIN md_item_revision r ON r.master_id=pv.item_revision_id
     LEFT JOIN md_item i ON i.master_id=r.item_id
     WHERE i.code = $1
        OR pv.mbom_header_id = ANY($2::uuid[])
-       OR pv.routing_header_id = ANY($3::uuid[])
-       OR pv.ebom_header_id = ANY($4::uuid[])`, [names.item, mboms.rows.map((row) => row.master_id), routes.rows.map((row) => row.master_id), eboms.rows.map((row) => row.master_id)]);
+       OR pv.routing_header_id = ANY($3::uuid[])`, [names.item, mboms.rows.map((row) => row.master_id), routes.rows.map((row) => row.master_id)]);
   const operations = await master.query(`SELECT master_id FROM md_operation WHERE code LIKE $1`, [`${names.operationPrefix}%`]);
   owned.routeCodes = routes.rows.map((row) => row.code); owned.routeIds = routes.rows.map((row) => row.master_id);
   owned.mbomCodes = mboms.rows.map((row) => row.code); owned.mbomIds = mboms.rows.map((row) => row.master_id);
-  owned.ebomCodes = eboms.rows.map((row) => row.code); owned.ebomIds = eboms.rows.map((row) => row.master_id);
   owned.pvCodes = pvs.rows.map((row) => row.code); owned.pvIds = pvs.rows.map((row) => row.master_id);
   owned.itemCodes = items.rows.map((row) => row.code); owned.itemIds = items.rows.map((row) => row.master_id);
   owned.itemRevisionIds = revisions.rows.map((row) => row.master_id);
@@ -158,8 +155,6 @@ async function cleanupOwned() {
       ['production_versions', `DELETE FROM md_production_version WHERE master_id=ANY($1::uuid[])`, owned.pvIds],
       ['mbom_lines', `DELETE FROM md_mbom_line WHERE mbom_header_id=ANY($1::uuid[])`, mbomList],
       ['routing_operations', `DELETE FROM md_routing_operation WHERE routing_header_id=ANY($1::uuid[])`, routeList],
-      ['ebom_lines', `DELETE FROM md_ebom_line WHERE ebom_header_id=ANY($1::uuid[])`, owned.ebomIds],
-      ['ebom_headers', `DELETE FROM md_ebom_header WHERE master_id=ANY($1::uuid[])`, owned.ebomIds],
       ['component_substitutes', `DELETE FROM md_component_substitute WHERE mbom_line_id IN (SELECT master_id FROM md_mbom_line WHERE mbom_header_id=ANY($1::uuid[]))`, mbomList],
       ['revision_production_standards', `DELETE FROM md_production_standard WHERE item_revision_id=ANY($1::uuid[])`, owned.itemRevisionIds],
       ['item_revision_numbering', `DELETE FROM md_item_revision_numbering WHERE item_id=ANY($1::uuid[])`, owned.itemIds],
@@ -433,23 +428,19 @@ async function createScenario(context) {
     operations.push(released);
     await api(`/workstations/${context.workstation.master_id}/operation-capabilities`, { method: 'POST', body: JSON.stringify({ operation_id: op.master_id, cycle_time_sec: spec.cycle, setup_time_min: 5, base_quantity: 1, efficiency_factor: 1, scheduling_mode: 'Finite' }) }, [409]);
   }
-  const ebom = await data('/ebom-headers', { method: 'POST', body: JSON.stringify({ name: { vi: 'EBOM E2E WO in nhãn', en: 'E2E WO Label EBOM', ja: 'E2E WO ラベルEBOM', ko: 'E2E WO EBOM' }, description: { vi: 'Cấu trúc kỹ thuật cho kiểm thử Work Order.', en: 'Engineering structure for Work Order testing.', ja: '製造指図テスト用の技術構成。', ko: '작업지시 테스트용 엔지니어링 구성.' }, item_revision_id: revision.master_id }) });
-  await data(`/ebom-headers/${ebom.master_id}/design-tree`, { method: 'PUT', body: JSON.stringify({ lines: [{ line_key: 'E2E-WO-EBOM-L01', seq: 1, component_revision_id: component.master_id, quantity_per: 1, name: 'E2E component' }] }) });
-  await data(`/ebom-headers/${ebom.master_id}/release`, { method: 'POST', body: '{}' });
-  const routing = await data('/routing-headers', { method: 'POST', body: JSON.stringify({ name: { vi: 'Routing E2E WO in nhãn', en: 'E2E WO Label Routing', ja: 'E2E WO ラベルルーティング', ko: 'E2E WO 라우팅' }, description: { vi: 'Routing hoàn chỉnh cho kiểm thử Work Order.', en: 'Complete routing for Work Order testing.', ja: '製造指図テスト用の完全なルーティング。', ko: '작업지시 테스트용 완전한 라우팅.' }, routing_type: 'Standard', business_version: '1', item_revision_id: revision.master_id }) });
+  const routing = await data('/routing-headers', { method: 'POST', body: JSON.stringify({ name: { vi: 'Routing E2E WO in nhãn', en: 'E2E WO Label Routing', ja: 'E2E WO ラベルルーティング', ko: 'E2E WO 라우팅' }, description: { vi: 'Routing hoàn chỉnh cho kiểm thử Work Order.', en: 'Complete routing for Work Order testing.', ja: '製造指図テスト用の完全なルーティング。', ko: '작업지시 테스트용 완전한 라우팅.' }, routing_type: 'Standard', business_version: '1' }) });
   const routingOperations = await data(`/routing-headers/${routing.master_id}/operations`, { method: 'PUT', body: JSON.stringify({ operations: operations.map((op, index) => ({ operation_id: op.master_id, work_center_id: context.workCenter.master_id, workstation_id: context.workstation.master_id, seq: (index + 1) * 10, predecessor_seq: index ? index * 10 : null, scheduling_mode: 'Finite', queue_time_min: 2, move_time_min: 1, overlap_allowed: false, transfer_batch_qty: 1, milestone_flag: index === 2, planning_mode: 'ROUTING_OVERRIDE', required_workers: 1, setup_time_min: 5, cycle_time_sec: operationSpecs[index].cycle, efficiency_factor: 1, base_quantity: 1, standard_yield: 1, ...(operationSpecs[index].requires_output_label ? { units_per_label: 1, label_quantity_method: 'CEIL_BY_UNITS_PER_LABEL', copies_per_label: 1 } : {}) })) }) });
   for (const routingOperation of routingOperations) await data(`/routing-operations/${routingOperation.master_id}/release`, { method: 'POST', body: '{}' });
   const releasedRouting = await data(`/routing-headers/${routing.master_id}/release`, { method: 'POST', body: '{}' });
-  const mbom = await data('/mbom-headers', { method: 'POST', body: JSON.stringify({ code: names.mbom, name: { vi: 'MBOM E2E WO in nhãn', en: 'E2E WO Label MBOM', ja: 'E2E WO ラベルMBOM', ko: 'E2E WO MBOM' }, site_id: context.site.master_id, item_revision_id: revision.master_id, base_quantity: 1, base_uom_id: context.pcs.master_id, purpose: 'Standard', business_version: '1' }) });
+  const mbom = await data('/mbom-headers', { method: 'POST', body: JSON.stringify({ code: names.mbom, name: { vi: 'MBOM E2E WO in nhãn', en: 'E2E WO Label MBOM', ja: 'E2E WO ラベルMBOM', ko: 'E2E WO MBOM' }, item_revision_id: revision.master_id, base_quantity: 1, base_uom_id: context.pcs.master_id, purpose: 'Standard', business_version: '1' }) });
   await data('/mbom-lines', { method: 'POST', body: JSON.stringify({ code: 'E2E-WO-MBOM-L01', name: 'E2E metal component', mbom_header_id: mbom.master_id, seq: 10, component_revision_id: component.master_id, quantity_per: 1, uom_id: context.pcs.master_id, scrap_rate: 0, issue_operation_id: operations[0].master_id, backflush_flag: false, phantom_flag: false }) });
   await data(`/mbom-headers/${mbom.master_id}/release`, { method: 'POST', body: '{}' });
-  const pv = await data('/production-versions', { method: 'POST', body: JSON.stringify({ name_i18n: { vi: names.pvNameVi, en: 'E2E WO Label Production Version', ja: 'E2E WO ラベル生産バージョン', ko: 'E2E WO 라벨 생산 버전' }, item_revision_id: revision.master_id, ebom_header_id: ebom.master_id, mbom_header_id: mbom.master_id, routing_header_id: routing.master_id, min_lot_size: 1, max_lot_size: 100, is_default: false }) });
+  const pv = await data('/production-versions', { method: 'POST', body: JSON.stringify({ name_i18n: { vi: names.pvNameVi, en: 'E2E WO Label Production Version', ja: 'E2E WO ラベル生産バージョン', ko: 'E2E WO 라벨 생산 버전' }, mbom_header_id: mbom.master_id, routing_header_id: routing.master_id, min_lot_size: 1, max_lot_size: 100, is_default: false }) });
   const releasedItem = { ...item, lifecycle_status: 'Released', revision: { ...revision, lifecycle_status: 'Released' } };
   const releasedRevision = { ...revision, lifecycle_status: 'Released' };
-  const releasedEbom = { ...ebom, lifecycle_status: 'Released' };
   const releasedMbom = { ...mbom, lifecycle_status: 'Released' };
   const releasedRoutingManifest = { ...releasedRouting, lifecycle_status: 'Released' };
-  return { item: releasedItem, revision: releasedRevision, component, operations, ebom: releasedEbom, routing: releasedRoutingManifest, mbom: releasedMbom, production_version: { ...pv, lifecycle_status: 'Draft' }, production_line: context.productionLine, workstation: context.workstation, work_center: context.workCenter, site: context.site, uom: context.pcs };
+  return { item: releasedItem, revision: releasedRevision, component, operations, routing: releasedRoutingManifest, mbom: releasedMbom, production_version: { ...pv, lifecycle_status: 'Draft' }, production_line: context.productionLine, workstation: context.workstation, work_center: context.workCenter, site: context.site, uom: context.pcs };
 }
 
 async function releaseScenarioProductionVersion(manifest, targetDate) {
@@ -495,7 +486,7 @@ async function rebuildOwnedReadModel(manifest, targetDate) {
   await execution.query('BEGIN');
   try {
     await execution.query(`INSERT INTO rm_item_revision (master_id, code, name, revision_code, item_type, site_id, base_uom_id, lifecycle_status, updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,revision_code=EXCLUDED.revision_code,item_type=EXCLUDED.item_type,site_id=EXCLUDED.site_id,base_uom_id=EXCLUDED.base_uom_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [revision.master_id, revision.code, JSON.stringify(revision.name), revision.revision_code, 'FG', revision.site_id, revision.base_uom_id, revision.lifecycle_status]);
-    await execution.query(`INSERT INTO rm_mbom_header (master_id, code, name, site_id, base_quantity, base_uom_id, lifecycle_status, updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,site_id=EXCLUDED.site_id,base_quantity=EXCLUDED.base_quantity,base_uom_id=EXCLUDED.base_uom_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [mbom.master_id, mbom.code, JSON.stringify(mbom.name), mbom.site_id, mbom.base_quantity, mbom.base_uom_id, mbom.lifecycle_status]);
+    await execution.query(`INSERT INTO rm_mbom_header (master_id, code, name, base_quantity, base_uom_id, lifecycle_status, updated_at) VALUES ($1,$2,$3::jsonb,$4,$5,$6,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,name=EXCLUDED.name,base_quantity=EXCLUDED.base_quantity,base_uom_id=EXCLUDED.base_uom_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [mbom.master_id, mbom.code, JSON.stringify(mbom.name), mbom.base_quantity, mbom.base_uom_id, mbom.lifecycle_status]);
     await execution.query(`DELETE FROM rm_mbom_line WHERE mbom_header_id=$1`, [mbom.master_id]);
     for (const line of mbomLines) await execution.query(`INSERT INTO rm_mbom_line (master_id,mbom_header_id,parent_line_id,seq,component_revision_id,component_item_code,quantity_per,uom_id,scrap_rate,issue_operation_id,backflush_flag,phantom_flag) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, [line.master_id, line.mbom_header_id, line.parent_line_id, line.seq, line.component_revision_id, line.component_item_code, line.quantity_per, line.uom_id, line.scrap_rate, line.issue_operation_id, line.backflush_flag, line.phantom_flag]);
     await execution.query(`INSERT INTO rm_routing_header (master_id,code,item_revision_id,site_id,lifecycle_status,updated_at) VALUES ($1,$2,NULL,$3,$4,NOW()) ON CONFLICT (master_id) DO UPDATE SET code=EXCLUDED.code,site_id=EXCLUDED.site_id,lifecycle_status=EXCLUDED.lifecycle_status,updated_at=NOW()`, [routing.master_id, routing.code, contextSiteId(manifest), routing.lifecycle_status]);
@@ -530,25 +521,21 @@ async function verifySeededMasterData(manifest) {
   const result = await master.query(`
     SELECT pv.master_id AS production_version_id, pv.code AS production_version_code,
            pv.lifecycle_status AS production_version_status, pv.item_revision_id,
-           pv.ebom_header_id, pv.mbom_header_id, pv.routing_header_id,
+           pv.mbom_header_id, pv.routing_header_id,
            ir.lifecycle_status AS revision_status, i.lifecycle_status AS item_status,
-           eb.lifecycle_status AS ebom_status, eb.item_revision_id AS ebom_revision_id,
            mb.lifecycle_status AS mbom_status, mb.item_revision_id AS mbom_revision_id,
-           rh.lifecycle_status AS routing_status, rh.item_revision_id AS routing_revision_id,
+           rh.lifecycle_status AS routing_status,
            COUNT(DISTINCT ro.master_id)::int AS routing_operation_count,
-           COUNT(DISTINCT ml.master_id)::int AS mbom_line_count,
-           COUNT(DISTINCT el.master_id)::int AS ebom_line_count
+           COUNT(DISTINCT ml.master_id)::int AS mbom_line_count
     FROM md_production_version pv
     JOIN md_item_revision ir ON ir.master_id = pv.item_revision_id
     JOIN md_item i ON i.master_id = ir.item_id
-    LEFT JOIN md_ebom_header eb ON eb.master_id = pv.ebom_header_id
     JOIN md_mbom_header mb ON mb.master_id = pv.mbom_header_id
     JOIN md_routing_header rh ON rh.master_id = pv.routing_header_id
     LEFT JOIN md_routing_operation ro ON ro.routing_header_id = rh.master_id AND ro.effective_to IS NULL AND ro.lifecycle_status = 'Released'
     LEFT JOIN md_mbom_line ml ON ml.mbom_header_id = mb.master_id AND ml.effective_to IS NULL AND ml.lifecycle_status = 'Released'
-    LEFT JOIN md_ebom_line el ON el.ebom_header_id = eb.master_id AND el.effective_to IS NULL AND el.lifecycle_status = 'Released'
     WHERE pv.master_id = $1
-    GROUP BY pv.master_id, ir.master_id, i.master_id, eb.master_id, mb.master_id, rh.master_id
+    GROUP BY pv.master_id, ir.master_id, i.master_id, mb.master_id, rh.master_id
   `, [manifest.production_version.master_id]);
   const row = result.rows[0];
   const issues = [];
@@ -556,11 +543,10 @@ async function verifySeededMasterData(manifest) {
   else {
     if (row.production_version_status !== 'Released') issues.push('PRODUCTION_VERSION_NOT_RELEASED');
     if (row.item_status !== 'Released' || row.revision_status !== 'Released') issues.push('OUTPUT_ITEM_OR_REVISION_NOT_RELEASED');
-    if (!row.ebom_header_id || row.ebom_status !== 'Released' || String(row.ebom_revision_id) !== String(row.item_revision_id)) issues.push('EBOM_OWNERSHIP_OR_LIFECYCLE_INVALID');
     if (row.mbom_status !== 'Released' || String(row.mbom_revision_id) !== String(row.item_revision_id)) issues.push('MBOM_OWNERSHIP_OR_LIFECYCLE_INVALID');
-    if (row.routing_status !== 'Released' || String(row.routing_revision_id) !== String(row.item_revision_id)) issues.push('ROUTING_OWNERSHIP_OR_LIFECYCLE_INVALID');
+    if (row.routing_status !== 'Released') issues.push('ROUTING_LIFECYCLE_INVALID');
     if (Number(row.routing_operation_count) !== manifest.operations.length) issues.push('ROUTING_OPERATION_COUNT_INVALID');
-    if (Number(row.mbom_line_count) !== 1 || Number(row.ebom_line_count) !== 1) issues.push('STRUCTURE_LINE_COUNT_INVALID');
+    if (Number(row.mbom_line_count) !== 1) issues.push('STRUCTURE_LINE_COUNT_INVALID');
   }
   const issueMapping = await master.query(`
     SELECT ml.code AS mbom_line_code, ml.issue_operation_id, COUNT(ro.master_id)::int AS matching_routing_operations

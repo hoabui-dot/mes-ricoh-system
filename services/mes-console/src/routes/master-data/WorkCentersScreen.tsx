@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Factory, Pencil, Plus, RefreshCw, Users, X } from 'lucide-react';
+import { Factory, Pencil, Plus, RefreshCw, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundaryCard } from '../../components/ErrorBoundaryCard';
@@ -7,7 +7,8 @@ import { authHeaders, fetchResource, masterDataBaseUrl, postResource, putResourc
 import { useI18n, useLocalizedText } from '@mom-platform/i18n-ui-shared';
 import { LocalizedTextInput } from '../../components/LocalizedTextInput';
 import { translatedEnum } from '../../lib/i18nLabels';
-import { SelectBase } from '../../components/ui';
+import { Button, SelectBase } from '../../components/ui';
+import { BaseModal } from '../../components/base';
 
 type ModalMode = 'create' | 'edit';
 
@@ -178,11 +179,8 @@ export const WorkCentersScreen: React.FC = () => {
         </table>
       </div>
 
-      {modal && (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-6 z-50">
-          <form onSubmit={save} className="flex max-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900 shadow-2xl">
-            <h3 className="shrink-0 border-b border-slate-800 px-6 py-4 font-bold text-lg">{modal.mode === 'edit' ? t('workCenters.edit') : t('workCenters.create')}</h3>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
+      <BaseModal open={Boolean(modal)} title={modal?.mode === 'edit' ? t('workCenters.edit') : t('workCenters.create')} onClose={() => setModal(null)} size="xl" placement="center" footerLeft={<Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('common.cancel')}</Button>} footer={<Button type="submit" form="work-center-form">{t('common.save')}</Button>}>
+          {modal ? <form id="work-center-form" onSubmit={save} className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <input readOnly required value={form.code} placeholder={t('common.code')} className="bg-slate-950 border border-slate-800 rounded-lg p-3 font-mono text-amber-200" />
               <LocalizedTextInput required label={t('common.name')} value={form.name} onChange={(name) => setForm({ ...form, name })} />
@@ -193,17 +191,12 @@ export const WorkCentersScreen: React.FC = () => {
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active_flag} onChange={(e) => setForm({ ...form, active_flag: e.target.checked })} /> {form.active_flag ? t('common.active') : t('common.inactive')}</label>
             </div>
             <div className="rounded-md border border-border bg-surface-subtle p-4 text-sm text-muted-foreground">{t('workCenters.resourcePlanningHelp')}</div>
-            </div>
-            <div className="flex shrink-0 justify-end gap-3 border-t border-slate-800 bg-slate-900 px-6 py-4"><button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-slate-800 rounded-lg">{t('common.cancel')}</button><button className="px-5 py-2 bg-action rounded-lg font-semibold">{t('common.save')}</button></div>
-          </form>
-        </div>
-      )}
+          </form> : null}
+      </BaseModal>
 
-      {detail && (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-6 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg w-full max-w-3xl">
-            <div className="flex justify-between items-center p-5 border-b border-slate-800"><div><h3 className="font-bold">{detail.code} - {text(detail.name)}</h3><p className="text-xs text-slate-400">{t('workCenters.detailTitle')}</p></div><button onClick={() => setDetail(null)}><X className="w-5 h-5" /></button></div>
-            <div className="p-5 space-y-4">
+      <BaseModal open={Boolean(detail)} title={detail ? `${detail.code} - ${text(detail.name)}` : t('workCenters.detailTitle')} onClose={() => setDetail(null)} size="lg" placement="center">
+          {detail ? <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">{t('workCenters.detailTitle')}</p>
               <div className="inline-flex bg-slate-950 border border-slate-800 rounded-lg p-1">
                 {([['all', t('workCenters.filter.all')], ['on', t('workCenters.filter.on')], ['off', t('workCenters.filter.off')]] as const).map(([key, label]) => <button key={key} onClick={() => setDetailFilter(key)} className={`px-3 py-1.5 rounded-md text-sm ${detailFilter === key ? 'bg-action text-white' : 'text-slate-400'}`}>{label}</button>)}
               </div>
@@ -223,10 +216,8 @@ export const WorkCentersScreen: React.FC = () => {
                 {detailRows.map((row) => <div key={row.employee_id} className="flex items-center justify-between px-4 py-3"><div><div className="font-mono text-cyan-300">{row.employee_code}</div><div className="text-sm text-slate-200">{row.employee_name}</div></div><span className={`px-2.5 py-1 rounded-full text-xs ${row.on ? 'bg-emerald-950 text-amber-200 border border-emerald-800' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>{row.state}</span></div>)}
                 {detailRows.length === 0 && <div className="p-6 text-center text-slate-500">{t('workCenters.noMatchingEmployees')}</div>}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+          </div> : null}
+      </BaseModal>
     </div>
   );
 };

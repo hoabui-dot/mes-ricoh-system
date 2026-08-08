@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { BookOpen, Info, ListChecks, X, type LucideIcon } from 'lucide-react';
+import { BookOpen, Info, ListChecks, type LucideIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useI18n, type SupportedLocale } from '@mom-platform/i18n-ui-shared';
-import { Button, Card } from './ui';
+import { Button } from './ui';
+import { BaseModal } from './base';
 
 type Localized = Record<SupportedLocale, string>;
 type Detail = {
@@ -81,7 +82,7 @@ const details: Array<{ match: RegExp; detail: Detail }> = [
         l('Sau khi tạo, mở chi tiết WO để Compute & Check, kiểm tra capacity/WMS stock, rồi chuyển sang phê duyệt.', 'Open the WO detail for Compute & Check, review capacity/WMS stock, then send it for approval.', '作成後にWO詳細でCompute & Checkを実行し、能力とWMS在庫を確認して承認します。', '생성 후 WO 상세에서 Compute & Check를 실행하고 능력과 WMS 재고를 확인한 뒤 승인합니다.'),
       ],
       data: [
-        l('Item Revision liên kết tới Item, MBOM, Routing, Production Version và UOM; số lượng tạo ra nhu cầu nguyên liệu theo định mức.', 'The Item Revision links the Item, MBOM, Routing, Production Version, and UOM; quantity drives material demand from the BOM.', 'Item RevisionはItem、MBOM、Routing、Production Version、UOMを結び、数量からBOM需要を計算します。', 'Item Revision은 Item, MBOM, Routing, Production Version, UOM을 연결하며 수량으로 BOM 소요량을 계산합니다.'),
+        l('Item Revision liên kết tới Item và MBOM; Production Version ghép MBOM với Routing độc lập để tạo nhu cầu nguyên liệu và công đoạn.', 'The Item Revision links the Item and MBOM; Production Version combines that MBOM with an independent Routing to create material and operation demand.', 'Item RevisionはItemとMBOMを結び、Production VersionがそのMBOMと独立したRoutingを組み合わせて材料・工程需要を生成します。', 'Item Revision은 Item과 MBOM을 연결하며 Production Version은 해당 MBOM과 독립 Routing을 결합해 자재 및 공정 소요를 생성합니다.'),
         l('WorkCenter, Equipment, Employee và Skill không được gán thủ công trong form này; chúng được kiểm tra qua readiness/capacity theo Routing và Production Standard.', 'WorkCenter, Equipment, Employee, and Skill are not manually assigned in this form; readiness/capacity checks resolve them from Routing and Production Standards.', 'このフォームでWorkCenter、設備、従業員、スキルを手動割当せず、RoutingとProduction Standardから準備/能力を確認します。', '이 폼에서 WorkCenter, 설비, 직원, 스킬을 직접 지정하지 않고 Routing과 Production Standard에서 준비/능력을 확인합니다.'),
         l('WMS không được gọi để tạo WO Draft; tồn kho được kiểm tra ở Compute & Check và material staging diễn ra khi execution yêu cầu.', 'WMS is not called to create the WO Draft; stock is checked during Compute & Check and staged when execution requests material.', 'WO Draft作成時にWMSを呼び出さず、Compute & Checkで在庫を確認し、実行時に資材をステージします。', 'WO Draft 생성 시 WMS를 호출하지 않으며 Compute & Check에서 재고를 확인하고 실행 시 자재를 스테이징합니다.'),
       ],
@@ -225,17 +226,8 @@ export function PageDetailButton() {
       <Button size="sm" variant="outline" className="bg-card text-foreground" onClick={() => setOpen(true)}>
         <Info className="h-4 w-4" />{text(l('Chi tiết trang', 'Page details', '画面詳細', '화면 상세'), locale)}
       </Button>
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true">
-          <Card className="max-h-[88vh] w-full max-w-5xl overflow-hidden p-0">
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-5">
-              <div>
-                <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground"><BookOpen className="h-5 w-5 text-action" />{text(l('Hướng dẫn trang', 'Page guide', '画面ガイド', '페이지 가이드'), locale)}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{text(detail.title, locale)}</p>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-foreground">{text(detail.summary, locale)}</p>
-              </div>
-              <Button size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label={text(l('Đóng', 'Close', '閉じる', '닫기'), locale)}><X className="h-4 w-4" /></Button>
-            </div>
+      <BaseModal open={open} title={<span className="flex items-center gap-3"><BookOpen className="h-5 w-5 text-action" />{text(l('Hướng dẫn trang', 'Page guide', '画面ガイド', '페이지 가이드'), locale)}</span>} onClose={() => setOpen(false)} size="xl" placement="center" contentClassName="p-0">
+            <div className="border-b border-border px-6 py-5"><p className="text-sm text-muted-foreground">{text(detail.title, locale)}</p><p className="mt-3 max-w-3xl text-sm leading-6 text-foreground">{text(detail.summary, locale)}</p></div>
             <div className="grid max-h-[calc(88vh-150px)] overflow-y-auto lg:grid-cols-[190px_minmax(0,1fr)]">
               <nav className="border-b border-border bg-muted/20 p-5 lg:border-b-0 lg:border-r" aria-label={text(l('Mục lục hướng dẫn', 'Guide navigation', 'ガイドナビゲーション', '가이드 탐색'), locale)}>
                 <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">MES Console</p>
@@ -247,9 +239,7 @@ export function PageDetailButton() {
                 <div id="guide-context">{detail.process ? <ProcessSection steps={detail.process} locale={locale} /> : <Section icon={ListChecks} title={l('Giải thích trang', 'Understanding this page', '画面の説明', '페이지 설명')} items={[...detail.data, ...detail.statuses, ...detail.notes]} locale={locale} />}</div>
               </div>
             </div>
-          </Card>
-        </div>
-      ) : null}
+      </BaseModal>
     </>
   );
 }

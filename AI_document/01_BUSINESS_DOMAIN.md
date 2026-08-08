@@ -6,12 +6,10 @@ The business manufactures rubber and rubber-metal products. The manufacturing li
 
 ```mermaid
 flowchart LR
-  Item[Item + Revision] --> EBOM[EBOM optional baseline]
   Item --> MBOM[MBOM]
   Item --> Routing[Routing]
   MBOM --> PV[Production Version]
   Routing --> PV
-  EBOM -.optional.-> PV
   PV --> WO[Work Order]
   WO --> Plan[Compute & Check]
   Plan --> Allocate[Resource Allocation]
@@ -42,7 +40,7 @@ Business rule: Work Center is the logical routing location. Workstation is the e
 
 `md_item` owns the stable product identity. `md_item_revision` owns engineering version, site scope, base UOM, lifecycle, and effectivity. Released revisions are not edited in place when referenced; new versions preserve production history.
 
-EBOM is engineering structure. MBOM is manufacturing material structure. Routing is process structure. Production Version is the only valid production configuration selected by a Work Order.
+SAP owns EBOM when an engineering structure exists. MES currently does not persist, edit, import, or compare EBOM data. MBOM is the manufacturing material structure, Routing is the process structure, and Production Version is the only valid production configuration selected by a Work Order.
 
 ## Material Lifecycle
 

@@ -5,6 +5,10 @@ System: MES Console and MES execution/master-data services
 Certification ID: WO-CERT-001  
 Run ID: WO-CERT-001-20260802194145
 
+> Ownership correction (2026-08-07): SAP owns EBOM. The EBOM route, API, schema, seed data, and Production Version
+> reference described by this historical certification were removed from MES by migration
+> `0070_remove_mes_owned_ebom_domain`. EBOM evidence below is superseded and is not part of current MES UAT scope.
+
 ## 1. Final Result
 
 Track B, the canonical seed and ready-to-run Work Order flow, passed end to end.
@@ -124,7 +128,10 @@ M: Incomplete; page family contributes to the 120 documented use-case slots.
 
 Route: /work-orders/new  
 Scope: A-M. The supported creation workflow selects a released Production
-Version, quantity, target date, and shift and uses an idempotency key. Backend
+Version, quantity, and target date and uses an idempotency key. The user does
+not select a shift. MES resolves an applicable shift from released resource
+calendars on eligible Production Lines, verifies complete-line feasibility,
+and snapshots the selected shift for downstream allocation. Backend
 validation and workflow polling are covered by certification. Dedicated UI
 matrix evidence for invalid combinations, duplicate submit, retry, all locales,
 and keyboard/modal behavior is incomplete.  
@@ -172,14 +179,6 @@ Route: /master-data/material-groups
 Scope: A-M. Material-group data is represented in the master-data contract.
 Dedicated page CRUD, duplicate, lifecycle, error, locale, and accessibility
 evidence is incomplete.  
-M: Incomplete.
-
-### 6.8 EBOMs
-
-Route: /master-data/eboms  
-Scope: A-M. EBOM structures are available to product-definition flows.
-Dedicated versioning, component validation, duplicate, save/retry, and UI
-state evidence is incomplete.  
 M: Incomplete.
 
 ### 6.9 MBOMs
@@ -326,7 +325,8 @@ M: Incomplete.
 ### 6.27 Shifts
 
 Route: /shifts  
-Scope: A-M. SHIFT-A is active, site-scoped, and selected by WO-CERT-001.
+Scope: A-M. SHIFT-A is active, site-scoped, and resolved by MES for WO-CERT-001
+from the target-date resource calendars; it is not selected on the WO form.
 Dedicated overlap, inactive-shift, timezone, and page-level UI evidence is
 incomplete.  
 M: Incomplete.
@@ -371,7 +371,7 @@ The canonical dataset must contain:
 - Four WST operations with routing and MBOM relationships.
 - Three worker skills and four employees.
 - Traceability policies and schedules.
-- Item, revision, EBOM/MBOM, routing, and released Production Version.
+- Item, revision, MBOM, routing, and released Production Version.
 - Production Version WST-SEED-PV-SEAL-ASM-01.
 - Canonical MES-side Print Station PS-CANONICAL-01.
 - Zero Work Orders after certification cleanup.

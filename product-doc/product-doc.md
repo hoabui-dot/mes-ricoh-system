@@ -117,7 +117,7 @@ A WO is valid only when the following are available and released/effective where
 2. Item and Item Revision.
 3. MBOM Header, MBOM Lines, and Substitute definitions when used.
 4. Routing Header and Routing Operations.
-5. Production Version is the only association linking the independent Item Revision + MBOM + Routing entities.
+5. Production Version is the only association combining an Item Revision-owned MBOM with an independent Routing.
 6. WorkCenter, Workstation, Equipment, Resource Assignment, Resource Capability, Resource Calendar.
 7. Production Standard and Work Instruction.
 8. Skill definitions and operation skill requirements.
@@ -371,18 +371,9 @@ For future AI work, read in this order:
 If this overview conflicts with source code, inspect source code and implementation records before
 making changes.
 
-## EBOM Implementation Note (2026-07-26)
+## EBOM Ownership Correction (2026-08-07)
 
-The current demo implementation treats EBOM as a separate engineering design structure owned by MES Master
-Data. An EBOM header targets one Item Revision and receives a backend-generated code. Its lines form a
-hierarchical tree with parent line, sequence, component revision, quantity per, UOM, reference designator,
-note, and phantom-design metadata. Draft saves replace the complete current tree transactionally; inactive
-historical lines remain available for audit. Released EBOMs are immutable and can be converted into a new
-MBOM draft with source-line traceability without changing the EBOM. The UI uses localized names, business
-codes, current line counts, hierarchy controls, release/convert confirmations, and VI/EN/JA/KO field help.
-The process-level contract and verification evidence are in
-`process-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md` and
-`implementation-fix/Audit-and-Redesign-the-Complete-EBOM-CRUD-Flow.md`.
+EBOM is owned by SAP when available. MES currently has no EBOM tables, CRUD API, Console route, Production Version reference, seed data, or Work Order dependency. The future mechanism for receiving an SAP EBOM and retaining a comparison snapshot is explicitly deferred until its integration, identity, versioning, retention, and reconciliation contracts are approved. MES MBOM must not be presented as EBOM and remains the sole material authority for Work Order explosion.
 
 ## Operation Planning Ownership
 
@@ -401,15 +392,13 @@ Operation/Work Center resolution and `ROUTING_OVERRIDE` only for an explicit
 Routing-specific standard. See
 `implementation-expand/correct-planning-value-inheritance-operation-workstation-routing-work-order.md`.
 
-## Item Revision, EBOM, MBOM, Routing and Production Version (2026-07-30)
+## Item Revision, MBOM, Routing and Production Version (2026-08-07)
 
-The authoritative graph is `Item -> Item Revision -> EBOM + MBOM + Routing -> Production Version -> Work Order`. EBOM, MBOM, and Routing are sibling aggregates owned by one output Item Revision through `item_revision_id`; they are not arbitrary independent structures. New structures require an FG/SFG output revision, and Released ownership is immutable.
+The authoritative MES graph is `Item -> Item Revision -> MBOM -> Production Version -> Work Order`, with an independent `Routing -> Production Version` branch. MBOM belongs to one FG/SFG output Item Revision through `item_revision_id`; Routing has no product ownership. Released MBOM ownership is immutable.
 
-EBOM is engineering-only: hierarchy, component revisions, quantity, UOM, sequence, and design metadata. It is not used for material explosion, WMS staging, capacity planning, substitutes, issue operations, scrap, phantom, Production Standards, backflush, execution, or Work Order readiness. MBOM remains the manufacturing structure and owns quantity/UOM, scrap, phantom, issue operation, backflush, optional and substitute policies. Routing owns process order, dependencies and resource capabilities. EBOM-to-MBOM conversion creates a new Draft MBOM with the same owner and traceability; it does not synchronize automatically.
+MBOM owns output Item Revision, manufacturing quantity/UOM, scrap, phantom, issue operation, backflush, optional and substitute policies. Routing owns process order, dependencies and resource capabilities. Production Version creation selects MBOM and Routing; the backend derives Item Revision from MBOM, derives Site from Routing, validates their Site compatibility, and owns Production Line eligibility. Work Order execution snapshots the resulting configuration.
 
-Production Version is the authoritative Work Order configuration and validates that Item Revision, MBOM, and Routing ownership match. It may optionally reference `ebom_header_id` as the engineering baseline for audit. If present, the EBOM owner must match the same Item Revision. Work Order execution uses only the selected MBOM and Routing; EBOM is retained for traceability and is never copied into material requirements.
-
-Migrations `0048_mbom_structure_and_substitute_controls` and `0049_reconcile_released_mbom_line_lifecycle` preserve MBOM policy and history. Migration `0054_restore_item_revision_ownership_and_audit_ambiguity` adds deterministic ownership backfill, shared-structure cloning, and an audit table; ambiguous/unreferenced legacy structures are never guessed. Migration `0055_optional_production_version_ebom_baseline` adds the optional engineering baseline reference. Full audit and runtime evidence are recorded in the single consolidated report `implementation-fix/item-revision-ebom-mbom-routing-production-version-work-order-flow-20260730.md`.
+Migration `0070_remove_mes_owned_ebom_domain` removes the former optional EBOM baseline and MES-owned EBOM tables after dropping their references. Historical migrations remain in the chain for forward upgrade compatibility.
 
 ## Item Revision Effective Date-Time Contract (2026-07-30)
 

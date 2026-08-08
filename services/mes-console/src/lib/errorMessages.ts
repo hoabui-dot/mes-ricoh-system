@@ -11,6 +11,7 @@ const workOrderErrorKeys: Record<string, string> = {
   WO_ALLOCATION_VERSION_CONFLICT: 'workOrders.errors.allocationVersionConflict',
   WO_OPERATION_ALLOCATION_MISSING: 'workOrders.errors.operationAllocationMissing',
   SHIFT_REQUIRED: 'workOrders.errors.shiftRequired',
+  WORK_ORDER_SHIFT_NOT_RESOLVED: 'workOrders.errors.shiftNotResolved',
   WO_PLANNING_SNAPSHOT_INCOMPLETE: 'workOrders.errors.planningSnapshotIncomplete',
   WO_PLANNING_SNAPSHOT_INVALID: 'workOrders.errors.planningSnapshotInvalid',
   SQL_SCAN_FAILED: 'workOrders.errors.sqlScanFailed',
@@ -38,6 +39,7 @@ const workOrderErrorKeys: Record<string, string> = {
   CALENDAR_UNAVAILABLE: 'workOrders.errors.calendarUnavailable',
   CALENDAR_HOLIDAY: 'workOrders.errors.calendarHoliday',
   RESOURCE_PLANNED_DOWN: 'workOrders.errors.resourcePlannedDown',
+  RESOURCE_DOWNTIME: 'workOrders.errors.resourcePlannedDown',
   WORKSTATION_INACTIVE: 'workOrders.errors.workstationInactive',
   EQUIPMENT_NOT_AVAILABLE: 'workOrders.errors.equipmentNotAvailable',
   EQUIPMENT_OUT_OF_SERVICE: 'workOrders.errors.equipmentOutOfService',
@@ -104,4 +106,37 @@ export function translateMbomError(raw: unknown, t: Translator): string {
     return translated === `mbom.errors.${code}` ? value : translated;
   }
   return value;
+}
+
+export function translateMbomValidationDetail(detail: unknown, t: Translator): string {
+  if (typeof detail === 'string') return detail;
+  if (!detail || typeof detail !== 'object') return String(detail || '');
+  const value = detail as Record<string, unknown>;
+  const code = String(value.code || '');
+  if (code === 'MBOM_SUBSTITUTE_ITEM_GROUP_MISMATCH') {
+    return t(`mbom.validation.${code}`, {
+      component: String(value.component_item_code || '-'),
+      substitute: String(value.substitute_item_code || '-'),
+      expected: String(value.expected_group || '-'),
+      actual: String(value.actual_group || '-'),
+    });
+  }
+  if (code === 'MBOM_SUBSTITUTE_UOM_CONVERSION_MISSING') {
+    return t(`mbom.validation.${code}`, {
+      component: String(value.component_uom_code || '-'),
+      substitute: String(value.substitute_uom_code || '-'),
+      componentClass: String(value.component_uom_class || '-'),
+      substituteClass: String(value.substitute_uom_class || '-'),
+    });
+  }
+  if (code === 'MBOM_SUBSTITUTE_REVISION_INVALID') {
+    return t(`mbom.validation.${code}_DETAIL`, {
+      reason: String(value.reason || 'NOT_RELEASED'),
+      status: String(value.lifecycle_status || '-'),
+      revision: String(value.revision_code || '-'),
+    });
+  }
+  if (code === 'UOM_DECIMAL_PRECISION_EXCEEDED' || code === 'UOM_FRACTION_NOT_ALLOWED') return t(`mbom.validation.${code}`);
+  const translated = code ? translateMbomError(code, t) : String(value.message || code || detail);
+  return value.path ? `${translated} (${String(value.path)})` : translated;
 }

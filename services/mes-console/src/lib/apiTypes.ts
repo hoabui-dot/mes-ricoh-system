@@ -46,8 +46,6 @@ export type ProductionVersionRow = MasterDataRow & {
   routing_header_id?: string;
   routing_code?: string;
   routing_name?: LocalizedText | string;
-  ebom_code?: string;
-  ebom_name?: LocalizedText | string;
   site_id?: string;
   site_code?: string;
   line_eligibility_count?: number;
@@ -86,6 +84,24 @@ export type ProductionVersionReadinessPreview = {
   production_version_id: string;
   effective_at: string;
   lines: ProductionVersionReadinessLine[];
+};
+
+export type ProductionLineEligibilityCandidate = {
+  production_line_id: string;
+  production_line_code: string;
+  production_line_name?: LocalizedText | string;
+  site_id: string;
+  lifecycle_status: string;
+  eligible: boolean;
+  blockers: BackendBlocker[];
+  operations: Array<Record<string, unknown>>;
+};
+
+export type ProductionLineEligibilityCandidatePreview = {
+  routing_header_id: string;
+  site_id: string;
+  effective_at: string;
+  candidates: ProductionLineEligibilityCandidate[];
 };
 
 export type ItemRow = MasterDataRow & {

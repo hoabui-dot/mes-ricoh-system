@@ -3182,6 +3182,479 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
       END; $$;
     `,
   },
+  {
+    name: '0068_decouple_mbom_from_site',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_mbom_legacy_site_audit (
+        mbom_id UUID PRIMARY KEY,
+        legacy_site_id UUID,
+        captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        reason TEXT NOT NULL DEFAULT 'MBOM_SITE_OWNERSHIP_REMOVED'
+      );
+      INSERT INTO md_mbom_legacy_site_audit (mbom_id, legacy_site_id)
+      SELECT master_id, site_id FROM md_mbom_header
+      WHERE site_id IS NOT NULL
+      ON CONFLICT (mbom_id) DO NOTHING;
+
+      CREATE OR REPLACE FUNCTION sync_production_version_site_from_routing()
+      RETURNS TRIGGER AS $fn$
+      DECLARE routing_site UUID;
+      DECLARE routing_site_count INTEGER;
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM md_mbom_header
+          WHERE master_id = NEW.mbom_header_id AND lifecycle_status = 'Released'
+            AND effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())
+        ) THEN
+          RAISE EXCEPTION 'Production Version requires a Released effective MBOM';
+        END IF;
+        SELECT COUNT(DISTINCT wc.site_id), MIN(wc.site_id::text)::uuid
+          INTO routing_site_count, routing_site
+        FROM md_routing_operation ro
+        JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+        WHERE ro.routing_header_id = NEW.routing_header_id
+          AND ro.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND ro.effective_from <= NOW() AND (ro.effective_to IS NULL OR ro.effective_to > NOW());
+        IF routing_site IS NULL OR routing_site_count <> 1 THEN
+          RAISE EXCEPTION 'Production Version requires a Routing with exactly one Work Center Site';
+        END IF;
+        NEW.site_id := routing_site;
+        RETURN NEW;
+      END;
+      $fn$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS trg_md_production_version_derive_site ON md_production_version;
+      CREATE TRIGGER trg_md_production_version_derive_site
+        BEFORE INSERT OR UPDATE OF item_revision_id, mbom_header_id, routing_header_id, site_id
+        ON md_production_version
+        FOR EACH ROW EXECUTE FUNCTION sync_production_version_site_from_routing();
+
+      DROP INDEX IF EXISTS ix_md_structure_owner_mbom;
+      ALTER TABLE md_mbom_header DROP COLUMN IF EXISTS site_id;
+    `,
+  },
+  {
+    name: '0069_enforce_single_mbom_business_identity',
+    sql: `
+      UPDATE md_mbom_header SET version_no = 1, business_version = '1'
+      WHERE version_no <> 1 OR business_version IS DISTINCT FROM '1';
+      ALTER TABLE md_mbom_header
+        DROP CONSTRAINT IF EXISTS ck_md_mbom_single_business_identity,
+        ADD CONSTRAINT ck_md_mbom_single_business_identity
+          CHECK (version_no = 1 AND business_version = '1');
+    `,
+  },
+  {
+    name: '0070_remove_mes_owned_ebom_domain',
+    sql: `
+      -- EBOM is owned by SAP and is not a MES-managed master-data aggregate.
+      -- A future SAP comparison snapshot requires a separate integration contract.
+      ALTER TABLE md_production_version DROP COLUMN IF EXISTS ebom_header_id;
+      ALTER TABLE md_mbom_line DROP COLUMN IF EXISTS source_ebom_line_id;
+
+      DELETE FROM md_structure_ownership_reconciliation WHERE structure_type = 'EBOM';
+      ALTER TABLE md_structure_ownership_reconciliation
+        DROP CONSTRAINT IF EXISTS md_structure_ownership_reconciliation_structure_type_check,
+        ADD CONSTRAINT md_structure_ownership_reconciliation_structure_type_check
+          CHECK (structure_type IN ('MBOM','ROUTING'));
+
+      DROP TABLE IF EXISTS md_ebom_line;
+      DROP TABLE IF EXISTS md_ebom_header;
+    `,
+  },
+  {
+    name: '0071_repair_epdm_child_mbom_component_type',
+    sql: `
+      INSERT INTO md_material_group (code, name, lifecycle_status, effective_from, created_by)
+      VALUES (
+        'RM_RUBBER_BASE',
+        jsonb_build_object('vi','Nguyên liệu cao su','en','Raw rubber material','ja','ゴム原材料','ko','고무 원자재'),
+        'Released', '2026-07-21T00:00:00Z', '00000000-0000-0000-0000-000000000001'
+      )
+      ON CONFLICT ((UPPER(code))) DO NOTHING;
+
+      INSERT INTO md_item (
+        code, name, version_no, lifecycle_status, effective_from, created_by,
+        approved_by, approved_at, item_group, material_group_id, item_type, base_uom_id
+      )
+      SELECT
+        'RM-EPDM-BASE',
+        jsonb_build_object('vi','Cao su EPDM nguyên liệu','en','EPDM raw material','ja','EPDMゴム原材料','ko','EPDM 고무 원자재'),
+        1, 'Released', '2026-07-21T00:00:00Z', '00000000-0000-0000-0000-000000000001',
+        '00000000-0000-0000-0000-000000000001', '2026-07-21T00:00:00Z', 'RM_RUBBER_BASE', material_group.master_id, 'RM', uom.master_id
+      FROM md_material_group material_group
+      JOIN md_uom uom ON uom.code = 'KG' AND uom.version_no = 1
+      WHERE UPPER(material_group.code) = 'RM_RUBBER_BASE'
+      ON CONFLICT (code, version_no) DO NOTHING;
+
+      INSERT INTO md_item_revision (
+        code, name, version_no, lifecycle_status, effective_from, created_by, approved_by, approved_at,
+        item_id, revision_code, site_id, is_default, item_group, material_group_id, base_uom_id,
+        planning_strategy, procurement_type, tracking_level, default_scrap_rate
+      )
+      SELECT
+        'RM-EPDM-BASE-R1',
+        jsonb_build_object('vi','Revision nguyên liệu EPDM 1','en','EPDM raw material revision 1','ja','EPDM原材料リビジョン1','ko','EPDM 원자재 리비전 1'),
+        1, 'Released', '2026-07-21T00:00:00Z', '00000000-0000-0000-0000-000000000001',
+        '00000000-0000-0000-0000-000000000001', '2026-07-21T00:00:00Z', item.master_id, 'R1', site.master_id, TRUE,
+        'RM_RUBBER_BASE', material_group.master_id, uom.master_id, 'MakeToStock', 'Buy', 'None', 0
+      FROM md_item item
+      JOIN md_site site ON site.code = 'SITE-KZ3' AND site.version_no = 1
+      JOIN md_material_group material_group ON UPPER(material_group.code) = 'RM_RUBBER_BASE'
+      JOIN md_uom uom ON uom.code = 'KG' AND uom.version_no = 1
+      WHERE item.code = 'RM-EPDM-BASE' AND item.version_no = 1
+      ON CONFLICT (code, version_no) DO NOTHING;
+
+      DROP TRIGGER IF EXISTS trg_protect_released_md_mbom_line ON md_mbom_line;
+      UPDATE md_mbom_line line
+      SET component_revision_id = revision.master_id,
+          uom_id = revision.base_uom_id,
+          updated_by = '00000000-0000-0000-0000-000000000001',
+          updated_at = NOW()
+      FROM md_item_revision revision
+      WHERE line.code = 'MBOM-SFG-ROLL-EPDM-R1-L10'
+        AND line.version_no = 1
+        AND revision.code = 'RM-EPDM-BASE-R1'
+        AND revision.version_no = 1;
+      CREATE TRIGGER trg_protect_released_md_mbom_line
+        BEFORE UPDATE ON md_mbom_line
+        FOR EACH ROW EXECUTE FUNCTION fn_protect_released_master();
+    `,
+  },
+  {
+    name: '0072_independent_routing_and_mbom_derived_production_version',
+    sql: `
+      -- Routing is a reusable process flow. Product ownership belongs to MBOM;
+      -- Production Version derives its output Revision from the selected MBOM.
+      DROP TRIGGER IF EXISTS trg_md_routing_header_require_owner ON md_routing_header;
+      DROP INDEX IF EXISTS ix_md_structure_owner_routing;
+      DELETE FROM md_structure_ownership_reconciliation WHERE structure_type = 'ROUTING';
+      ALTER TABLE md_routing_header DROP COLUMN IF EXISTS item_revision_id;
+
+      ALTER TABLE md_production_version DISABLE TRIGGER trg_md_production_version_derive_site;
+      UPDATE md_production_version pv
+      SET item_revision_id = mb.item_revision_id,
+          updated_at = NOW()
+      FROM md_mbom_header mb
+      WHERE mb.master_id = pv.mbom_header_id
+        AND mb.item_revision_id IS NOT NULL
+        AND pv.item_revision_id IS DISTINCT FROM mb.item_revision_id;
+      ALTER TABLE md_production_version ENABLE TRIGGER trg_md_production_version_derive_site;
+
+      CREATE OR REPLACE FUNCTION sync_production_version_site_from_routing()
+      RETURNS TRIGGER AS $fn$
+      DECLARE mbom_revision UUID;
+      DECLARE mbom_revision_site UUID;
+      DECLARE routing_site UUID;
+      DECLARE routing_site_count INTEGER;
+      BEGIN
+        SELECT mb.item_revision_id, revision.site_id INTO mbom_revision, mbom_revision_site
+        FROM md_mbom_header mb
+        JOIN md_item_revision revision ON revision.master_id = mb.item_revision_id
+        JOIN md_item item ON item.master_id = revision.item_id
+        WHERE mb.master_id = NEW.mbom_header_id
+          AND mb.lifecycle_status = 'Released'
+          AND mb.effective_from <= NOW() AND (mb.effective_to IS NULL OR mb.effective_to > NOW())
+          AND revision.lifecycle_status = 'Released'
+          AND revision.effective_from <= NOW() AND (revision.effective_to IS NULL OR revision.effective_to > NOW())
+          AND item.lifecycle_status = 'Released'
+          AND item.item_type IN ('FG', 'SFG');
+        IF mbom_revision IS NULL THEN
+          RAISE EXCEPTION 'Production Version requires a Released effective MBOM with a valid output Item Revision';
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM md_routing_header routing
+          WHERE routing.master_id = NEW.routing_header_id
+            AND routing.lifecycle_status = 'Released'
+            AND routing.effective_from <= NOW() AND (routing.effective_to IS NULL OR routing.effective_to > NOW())
+        ) THEN
+          RAISE EXCEPTION 'Production Version requires a Released effective Routing';
+        END IF;
+
+        SELECT COUNT(DISTINCT wc.site_id), MIN(wc.site_id::text)::uuid
+          INTO routing_site_count, routing_site
+        FROM md_routing_operation ro
+        JOIN md_work_center wc ON wc.master_id = ro.work_center_id
+        WHERE ro.routing_header_id = NEW.routing_header_id
+          AND ro.lifecycle_status NOT IN ('Inactive','Obsolete')
+          AND ro.effective_from <= NOW() AND (ro.effective_to IS NULL OR ro.effective_to > NOW());
+        IF routing_site IS NULL OR routing_site_count <> 1 THEN
+          RAISE EXCEPTION 'Production Version requires a Routing with exactly one Work Center Site';
+        END IF;
+        IF mbom_revision_site IS DISTINCT FROM routing_site THEN
+          RAISE EXCEPTION 'Production Version MBOM output Revision and Routing must resolve to the same Site';
+        END IF;
+
+        NEW.item_revision_id := mbom_revision;
+        NEW.site_id := routing_site;
+        RETURN NEW;
+      END;
+      $fn$ LANGUAGE plpgsql;
+    `,
+  },
+  {
+    name: '0073_routing_operation_current_sequence_uniqueness',
+    sql: `
+      -- Routing Operation history may reuse a sequence. Only the current
+      -- operation flow must be unique by Routing + sequence.
+      ALTER TABLE md_routing_operation
+        DROP CONSTRAINT IF EXISTS md_routing_operation_routing_header_id_seq_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_routing_operation_current_seq
+        ON md_routing_operation(routing_header_id, seq)
+        WHERE effective_to IS NULL AND lifecycle_status NOT IN ('Inactive', 'Obsolete');
+    `,
+  },
+  {
+    name: '0074_shared_work_center_line_resource_scope',
+    sql: `
+      CREATE OR REPLACE FUNCTION fn_validate_line_work_center_context()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
+      DECLARE line_row RECORD; wc_row RECORD;
+      BEGIN
+        SELECT site_id, area_id INTO line_row FROM md_production_line WHERE master_id = NEW.production_line_id;
+        SELECT site_id, area_id INTO wc_row FROM md_work_center WHERE master_id = NEW.work_center_id;
+        IF line_row.site_id IS NULL THEN RAISE EXCEPTION 'PRODUCTION_LINE_NOT_FOUND'; END IF;
+        IF wc_row.site_id IS NULL THEN RAISE EXCEPTION 'WORK_CENTER_NOT_FOUND'; END IF;
+        IF line_row.site_id <> wc_row.site_id THEN RAISE EXCEPTION 'PRODUCTION_LINE_WORK_CENTER_SITE_MISMATCH'; END IF;
+        IF line_row.area_id IS DISTINCT FROM wc_row.area_id THEN RAISE EXCEPTION 'PRODUCTION_LINE_WORK_CENTER_AREA_MISMATCH'; END IF;
+        IF NEW.active_flag = TRUE AND EXISTS (
+          SELECT 1 FROM md_production_line_work_center existing
+          WHERE existing.line_work_center_id <> COALESCE(NEW.line_work_center_id, '00000000-0000-0000-0000-000000000000'::uuid)
+            AND existing.production_line_id = NEW.production_line_id AND existing.work_center_id = NEW.work_center_id
+            AND existing.active_flag = TRUE
+            AND tstzrange(existing.effective_from, COALESCE(existing.effective_to, 'infinity'::timestamptz), '[)')
+                && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')
+        ) THEN RAISE EXCEPTION 'PRODUCTION_LINE_WORK_CENTER_DUPLICATE'; END IF;
+        RETURN NEW;
+      END; $fn$;
+
+      CREATE OR REPLACE FUNCTION fn_validate_line_resource_scope()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
+      DECLARE line_site UUID; assignment_row RECORD;
+      BEGIN
+        SELECT site_id INTO line_site FROM md_production_line WHERE master_id = NEW.production_line_id;
+        SELECT site_id, work_center_id, workstation_id, equipment_id, machine_group_id, machine_unit_id INTO assignment_row FROM md_resource_assignment WHERE master_id = NEW.resource_assignment_id;
+        IF line_site IS NULL THEN RAISE EXCEPTION 'PRODUCTION_LINE_NOT_FOUND'; END IF;
+        IF assignment_row.site_id IS NULL THEN RAISE EXCEPTION 'RESOURCE_ASSIGNMENT_NOT_FOUND'; END IF;
+        IF assignment_row.site_id <> line_site THEN RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_SITE_MISMATCH'; END IF;
+        IF assignment_row.work_center_id <> NEW.work_center_id THEN RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_WORK_CENTER_MISMATCH'; END IF;
+        IF assignment_row.workstation_id IS DISTINCT FROM NEW.workstation_id OR assignment_row.equipment_id IS DISTINCT FROM NEW.equipment_id OR assignment_row.machine_group_id IS DISTINCT FROM NEW.machine_group_id OR assignment_row.machine_unit_id IS DISTINCT FROM NEW.machine_unit_id THEN RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_ASSIGNMENT_SNAPSHOT_MISMATCH'; END IF;
+        IF NOT EXISTS (SELECT 1 FROM md_production_line_work_center lwc WHERE lwc.production_line_id = NEW.production_line_id AND lwc.work_center_id = NEW.work_center_id AND lwc.active_flag = TRUE AND tstzrange(lwc.effective_from, COALESCE(lwc.effective_to, 'infinity'::timestamptz), '[)') && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')) THEN RAISE EXCEPTION 'PRODUCTION_LINE_RESOURCE_WORK_CENTER_NOT_SCOPED'; END IF;
+        IF NEW.active_flag = TRUE AND EXISTS (SELECT 1 FROM md_production_line_resource_scope existing WHERE existing.scope_id <> COALESCE(NEW.scope_id, '00000000-0000-0000-0000-000000000000'::uuid) AND existing.production_line_id <> NEW.production_line_id AND existing.resource_assignment_id = NEW.resource_assignment_id AND existing.active_flag = TRUE AND tstzrange(existing.effective_from, COALESCE(existing.effective_to, 'infinity'::timestamptz), '[)') && tstzrange(NEW.effective_from, COALESCE(NEW.effective_to, 'infinity'::timestamptz), '[)')) THEN RAISE EXCEPTION 'RESOURCE_ASSIGNMENT_LINE_SCOPE_OVERLAP'; END IF;
+        RETURN NEW;
+      END; $fn$;
+    `,
+  },
+  {
+    name: '0075_work_center_labor_calendar',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_work_center_shift (
+        assignment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        work_center_id UUID NOT NULL REFERENCES md_work_center(master_id),
+        shift_id UUID NOT NULL REFERENCES md_shift(master_id),
+        active_flag BOOLEAN NOT NULL DEFAULT TRUE,
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        created_by UUID NOT NULL DEFAULT '${SYSTEM_USER_ID}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK (effective_to IS NULL OR effective_to > effective_from)
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_work_center_shift_active
+        ON md_work_center_shift(work_center_id, shift_id)
+        WHERE active_flag = TRUE AND effective_to IS NULL;
+      CREATE INDEX IF NOT EXISTS ix_md_work_center_shift_lookup
+        ON md_work_center_shift(work_center_id, active_flag, effective_from, effective_to);
+
+      -- Preserve existing site-level shift behavior by assigning every current
+      -- active shift to each active Work Center in the same Site.
+      INSERT INTO md_work_center_shift (work_center_id, shift_id, created_by)
+      SELECT wc.master_id, sh.master_id, '${SYSTEM_USER_ID}'::uuid
+      FROM md_work_center wc
+      JOIN md_shift sh ON sh.site_id = wc.site_id
+      WHERE wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+        AND sh.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+      ON CONFLICT DO NOTHING;
+
+      UPDATE md_employee e
+      SET default_work_center_id = (
+            SELECT wc.master_id FROM md_work_center wc
+            WHERE wc.site_id = e.site_id AND wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+            ORDER BY wc.code LIMIT 1
+          ), updated_at = NOW()
+      WHERE e.default_work_center_id IS NULL;
+      UPDATE md_employee_shift_schedule schedule
+      SET work_center_id = employee.default_work_center_id, updated_at = NOW()
+      FROM md_employee employee
+      WHERE schedule.employee_id = employee.master_id AND schedule.work_center_id IS NULL;
+
+      ALTER TABLE md_employee ALTER COLUMN default_work_center_id SET NOT NULL;
+      ALTER TABLE md_employee_shift_schedule ALTER COLUMN work_center_id SET NOT NULL;
+      ALTER TABLE md_employee_shift_schedule
+        DROP CONSTRAINT IF EXISTS md_employee_shift_schedule_employee_id_schedule_date_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_employee_schedule_shift_date
+        ON md_employee_shift_schedule(employee_id, schedule_date, shift_id);
+
+      CREATE OR REPLACE FUNCTION fn_validate_employee_work_center()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
+      DECLARE wc_site UUID;
+      BEGIN
+        IF NEW.default_work_center_id IS NULL THEN RAISE EXCEPTION 'EMPLOYEE_WORK_CENTER_REQUIRED'; END IF;
+        SELECT site_id INTO wc_site FROM md_work_center
+        WHERE master_id = NEW.default_work_center_id AND lifecycle_status NOT IN ('Inactive', 'Obsolete');
+        IF wc_site IS NULL THEN RAISE EXCEPTION 'EMPLOYEE_WORK_CENTER_INVALID'; END IF;
+        NEW.site_id := wc_site;
+        RETURN NEW;
+      END; $fn$;
+      DROP TRIGGER IF EXISTS trg_validate_employee_work_center ON md_employee;
+      CREATE TRIGGER trg_validate_employee_work_center
+        BEFORE INSERT OR UPDATE OF default_work_center_id, site_id ON md_employee
+        FOR EACH ROW EXECUTE FUNCTION fn_validate_employee_work_center();
+
+      CREATE OR REPLACE FUNCTION fn_validate_work_center_shift()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
+      DECLARE wc_site UUID; shift_site UUID;
+      BEGIN
+        SELECT site_id INTO wc_site FROM md_work_center WHERE master_id = NEW.work_center_id;
+        SELECT site_id INTO shift_site FROM md_shift WHERE master_id = NEW.shift_id;
+        IF wc_site IS NULL THEN RAISE EXCEPTION 'WORK_CENTER_NOT_FOUND'; END IF;
+        IF shift_site IS NULL THEN RAISE EXCEPTION 'SHIFT_NOT_FOUND'; END IF;
+        IF wc_site <> shift_site THEN RAISE EXCEPTION 'SHIFT_WORK_CENTER_SITE_MISMATCH'; END IF;
+        RETURN NEW;
+      END; $fn$;
+      DROP TRIGGER IF EXISTS trg_validate_work_center_shift ON md_work_center_shift;
+      CREATE TRIGGER trg_validate_work_center_shift
+        BEFORE INSERT OR UPDATE ON md_work_center_shift
+        FOR EACH ROW EXECUTE FUNCTION fn_validate_work_center_shift();
+
+      CREATE OR REPLACE FUNCTION fn_validate_employee_schedule()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
+      DECLARE employee_wc UUID; new_start TIMESTAMP; new_end TIMESTAMP;
+      BEGIN
+        SELECT default_work_center_id INTO employee_wc FROM md_employee WHERE master_id = NEW.employee_id;
+        IF employee_wc IS NULL OR employee_wc <> NEW.work_center_id THEN
+          RAISE EXCEPTION 'EMPLOYEE_SCHEDULE_WORK_CENTER_MISMATCH';
+        END IF;
+        IF NOT EXISTS (
+          SELECT 1 FROM md_work_center_shift wcs
+          WHERE wcs.work_center_id = NEW.work_center_id AND wcs.shift_id = NEW.shift_id
+            AND wcs.active_flag = TRUE AND wcs.effective_from < (NEW.schedule_date + 1)::timestamptz
+            AND (wcs.effective_to IS NULL OR wcs.effective_to > NEW.schedule_date::timestamptz)
+        ) THEN RAISE EXCEPTION 'SHIFT_NOT_ASSIGNED_TO_WORK_CENTER'; END IF;
+        IF NEW.schedule_status <> 'Scheduled' THEN RETURN NEW; END IF;
+        SELECT NEW.schedule_date::timestamp + start_time::time,
+               NEW.schedule_date::timestamp + end_time::time + CASE WHEN crosses_midnight THEN INTERVAL '1 day' ELSE INTERVAL '0 day' END
+          INTO new_start, new_end FROM md_shift WHERE master_id = NEW.shift_id;
+        IF new_end <= new_start THEN RAISE EXCEPTION 'SHIFT_TIME_RANGE_INVALID'; END IF;
+        IF EXISTS (
+          SELECT 1 FROM md_employee_shift_schedule existing
+          JOIN md_shift shift ON shift.master_id = existing.shift_id
+          WHERE existing.employee_id = NEW.employee_id
+            AND existing.schedule_id <> COALESCE(NEW.schedule_id, '00000000-0000-0000-0000-000000000000'::uuid)
+            AND existing.schedule_status = 'Scheduled'
+            AND tsrange(existing.schedule_date::timestamp + shift.start_time::time,
+                        existing.schedule_date::timestamp + shift.end_time::time + CASE WHEN shift.crosses_midnight THEN INTERVAL '1 day' ELSE INTERVAL '0 day' END, '[)')
+                && tsrange(new_start, new_end, '[)')
+        ) THEN RAISE EXCEPTION 'EMPLOYEE_SCHEDULE_TIME_CONFLICT'; END IF;
+        RETURN NEW;
+      END; $fn$;
+      DROP TRIGGER IF EXISTS trg_validate_employee_schedule ON md_employee_shift_schedule;
+      CREATE TRIGGER trg_validate_employee_schedule
+        BEFORE INSERT OR UPDATE ON md_employee_shift_schedule
+        FOR EACH ROW EXECUTE FUNCTION fn_validate_employee_schedule();
+    `,
+  },
+  {
+    name: '0076_work_center_shift_sets',
+    sql: `
+      CREATE TABLE IF NOT EXISTS md_work_center_shift_set (
+        master_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code VARCHAR(80) NOT NULL UNIQUE,
+        name VARCHAR(200) NOT NULL,
+        version_no INTEGER NOT NULL DEFAULT 1,
+        lifecycle_status master_lifecycle_status NOT NULL DEFAULT 'Released',
+        effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        effective_to TIMESTAMPTZ,
+        created_by UUID NOT NULL DEFAULT '${SYSTEM_USER_ID}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by UUID,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        approved_by UUID,
+        approved_at TIMESTAMPTZ,
+        row_version INTEGER NOT NULL DEFAULT 1,
+        attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
+        work_center_id UUID NOT NULL REFERENCES md_work_center(master_id)
+      );
+      ALTER TABLE md_work_center_shift ADD COLUMN IF NOT EXISTS shift_set_id UUID;
+      INSERT INTO md_work_center_shift_set (code, name, work_center_id, created_by)
+      SELECT wc.code || '-SHIFT-SET-01', wc.code || ' Shift Set', wc.master_id, '${SYSTEM_USER_ID}'
+      FROM md_work_center wc
+      WHERE wc.lifecycle_status NOT IN ('Inactive', 'Obsolete')
+      ON CONFLICT (code) DO NOTHING;
+      UPDATE md_work_center_shift wcs
+      SET shift_set_id = sets.master_id
+      FROM md_work_center_shift_set sets
+      WHERE sets.work_center_id = wcs.work_center_id AND wcs.shift_set_id IS NULL;
+      ALTER TABLE md_work_center_shift ALTER COLUMN shift_set_id SET NOT NULL;
+      ALTER TABLE md_work_center_shift
+        ADD CONSTRAINT fk_md_work_center_shift_set FOREIGN KEY (shift_set_id) REFERENCES md_work_center_shift_set(master_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_work_center_shift_set_active_wc
+        ON md_work_center_shift_set(work_center_id)
+        WHERE lifecycle_status NOT IN ('Inactive', 'Obsolete') AND effective_to IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_md_work_center_shift_set_child
+        ON md_work_center_shift(shift_set_id, shift_id)
+        WHERE active_flag = TRUE AND effective_to IS NULL;
+    `,
+  },
+  {
+    name: '0077_resource_downtime_semantics',
+    sql: `
+      ALTER TABLE md_resource_calendar
+        ADD COLUMN IF NOT EXISTS reason_text TEXT;
+      ALTER TABLE md_resource_calendar ALTER COLUMN shift_id DROP NOT NULL;
+      CREATE INDEX IF NOT EXISTS ix_md_resource_calendar_downtime_overlap
+        ON md_resource_calendar(resource_type, resource_id, available_from, available_to)
+        WHERE availability_status = 'PlannedDown';
+    `,
+  },
+  {
+    name: '0078_allow_shiftless_downtime',
+    sql: `
+      CREATE OR REPLACE FUNCTION fn_validate_resource_calendar()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      DECLARE expected_site UUID; shift_site UUID; active_resource BOOLEAN;
+      BEGIN
+        IF NEW.availability_status = 'PlannedDown' THEN
+          IF NEW.available_minutes <> 0 OR NEW.capacity_factor <> 0 THEN RAISE EXCEPTION 'DOWNTIME_CAPACITY_MUST_BE_ZERO'; END IF;
+        ELSE
+          SELECT site_id INTO shift_site FROM md_shift WHERE master_id = NEW.shift_id;
+          IF shift_site IS NULL OR shift_site <> NEW.site_id THEN RAISE EXCEPTION 'CALENDAR_SHIFT_SITE_INVALID'; END IF;
+        END IF;
+        IF NEW.resource_type = 'WorkCenter' THEN SELECT site_id, active_flag INTO expected_site, active_resource FROM md_work_center WHERE master_id = NEW.resource_id;
+        ELSIF NEW.resource_type = 'Workstation' THEN SELECT site_id, active_flag INTO expected_site, active_resource FROM md_workstation WHERE master_id = NEW.resource_id;
+        ELSE SELECT site_id, active_flag INTO expected_site, active_resource FROM md_equipment WHERE master_id = NEW.resource_id; END IF;
+        IF expected_site IS NULL OR expected_site <> NEW.site_id THEN RAISE EXCEPTION 'CALENDAR_RESOURCE_SITE_INVALID'; END IF;
+        IF NEW.calendar_date >= CURRENT_DATE AND active_resource = FALSE THEN RAISE EXCEPTION 'CALENDAR_INACTIVE_RESOURCE'; END IF;
+        RETURN NEW;
+      END; $$;
+      DROP TRIGGER IF EXISTS trg_validate_resource_calendar ON md_resource_calendar;
+      CREATE TRIGGER trg_validate_resource_calendar BEFORE INSERT OR UPDATE ON md_resource_calendar FOR EACH ROW EXECUTE FUNCTION fn_validate_resource_calendar();
+    `,
+  },
+  {
+    name: '0079_localize_resource_downtime_name',
+    sql: `
+      ALTER TABLE md_resource_calendar
+        ALTER COLUMN name TYPE JSONB
+        USING CASE
+          WHEN name IS NULL THEN jsonb_build_object('vi', '')
+          WHEN left(trim(name), 1) = '{' THEN name::jsonb
+          ELSE jsonb_build_object('vi', name)
+        END;
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

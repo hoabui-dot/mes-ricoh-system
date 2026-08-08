@@ -1,0 +1,531 @@
+{
+  "header": {
+    "created_at": "2026-08-08T04:24:32.415547Z",
+    "created_by": "00000000-0000-0000-0000-000000000001",
+    "demo_print_on_approval": true,
+    "dispatch_mode": "WORK_CENTER",
+    "evaluated_line_results": [
+      {
+        "status": "Ready",
+        "blockers": [],
+        "priority": 1,
+        "dimensions": [
+          {
+            "key": "eligibility",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_ELIGIBILITY_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "eligibility",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
+          },
+          {
+            "key": "work_centers",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "work_centers",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
+          },
+          {
+            "key": "capability",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CAPABILITY_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "capability",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
+          },
+          {
+            "key": "production_standard",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_PRODUCTION_STANDARD_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "production_standard",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
+          },
+          {
+            "key": "calendar_shift",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_CALENDAR_SHIFT_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "calendar_shift",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
+          },
+          {
+            "key": "capacity",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LINE_COARSE_CAPACITY_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "capacity",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.LINE_COARSE_CAPACITY_READY"
+          },
+          {
+            "key": "workstations",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "WORKSTATION_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "workstations",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.WORKSTATION_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "machine_requirements",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "machine_requirements",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "equipment_units",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "equipment_units",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "assignments",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "ASSIGNMENT_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "assignments",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.ASSIGNMENT_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "worker_skill_labor",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "DEFERRED",
+            "details": [],
+            "blocking": false,
+            "reason_code": "LABOR_REQUIRES_EXACT_RESOURCE",
+            "evaluated_at": null,
+            "dimension_code": "worker_skill_labor",
+            "evaluation_stage": "RESOURCE_ALLOCATION",
+            "localized_message_key": "woDetail.dimensionReason.LABOR_REQUIRES_EXACT_RESOURCE"
+          },
+          {
+            "key": "final_result",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "MANDATORY_LINE_SELECTION_DIMENSIONS_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "final_result",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
+          },
+          {
+            "key": "selection_reason",
+            "source": "MES_EXECUTION_LINE_SELECTOR",
+            "status": "READY",
+            "details": [],
+            "blocking": false,
+            "reason_code": "PRIMARY_LINE_READY",
+            "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+            "dimension_code": "selection_reason",
+            "evaluation_stage": "LINE_SELECTION",
+            "localized_message_key": "woDetail.dimensionReason.PRIMARY_LINE_READY"
+          }
+        ],
+        "operations": [
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "ca02cea0-8b79-4b60-b57e-31908c15d817",
+            "candidate_ids": [
+              "39c6ac3f-e9b2-48ec-8bc6-520fd43bef19"
+            ],
+            "operation_code": "WST-SEED-OP-BINDING",
+            "operation_name": "WST-SEED-OP-BINDING",
+            "work_center_id": "5050709a-3898-4d70-b7b3-0f66e9652234",
+            "routing_operation_id": "20bc170e-cecf-4dd3-8b59-4a251d7b58b5",
+            "total_candidate_count": 2,
+            "feasible_candidate_count": 1,
+            "excluded_candidate_reasons": {
+              "WORKSTATION_INACTIVE": 1
+            }
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "f3d662e7-e035-48e6-a63e-983efdb919d2",
+            "candidate_ids": [
+              "f8e40a38-8829-4ae4-a94c-47bda6756402"
+            ],
+            "operation_code": "WST-SEED-OP-TEST5IN1",
+            "operation_name": "WST-SEED-OP-TEST5IN1",
+            "work_center_id": "1a4719c3-19ca-454e-9c99-b0abb23a5cc2",
+            "routing_operation_id": "c64e1568-2590-4042-8ac5-e306ed8b41cc",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "de6b9727-8dad-466b-bbce-0d7b7f37901f",
+            "candidate_ids": [
+              "9f6b06b7-e06b-47ba-ba49-db6a5220f574"
+            ],
+            "operation_code": "WST-SEED-OP-AIRTEST",
+            "operation_name": "WST-SEED-OP-AIRTEST",
+            "work_center_id": "465cd8c1-8e5e-4041-a10c-96c0339e4dd0",
+            "routing_operation_id": "9b2b7a0f-4840-46ae-9250-9dfae8d449a1",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          },
+          {
+            "status": "READY",
+            "mandatory": true,
+            "operation_id": "2a753534-dd98-4fed-ba43-813f1e656121",
+            "candidate_ids": [
+              "01a38dd2-88b4-44f5-bbfa-38321717b7c5"
+            ],
+            "operation_code": "WST-SEED-OP-PACKING",
+            "operation_name": "WST-SEED-OP-PACKING",
+            "work_center_id": "61f8f028-a380-4a1a-b7f6-fa5a6ccc01e8",
+            "routing_operation_id": "674315a0-e5e1-4a23-a831-b3d6245fef4c",
+            "total_candidate_count": 1,
+            "feasible_candidate_count": 1
+          }
+        ],
+        "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+        "policy_version": "MES_LINE_SELECTION_V2",
+        "selection_role": "PRIMARY",
+        "selection_reason": "PRIMARY_LINE_READY",
+        "production_line_id": "ceaa1a9d-6667-455a-9015-f4a010fbc51b",
+        "production_line_code": "WST-SEED-LINE-1",
+        "complete_line_feasibility_status": "READY"
+      }
+    ],
+    "fallback_reason": "",
+    "item_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_name": "Won Seal Tech Seal Assembly A",
+    "item_revision_code": "WST-SEED-FG-SEAL-ASM-01-A",
+    "item_revision_id": "5dd539fa-a034-4d16-b305-b6749944cabf",
+    "item_revision_name_i18n": {
+      "en": "Won Seal Tech Seal Assembly A",
+      "ja": "Won Seal Tech Seal Assembly A",
+      "ko": "Won Seal Tech Seal Assembly A",
+      "vi": "Won Seal Tech Seal Assembly A"
+    },
+    "line_locked_at": "2026-08-08T04:24:32.415547Z",
+    "line_selection_mode": "PRIMARY",
+    "line_selection_reason": "PRIMARY_LINE_READY",
+    "line_selection_status": "READY",
+    "mbom_code": "WST-SEED-MBOM-SEAL-ASM-01",
+    "planned_end_at": "2026-08-10T12:00:00Z",
+    "planned_start_at": "2026-08-10T08:00:00Z",
+    "planning_snapshot": {
+      "mbom_id": "5bbe7913-096a-43ee-8d63-b831ed853b74",
+      "shift_id": "08bfce82-3679-459c-8f44-524c7e67d5e0",
+      "routing_id": "7ac08dfa-ba17-4183-a891-828fe99ab3b0",
+      "production_version_id": "d7674b2b-fd30-4047-9074-ed59e8b6b0bc",
+      "production_version_code": "WST-SEED-PV-SEAL-ASM-01"
+    },
+    "production_version_code": "WST-SEED-PV-SEAL-ASM-01",
+    "production_version_id": "d7674b2b-fd30-4047-9074-ed59e8b6b0bc",
+    "production_version_name_i18n": {
+      "en": "Won Seal Tech two-line seal production version",
+      "ja": "Won Seal Tech two-line seal production version",
+      "ko": "Won Seal Tech two-line seal production version",
+      "vi": "Won Seal Tech two-line seal production version"
+    },
+    "quantity": 2,
+    "resource_hold_reason": {},
+    "routing_code": "WST-SEED-ROUTING-SEAL-ASM-01",
+    "row_version": 3,
+    "selected_production_line_code": "WST-SEED-LINE-1",
+    "selected_production_line_id": "ceaa1a9d-6667-455a-9015-f4a010fbc51b",
+    "selected_production_line_name_i18n": {
+      "en": "Won Seal Tech Line 1",
+      "ja": "Won Seal Tech Line 1",
+      "ko": "Won Seal Tech Line 1",
+      "vi": "Won Seal Tech Line 1"
+    },
+    "shift_id": "08bfce82-3679-459c-8f44-524c7e67d5e0",
+    "site_id": "39f850e6-a807-4f7f-8ed4-a777c6058951",
+    "status": "Draft",
+    "uom_id": "cf01eb8f-ae11-4fec-991b-b9e8d4b5a63a",
+    "wo_code": "WO-20260808-0006",
+    "wo_id": "dbf918b6-8183-4d67-94eb-c5281fe240b4"
+  },
+  "evaluated_line_results": [
+    {
+      "status": "Ready",
+      "blockers": [],
+      "priority": 1,
+      "dimensions": [
+        {
+          "key": "eligibility",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_ELIGIBILITY_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "eligibility",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_ELIGIBILITY_READY"
+        },
+        {
+          "key": "work_centers",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_WORK_CENTER_COVERAGE_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "work_centers",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_WORK_CENTER_COVERAGE_READY"
+        },
+        {
+          "key": "capability",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CAPABILITY_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "capability",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_CAPABILITY_READY"
+        },
+        {
+          "key": "production_standard",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_PRODUCTION_STANDARD_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "production_standard",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_PRODUCTION_STANDARD_READY"
+        },
+        {
+          "key": "calendar_shift",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_CALENDAR_SHIFT_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "calendar_shift",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_CALENDAR_SHIFT_READY"
+        },
+        {
+          "key": "capacity",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LINE_COARSE_CAPACITY_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "capacity",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.LINE_COARSE_CAPACITY_READY"
+        },
+        {
+          "key": "workstations",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "WORKSTATION_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "workstations",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.WORKSTATION_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "machine_requirements",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "machine_requirements",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.MACHINE_REQUIREMENT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "equipment_units",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "equipment_units",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.EQUIPMENT_UNIT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "assignments",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "ASSIGNMENT_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "assignments",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.ASSIGNMENT_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "worker_skill_labor",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "DEFERRED",
+          "details": [],
+          "blocking": false,
+          "reason_code": "LABOR_REQUIRES_EXACT_RESOURCE",
+          "evaluated_at": null,
+          "dimension_code": "worker_skill_labor",
+          "evaluation_stage": "RESOURCE_ALLOCATION",
+          "localized_message_key": "woDetail.dimensionReason.LABOR_REQUIRES_EXACT_RESOURCE"
+        },
+        {
+          "key": "final_result",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "MANDATORY_LINE_SELECTION_DIMENSIONS_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "final_result",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.MANDATORY_LINE_SELECTION_DIMENSIONS_READY"
+        },
+        {
+          "key": "selection_reason",
+          "source": "MES_EXECUTION_LINE_SELECTOR",
+          "status": "READY",
+          "details": [],
+          "blocking": false,
+          "reason_code": "PRIMARY_LINE_READY",
+          "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+          "dimension_code": "selection_reason",
+          "evaluation_stage": "LINE_SELECTION",
+          "localized_message_key": "woDetail.dimensionReason.PRIMARY_LINE_READY"
+        }
+      ],
+      "operations": [
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "ca02cea0-8b79-4b60-b57e-31908c15d817",
+          "candidate_ids": [
+            "39c6ac3f-e9b2-48ec-8bc6-520fd43bef19"
+          ],
+          "operation_code": "WST-SEED-OP-BINDING",
+          "operation_name": "WST-SEED-OP-BINDING",
+          "work_center_id": "5050709a-3898-4d70-b7b3-0f66e9652234",
+          "routing_operation_id": "20bc170e-cecf-4dd3-8b59-4a251d7b58b5",
+          "total_candidate_count": 2,
+          "feasible_candidate_count": 1,
+          "excluded_candidate_reasons": {
+            "WORKSTATION_INACTIVE": 1
+          }
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "f3d662e7-e035-48e6-a63e-983efdb919d2",
+          "candidate_ids": [
+            "f8e40a38-8829-4ae4-a94c-47bda6756402"
+          ],
+          "operation_code": "WST-SEED-OP-TEST5IN1",
+          "operation_name": "WST-SEED-OP-TEST5IN1",
+          "work_center_id": "1a4719c3-19ca-454e-9c99-b0abb23a5cc2",
+          "routing_operation_id": "c64e1568-2590-4042-8ac5-e306ed8b41cc",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "de6b9727-8dad-466b-bbce-0d7b7f37901f",
+          "candidate_ids": [
+            "9f6b06b7-e06b-47ba-ba49-db6a5220f574"
+          ],
+          "operation_code": "WST-SEED-OP-AIRTEST",
+          "operation_name": "WST-SEED-OP-AIRTEST",
+          "work_center_id": "465cd8c1-8e5e-4041-a10c-96c0339e4dd0",
+          "routing_operation_id": "9b2b7a0f-4840-46ae-9250-9dfae8d449a1",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        },
+        {
+          "status": "READY",
+          "mandatory": true,
+          "operation_id": "2a753534-dd98-4fed-ba43-813f1e656121",
+          "candidate_ids": [
+            "01a38dd2-88b4-44f5-bbfa-38321717b7c5"
+          ],
+          "operation_code": "WST-SEED-OP-PACKING",
+          "operation_name": "WST-SEED-OP-PACKING",
+          "work_center_id": "61f8f028-a380-4a1a-b7f6-fa5a6ccc01e8",
+          "routing_operation_id": "674315a0-e5e1-4a23-a831-b3d6245fef4c",
+          "total_candidate_count": 1,
+          "feasible_candidate_count": 1
+        }
+      ],
+      "evaluated_at": "2026-08-08T04:24:32.583662328Z",
+      "policy_version": "MES_LINE_SELECTION_V2",
+      "selection_role": "PRIMARY",
+      "selection_reason": "PRIMARY_LINE_READY",
+      "production_line_id": "ceaa1a9d-6667-455a-9015-f4a010fbc51b",
+      "production_line_code": "WST-SEED-LINE-1",
+      "complete_line_feasibility_status": "READY"
+    }
+  ],
+  "operation_line_ids": [
+    "ceaa1a9d-6667-455a-9015-f4a010fbc51b",
+    "ceaa1a9d-6667-455a-9015-f4a010fbc51b",
+    "ceaa1a9d-6667-455a-9015-f4a010fbc51b",
+    "ceaa1a9d-6667-455a-9015-f4a010fbc51b"
+  ]
+}
